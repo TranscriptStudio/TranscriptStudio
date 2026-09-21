@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Conda
+.env
+.venv
+
+# Logs
+*.log
+
+# Windows
+Thumbs.db
+
+# Build
+build/
+dist/

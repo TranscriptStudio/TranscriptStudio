@@ -12,11 +12,18 @@ from PySide6.QtWidgets import (
     QGroupBox,
 )
 
+from pathlib import Path
 
 class NewTranscriptionDialog(QDialog):
 
-    def __init__(self, parent=None):
+    def __init__(
+        self,
+        audio_file,
+        parent=None
+    ):
         super().__init__(parent)
+
+        self.audio_file = audio_file
 
         self.setWindowTitle(
             "Nouvelle transcription"
@@ -30,32 +37,10 @@ class NewTranscriptionDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        #
-        # Fichier audio
-        #
         layout.addWidget(
             QLabel(
-                "Fichier audio à transcrire"
+                f"Fichier : {Path(self.audio_file).name}"
             )
-        )
-        audio_layout = QHBoxLayout()
-
-        self.audio_path = QLineEdit()
-
-        self.browse_button = QPushButton(
-            "Parcourir"
-        )
-
-        audio_layout.addWidget(
-            self.audio_path
-        )
-
-        audio_layout.addWidget(
-            self.browse_button
-        )
-
-        layout.addLayout(
-            audio_layout
         )
 
         #
@@ -220,40 +205,20 @@ class NewTranscriptionDialog(QDialog):
         layout.addWidget(
             self.cancel_button
         )
-
-        self.browse_button.clicked.connect(
-            self.select_audio
-        )
-
-        self.transcribe_button.clicked.connect(
-            self.validate_and_accept
-        )
-
         self.cancel_button.clicked.connect(
             self.reject
         )
-        self.update_diarization_options()
-
-
-    def select_audio(self):
-
-        filename, _ = QFileDialog.getOpenFileName(
-            self,
-            "Choisir un audio",
-            "",
-            "Audio (*.mp3 *.wav *.m4a)"
+        self.transcribe_button.clicked.connect(
+            self.accept
         )
-
-        if filename:
-            self.audio_path.setText(
-                filename
-            )
+        self.update_diarization_options()
+        
 
     def get_options(self):
 
         return {
             "audio_file":
-                self.audio_path.text(),
+                self.audio_file,
 
             "model_id":
                 self.model_id_edit.text().strip(),
@@ -281,20 +246,6 @@ class NewTranscriptionDialog(QDialog):
                  self.category_combo.currentText().strip(),
         }
     
-    def validate_and_accept(self):
-
-        if not self.audio_path.text():
-
-            QMessageBox.warning(
-                self,
-                "Audio manquant",
-                "Veuillez sélectionner un fichier audio."
-            )
-
-            return
-
-        self.accept()
-
     def get_language_code(self):
 
         value = self.language_combo.currentText()

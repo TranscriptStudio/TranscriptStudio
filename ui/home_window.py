@@ -26,6 +26,8 @@ from ui.elevenlabs_account_dialog import ElevenLabsAccountDialog
 from ui.progress_dialog import ProgressDialog
 from ui.main_window import MainWindow
 from ui.progress_dialog import ProgressDialog
+from ui.transcription_entry_dialog import (TranscriptionEntryDialog)
+from ui.audio_preprocess_dialog import (AudioPreprocessDialog)
 
 from services.elevenlabs_transcriber import ElevenLabsTranscriber
 from services.project_manager import ProjectManager
@@ -218,73 +220,57 @@ class HomeWindow(QWidget):
 
     def new_transcription(self):
 
-        dialog = NewTranscriptionDialog(
-            self
-        )
-
-        if not dialog.exec():
-            return
-
-        options = dialog.get_options()
-
-        manager = ProjectManager()
-
-        project_folder = (
-            manager.create_project_folder(
-                options["audio_file"],
-                options["category"]
-            )
-        )
-
-        copied_audio = (
-            manager.copy_audio_file(
-                options["audio_file"],
-                project_folder
-            )
-        )
-        self.current_project_folder = project_folder
-        self.current_audio_file = copied_audio
-        self.progress_dialog = (
-            ProgressDialog(
-                copied_audio,
+        entry_dialog = (
+            TranscriptionEntryDialog(
                 self
             )
         )
 
-        self.progress_dialog.show()
+        if not entry_dialog.exec():
+            return
 
-        self.worker_thread = QThread()
+        result = (
+            entry_dialog.get_result()
+        )
 
-        self.worker = (
-            TranscriptionWorker(
-                copied_audio,
-                options
+        audio_file = (
+            result["audio_file"]
+        )
+
+        mode = (
+            result["mode"]
+        )
+
+        if mode == (
+            TranscriptionEntryDialog.MODE_DIRECT
+        ):
+
+            dialog = NewTranscriptionDialog(
+                audio_file,
+                self
             )
-        )
 
-        self.worker.moveToThread(
-            self.worker_thread
-        )
+            if not dialog.exec():
+                return
 
-        self.worker_thread.started.connect(
-            self.worker.run
-        )
+            options = dialog.get_options()
 
-        self.worker.finished.connect(
-            self.transcription_finished
-        )
+            print(options)
 
-        self.worker.error.connect(
-            self.transcription_error
-        )
+            return
+    
+        if mode == (
+            TranscriptionEntryDialog.MODE_PREPROCESSING
+        ):
 
-        self.worker.finished.connect(
-            self.worker_thread.quit
-        )
+            dialog = AudioPreprocessDialog(
+                audio_file,
+                self
+            )
 
-        self.worker_thread.start()
+            dialog.exec()
 
-        return
+            return        
         
     def open_settings(self):
 
