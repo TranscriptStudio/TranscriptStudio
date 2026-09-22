@@ -69,11 +69,11 @@ Afficher graphiquement la zone conservée.
 
 ### Actions
 
-- Ajouter poignée début.
-- Ajouter poignée fin.
-- Ajouter barres verticales.
-- Ajouter triangles de préhension.
-- Ajouter rendu des zones supprimées.
+- [✓] Ajouter poignée début.
+- [✓] Ajouter poignée fin.
+- [✓] Ajouter barres verticales.
+- [✓] Ajouter triangles de préhension.
+- [✓] Ajouter rendu des zones supprimées.
 
 ### Résultat attendu
 

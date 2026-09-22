@@ -35,6 +35,11 @@ class AudioPreprocessDialog(QDialog):
     ):
 
         super().__init__(parent)
+        self.trim_start_enabled = False
+        self.trim_end_enabled = False
+
+        self.trim_start_time = 0.0
+        self.trim_end_time = 0.0
         self.setWindowFlag(
             Qt.WindowMinMaxButtonsHint,
             True
@@ -44,9 +49,11 @@ class AudioPreprocessDialog(QDialog):
         )
         self.audio_file = audio_file
 
+
         self.settings = (
             AudioProcessingSettings()
         )
+
         self.playback = PlaybackManager()
 
         self.playback.load_file(self.audio_file)
@@ -386,6 +393,7 @@ class AudioPreprocessDialog(QDialog):
 
         self.settings.trim_start_enabled = checked
         self.settings.trim_end_enabled = checked
+        self.waveform_widget.update()
 
     def on_trim_changed(self):
 
@@ -419,7 +427,8 @@ class AudioPreprocessDialog(QDialog):
                 "Durée conservée : "
                 + self.format_time_ms(duration)
             )
-
+            self.waveform_widget.update()
+            
         except Exception:
             pass
 

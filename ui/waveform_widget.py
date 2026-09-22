@@ -176,7 +176,11 @@ class WaveformWidget(QWidget):
             center_y,
             waveform_height
         )       
-
+        self.draw_trim_overlay(
+            painter,
+            width,
+            timeline_height,
+        )
         cursor_x = self.draw_playback_cursor(
             painter,
             width,
@@ -293,6 +297,143 @@ class WaveformWidget(QWidget):
                 x,
                 int(y_max)
             )
+
+    def draw_trim_overlay(
+        self,
+        painter,
+        width,
+        timeline_height,
+    ):
+
+        parent_dialog = self.parent()
+
+        while (
+            parent_dialog
+            and not hasattr(
+                parent_dialog,
+                "settings"
+            )
+        ):
+            parent_dialog = parent_dialog.parent()
+
+        if parent_dialog is None:
+            return
+
+        settings = parent_dialog.settings
+
+        if not settings.trim_start_enabled:
+            return
+
+        visible_duration = (
+            self.visible_end_time
+            - self.visible_start_time
+        )
+
+        if visible_duration <= 0:
+            return
+
+        start_ratio = (
+            settings.trim_start_time
+            - self.visible_start_time
+        ) / visible_duration
+
+        end_ratio = (
+            settings.trim_end_time
+            - self.visible_start_time
+        ) / visible_duration
+
+        start_x = start_ratio * width
+        end_x = end_ratio * width
+
+        overlay_color = QColor(
+            180,
+            180,
+            180,
+            80
+        )
+
+        painter.fillRect(
+            0,
+            timeline_height,
+            int(max(0, start_x)),
+            self.height() - timeline_height,
+            overlay_color
+        )
+
+        painter.fillRect(
+            int(max(0, end_x)),
+            timeline_height,
+            width,
+            self.height() - timeline_height,
+            overlay_color
+        )
+
+        handle_color = QColor(
+            "#42A5F5"
+        )
+
+        painter.setPen(
+            QPen(
+                handle_color,
+                2
+            )
+        )
+
+        painter.drawLine(
+            int(start_x),
+            timeline_height,
+            int(start_x),
+            self.height()
+        )
+
+        painter.drawLine(
+            int(end_x),
+            timeline_height,
+            int(end_x),
+            self.height()
+        )
+
+        painter.setBrush(
+            handle_color
+        )
+
+        painter.setPen(
+            Qt.NoPen
+        )
+
+        start_triangle = [
+            (start_x, timeline_height),
+            (start_x - 8, timeline_height - 12),
+            (start_x + 8, timeline_height - 12),
+        ]
+
+        end_triangle = [
+            (end_x, timeline_height),
+            (end_x - 8, timeline_height - 12),
+            (end_x + 8, timeline_height - 12),
+        ]
+
+        from PySide6.QtCore import QPoint
+
+        painter.drawPolygon(
+            [
+                QPoint(
+                    int(x),
+                    int(y)
+                )
+                for x, y in start_triangle
+            ]
+        )
+
+        painter.drawPolygon(
+            [
+                QPoint(
+                    int(x),
+                    int(y)
+                )
+                for x, y in end_triangle
+            ]
+        )
 
     def draw_playback_cursor(
         self,
