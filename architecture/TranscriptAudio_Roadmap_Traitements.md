@@ -12,16 +12,16 @@ Afficher les options de traitement en permanence dans la fenêtre principale.
 
 ## Actions
 
-- Supprimer le bouton « Réglages ».
-- Supprimer la zone masquée/affichée associée.
-- Ajouter un panneau fixe en bas de l'interface.
-- Vérifier que le redimensionnement de la fenêtre reste correct.
+- [✓] Supprimer le bouton « Réglages ».
+- [✓] Supprimer la zone masquée/affichée associée.
+- [✓] Ajouter un panneau fixe en bas de l'interface.
+- [✓] Vérifier que le redimensionnement de la fenêtre reste correct.
 
 ## Tests
 
-- Ouverture d'un fichier.
-- Vérification du redimensionnement.
-- Vérification de la persistance des contrôles.
+- [✓] Ouverture d'un fichier.
+- [✓] Vérification du redimensionnement.
+- [✓] Vérification de la persistance des contrôles.
 
 ---
 
@@ -34,20 +34,20 @@ Centraliser les paramètres futurs dans une structure unique.
 
 Créer une classe de configuration :
 
-- trim_start_enabled
-- trim_start_time
-- trim_end_enabled
-- trim_end_time
-- silence_enabled
-- silence_threshold_db
-- silence_min_duration
-- speed_enabled
-- speed_percent
+- [✓] trim_start_enabled
+- [✓] trim_start_time
+- [✓] trim_end_enabled
+- [✓] trim_end_time
+- [✓] silence_enabled
+- [✓] silence_threshold_db
+- [✓] silence_min_duration
+- [✓] speed_enabled
+- [✓] speed_percent
 
 ## Tests
 
-- Chargement des valeurs par défaut.
-- Modification depuis l'UI.
+- [✓] Chargement des valeurs par défaut.
+- [✓] Modification depuis l'UI.
 
 ---
 

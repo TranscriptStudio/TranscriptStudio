@@ -293,20 +293,32 @@ class AudioPreprocessDialog(QDialog):
 
         return {
 
-            "cut_before_enabled":
-                self.cut_checkbox.isChecked(),
+            "trim_start_enabled":
+                self.settings.trim_start_enabled,
 
-            "remove_silence_enabled":
-                self.silence_checkbox.isChecked(),
+            "trim_start_time":
+                self.settings.trim_start_time,
+
+            "trim_end_enabled":
+                self.settings.trim_end_enabled,
+
+            "trim_end_time":
+                self.settings.trim_end_time,
+
+            "silence_enabled":
+                self.settings.silence_enabled,
+
+            "silence_threshold_db":
+                self.settings.silence_threshold_db,
+
+            "silence_min_duration":
+                self.settings.silence_min_duration,
 
             "speed_enabled":
-                self.speed_checkbox.isChecked(),
+                self.settings.speed_enabled,
 
             "speed_percent":
                 self.settings.speed_percent,
-
-            "cut_before_seconds":
-                self.settings.cut_before_seconds
         }
 
     def format_time(
@@ -453,10 +465,6 @@ class AudioPreprocessDialog(QDialog):
 
         self.position_slider.setText(
             f"{minutes:02}:{sec:02}"
-        )
-
-        self.settings.cut_before_seconds = (
-            seconds
         )
 
     def on_slider_moved(

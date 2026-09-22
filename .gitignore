@@ -1,16 +1,28 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
 # VS Code
 .vscode/
 
-# Conda
-.env
-.venv
+# Dumps temporaires
+project_dump.txt
 
 # Logs
 *.log
+ 
+# Cache pytest
+.pytest_cache/
+ 
+# Cache mypy
+.mypy_cache/
+ 
+# Environnements virtuels
+venv/
+.venv/
+env/
 
 # Windows
 Thumbs.db
