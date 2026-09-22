@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSlider,
     QCheckBox,
+    QSplitter,
 )
 from PySide6.QtMultimedia import (
     QMediaPlayer,
@@ -72,6 +73,10 @@ class AudioPreprocessDialog(QDialog):
         self.waveform_widget.load_audio(
             self.audio_file
         )
+        self.waveform_widget.setMinimumHeight(
+            80
+        )
+
         toolbar = QHBoxLayout()
 
         self.play_button = QPushButton("▶")
@@ -84,11 +89,9 @@ class AudioPreprocessDialog(QDialog):
 
         self.zoom_out_button = QPushButton("➖")
 
-        self.fit_button = QPushButton("⌂")
+        self.fit_button = QPushButton("↔️")
 
-        self.effects_button = QPushButton("✨ Réglages")
-
-        self.process_button = QPushButton("🔄 Lancer le traitement")
+        self.process_button = QPushButton("✨ Lancer le traitement")
 
         self.restore_button = QPushButton("↶ Annuler les modifications")
 
@@ -103,7 +106,6 @@ class AudioPreprocessDialog(QDialog):
             self.zoom_in_button,
             self.zoom_out_button,
             self.fit_button,
-            self.effects_button,
             self.process_button,
             self.restore_button,
             self.save_button,
@@ -113,8 +115,6 @@ class AudioPreprocessDialog(QDialog):
             btn.setFixedSize(40, 40)
             if btn == self.process_button:
                 btn.setFixedSize(150, 40)
-            if btn == self.effects_button:
-                btn.setFixedSize(100, 40)
             if btn == self.restore_button:
                 btn.setFixedSize(190, 40)
             toolbar.addWidget(btn)
@@ -146,15 +146,37 @@ class AudioPreprocessDialog(QDialog):
             position_layout
         )
 
+        
+        
 
-
-        layout.addWidget(self.waveform_widget, stretch=1)
 
         self.effects_panel = QWidget()
+
+        self.effects_panel.setMinimumHeight(
+            140
+        )
+        effects_title = QLabel("Options de traitement")
+
+        effects_title.setStyleSheet("""
+            font-weight: bold;
+            font-size: 12px;
+        """)        
         effects_layout = QVBoxLayout(
             self.effects_panel
         )
+        effects_layout.setAlignment(
+            Qt.AlignTop
+        )
+        effects_layout.setContentsMargins(
+            10,
+            5,
+            10,
+            5
+        )
 
+        effects_layout.setSpacing(
+            6
+        )
         self.cut_checkbox = QCheckBox(
             "Couper avant la position courante"
         )
@@ -166,7 +188,9 @@ class AudioPreprocessDialog(QDialog):
         self.speed_checkbox = QCheckBox(
             "Accélérer"
         )
-
+        effects_layout.addWidget(
+            effects_title  
+        )
         effects_layout.addWidget(
             self.cut_checkbox
         )
@@ -178,14 +202,29 @@ class AudioPreprocessDialog(QDialog):
         effects_layout.addWidget(
             self.speed_checkbox
         )
+        effects_layout.addStretch()
+        splitter = QSplitter(
+            Qt.Vertical
+        )
+        splitter.setChildrenCollapsible(
+            False
+        )
+        splitter.addWidget(
+            self.waveform_widget
+        )
 
-        self.effects_panel.hide()
-
-        layout.addWidget(
+        splitter.addWidget(
             self.effects_panel
         )
-        self.effects_button.clicked.connect(
-            self.toggle_effects_panel
+
+        splitter.setSizes([
+            450,
+            180,
+        ])
+
+        layout.addWidget(
+            splitter,
+            stretch=1
         )
         self.play_button.clicked.connect(
             self.playback.play
@@ -249,12 +288,6 @@ class AudioPreprocessDialog(QDialog):
         self.transcribe_after_processing = True
 
         self.accept()
-
-    def toggle_effects_panel(self):
-
-        self.effects_panel.setVisible(
-            not self.effects_panel.isVisible()
-        )
 
     def get_options(self):
 
