@@ -111,15 +111,15 @@ Sécuriser les saisies.
 
 ### Contraintes
 
-- début < fin
-- début ≥ 0
-- fin ≤ durée audio
+- [✓] début < fin
+- [✓] début ≥ 0
+- [✓] fin ≤ durée audio
+
 
 ### Affichage
 
-- correction automatique
-ou
-- message utilisateur
+- [✓] correction automatique
+- [✓] ajout poignées ouvertes ou fermées au passage sourie
 
 ---
 

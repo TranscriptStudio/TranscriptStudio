@@ -6,6 +6,7 @@ from PySide6.QtGui import (
     QColor,
     QPen,
     QPainterPath,
+    QCursor,
 
 )
 from PySide6.QtCore import Signal, Qt,QUrl
@@ -40,6 +41,9 @@ class WaveformWidget(QWidget):
 
         self.trim_start_x = None
         self.trim_end_x = None
+        self.setMouseTracking(
+            True
+        )
 
     def format_time(
         self,
@@ -350,6 +354,16 @@ class WaveformWidget(QWidget):
 
         start_x = start_ratio * width
         end_x = end_ratio * width
+
+        start_x = max(
+            0,
+            min(width, start_x)
+        )
+
+        end_x = max(
+            0,
+            min(width, end_x)
+        )
 
         self.trim_start_x = start_x
         self.trim_end_x = end_x
@@ -854,13 +868,23 @@ class WaveformWidget(QWidget):
 
         if self.is_over_trim_start(x):
 
+            self.dragging_trim_end = False
             self.dragging_trim_start = True
+
+            self.update_cursor(
+                x
+            )
 
             return
 
         if self.is_over_trim_end(x):
 
+            self.dragging_trim_start = False
             self.dragging_trim_end = True
+
+            self.update_cursor(
+                x
+            )
 
             return
 
@@ -872,6 +896,9 @@ class WaveformWidget(QWidget):
 
         if self.document is None:
             return
+        x = event.position().x()
+
+        self.update_cursor(x)
 
         parent_dialog = self.parent()
 
@@ -994,30 +1021,22 @@ class WaveformWidget(QWidget):
 
         self.update()
 
-    def mouseMoveEventCursor(
-        self,
-        x
-    ):
-
-        if (
-            self.is_over_trim_start(x)
-            or self.is_over_trim_end(x)
-        ):
-            self.setCursor(
-                Qt.SizeHorCursor
-            )
-
-        else:
-            self.setCursor(
-                Qt.ArrowCursor
-            )
-
     def mouseReleaseEvent(self, event):
 
         self.dragging = False
 
         self.dragging_trim_start = False
         self.dragging_trim_end = False
+
+        mouse_pos = event.position().x()
+
+        self.update_cursor(
+            mouse_pos
+        )
+        self.repaint()
+        super().mouseReleaseEvent(
+            event
+        )
 
     def mouseDoubleClickEvent(
         self,
@@ -1043,5 +1062,40 @@ class WaveformWidget(QWidget):
             target_time
         )
 
+    def update_cursor(self, x):
 
+        if (
+            self.dragging_trim_start
+            or self.dragging_trim_end
+        ):
+            self.setCursor(
+                Qt.ClosedHandCursor
+            )
+            return
+
+        if (
+            self.is_over_trim_start(x)
+            or self.is_over_trim_end(x)
+        ):
+            self.setCursor(
+                Qt.OpenHandCursor
+            )
+        else:
+            self.setCursor(
+                Qt.ArrowCursor
+            )
+
+    def leaveEvent(
+        self,
+        event
+    ):
+
+        self.setCursor(
+            Qt.ArrowCursor
+        )
+
+        super().leaveEvent(
+            event
+        )
+            
         

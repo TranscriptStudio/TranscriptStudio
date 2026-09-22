@@ -407,9 +407,6 @@ class AudioPreprocessDialog(QDialog):
                 self.trim_end_edit.text()
             )
 
-            if end_seconds < start_seconds:
-                return
-
             self.settings.trim_start_time = (
                 start_seconds
             )
@@ -417,6 +414,8 @@ class AudioPreprocessDialog(QDialog):
             self.settings.trim_end_time = (
                 end_seconds
             )
+            
+            self.validate_trim_range()
 
             duration = (
                 end_seconds
@@ -462,6 +461,55 @@ class AudioPreprocessDialog(QDialog):
             f"{hours:02d}:"
             f"{minutes:02d}:"
             f"{secs:06.3f}"
+        )
+
+    def validate_trim_range(self):
+
+        if not hasattr(self, "duration"):
+            return
+
+        start_time = self.settings.trim_start_time
+        end_time = self.settings.trim_end_time
+
+        start_time = max(
+            0.0,
+            start_time
+        )
+
+        end_time = min(
+            self.duration,
+            end_time
+        )
+
+        if end_time <= start_time:
+
+            if start_time >= self.duration:
+                start_time = max(
+                    0.0,
+                    self.duration - 1
+                )
+
+            end_time = min(
+                self.duration,
+                start_time + 1
+            )
+
+        self.settings.trim_start_time = start_time
+        self.settings.trim_end_time = end_time
+
+        self.trim_start_edit.setText(
+            self.format_time_ms(start_time)
+        )
+
+        self.trim_end_edit.setText(
+            self.format_time_ms(end_time)
+        )
+
+        self.trim_duration_label.setText(
+            "Durée conservée : "
+            + self.format_time_ms(
+                end_time - start_time
+            )
         )
 
     def on_speed_changed(
@@ -555,6 +603,7 @@ class AudioPreprocessDialog(QDialog):
             )
 
             self.settings.trim_end_time = duration
+            self.settings.trim_start_time = 0.0
             
     def update_position(
         self,
