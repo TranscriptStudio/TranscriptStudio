@@ -1,3 +1,5 @@
+# ui/audio_preprocess_dialog.py
+
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -123,10 +125,10 @@ class AudioPreprocessDialog(QDialog):
             Qt.Horizontal   
         )
         self.position_slider.setFixedHeight(20)
-        layout.addWidget(
-            self.position_slider,
-            stretch=0
-        )
+        # layout.addWidget(
+        #     self.position_slider,
+        #     stretch=0
+        # )
         self.position_label = QLabel(
             "00:00 / 00:00"
         )
@@ -223,6 +225,9 @@ class AudioPreprocessDialog(QDialog):
             self.process_and_transcribe
         )
         self.position_slider.sliderMoved.connect(
+            self.seek_audio
+        )
+        self.waveform_widget.seek_requested.connect(
             self.seek_audio
         )
         
@@ -322,6 +327,50 @@ class AudioPreprocessDialog(QDialog):
             f"{self.format_time(self.duration)}"
         )
 
+        if self.waveform_widget.document:
+
+            document = (
+                self.waveform_widget.document
+            )
+
+            document.current_time = position
+            if getattr(
+                document,
+                "disable_auto_follow",
+                False
+            ):
+                document.disable_auto_follow = False
+
+                self.waveform_widget.update()
+
+                return
+            
+            if document.zoom_factor > 1:
+
+                visible_ratio = (
+                    self.waveform_widget.get_visible_ratio()
+                )
+
+                current_ratio = (
+                    position
+                    / document.duration_seconds
+                )
+
+                document.view_offset = (
+                    current_ratio
+                    - visible_ratio / 2
+                )
+
+                document.view_offset = max(
+                    0.0,
+                    min(
+                        1.0 - visible_ratio,
+                        document.view_offset
+                    )
+                )
+
+            self.waveform_widget.update()
+
     def seek_audio(
         self,
         position
@@ -352,7 +401,13 @@ class AudioPreprocessDialog(QDialog):
         self.position_slider.setValue(
             position
         )
+        if self.waveform_widget.document:
 
+            self.waveform_widget.document.current_time = (
+                position
+            )
+
+            self.waveform_widget.update()
         self.position_slider.blockSignals(
             False
         )

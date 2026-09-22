@@ -84,14 +84,14 @@
 
 ### 3.3 Navigation
 
-- [ ] Zoom avant
-- [ ] Zoom arrière
-- [ ] Fit complet
-- [ ] Déplacement horizontal
+- [x ] Zoom avant
+- [x ] Zoom arrière
+- [x ] Fit complet
+- [x ] Déplacement horizontal
 
 ### 3.4 Curseurs
 
-- [ ] Curseur lecture rouge
+- [x ] Curseur lecture rouge
 - [ ] Curseur découpe orange
 - [ ] Déplacement du curseur découpe
 

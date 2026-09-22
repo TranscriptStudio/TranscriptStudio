@@ -1,3 +1,4 @@
+# models/audio_document.py
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,8 @@ class AudioDocument:
     zoom_factor: float = 1.0
 
     view_offset: float = 0.0
+
+    current_time: float = 0.0
 
     @property
     def duration_text(self):

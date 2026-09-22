@@ -1,3 +1,5 @@
+# ui/waveform_widget.py
+
 from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import (
     QPainter,
@@ -6,13 +8,17 @@ from PySide6.QtGui import (
     QPainterPath,
 
 )
+from PySide6.QtCore import Signal, Qt,QUrl
+
 import numpy as np
-from pathlib import Path
-import wave
+
+
 
 from services.audio_waveform_service import AudioWaveformService
 
 class WaveformWidget(QWidget):
+
+    seek_requested = Signal(float)
 
     def __init__(
         self,
@@ -31,7 +37,8 @@ class WaveformWidget(QWidget):
 
     def format_time(
         self,
-        seconds
+        seconds,
+        precise=False
     ):
         total = int(seconds)
 
@@ -42,6 +49,26 @@ class WaveformWidget(QWidget):
         ) // 60
 
         secs = total % 60
+
+        if precise:
+
+            tenth = int(
+                (seconds - total) * 10
+            )
+
+            if hours > 0:
+                return (
+                    f"{hours:02d}:"
+                    f"{minutes:02d}:"
+                    f"{secs:02d}."
+                    f"{tenth}"
+                )
+
+            return (
+                f"{minutes:02d}:"
+                f"{secs:02d}."
+                f"{tenth}"
+            )
 
         if hours > 0:
             return (
@@ -89,6 +116,15 @@ class WaveformWidget(QWidget):
             / total_samples
             * self.document.duration_seconds
         )
+
+        self.visible_start_time = (
+            visible_start_time
+        )
+
+        self.visible_end_time = (
+            visible_end_time
+        )
+
         mins, maxs = (
             self.build_waveform_envelope(
                 visible_samples
@@ -125,66 +161,117 @@ class WaveformWidget(QWidget):
 
         width = self.width()
 
+        self.draw_timeline(
+            painter,
+            width,
+            timeline_height,
+            visible_start_time,
+            visible_end_time
+        )
+
+        self.draw_waveform(
+            painter,
+            mins,
+            maxs,
+            center_y,
+            waveform_height
+        )       
+
+        cursor_x = self.draw_playback_cursor(
+            painter,
+            width,
+            timeline_height,
+            visible_start_time,
+            visible_end_time
+        )
+
+        self.draw_time_bubble(
+            painter,
+            cursor_x,
+            width
+        )
+
+    def draw_timeline(
+        self,
+        painter,
+        width,
+        timeline_height,
+        visible_start_time,
+        visible_end_time
+    ):
         if self.document.duration_seconds > 0:
-
-            painter.setPen(
-                QColor("#A0A0A0")
-            )
-
-            painter.drawLine(
-                0,
-                timeline_height - 5,
-                width,
-                timeline_height - 5
-            )
-
-            visible_duration = (
-                visible_end_time
-                - visible_start_time
-            )
-
-            step_seconds = (
-                self.get_adaptive_step(
-                    visible_duration
-                )
-            )
-
-            current = (
-                int(
-                    visible_start_time
-                    / step_seconds
-                )
-                * step_seconds
-            )
-
-            while current <= visible_end_time:
-
-                x = (
-                    (
-                        current
+        
+                    painter.setPen(
+                        QColor("#A0A0A0")
+                    )
+        
+                    painter.drawLine(
+                        0,
+                        timeline_height - 5,
+                        width,
+                        timeline_height - 5
+                    )
+        
+                    visible_duration = (
+                        visible_end_time
                         - visible_start_time
                     )
-                    / visible_duration
-                ) * width
-
-                painter.drawLine(
-                    int(x),
-                    timeline_height - 12,
-                    int(x),
-                    timeline_height - 2
-                )
-
-                painter.drawText(
-                    int(x) + 2,
-                    12,
-                    self.format_time(
-                        current
-                    )
-                )
-
-                current += step_seconds
-
         
+                    step_seconds = (
+                        self.get_adaptive_step(
+                            visible_duration
+                        )
+                    )
+        
+                    current = (
+                        int(
+                            visible_start_time
+                            / step_seconds
+                        )
+                        * step_seconds
+                    )
+        
+                    while current <= visible_end_time:
+        
+                        x = (
+                            (
+                                current
+                                - visible_start_time
+                            )
+                            / visible_duration
+                        ) * width
+        
+                        painter.drawLine(
+                            int(x),
+                            timeline_height - 12,
+                            int(x),
+                            timeline_height - 2
+                        )
+        
+                        show_precise = (
+                            visible_duration < 30
+                        )
+        
+                        painter.drawText(
+                            int(x) + 2,
+                            12,
+                            self.format_time(
+                                current,
+                                show_precise
+                            )
+                        )
+        
+                        current += step_seconds
+
+    def draw_waveform(
+        self,
+        painter,
+        mins,
+        maxs,
+        center_y,
+        waveform_height
+    ):
+    
 
         for x in range(len(mins)):
 
@@ -207,6 +294,140 @@ class WaveformWidget(QWidget):
                 int(y_max)
             )
 
+    def draw_playback_cursor(
+        self,
+        painter,
+        width,
+        timeline_height,
+        visible_start_time,
+        visible_end_time
+    ):
+        current_time = (
+            self.document.current_time
+        )
+
+        if visible_end_time > visible_start_time:
+
+            ratio = (
+                (
+                    current_time
+                    - visible_start_time
+                )
+                /
+                (
+                    visible_end_time
+                    - visible_start_time
+                )
+            )
+
+            ratio = max(
+                0.0,
+                min(
+                    1.0,
+                    ratio
+                )
+            )
+
+            cursor_x = ratio * width
+
+        painter.setPen(
+            QPen(
+                QColor("red"),
+                2
+            )
+        )
+
+        painter.drawLine(
+            int(cursor_x),
+            timeline_height,
+            int(cursor_x),
+            self.height()
+        )
+
+        painter.setBrush(
+            QColor("#FF5252")
+        )
+
+        painter.setPen(
+            Qt.NoPen
+        )
+
+        painter.drawEllipse(
+            int(cursor_x) - 5,
+            timeline_height - 5,
+            10,
+            10
+        )
+        return cursor_x
+
+    def draw_time_bubble(
+        self,
+        painter,
+        cursor_x,
+        width
+    ):
+        
+        time_text = self.format_time(
+            self.document.current_time
+        )
+        bubble_width = 70
+        bubble_height = 22
+
+        bubble_x = (
+            cursor_x
+            - bubble_width / 2
+        )
+
+        bubble_x = max(
+            0,
+            bubble_x
+        )
+
+        bubble_x = min(
+            width - bubble_width,
+            bubble_x
+        )
+        bubble_y = (
+            self.timeline_height + 5
+        )
+
+        painter.setPen(
+            Qt.NoPen
+        )
+
+        painter.setBrush(
+            QColor("#29292D")
+        )
+
+        painter.drawRoundedRect(
+            int(bubble_x),
+            int(bubble_y),
+            bubble_width,
+            bubble_height,
+            6,
+            6
+        )
+
+        painter.setPen(
+            QColor("white")
+        )
+
+        rect = (
+            int(bubble_x),
+            int(bubble_y),
+            bubble_width,
+            bubble_height
+        )
+
+        painter.drawText(
+            rect[0],
+            rect[1],
+            rect[2],
+            rect[3],
+            Qt.AlignCenter,
+            time_text
+        )
+    
     def load_audio(
         self,
         audio_file
@@ -237,8 +458,8 @@ class WaveformWidget(QWidget):
 
         self.document.zoom_factor *= 1.5
 
-        if self.document.zoom_factor > 1000:
-            self.document.zoom_factor = 1000
+        if self.document.zoom_factor > 10000:
+            self.document.zoom_factor = 10000
 
         self.update()
 
@@ -264,6 +485,27 @@ class WaveformWidget(QWidget):
         self.document.view_offset = 0
 
         self.update()
+
+    def get_visible_ratio(self):
+
+        total_samples = len(
+            self.document.waveform
+        )
+
+        visible_samples = int(
+            total_samples
+            / self.document.zoom_factor
+        )
+
+        visible_samples = max(
+            50,
+            visible_samples
+        )
+
+        return (
+            visible_samples
+            / total_samples
+        )
 
     def get_visible_samples(self):
 
@@ -311,7 +553,7 @@ class WaveformWidget(QWidget):
 
         pixel_width = max(
             1,
-            self.width()*3
+            self.width()
         )
 
         if len(samples) <= pixel_width:
@@ -388,12 +630,14 @@ class WaveformWidget(QWidget):
         if self.document is None:
             return
 
-        mouse_ratio = (
-            event.position().x()
-            / max(1, self.width())
+        old_visible_ratio = (
+            self.get_visible_ratio()
         )
 
-        old_zoom = self.document.zoom_factor
+        center_ratio = (
+            self.document.view_offset
+            + old_visible_ratio / 2
+        )
 
         if event.angleDelta().y() > 0:
             self.document.zoom_factor *= 1.2
@@ -402,28 +646,38 @@ class WaveformWidget(QWidget):
 
         self.document.zoom_factor = max(
             1,
-            min(100, self.document.zoom_factor)
+            min(
+                10000,
+                self.document.zoom_factor
+            )
         )
 
-        zoom_change = (
-            old_zoom
-            / self.document.zoom_factor
+        new_visible_ratio = (
+            self.get_visible_ratio()
         )
 
-        self.document.view_offset += (
-            mouse_ratio
-            * (1 - zoom_change)
+        self.document.view_offset = (
+            center_ratio
+            - new_visible_ratio / 2
         )
 
         self.document.view_offset = max(
             0.0,
-            min(1.0, self.document.view_offset)
+            min(
+                1.0 - new_visible_ratio,
+                self.document.view_offset
+            )
         )
+        
 
         self.update()
 
     def mousePressEvent(self, event):
 
+        if self.document is None:
+            return
+
+        
         self.dragging = True
 
         self.last_mouse_x = (
@@ -438,7 +692,7 @@ class WaveformWidget(QWidget):
         ):
             return
 
-        delta_x = (
+        dx = (
             event.position().x()
             - self.last_mouse_x
         )
@@ -446,17 +700,24 @@ class WaveformWidget(QWidget):
         self.last_mouse_x = (
             event.position().x()
         )
+        move_ratio = (
+            dx
+            / self.width()
+        )
+        visible_ratio = (
+            self.get_visible_ratio()
+        )
 
         self.document.view_offset -= (
-            delta_x
+            dx
             / self.width()
-            / self.document.zoom_factor
+            * visible_ratio
         )
 
         self.document.view_offset = max(
             0.0,
             min(
-                1.0,
+                1.0 - visible_ratio,
                 self.document.view_offset
             )
         )
@@ -467,7 +728,29 @@ class WaveformWidget(QWidget):
 
         self.dragging = False
 
+    def mouseDoubleClickEvent(
+        self,
+        event
+    ):
+        ratio = (
+            event.position().x()
+            / self.width()
+        )
 
+        visible_duration = (
+            self.visible_end_time
+            - self.visible_start_time
+        )
+
+        target_time = (
+            self.visible_start_time
+            + ratio
+            * visible_duration
+        )
+        self.document.disable_auto_follow = True
+        self.seek_requested.emit(
+            target_time
+        )
 
 
         
