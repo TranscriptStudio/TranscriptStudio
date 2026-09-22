@@ -35,6 +35,12 @@ class WaveformWidget(QWidget):
         self.dragging = False
         self.last_mouse_x = 0
 
+        self.dragging_trim_start = False
+        self.dragging_trim_end = False
+
+        self.trim_start_x = None
+        self.trim_end_x = None
+
     def format_time(
         self,
         seconds,
@@ -344,6 +350,9 @@ class WaveformWidget(QWidget):
 
         start_x = start_ratio * width
         end_x = end_ratio * width
+
+        self.trim_start_x = start_x
+        self.trim_end_x = end_x
 
         overlay_color = QColor(
             180,
@@ -813,24 +822,144 @@ class WaveformWidget(QWidget):
 
         self.update()
 
+    def is_over_trim_start(
+        self,
+        x
+    ):
+        if self.trim_start_x is None:
+            return False
+
+        return abs(
+            x - self.trim_start_x
+        ) <= 10
+
+
+    def is_over_trim_end(
+        self,
+        x
+    ):
+        if self.trim_end_x is None:
+            return False
+
+        return abs(
+            x - self.trim_end_x
+        ) <= 10
+
     def mousePressEvent(self, event):
 
         if self.document is None:
             return
 
-        
+        x = event.position().x()
+
+        if self.is_over_trim_start(x):
+
+            self.dragging_trim_start = True
+
+            return
+
+        if self.is_over_trim_end(x):
+
+            self.dragging_trim_end = True
+
+            return
+
         self.dragging = True
 
-        self.last_mouse_x = (
-            event.position().x()
-        )
+        self.last_mouse_x = x
 
     def mouseMoveEvent(self, event):
 
-        if (
-            not self.dragging
-            or self.document is None
+        if self.document is None:
+            return
+
+        parent_dialog = self.parent()
+
+        while (
+            parent_dialog
+            and not hasattr(
+                parent_dialog,
+                "settings"
+            )
         ):
+            parent_dialog = parent_dialog.parent()
+
+        if parent_dialog:
+
+            settings = parent_dialog.settings
+
+            visible_duration = (
+                self.visible_end_time
+                - self.visible_start_time
+            )
+
+            if self.dragging_trim_start:
+
+                ratio = (
+                    event.position().x()
+                    / self.width()
+                )
+
+                new_time = (
+                    self.visible_start_time
+                    + ratio
+                    * visible_duration
+                )
+
+                settings.trim_start_time = max(
+                    0.0,
+                    min(
+                        new_time,
+                        settings.trim_end_time
+                    )
+                )
+
+                parent_dialog.trim_start_edit.setText(
+                    parent_dialog.format_time_ms(
+                        settings.trim_start_time
+                    )
+                )
+
+                parent_dialog.on_trim_changed()
+
+                self.update()
+
+                return
+
+            if self.dragging_trim_end:
+
+                ratio = (
+                    event.position().x()
+                    / self.width()
+                )
+
+                new_time = (
+                    self.visible_start_time
+                    + ratio
+                    * visible_duration
+                )
+
+                settings.trim_end_time = max(
+                    settings.trim_start_time,
+                    min(
+                        new_time,
+                        self.document.duration_seconds
+                    )
+                )
+
+                parent_dialog.trim_end_edit.setText(
+                    parent_dialog.format_time_ms(
+                        settings.trim_end_time
+                    )
+                )
+
+                parent_dialog.on_trim_changed()
+
+                self.update()
+
+                return
+
+        if not self.dragging:
             return
 
         dx = (
@@ -865,9 +994,30 @@ class WaveformWidget(QWidget):
 
         self.update()
 
+    def mouseMoveEventCursor(
+        self,
+        x
+    ):
+
+        if (
+            self.is_over_trim_start(x)
+            or self.is_over_trim_end(x)
+        ):
+            self.setCursor(
+                Qt.SizeHorCursor
+            )
+
+        else:
+            self.setCursor(
+                Qt.ArrowCursor
+            )
+
     def mouseReleaseEvent(self, event):
 
         self.dragging = False
+
+        self.dragging_trim_start = False
+        self.dragging_trim_end = False
 
     def mouseDoubleClickEvent(
         self,

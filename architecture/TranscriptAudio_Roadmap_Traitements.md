@@ -89,11 +89,11 @@ Manipuler les poignées à la souris.
 
 ### Actions
 
-- Hit test début.
-- Hit test fin.
+- [✓] Hit test début.
+- [✓] Hit test fin.
 - Curseur SizeHorCursor.
-- Drag poignée début.
-- Drag poignée fin.
+- [✓] Drag poignée début.
+- [✓] Drag poignée fin.
 
 ### Synchronisation
 
