@@ -51,314 +51,206 @@ Créer une classe de configuration :
 
 ---
 
-# Commit 3 - UI Découpe avant
+# Commit 3 - UI Découpe unifiée
 
-## Objectif
-Ajouter l'option de découpe avant.
-
-## Actions
-
-Ajouter sur une même ligne :
-
-- Checkbox Découpe avant
-- TextBox temps début
-
-Comportement :
-
-- La TextBox est désactivée tant que la case n'est pas cochée.
-- Activation automatique lors du cochage.
-- Synchronisation bidirectionnelle avec la valeur interne.
-
-## Tests
-
-- Cocher / décocher.
-- Modifier le temps.
+UI Découpe unifiée
+- [✓] Checkbox découpe
+- [✓] Début
+- [✓] Fin
+- [✓] Durée conservée
 
 ---
 
-# Commit 4 - UI Découpe après
+# Commit 4 - Poignées graphiques de découpe
 
 ## Objectif
-Ajouter l'option de découpe après.
 
-## Actions
+Afficher graphiquement la zone conservée.
 
-Même principe que la découpe avant.
+### Actions
 
-Ligne finale :
+- Ajouter poignée début.
+- Ajouter poignée fin.
+- Ajouter barres verticales.
+- Ajouter triangles de préhension.
+- Ajouter rendu des zones supprimées.
 
-[ ] Découpe avant   [temps]
-[ ] Découpe après   [temps]
+### Résultat attendu
 
-## Tests
-
-- Synchronisation.
-- Validation des valeurs.
+xxx ▼=====================▼ xxx
 
 ---
 
-# Commit 5 - Marqueur graphique Début
+# Commit 5 - Déplacement des poignées
 
 ## Objectif
-Afficher la poignée de découpe début.
 
-## Actions
+Manipuler les poignées à la souris.
 
-Dans WaveformWidget :
+### Actions
 
-- Dessiner un triangle bleu.
-- Dessiner une barre verticale.
-- Dessiner la zone supprimée en transparence.
-
-Zone estompée :
-
-0 -------------- trim_start
-
-## Tests
-
-- Différents niveaux de zoom.
-- Différentes durées audio.
-
----
-
-# Commit 6 - Marqueur graphique Fin
-
-## Objectif
-Afficher la poignée de découpe fin.
-
-## Actions
-
-- Triangle inversé.
-- Barre verticale.
-- Zone estompée après le marqueur.
-
-## Tests
-
-- Zoom.
-- Déplacement.
-
----
-
-# Commit 7 - Déplacement souris des poignées
-
-## Objectif
-Rendre les poignées manipulables.
-
-## Actions
-
-Ajouter :
-
-- Hit test poignée début.
-- Hit test poignée fin.
+- Hit test début.
+- Hit test fin.
 - Curseur SizeHorCursor.
+- Drag poignée début.
+- Drag poignée fin.
 
-Règle :
+### Synchronisation
 
-- Le drag n'est possible que sur les poignées.
-- Le clic waveform continue de contrôler la lecture.
+Poignée → textbox
 
-## Tests
-
-- Déplacement début.
-- Déplacement fin.
-- Conflit avec curseur lecture.
+Textbox → poignée
 
 ---
 
-# Commit 8 - Synchronisation poignées / TextBox
+# Commit 6 - Validation découpe
 
 ## Objectif
-Synchronisation bidirectionnelle.
 
-## Actions
+Sécuriser les saisies.
 
-Poignée -> TextBox
-
-TextBox -> Poignée
-
-Validation :
+### Contraintes
 
 - début < fin
-- valeurs dans la durée du média
+- début ≥ 0
+- fin ≤ durée audio
 
-## Tests
+### Affichage
 
-- Cas limites.
-- Modification rapide.
-
----
-
-# Commit 9 - Gestion visuelle des conflits
-
-## Objectif
-Gérer les positions proches du curseur de lecture.
-
-## Actions
-
-- Priorité de sélection aux poignées.
-- Zone de capture plus large.
-- Affichage de survol.
-
-## Tests
-
-- Poignée et lecture au même endroit.
-- Fort zoom.
+- correction automatique
+ou
+- message utilisateur
 
 ---
 
-# Commit 10 - UI Suppression des silences
+# Commit 7 - Architecture pipeline
 
 ## Objectif
-Ajouter les paramètres de suppression des silences.
 
-## Actions
+Préparer le moteur.
 
-Ligne unique :
-
-[ ] Suppression silences
-Seuil dB [textbox]
-Durée mini [textbox]
-
-Comportement :
-
-- Champs activés uniquement si coché.
-
-## Tests
-
-- Activation / désactivation.
-- Validation numérique.
-
----
-
-# Commit 11 - Service Détection des silences
-
-## Objectif
-Préparer la logique audio.
-
-## Actions
-
-Créer :
-
-SilenceDetectionService
-
-Fonctions :
-
-- détection segments silencieux
-- seuil dB
-- durée minimale
-
-Sans modifier encore le fichier audio.
-
-## Tests
-
-- Logs de détection.
-- Vérification manuelle.
-
----
-
-# Commit 12 - UI Accélération audio
-
-## Objectif
-Ajouter le panneau d'accélération.
-
-## Actions
-
-Afficher :
-
-- Checkbox Accélérer
-- Slider 0 à 100 %
-- Barre couleur fixe derrière le slider
-- Zone ratio
-
-Couleurs :
-
-- Vert -> 0 à 50 %
-- Orange -> intermédiaire
-- Rouge -> 100 %
-
-## Tests
-
-- Fluidité du slider.
-- Affichage du ratio.
-
----
-
-# Commit 13 - Conversion pourcentage -> ratio
-
-## Objectif
-Définir la règle de calcul.
-
-## Exemple
-
-0 %  = x1.00
-50 % = x1.50
-100 % = x2.00
-
-## Tests
-
-- Cohérence affichage.
-- Valeurs limites.
-
----
-
-# Commit 14 - Architecture du pipeline traitement
-
-## Objectif
-Préparer l'exécution future.
-
-## Actions
-
-Créer :
+### Créer
 
 AudioProcessingPipeline
 
-Étapes :
+### Ordre
 
-1. Découpe début
-2. Découpe fin
-3. Suppression silences
-4. Accélération
+1. Découpe
+2. Silences
+3. Accélération
 
 Sans traitement réel.
 
-## Tests
+---
 
-- Vérifier l'enchaînement.
-- Vérifier les paramètres transmis.
+# Commit 8 - UI Suppression silences
+
+## Affichage
+
+☑ Suppression silences
+
+Seuil :
+[-35 dB]
+
+Durée mini :
+[500 ms]
+
+### Comportement
+
+Activation dynamique des champs.
 
 ---
 
-# Commit 15 - Traitement réel Découpe
+# Commit 9 - Détection des silences
+
+## Créer
+
+SilenceDetectionService
+
+### Fonction
+
+Détecter les zones silencieuses.
+
+### Pas encore de suppression réelle.
+
+---
+
+# Commit 10 - UI Accélération
+
+## Affichage
+
+☑ Accélération
+
+Slider 0 → 100 %
+
+Barre couleur :
+vert → orange → rouge
+
+Ratio :
+[1.00x]
+
+---
+
+# Commit 11 - Conversion pourcentage → ratio
+
+### Exemple
+
+0 % = x1.00
+
+50 % = x1.50
+
+100 % = x2.00
+
+---
+
+# Commit 12 - Découpe réelle
 
 ## Objectif
-Créer le premier traitement fonctionnel.
 
-## Actions
+Premier traitement audio réel.
 
-Implémenter :
+### Fonction
 
 - trim start
 - trim end
 
-sur le WAV de travail.
-
-## Tests
-
-- Validation durée.
-- Contrôle des exports.
+sur WAV de travail.
 
 ---
 
-# Commit 16 - Nettoyage et stabilisation
+# Commit 13 - Suppression silences réelle
+
+## Fonction
+
+Suppression effective des segments détectés.
+
+---
+
+# Commit 14 - Accélération réelle
+
+## Fonction
+
+Modification vitesse audio.
+
+---
+
+# Commit 15 - Pipeline complet
+
+## Ordre final
+
+1. Découpe
+2. Suppression silences
+3. Accélération
+4. Export
+
+---
+
+# Commit 16 - Stabilisation
 
 ## Actions
 
-- Revue UI.
-- Revue signaux Qt.
-- Revue performances zoom.
-- Revue interactions poignées.
-- Documentation technique.
-
-## Résultat attendu
-
-Interface complète prête avant implémentation avancée des traitements audio.
+- nettoyage UI
+- optimisation waveform
+- revue performances
+- revue architecture
+- documentation

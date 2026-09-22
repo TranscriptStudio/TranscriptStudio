@@ -30,3 +30,11 @@ Thumbs.db
 # Build
 build/
 dist/
+
+# Audio files
+*.m4a
+*.mp3
+*.wav
+*.flac
+*.ogg
+*.aac

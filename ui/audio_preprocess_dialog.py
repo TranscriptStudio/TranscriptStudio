@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QSlider,
     QCheckBox,
     QSplitter,
+    QLineEdit,
 )
 from PySide6.QtMultimedia import (
     QMediaPlayer,
@@ -177,9 +178,38 @@ class AudioPreprocessDialog(QDialog):
         effects_layout.setSpacing(
             6
         )
-        self.cut_checkbox = QCheckBox(
-            "Couper avant la position courante"
+        self.trim_checkbox = QCheckBox(
+            "Découpe"
         )
+
+        self.trim_start_edit = QLineEdit(
+            "00:00:00.000"
+        )
+
+        self.trim_end_edit = QLineEdit(
+            "00:00:00.000"
+        )
+
+        self.trim_duration_label = QLabel(
+            "Durée conservée : 00:00:00.000"
+        )
+
+        self.trim_start_edit.setFixedWidth(
+            110
+        )
+
+        self.trim_end_edit.setFixedWidth(
+            110
+        )
+
+        self.trim_start_edit.setEnabled(
+            False
+        )
+
+        self.trim_end_edit.setEnabled(
+            False
+        )
+        
 
         self.silence_checkbox = QCheckBox(
             "Supprimer les silences"
@@ -189,10 +219,57 @@ class AudioPreprocessDialog(QDialog):
             "Accélérer"
         )
         effects_layout.addWidget(
-            effects_title  
+            effects_title
         )
-        effects_layout.addWidget(
-            self.cut_checkbox
+
+        trim_layout = QVBoxLayout()
+
+        trim_header_layout = QHBoxLayout()
+
+        trim_header_layout.addWidget(
+            self.trim_checkbox
+        )
+
+        trim_header_layout.addStretch()
+
+        trim_layout.addLayout(
+            trim_header_layout
+        )
+
+        trim_values_layout = QHBoxLayout()
+
+        trim_values_layout.addWidget(
+            QLabel("Début :")
+        )
+
+        trim_values_layout.addWidget(
+            self.trim_start_edit
+        )
+
+        trim_values_layout.addSpacing(
+            20
+        )
+
+        trim_values_layout.addWidget(
+            QLabel("Fin :")
+        )
+
+        trim_values_layout.addWidget(
+            self.trim_end_edit
+        )
+
+        trim_values_layout.addStretch()
+
+        trim_layout.addLayout(
+            trim_values_layout
+        )
+
+        trim_layout.addWidget(
+            self.trim_duration_label
+        )
+
+        effects_layout.addLayout(
+            trim_layout
         )
 
         effects_layout.addWidget(
@@ -203,6 +280,19 @@ class AudioPreprocessDialog(QDialog):
             self.speed_checkbox
         )
         effects_layout.addStretch()
+        
+        self.trim_checkbox.setChecked(
+            self.settings.trim_start_enabled
+        )
+
+        self.trim_start_edit.setEnabled(
+            self.settings.trim_start_enabled
+        )
+
+        self.trim_end_edit.setEnabled(
+            self.settings.trim_start_enabled
+        )
+
         splitter = QSplitter(
             Qt.Vertical
         )
@@ -269,7 +359,102 @@ class AudioPreprocessDialog(QDialog):
         self.waveform_widget.seek_requested.connect(
             self.seek_audio
         )
-        
+        self.trim_checkbox.toggled.connect(
+            self.on_trim_toggled
+        )
+
+        self.trim_start_edit.editingFinished.connect(
+            self.on_trim_changed
+        )
+
+        self.trim_end_edit.editingFinished.connect(
+            self.on_trim_changed
+        )
+
+    def on_trim_toggled(
+        self,
+        checked
+    ):
+
+        self.trim_start_edit.setEnabled(
+            checked
+        )
+
+        self.trim_end_edit.setEnabled(
+            checked
+        )
+
+        self.settings.trim_start_enabled = checked
+        self.settings.trim_end_enabled = checked
+
+    def on_trim_changed(self):
+
+        try:
+
+            start_seconds = self.parse_time(
+                self.trim_start_edit.text()
+            )
+
+            end_seconds = self.parse_time(
+                self.trim_end_edit.text()
+            )
+
+            if end_seconds < start_seconds:
+                return
+
+            self.settings.trim_start_time = (
+                start_seconds
+            )
+
+            self.settings.trim_end_time = (
+                end_seconds
+            )
+
+            duration = (
+                end_seconds
+                - start_seconds
+            )
+
+            self.trim_duration_label.setText(
+                "Durée conservée : "
+                + self.format_time_ms(duration)
+            )
+
+        except Exception:
+            pass
+
+    def parse_time(
+        self,
+        text
+    ):
+
+        h, m, s = text.split(":")
+
+        return (
+            int(h) * 3600
+            + int(m) * 60
+            + float(s)
+        )
+
+    def format_time_ms(
+        self,
+        seconds
+    ):
+
+        hours = int(seconds // 3600)
+
+        minutes = int(
+            (seconds % 3600) // 60
+        )
+
+        secs = seconds % 60
+
+        return (
+            f"{hours:02d}:"
+            f"{minutes:02d}:"
+            f"{secs:06.3f}"
+        )
+
     def on_speed_changed(
         self,
         value
@@ -349,7 +534,19 @@ class AudioPreprocessDialog(QDialog):
             f"00:00 / "
             f"{self.format_time(duration)}"
         )
+        if self.trim_end_edit.text() == "00:00:00.000":
 
+            self.trim_end_edit.setText(
+                self.format_time_ms(duration)
+            )
+
+            self.trim_duration_label.setText(
+                "Durée conservée : "
+                + self.format_time_ms(duration)
+            )
+
+            self.settings.trim_end_time = duration
+            
     def update_position(
         self,
         position
