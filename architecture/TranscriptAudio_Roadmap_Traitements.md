@@ -406,9 +406,17 @@ sur WAV de travail.
 
  [✓] Petite adaptation de WaveformWidget pour que la waveform résultat soit neutre, sans poignées de trim ni zones de silence. Actuellement le widget recherche son parent_dialog.settings et affiche automatiquement ces overlays lorsqu'il est dans AudioPreprocessDialog.
 
-## 16.6 ajouter des popup avec barre de chargement
- - au lancement de audio process dialog qui prend maintenant plus du temps (probablement du fait de la conversion audio en wav sans compression)
- - lors du lancement du traitement avec une barre pour chacune des 3 opérations
+## 16.6 ajouter des popup avec barre de chargement V1.1.9
+### 16.6a
+- [✓] popup de chargement initial
+- [✓] indicateur indéterminé
+- [✓] préparation audio dans un QThread
+- [✓] ouverture du dialogue après préparation
+### 16.6b 
+- [✓] Découpe
+- [✓] Suppression des silences
+- [✓] Accélération
+- [✓] Finalisation / génération du résultat
 
 ---
 

@@ -14,7 +14,8 @@ class AudioProcessingPipeline:
         audio_file,
         processin_wav,
         settings,
-        output_file
+        output_file,
+        progress_callback=None
     ):
         self.audio_file = audio_file
         self.processin_wav = processin_wav
@@ -23,13 +24,47 @@ class AudioProcessingPipeline:
             output_file
         )
         self.working_file = processin_wav
+        self.progress_callback = (
+            progress_callback
+        )
 
-
+    def report_progress(
+        self,
+        value,
+        message
+    ):
+        if self.progress_callback:
+            self.progress_callback(
+                value,
+                message
+            )
+            
     def run(self):
+
         current_file = self.processin_wav
+
+        self.report_progress(
+            5,
+            "Préparation du traitement..."
+        )
+
+        self.report_progress(
+            10,
+            "Découpe..."
+        )
 
         current_file = self.apply_trim(
             current_file
+        )
+
+        self.report_progress(
+            30,
+            "Découpe terminée"
+        )
+
+        self.report_progress(
+            35,
+            "Suppression des silences..."
         )
 
         current_file = (
@@ -38,13 +73,29 @@ class AudioProcessingPipeline:
             )
         )
 
+        self.report_progress(
+            60,
+            "Suppression des silences terminée"
+        )
+
+        self.report_progress(
+            65,
+            "Accélération..."
+        )
+
         current_file = self.apply_speed_up(
             current_file
+        )
+
+        self.report_progress(
+            80,
+            "Accélération terminée"
         )
 
         final_file = self.output_file
 
         if current_file != final_file:
+
             import shutil
 
             shutil.copy2(

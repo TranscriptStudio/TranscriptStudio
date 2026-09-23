@@ -13,13 +13,15 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QSplitter,
     QLineEdit,
+    QProgressDialog,
+    QMessageBox,
 )
 from PySide6.QtMultimedia import (
     QMediaPlayer,
     QAudioOutput
 )
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl, QThread
 from pathlib import Path
 
 from models.audio_processing_settings import AudioProcessingSettings
@@ -27,6 +29,8 @@ from services.playback import PlaybackManager
 from services.audio_waveform_service import AudioWaveformService
 from services.audio_processing_pipeline import  AudioProcessingPipeline
 from services.silence_detection_service import SilenceDetectionService
+from services.audio_processing_worker import AudioProcessingWorker
+
 
 
 from ui.waveform_widget import WaveformWidget
@@ -37,6 +41,7 @@ class AudioPreprocessDialog(QDialog):
         self,
         audio_file,
         project_folder,
+        audio_document=None,
         parent=None
     ):
 
@@ -56,6 +61,9 @@ class AudioPreprocessDialog(QDialog):
             Qt.WindowModal
         )
         self.audio_file = audio_file
+        self.audio_document = (
+            audio_document
+        )
         self.project_folder = Path(
             project_folder
         )
@@ -71,6 +79,9 @@ class AudioPreprocessDialog(QDialog):
         self.playback.load_file(self.audio_file)
         self.result_playback = PlaybackManager()
         self.result_duration = 0.0
+        self.processing_progress = None
+        self.processing_thread = None
+        self.processing_worker = None
 
         self.setWindowTitle("Prétraitement audio")
 
@@ -92,12 +103,20 @@ class AudioPreprocessDialog(QDialog):
         self.waveform_widget = (
             WaveformWidget()
         )
-        self.waveform_widget.load_audio(
-            self.audio_file
-        )
+
+        if self.audio_document is not None:
+            self.waveform_widget.set_document(
+                self.audio_document
+            )
+        else:
+            self.waveform_widget.load_audio(
+                self.audio_file
+            )
+
         self.processing_wav = (
             self.waveform_widget.document.processing_wav
         )
+        
 
         self.waveform_widget.setMinimumHeight(
             80
@@ -1624,7 +1643,16 @@ class AudioPreprocessDialog(QDialog):
         
     def process_audio(self):
         #
-        # Réinitialisation de l'ancien résultat
+        # Eviter plusieurs traitements simultanés.
+        #
+        if (
+            hasattr(self, "processing_thread")
+            and self.processing_thread is not None
+        ):
+            return
+
+        #
+        # Réinitialisation de l'ancien résultat.
         #
         self.result_playback.stop()
         self.result_playback.set_position(
@@ -1652,8 +1680,57 @@ class AudioPreprocessDialog(QDialog):
             / "audio_processed.wav"
         )
 
-        pipeline = (
-            AudioProcessingPipeline(
+        #
+        # Popup de progression.
+        #
+        self.processing_progress = QProgressDialog(
+            "Préparation du traitement...",
+            "",
+            0,
+            100,
+            self
+        )
+
+        self.processing_progress.setWindowTitle(
+            "Traitement audio"
+        )
+
+        self.processing_progress.setWindowModality(
+            Qt.WindowModal
+        )
+
+        self.processing_progress.setCancelButton(
+            None
+        )
+
+        self.processing_progress.setMinimumDuration(
+            0
+        )
+
+        self.processing_progress.setAutoClose(
+            False
+        )
+
+        self.processing_progress.setAutoReset(
+            False
+        )
+
+        self.processing_progress.setValue(
+            0
+        )
+
+        #
+        # Thread.
+        #
+        self.processing_thread = QThread(
+            self
+        )
+
+        #
+        # Worker.
+        #
+        self.processing_worker = (
+            AudioProcessingWorker(
                 self.audio_file,
                 self.processing_wav,
                 self.settings,
@@ -1661,35 +1738,140 @@ class AudioPreprocessDialog(QDialog):
             )
         )
 
-        output_file = pipeline.run()
+        self.processing_worker.moveToThread(
+            self.processing_thread
+        )
+
+        #
+        # Démarrage.
+        #
+        self.processing_thread.started.connect(
+            self.processing_worker.run
+        )
+
+        #
+        # Progression.
+        #
+        self.processing_worker.progress.connect(
+            self.update_processing_progress
+        )
+
+        #
+        # Fin correcte.
+        #
+        self.processing_worker.finished.connect(
+            self.processing_finished
+        )
+
+        self.processing_worker.finished.connect(
+            self.processing_thread.quit
+        )
+
+        #
+        # Erreur.
+        #
+        self.processing_worker.error.connect(
+            self.processing_error
+        )
+
+        self.processing_worker.error.connect(
+            self.processing_thread.quit
+        )
+
+        #
+        # Nettoyage Qt.
+        #
+        self.processing_thread.finished.connect(
+            self.processing_worker.deleteLater
+        )
+
+        self.processing_thread.finished.connect(
+            self.cleanup_processing
+        )
+
+        #
+        # Empêcher un second lancement.
+        #
+        self.process_button.setEnabled(
+            False
+        )
+
+        #
+        # Afficher puis démarrer.
+        #
+        self.processing_progress.show()
+
+        self.processing_thread.start()
+
+    def update_processing_progress(
+        self,
+        value,
+        message
+    ):
+        if self.processing_progress is None:
+            return
+
+        self.processing_progress.setLabelText(
+            message
+        )
+
+        self.processing_progress.setValue(
+            value
+        )
+
+    def processing_finished(
+        self,
+        output_file,
+        document
+    ):
+        #
+        # Nouveau fichier traité.
+        #
         self.processed_audio_file = (
             output_file
         )
-        
-        self.result_waveform_widget.load_audio(
-            self.processed_audio_file
+
+        #
+        # Le document de waveform a déjà été
+        # calculé dans le worker.
+        #
+        self.result_waveform_widget.set_document(
+            document
         )
+
         self.result_waveform_widget.document.current_time = (
             0.0
         )
 
         self.result_waveform_widget.fit_all()
-        
+
         self.result_waveform_widget.set_display_duration(
             self.duration
         )
+
+        #
+        # Lecteur résultat.
+        #
         self.result_playback.load_file(
             str(
                 self.processed_audio_file
             )
         )
+
         self.result_playback.set_position(
             0.0
         )
+
+        #
+        # Afficher le résultat.
+        #
         self.result_panel.setVisible(
             True
         )
 
+        #
+        # Statistiques réelles.
+        #
         real_duration = (
             self.get_wav_duration(
                 output_file
@@ -1708,7 +1890,6 @@ class AudioPreprocessDialog(QDialog):
         optimization = 0.0
 
         if original_duration > 0:
-
             optimization = (
                 removed_time
                 / original_duration
@@ -1741,9 +1922,41 @@ class AudioPreprocessDialog(QDialog):
             f"{optimization:.1f} %"
         )
 
+        if self.processing_progress is not None:
+            self.processing_progress.setValue(
+                100
+            )
+            self.processing_progress.close()
+
         print(
             f"Pipeline terminé : {output_file}"
         )
+    
+    def processing_error(
+        self,
+        message
+    ):
+        if self.processing_progress is not None:
+            self.processing_progress.close()
+
+        QMessageBox.critical(
+            self,
+            "Erreur de traitement",
+            (
+                "Impossible de traiter "
+                "le fichier audio.\n\n"
+                + message
+            )
+        )
+
+    def cleanup_processing(self):
+        self.process_button.setEnabled(
+            True
+        )
+
+        self.processing_progress = None
+        self.processing_thread = None
+        self.processing_worker = None
 
     def process_and_transcribe(self):
         if self.processed_audio_file is None:

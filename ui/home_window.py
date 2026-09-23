@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QFileDialog,
     QMessageBox,
+    QProgressDialog,
 )
 from PySide6.QtCore import (
     QThread,
@@ -37,6 +38,7 @@ from services.project_io import load_project
 from services.resources import resource_path
 from services.transcription_worker import TranscriptionWorker
 from services.project_io import save_project
+from services.audio_loading_worker import AudioLoadingWorker
 
 class HomeWindow(QWidget):
 
@@ -288,40 +290,10 @@ class HomeWindow(QWidget):
         if mode == (
             TranscriptionEntryDialog.MODE_PREPROCESSING
         ):
-            preprocess_dialog = (
-                AudioPreprocessDialog(
-                    str(project_audio_file),
-                    project_folder,
-                    self
-                )
+            self.start_audio_loading(
+                project_audio_file,
+                project_folder
             )
-
-            if not preprocess_dialog.exec():
-                return
-
-            processed_audio_file = (
-                preprocess_dialog
-                .get_processed_audio_file()
-            )
-
-            if not processed_audio_file:
-                return
-
-            self.current_audio_file = (
-                Path(processed_audio_file)
-            )
-
-            dialog = NewTranscriptionDialog(
-                processed_audio_file,
-                self
-            )
-
-            if not dialog.exec():
-                return
-
-            options = dialog.get_options()
-
-            print(options)
 
             return     
         
@@ -467,5 +439,238 @@ class HomeWindow(QWidget):
 
         dialog.exec()
 
+    def start_audio_loading(
+        self,
+        audio_file,
+        project_folder
+    ):
+        #
+        # Conserver les informations nécessaires
+        # pour la suite du workflow.
+        #
+        self.loading_audio_file = (
+            audio_file
+        )
 
+        self.loading_project_folder = (
+            project_folder
+        )
+
+        #
+        # Popup de chargement.
+        #
+        self.audio_loading_progress = (
+            QProgressDialog(
+                "Préparation du fichier audio en cours...\n"
+                "Veuillez patienter.",
+                "",
+                0,
+                0,
+                self
+            )
+        )
+
+        self.audio_loading_progress.setWindowTitle(
+            "Chargement du fichier audio"
+        )
+
+        self.audio_loading_progress.setWindowModality(
+            Qt.WindowModal
+        )
+
+        #
+        # Pas de bouton Annuler pour l'instant.
+        #
+        self.audio_loading_progress.setCancelButton(
+            None
+        )
+
+        #
+        # Affichage immédiat.
+        #
+        self.audio_loading_progress.setMinimumDuration(
+            0
+        )
+
+        #
+        # 0, 0 = indicateur indéterminé.
+        #
+        self.audio_loading_progress.setRange(
+            0,
+            0
+        )
+
+        self.audio_loading_progress.setAutoClose(
+            False
+        )
+
+        self.audio_loading_progress.setAutoReset(
+            False
+        )
+
+        #
+        # Thread.
+        #
+        self.audio_loading_thread = QThread(
+            self
+        )
+
+        #
+        # Worker.
+        #
+        self.audio_loading_worker = (
+            AudioLoadingWorker(
+                str(audio_file)
+            )
+        )
+
+        self.audio_loading_worker.moveToThread(
+            self.audio_loading_thread
+        )
+
+        #
+        # Démarrage du travail.
+        #
+        self.audio_loading_thread.started.connect(
+            self.audio_loading_worker.run
+        )
+
+        #
+        # Fin correcte.
+        #
+        self.audio_loading_worker.finished.connect(
+            self.audio_loading_finished
+        )
+
+        self.audio_loading_worker.finished.connect(
+            self.audio_loading_thread.quit
+        )
+
+        #
+        # Erreur.
+        #
+        self.audio_loading_worker.error.connect(
+            self.audio_loading_error
+        )
+
+        self.audio_loading_worker.error.connect(
+            self.audio_loading_thread.quit
+        )
+
+        #
+        # Nettoyage du worker.
+        #
+        self.audio_loading_thread.finished.connect(
+            self.audio_loading_worker.deleteLater
+        )
+        self.audio_loading_thread.finished.connect(
+            self.cleanup_audio_loading
+        )
+        #
+        # Afficher avant de démarrer.
+        #
+        self.audio_loading_progress.show()
+
+        #
+        # Démarrer le worker.
+        #
+        self.audio_loading_thread.start()
+
+    def audio_loading_finished(
+        self,
+        audio_document
+    ):
+        #
+        # Fermer le popup.
+        #
+        self.audio_loading_progress.close()
+
+        audio_file = (
+            self.loading_audio_file
+        )
+
+        project_folder = (
+            self.loading_project_folder
+        )
+
+        #
+        # Poursuivre le workflow.
+        #
+        self.open_audio_preprocess_dialog(
+            audio_file,
+            project_folder,
+            audio_document
+        )
+
+    def open_audio_preprocess_dialog(
+        self,
+        audio_file,
+        project_folder,
+        audio_document
+    ):
+        preprocess_dialog = (
+            AudioPreprocessDialog(
+                str(audio_file),
+                project_folder,
+                audio_document=audio_document,
+                parent=self
+            )
+        )
+
+        if not preprocess_dialog.exec():
+            return
+
+        processed_audio_file = (
+            preprocess_dialog
+            .get_processed_audio_file()
+        )
+
+        if not processed_audio_file:
+            return
+
+        self.current_audio_file = (
+            Path(
+                processed_audio_file
+            )
+        )
+
+        dialog = NewTranscriptionDialog(
+            processed_audio_file,
+            self
+        )
+
+        if not dialog.exec():
+            return
+
+        options = dialog.get_options()
+
+        print(options)
+
+
+    def audio_loading_error(
+        self,
+        message
+    ):
+        self.audio_loading_progress.close()
+
+        self.audio_loading_progress = None
+        self.audio_loading_thread = None
+        self.audio_loading_worker = None
+
+        QMessageBox.critical(
+            self,
+            "Erreur de chargement",
+            (
+                "Impossible de préparer "
+                "le fichier audio.\n\n"
+                + message
+            )
+        )
+
+    def cleanup_audio_loading(
+        self
+    ):
+        self.audio_loading_progress = None
+        self.audio_loading_thread = None
+        self.audio_loading_worker = None
 
