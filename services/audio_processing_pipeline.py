@@ -157,10 +157,41 @@ class AudioProcessingPipeline:
         self,
         audio_file
     ):
-        if self.settings.speed_enabled:
 
-            print(
-                "[PIPELINE] Accélération"
-            )
+        if not self.settings.speed_enabled:
+            return audio_file
 
-        return audio_file
+        print(
+            "[PIPELINE] Accélération"
+        )
+
+        speed_ratio = (
+            1.0
+            + self.settings.speed_percent / 100.0
+        )
+
+        output_file = (
+            audio_file.parent
+            / f"{audio_file.stem}_speed.wav"
+        )
+
+        command = [
+            str(FFMPEG_PATH),
+            "-y",
+            "-i",
+            str(audio_file),
+            "-filter:a",
+            f"atempo={speed_ratio}",
+            str(output_file)
+        ]
+
+        subprocess.run(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True
+        )
+
+        self.working_file = output_file
+
+        return output_file

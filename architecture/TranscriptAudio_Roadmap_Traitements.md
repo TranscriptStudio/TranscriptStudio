@@ -285,14 +285,20 @@ Modification vitesse audio.
 
 ---
 
-# Commit 15 - Pipeline complet
+# Commit 15
 
-## Ordre final
-
-1. Découpe
-2. Suppression silences
-3. Accélération
-4. Export
+## 15a
+- génération de audio_processed.wav
+- calcul des statistiques réelles
+- mise à jour de la ligne de résumé existante
+## Commit 15b
+- déplacement de category_combo
+- retiré de ui/new_transcription_dialog.py
+- ajouté dans ui/transcription_entry_dialog.py
+- propagé via get_result()
+## Commit 15c
+- création du dossier projet dès l'entrée du workflow
+- sauvegarde de audio_processed.wav dans ce dossier
 
 ---
 

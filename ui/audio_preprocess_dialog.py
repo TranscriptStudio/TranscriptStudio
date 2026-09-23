@@ -1471,12 +1471,12 @@ class AudioPreprocessDialog(QDialog):
             )
         )
 
-        pipeline.run()
+        output_file = pipeline.run()
 
         print(
-            "Pipeline terminé"
-        )       
-
+            f"Pipeline terminé : {output_file}"
+        )
+        
     def process_and_transcribe(self):
 
         self.transcribe_after_processing = True
