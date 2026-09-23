@@ -273,7 +273,7 @@ sur WAV de travail.
 
 ## Fonction
 
-Suppression effective des segments détectés.
+- [✓]  Suppression effective des segments détectés.
 
 ---
 

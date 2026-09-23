@@ -3,6 +3,7 @@
 from pathlib import Path
 import subprocess
 from services.silence_detection_service import SilenceDetectionService
+from services.silence_removal_service import SilenceRemovalService
 from services.ffmpeg_paths import FFMPEG_PATH
 
 
@@ -106,38 +107,51 @@ class AudioProcessingPipeline:
         self,
         audio_file
     ):
-        if self.settings.silence_enabled:
+        if not self.settings.silence_enabled:
+            return audio_file
 
-            print(
-                "[PIPELINE] Suppression silences"
+        print(
+            "[PIPELINE] Suppression silences"
+        )
+
+        detector = (
+            SilenceDetectionService()
+        )
+
+        silences = (
+            detector.detect_silences(
+                audio_file,
+                self.settings.silence_threshold_db,
+                self.settings.silence_min_duration
             )
+        )
 
-            detector = (
-                SilenceDetectionService()
-            )
+        print(
+            f"{len(silences)} silence(s) trouvé(s)"
+        )
 
-            silences = (
-                detector.detect_silences(
-                    audio_file,
-                    self.settings.silence_threshold_db,
-                    self.settings.silence_min_duration
-                )
-            )
+        if not silences:
 
-            print(
-                f"{len(silences)} silence(s) trouvé(s)"
-            )
-            
-            for start, end in silences[:20]:
+            return audio_file
 
-                print(
-                    f"Silence : "
-                    f"{start:.3f}s -> "
-                    f"{end:.3f}s"
-                )
-            
+        output_file = (
+            audio_file.parent
+            / f"{audio_file.stem}_nosilence.wav"
+        )
 
-        return audio_file
+        remover = (
+            SilenceRemovalService()
+        )
+
+        remover.remove_silences(
+            audio_file,
+            silences,
+            output_file
+        )
+
+        self.working_file = output_file
+
+        return output_file
 
     def apply_speed_up(
         self,
