@@ -281,16 +281,16 @@ sur WAV de travail.
 
 ## Fonction
 
-Modification vitesse audio.
+- [✓] Modification vitesse audio.
 
 ---
 
 # Commit 15
 
 ## 15a
-- génération de audio_processed.wav
-- calcul des statistiques réelles
-- mise à jour de la ligne de résumé existante
+- [✓] génération de audio_processed.wav
+- [✓] calcul des statistiques réelles
+- [✓] mise à jour de la ligne de résumé existante
 ## Commit 15b
 - déplacement de category_combo
 - retiré de ui/new_transcription_dialog.py

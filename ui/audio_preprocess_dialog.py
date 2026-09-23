@@ -1,5 +1,6 @@
 # ui/audio_preprocess_dialog.py
 
+import wave
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -1460,7 +1461,20 @@ class AudioPreprocessDialog(QDialog):
             )
         self.update_analysis()
 
+    def get_wav_duration(
+        self,
+        wav_file
+    ):
+        with wave.open(
+            str(wav_file),
+            "rb"
+        ) as wav:
 
+            return (
+                wav.getnframes()
+                / wav.getframerate()
+            )
+        
     def process_audio(self):
 
         pipeline = (
@@ -1473,10 +1487,61 @@ class AudioPreprocessDialog(QDialog):
 
         output_file = pipeline.run()
 
+        real_duration = (
+            self.get_wav_duration(
+                output_file
+            )
+        )
+
+        original_duration = (
+            self.duration
+        )
+
+        removed_time = (
+            original_duration
+            - real_duration
+        )
+
+        optimization = 0.0
+
+        if original_duration > 0:
+
+            optimization = (
+                removed_time
+                / original_duration
+                * 100
+            )
+
+        self.summary_original_label.setText(
+            "Durée originale : "
+            + self.format_duration(
+                original_duration
+            )
+        )
+
+        self.summary_removed_label.setText(
+            "Temps supprimé : "
+            + self.format_duration(
+                removed_time
+            )
+        )
+
+        self.summary_final_label.setText(
+            "Durée finale : "
+            + self.format_duration(
+                real_duration
+            )
+        )
+
+        self.summary_ratio_label.setText(
+            f"Optimisation : "
+            f"{optimization:.1f} %"
+        )
+
         print(
             f"Pipeline terminé : {output_file}"
         )
-        
+
     def process_and_transcribe(self):
 
         self.transcribe_after_processing = True

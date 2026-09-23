@@ -41,7 +41,21 @@ class AudioProcessingPipeline:
             current_file
         )
 
-        return current_file
+        final_file = (
+            current_file.parent
+            / "audio_processed.wav"
+        )
+
+        if current_file != final_file:
+
+            import shutil
+
+            shutil.copy2(
+                current_file,
+                final_file
+            )
+
+        return final_file
 
     def apply_trim(
         self,
