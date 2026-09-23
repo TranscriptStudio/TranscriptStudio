@@ -36,6 +36,7 @@ class AudioPreprocessDialog(QDialog):
     def __init__(
         self,
         audio_file,
+        project_folder,
         parent=None
     ):
 
@@ -55,7 +56,11 @@ class AudioPreprocessDialog(QDialog):
             Qt.WindowModal
         )
         self.audio_file = audio_file
+        self.project_folder = Path(
+            project_folder
+        )
 
+        self.processed_audio_file = None
 
         self.settings = (
             AudioProcessingSettings()
@@ -88,8 +93,8 @@ class AudioPreprocessDialog(QDialog):
         self.waveform_widget.load_audio(
             self.audio_file
         )
-        self.working_wav = (
-            self.waveform_widget.document.working_wav
+        self.processing_wav = (
+            self.waveform_widget.document.processing_wav
         )
 
         self.waveform_widget.setMinimumHeight(
@@ -969,7 +974,7 @@ class AudioPreprocessDialog(QDialog):
 
                 self.detected_silences = (
                     detector.detect_silences(
-                        self.working_wav,
+                        self.waveform_widget.document.display_wav,
                         self.settings.silence_threshold_db,
                         self.settings.silence_min_duration
                     )
@@ -1477,15 +1482,24 @@ class AudioPreprocessDialog(QDialog):
         
     def process_audio(self):
 
+        output_file = (
+            self.project_folder
+            / "audio_processed.wav"
+        )
+
         pipeline = (
             AudioProcessingPipeline(
                 self.audio_file,
-                self.working_wav,
-                self.settings
+                self.processing_wav,
+                self.settings,
+                output_file
             )
         )
 
         output_file = pipeline.run()
+        self.processed_audio_file = (
+            output_file
+        )
 
         real_duration = (
             self.get_wav_duration(
@@ -1543,10 +1557,20 @@ class AudioPreprocessDialog(QDialog):
         )
 
     def process_and_transcribe(self):
+        if self.processed_audio_file is None:
+            return
 
-        self.transcribe_after_processing = True
-
+        self.playback.stop()
+        self.cleanup_temporary_wav_files()
         self.accept()
+
+    def get_processed_audio_file(self):
+        if self.processed_audio_file is None:
+            return None
+
+        return str(
+            self.processed_audio_file
+        )
 
     def get_options(self):
 
@@ -1759,5 +1783,40 @@ class AudioPreprocessDialog(QDialog):
         self.player.setPosition(
             value
         )
-    
+
+    def cleanup_temporary_wav_files(self):
+        temp_files = {
+            Path(
+                self.waveform_widget
+                .document
+                .display_wav
+            ),
+            Path(
+                self.waveform_widget
+                .document
+                .processing_wav
+            ),
+        }
+
+        processing_wav = Path(
+            self.processing_wav
+        )
+
+        temp_files.update(
+            processing_wav.parent.glob(
+                f"{processing_wav.stem}*.wav"
+            )
+        )
+
+        for temp_file in temp_files:
+            try:
+                if (
+                    temp_file.exists()
+                    and
+                    temp_file
+                    != self.processed_audio_file
+                ):
+                    temp_file.unlink()
+            except OSError:
+                pass
 

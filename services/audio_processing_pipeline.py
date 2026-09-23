@@ -12,20 +12,21 @@ class AudioProcessingPipeline:
     def __init__(
         self,
         audio_file,
-        working_wav,
-        settings
+        processin_wav,
+        settings,
+        output_file
     ):
-        
         self.audio_file = audio_file
-
-        self.working_wav = working_wav
-
+        self.processin_wav = processin_wav
         self.settings = settings
+        self.output_file = Path(
+            output_file
+        )
+        self.working_file = processin_wav
 
-        self.working_file = working_wav
 
     def run(self):
-        current_file = self.working_wav
+        current_file = self.processin_wav
 
         current_file = self.apply_trim(
             current_file
@@ -41,13 +42,9 @@ class AudioProcessingPipeline:
             current_file
         )
 
-        final_file = (
-            current_file.parent
-            / "audio_processed.wav"
-        )
+        final_file = self.output_file
 
         if current_file != final_file:
-
             import shutil
 
             shutil.copy2(

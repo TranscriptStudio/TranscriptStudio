@@ -30,41 +30,63 @@ class AudioWaveformService:
             parents=True,
             exist_ok=True
         )
-
-        temp_wav = (
+        display_wav = (
             temp_dir
-            / f"{Path(audio_file).stem}_working.wav"
-        )  
+            / f"{Path(audio_file).stem}_display.wav"
+        )
+
+        processing_wav = (
+            temp_dir
+            / f"{Path(audio_file).stem}_processing.wav"
+        )
+
+        # temp_wav = (
+        #     temp_dir
+        #     / f"{Path(audio_file).stem}_working.wav"
+        # )  
         
 
-        command = [
-
+        display_command = [
             str(self.ffmpeg),
-
             "-y",
-
             "-i",
             str(audio_file),
-
             "-ac",
             "1",
-
             "-ar",
             "1000",
-
-            str(temp_wav)
+            str(display_wav)
         ]
 
         subprocess.run(
-            command,
+            display_command,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
+            check=True
+        )
+        processing_command = [
+            str(self.ffmpeg),
+            "-y",
+            "-i",
+            str(audio_file),
+            "-ac",
+            "1",
+            "-ar",
+            "44100",
+            str(processing_wav)
+        ]
+
+        subprocess.run(
+            processing_command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True
         )
 
         import wave
 
         with wave.open(
-            str(temp_wav),
+            str(display_wav),
             "rb"
         ) as wav:
 
@@ -102,7 +124,8 @@ class AudioWaveformService:
 
         return AudioDocument(
             original_file=Path(audio_file),
-            working_wav=temp_wav,
+            display_wav=display_wav,
+            processing_wav=processing_wav,  
             waveform=samples,
             duration_seconds=duration,
             sample_rate=sample_rate,

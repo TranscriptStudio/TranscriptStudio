@@ -43,26 +43,6 @@ class NewTranscriptionDialog(QDialog):
             )
         )
 
-        #
-        # Sous-répertoire projet
-        #
-        layout.addWidget(
-            QLabel(
-                "Sous-répertoire du projet"
-            )
-        )
-        self.category_combo = QComboBox()
-
-        self.category_combo.setEditable(True)
-
-        self.category_combo.addItems([
-            "",
-            "Commun",
-        ])
-
-        layout.addWidget(
-            self.category_combo
-        )        
 
         #
         # Langue
@@ -242,8 +222,6 @@ class NewTranscriptionDialog(QDialog):
                 for x in self.keywords_edit.text().split(",")
                 if x.strip()
             ],
-            "category":
-                 self.category_combo.currentText().strip(),
         }
     
     def get_language_code(self):

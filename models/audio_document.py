@@ -10,7 +10,9 @@ class AudioDocument:
 
     original_file: Path
 
-    working_wav: Path | None = None
+    display_wav: Path | None = None
+
+    processing_wav: Path | None = None
 
     duration_seconds: float = 0.0
 

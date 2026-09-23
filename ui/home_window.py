@@ -232,6 +232,7 @@ class HomeWindow(QWidget):
         result = (
             entry_dialog.get_result()
         )
+        print(result)
 
         audio_file = (
             result["audio_file"]
@@ -240,13 +241,38 @@ class HomeWindow(QWidget):
         mode = (
             result["mode"]
         )
+        category = (
+            result["category"]
+        )
+        manager = ProjectManager()
+
+        project_folder = (
+            manager.create_project_folder(
+                audio_file,
+                category
+            )
+        )
+
+        project_audio_file = (
+            manager.copy_audio_file(
+                audio_file,
+                project_folder
+            )
+        )
+
+        self.current_project_folder = (
+            project_folder
+        )
+
+        self.current_audio_file = (
+            project_audio_file
+        )
 
         if mode == (
             TranscriptionEntryDialog.MODE_DIRECT
         ):
-
             dialog = NewTranscriptionDialog(
-                audio_file,
+                str(project_audio_file),
                 self
             )
 
@@ -258,19 +284,46 @@ class HomeWindow(QWidget):
             print(options)
 
             return
-    
+            
         if mode == (
             TranscriptionEntryDialog.MODE_PREPROCESSING
         ):
+            preprocess_dialog = (
+                AudioPreprocessDialog(
+                    str(project_audio_file),
+                    project_folder,
+                    self
+                )
+            )
 
-            dialog = AudioPreprocessDialog(
-                audio_file,
+            if not preprocess_dialog.exec():
+                return
+
+            processed_audio_file = (
+                preprocess_dialog
+                .get_processed_audio_file()
+            )
+
+            if not processed_audio_file:
+                return
+
+            self.current_audio_file = (
+                Path(processed_audio_file)
+            )
+
+            dialog = NewTranscriptionDialog(
+                processed_audio_file,
                 self
             )
 
-            dialog.exec()
+            if not dialog.exec():
+                return
 
-            return        
+            options = dialog.get_options()
+
+            print(options)
+
+            return     
         
     def open_settings(self):
 

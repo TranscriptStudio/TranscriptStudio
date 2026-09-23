@@ -69,15 +69,13 @@ class ProjectManager:
         )
 
         counter = 1
-
         while folder.exists():
-
             folder = (
-                self.root
+                base_folder
                 / f"{folder_name}_{counter}"
             )
-
             counter += 1
+        
 
         folder.mkdir(
             parents=True,

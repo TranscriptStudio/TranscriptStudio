@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QRadioButton,
     QMessageBox,
+    QComboBox,
 )
 
 
@@ -92,6 +93,31 @@ class TranscriptionEntryDialog(QDialog):
         file_layout.addWidget(browse_btn)
 
         main_layout.addWidget(file_group)
+
+        # --------------------------------------------------------------
+        # Sous-répertoire projet
+        # --------------------------------------------------------------
+        category_group = QGroupBox(
+            "Sous-répertoire du projet"
+        )
+        category_layout = QVBoxLayout(
+            category_group
+        )
+
+        self.category_combo = QComboBox()
+        self.category_combo.setEditable(True)
+        self.category_combo.addItems([
+            "",
+            "Commun",
+        ])
+
+        category_layout.addWidget(
+            self.category_combo
+        )
+
+        main_layout.addWidget(
+            category_group
+        )
 
         # --------------------------------------------------------------
         # Choix workflow
@@ -207,8 +233,12 @@ class TranscriptionEntryDialog(QDialog):
         return self.MODE_DIRECT
 
     def get_result(self) -> dict:
-
         return {
             "audio_file": self.get_audio_file(),
             "mode": self.get_mode(),
+            "category": (
+                self.category_combo
+                .currentText()
+                .strip()
+            ),
         }

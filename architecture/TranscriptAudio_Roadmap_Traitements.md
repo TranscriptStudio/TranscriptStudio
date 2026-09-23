@@ -287,22 +287,73 @@ sur WAV de travail.
 
 # Commit 15
 
+## 15.0 Séparation UI / Résultat Audio
+
+- [✓] séparation UI/résultat audio
+
 ## 15a
 - [✓] génération de audio_processed.wav
 - [✓] calcul des statistiques réelles
 - [✓] mise à jour de la ligne de résumé existante
 ## Commit 15b
-- déplacement de category_combo
-- retiré de ui/new_transcription_dialog.py
-- ajouté dans ui/transcription_entry_dialog.py
-- propagé via get_result()
+- [✓] déplacement de category_combo
+- [✓] retiré de ui/new_transcription_dialog.py
+- [✓] ajouté dans ui/transcription_entry_dialog.py
+- [✓] propagé via get_result()
+
+### test
+- [✓] « Nouvelle transcription » affiche maintenant Sous-répertoire du projet.
+- [✓] La liste contient toujours Commun.
+- [✓] La zone reste éditable.
+- [✓] Elle n'apparaît plus dans NewTranscriptionDialog.
+- [✓] Les parcours Direct et Prétraitement s'ouvrent toujours normalement.
+- [✓] print(result) ok
+
 ## Commit 15c
-- création du dossier projet dès l'entrée du workflow
-- sauvegarde de audio_processed.wav dans ce dossier
+- [✓] Corriger ProjectManager.create_project_folder()
+- [✓] création du dossier projet dès l'entrée du workflow
+- [✓] sauvegarde de audio_processed.wav dans ce dossier
+- [✓] suppresion fichiers wav temporaires 
+- [✓] récupération du fichier audion dans new_transcription _dialog (soit brut soit processé selon option)
+
+### Tests avant de passer
+
+1. Direct sans catégorie
+
+- [✓] dossier YYYY-MM-DD_nom créé ;
+- [✓] audio original copié ;
+- [✓] NewTranscriptionDialog affiche le bon fichier.
+
+2. Direct avec Commun
+
+- [✓] dossier créé sous Commun;
+- [✓] audio copié dedans.
+
+3. Deux fois le même fichier
+
+- [✓] second dossier suffixé _1;
+- [✓] il reste bien dans la catégorie.
+
+4. Prétraitement
+
+- [✓] audio original présent dans le dossier projet ;
+- [✓] après « Lancer le traitement », audio_processed.wav apparaît dans ce même dossier ;
+- [✓] NewTranscriptionDialog reçoit audio_processed.wav.
+
+- [✓] Vérification temporaire print("Audio transmis :", processed_audio_file) avant l'ouverture de NewTranscriptionDialog
+
+
+## commit 16
+- affichage waveform final avec options de lecture sous le résumé des infos finales
 
 ---
 
-# Commit 16 - Stabilisation
+
+## commit 17 - sauvegarde et export audio
+
+- conversion audio process dans format origine
+
+# Commit 18 - Stabilisation
 
 ## Actions
 
