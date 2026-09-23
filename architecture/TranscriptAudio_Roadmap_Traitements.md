@@ -262,8 +262,8 @@ Premier traitement audio réel.
 
 ### Fonction
 
-- trim start
-- trim end
+- [✓]  trim start
+- [✓]  trim end
 
 sur WAV de travail.
 

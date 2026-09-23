@@ -1,7 +1,10 @@
 # services/audio_processing_pipeline.py
 
 from pathlib import Path
+import subprocess
 from services.silence_detection_service import SilenceDetectionService
+from services.ffmpeg_paths import FFMPEG_PATH
+
 
 class AudioProcessingPipeline:
 
@@ -43,16 +46,61 @@ class AudioProcessingPipeline:
         self,
         audio_file
     ):
-        if (
+        if not (
             self.settings.trim_start_enabled
             or
             self.settings.trim_end_enabled
         ):
-            print(
-                "[PIPELINE] Découpe"
+            return audio_file
+
+        print("[PIPELINE] Découpe")
+
+        start_time = (
+            self.settings.trim_start_time
+            if self.settings.trim_start_enabled
+            else 0.0
+        )
+
+        output_file = (
+            audio_file.parent
+            / f"{audio_file.stem}_trim.wav"
+        )
+
+        command = [
+            str(FFMPEG_PATH),
+            "-y",
+            "-i",
+            str(audio_file),
+            "-ss",
+            str(start_time),
+        ]
+
+        if self.settings.trim_end_enabled:
+
+            duration = (
+                self.settings.trim_end_time
+                - start_time
             )
 
-        return audio_file
+            command.extend([
+                "-t",
+                str(duration)
+            ])
+
+        command.append(
+            str(output_file)
+        )
+
+        subprocess.run(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True
+        )
+
+        self.working_file = output_file
+
+        return output_file
 
     def apply_silence_removal(
         self,
