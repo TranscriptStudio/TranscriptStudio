@@ -139,6 +139,12 @@ AudioProcessingPipeline
 2. Silences
 3. Accélération
 
+- [✓] création services/audio_processing_pipeline.py
+- [✓] ajout du squelette
+- [✓] ajouter les traces dans l'ordre
+- [✓] brancher le bouton traiter
+- [✓] modifier process_audio()
+
 Sans traitement réel.
 
 ---

@@ -21,9 +21,11 @@ from PySide6.QtMultimedia import (
 from PySide6.QtCore import Qt, QUrl
 from pathlib import Path
 
-from models.audio_processing_settings import (AudioProcessingSettings)
+from models.audio_processing_settings import AudioProcessingSettings
 from services.playback import PlaybackManager
 from services.audio_waveform_service import AudioWaveformService
+from services.audio_processing_pipeline import  AudioProcessingPipeline
+
 from ui.waveform_widget import WaveformWidget
 
 class AudioPreprocessDialog(QDialog):
@@ -523,7 +525,18 @@ class AudioPreprocessDialog(QDialog):
 
     def process_audio(self):
 
-        self.accept()       
+        pipeline = (
+            AudioProcessingPipeline(
+                self.audio_file,
+                self.settings
+            )
+        )
+
+        pipeline.run()
+
+        print(
+            "Pipeline terminé"
+        )       
 
     def process_and_transcribe(self):
 
