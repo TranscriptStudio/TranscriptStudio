@@ -84,6 +84,10 @@ class AudioPreprocessDialog(QDialog):
         self.waveform_widget.load_audio(
             self.audio_file
         )
+        self.working_wav = (
+            self.waveform_widget.document.working_wav
+        )
+
         self.waveform_widget.setMinimumHeight(
             80
         )
@@ -643,6 +647,7 @@ class AudioPreprocessDialog(QDialog):
         pipeline = (
             AudioProcessingPipeline(
                 self.audio_file,
+                self.working_wav,
                 self.settings
             )
         )

@@ -184,8 +184,8 @@ Durée mini :
 # Commit 9b - conversion audio wave
 
 
-- instancier audio converti en wav
-- rendu opérationnnel par utilisation SilenceDetectionService
+- [✓] instancier audio converti en wav
+- [✓] rendu opérationnnel par utilisation SilenceDetectionService
 
 
 ---
