@@ -25,6 +25,7 @@ from models.audio_processing_settings import AudioProcessingSettings
 from services.playback import PlaybackManager
 from services.audio_waveform_service import AudioWaveformService
 from services.audio_processing_pipeline import  AudioProcessingPipeline
+from services.silence_detection_service import SilenceDetectionService
 
 
 from ui.waveform_widget import WaveformWidget
@@ -43,6 +44,8 @@ class AudioPreprocessDialog(QDialog):
         self.opacity_fade = 0.4
         self.trim_start_time = 0.0
         self.trim_end_time = 0.0
+        self.detected_silences = []
+        self.filtered_silences = []
         self.setWindowFlag(
             Qt.WindowMinMaxButtonsHint,
             True
@@ -322,6 +325,24 @@ class AudioPreprocessDialog(QDialog):
         self.speed_gain_label = QLabel(
             "Gain théorique : 00:00:00"
         )
+    
+
+        self.summary_original_label = QLabel(
+            "Durée originale : 00:00:00"
+        )
+
+        self.summary_removed_label = QLabel(
+            "Temps supprimé : 00:00:00"
+        )
+
+        self.summary_final_label = QLabel(
+            "Durée finale estimée : 00:00:00"
+        )
+        self.summary_ratio_label = QLabel(
+        "Optimisation : 0 %"
+        )
+
+
         self.speed_gain_label.setVisible(
             self.settings.speed_enabled
         )
@@ -520,6 +541,51 @@ class AudioPreprocessDialog(QDialog):
         )
 
         effects_layout.addStretch()
+
+        separator = QLabel(
+            "────────────────────────────────────────────"
+        )
+
+        effects_layout.addWidget(
+            separator
+        )
+
+        summary_layout = QHBoxLayout()
+
+        summary_layout.addWidget(
+            self.summary_original_label
+        )
+
+        summary_layout.addSpacing(
+            20
+        )
+
+        summary_layout.addWidget(
+            self.summary_removed_label
+        )
+
+        summary_layout.addSpacing(
+            20
+        )
+
+        summary_layout.addWidget(
+            self.summary_final_label
+        )
+
+        summary_layout.addSpacing(
+            20
+        )
+
+        summary_layout.addWidget(
+            self.summary_ratio_label
+        )
+
+        summary_layout.addStretch()
+
+        effects_layout.addLayout(
+            summary_layout
+        )
+        
         
         self.trim_checkbox.setChecked(
             self.settings.trim_start_enabled
@@ -699,6 +765,7 @@ class AudioPreprocessDialog(QDialog):
         self.settings.trim_start_enabled = checked
         self.settings.trim_end_enabled = checked
         self.waveform_widget.update()
+        self.update_summary()
 
     def on_trim_changed(self):
 
@@ -731,7 +798,10 @@ class AudioPreprocessDialog(QDialog):
                 "Durée conservée : "
                 + self.format_duration(duration)
             )
+            self.update_filtered_silences()
             self.waveform_widget.update()
+            self.update_analysis()
+            self.update_summary()
             
         except Exception:
             pass
@@ -845,7 +915,17 @@ class AudioPreprocessDialog(QDialog):
     ):
 
         self.settings.silence_enabled = checked
+        if checked:
+            
+            self.on_silence_changed()
+            
+        else:
+            
+            self.detected_silences = []
+            
+            self.waveform_widget.update()
 
+        self.waveform_widget.update()
         self.silence_threshold_edit.setEnabled(
             checked
         )
@@ -861,7 +941,7 @@ class AudioPreprocessDialog(QDialog):
         self.silence_total_label.setVisible(
             checked
         )
-
+        self.update_summary()
 
 
 
@@ -878,9 +958,35 @@ class AudioPreprocessDialog(QDialog):
             self.settings.silence_min_duration = float(
                     self.silence_duration_edit.text()
             )
+            
+
+            try:
+
+                detector = (
+                    SilenceDetectionService()
+                )
+
+                self.detected_silences = (
+                    detector.detect_silences(
+                        self.working_wav,
+                        self.settings.silence_threshold_db,
+                        self.settings.silence_min_duration
+                    )
+                )
+
+                self.waveform_widget.update()
+                self.update_filtered_silences()
+                self.update_analysis()
+                self.update_summary()
+
+            except Exception:
+
+                self.detected_silences = []
+
 
         except ValueError:
             pass
+        
 
     def on_speed_toggled(
         self,
@@ -925,6 +1031,7 @@ class AudioPreprocessDialog(QDialog):
                 background: rgba(255,255,255,30);
             }
             """)
+        self.update_summary()
 
 
     def on_speed_changed(
@@ -937,6 +1044,422 @@ class AudioPreprocessDialog(QDialog):
         self.speed_ratio_label.setText(
             f"{1 + value / 100:.2f}x"
         )
+        self.update_analysis()
+        self.update_summary()
+
+    def update_summary(self):
+
+        if not hasattr(
+            self,
+            "duration"
+        ):
+            return
+
+        original_duration = self.duration
+
+        trim_removed = 0.0
+        silence_removed = 0.0
+
+        #
+        # Découpe
+        #
+        trimmed_duration = original_duration
+
+        if self.settings.trim_start_enabled:
+
+            trim_removed = (
+                self.settings.trim_start_time
+                +
+                (
+                    original_duration
+                    - self.settings.trim_end_time
+                )
+            )
+
+            trimmed_duration = max(
+                0,
+                original_duration
+                - trim_removed
+            )
+
+        #
+        # Silences
+        #
+        if self.settings.silence_enabled:
+
+            silence_removed = sum(
+                end - start
+                for start, end
+                in self.filtered_silences
+            )
+
+        after_silence_duration = max(
+            0,
+            trimmed_duration
+            - silence_removed
+        )
+
+        #
+        # Accélération
+        #
+        final_duration = (
+            after_silence_duration
+        )
+
+        if self.settings.speed_enabled:
+
+            ratio = (
+                1.0
+                + self.settings.speed_percent / 100
+            )
+
+            final_duration = (
+                after_silence_duration
+                / ratio
+            )
+
+            speed_gain = (
+                after_silence_duration
+                - final_duration
+            )
+
+        else:
+
+            speed_gain = 0.0
+
+        #
+        # Résumé
+        #
+        total_removed = (
+            original_duration
+            - final_duration
+        )
+
+        optimization_percent = 0
+
+        if original_duration > 0:
+
+            optimization_percent = (
+                total_removed
+                / original_duration
+                * 100
+            )
+
+        self.summary_original_label.setText(
+            "Durée originale : "
+            + self.format_duration(
+                original_duration
+            )
+        )
+
+        self.summary_removed_label.setText(
+            "Temps supprimé : "
+            + self.format_duration(
+                total_removed
+            )
+        )
+
+        self.summary_final_label.setText(
+            "Durée finale estimée : "
+            + self.format_duration(
+                final_duration
+            )
+        )
+
+        self.summary_ratio_label.setText(
+            f"Optimisation : "
+            f"{optimization_percent:.1f} %"
+        )
+
+        #
+        # Détails découpe
+        #
+        self.trim_removed_label.setText(
+            "Temps supprimé : "
+            + self.format_duration(
+                trim_removed
+            )
+        )
+
+        #
+        # Détails silences
+        #
+        self.silence_count_label.setText(
+            f"Silences détectés : "
+            f"{len(self.filtered_silences)}"
+        )
+
+        self.silence_total_label.setText(
+            "Temps total des silences : "
+            + self.format_duration(
+                silence_removed
+            )
+        )
+
+        #
+        # Détails accélération
+        #
+        self.speed_gain_label.setText(
+            "Gain théorique : "
+            + self.format_duration(
+                speed_gain
+            )
+        )
+
+    def update_analysis(self):
+
+        if not hasattr(
+            self,
+            "duration"
+        ):
+            return
+
+        #
+        # Durée originale
+        #
+
+        original_duration = self.duration
+
+        #
+        # Trim
+        #
+
+        trim_removed = 0.0
+
+        duration_after_trim = (
+            original_duration
+        )
+
+        if self.settings.trim_start_enabled:
+
+            trim_removed = (
+                self.settings.trim_start_time
+                +
+                (
+                    original_duration
+                    - self.settings.trim_end_time
+                )
+            )
+
+            duration_after_trim = max(
+                0.0,
+                original_duration
+                - trim_removed
+            )
+
+        #
+        # Silences
+        #
+
+        silence_removed = 0.0
+
+        silence_count = 0
+
+        if self.settings.silence_enabled:
+
+            filtered_silences = []
+
+            trim_start = (
+                self.settings.trim_start_time
+                if self.settings.trim_start_enabled
+                else 0.0
+            )
+
+            trim_end = (
+                self.settings.trim_end_time
+                if self.settings.trim_start_enabled
+                else original_duration
+            )
+
+            for start, end in self.filtered_silences:
+
+                if end <= trim_start:
+                    continue
+
+                if start >= trim_end:
+                    continue
+
+                visible_start = max(
+                    start,
+                    trim_start
+                )
+
+                visible_end = min(
+                    end,
+                    trim_end
+                )
+
+                filtered_silences.append(
+                    (
+                        visible_start,
+                        visible_end
+                    )
+                )
+
+            silence_count = len(
+                self.filtered_silences
+            )
+
+            silence_removed = sum(
+                end - start
+                for start, end
+                in self.filtered_silences
+            )
+
+        duration_after_silence = max(
+            0.0,
+            duration_after_trim
+            - silence_removed
+        )
+
+        #
+        # Vitesse
+        #
+
+        speed_gain = 0.0
+
+        final_duration = (
+            duration_after_silence
+        )
+
+        if self.settings.speed_enabled:
+
+            ratio = (
+                1
+                + self.settings.speed_percent / 100
+            )
+
+            final_duration = (
+                duration_after_silence
+                / ratio
+            )
+
+            speed_gain = (
+                duration_after_silence
+                - final_duration
+            )
+
+        #
+        # Résumé
+        #
+
+        total_removed = (
+            trim_removed
+            + silence_removed
+            + speed_gain
+        )
+
+        optimization = 0.0
+
+        if original_duration > 0:
+
+            optimization = (
+                total_removed
+                / original_duration
+                * 100
+            )
+
+        #
+        # UI Trim
+        #
+
+        self.trim_removed_label.setText(
+            "Temps supprimé : "
+            + self.format_duration(
+                trim_removed
+            )
+        )
+
+        #
+        # UI Silence
+        #
+
+        self.silence_count_label.setText(
+            f"Silences détectés : "
+            f"{silence_count}"
+        )
+
+        self.silence_total_label.setText(
+            "Temps total des silences : "
+            + self.format_duration(
+                silence_removed
+            )
+        )
+
+        #
+        # UI Speed
+        #
+
+        self.speed_gain_label.setText(
+            "Gain théorique : "
+            + self.format_duration(
+                speed_gain
+            )
+        )
+
+        #
+        # Résumé final
+        #
+
+        self.summary_original_label.setText(
+            "Durée originale : "
+            + self.format_duration(
+                original_duration
+            )
+        )
+
+        self.summary_removed_label.setText(
+            "Temps supprimé : "
+            + self.format_duration(
+                total_removed
+            )
+        )
+
+        self.summary_final_label.setText(
+            "Durée finale : "
+            + self.format_duration(
+                final_duration
+            )
+        )
+
+        self.summary_ratio_label.setText(
+            f"Optimisation : "
+            f"{optimization:.1f} %"
+        )
+
+    def update_filtered_silences(self):
+
+        trim_start = 0.0
+        trim_end = self.duration
+
+        if self.settings.trim_start_enabled:
+
+            trim_start = (
+                self.settings.trim_start_time
+            )
+
+            trim_end = (
+                self.settings.trim_end_time
+            )
+
+        self.filtered_silences = []
+
+        for start, end in self.detected_silences:
+
+            if end <= trim_start:
+                continue
+
+            if start >= trim_end:
+                continue
+
+            self.filtered_silences.append(
+                (
+                    max(start, trim_start),
+                    min(end, trim_end)
+                )
+            )
+        self.update_analysis()
+
 
     def process_audio(self):
 
@@ -1033,6 +1556,18 @@ class AudioPreprocessDialog(QDialog):
 
             self.settings.trim_end_time = duration
             self.settings.trim_start_time = 0.0
+            self.update_analysis()
+            self.update_summary()
+            self.summary_original_label.setText(
+                "Durée originale : "
+                + self.format_duration(duration)
+            )
+
+            self.summary_final_label.setText(
+                "Durée finale estimée : "
+                + self.format_duration(duration)
+            )
+            
             
     def update_position(
         self,

@@ -164,8 +164,9 @@ class WaveformWidget(QWidget):
         )
 
         pen = QPen(
-            QColor("#4A90E2")
+            QColor("#2A7DDC")
         )
+        pen.setWidth(1)
 
         painter.setPen(pen)
 
@@ -187,6 +188,11 @@ class WaveformWidget(QWidget):
             waveform_height
         )       
         self.draw_trim_overlay(
+            painter,
+            width,
+            timeline_height,
+        )
+        self.draw_silence_overlay(
             painter,
             width,
             timeline_height,
@@ -286,7 +292,9 @@ class WaveformWidget(QWidget):
         waveform_height
     ):
     
-
+        painter.setPen(
+            QColor("#4A90E2")
+        )
         for x in range(len(mins)):
 
             y_min = (
@@ -307,6 +315,15 @@ class WaveformWidget(QWidget):
                 x,
                 int(y_max)
             )
+
+            # if y_max - y_min > 1:
+
+            #     painter.drawLine(
+            #         x + 1,
+            #         int(y_min),
+            #         x + 1,
+            #         int(y_max)
+            #     )
 
     def draw_trim_overlay(
         self,
@@ -369,10 +386,10 @@ class WaveformWidget(QWidget):
         self.trim_end_x = end_x
 
         overlay_color = QColor(
-            180,
-            180,
-            180,
-            80
+            46,
+            204,
+            113,
+            110
         )
 
         painter.fillRect(
@@ -392,7 +409,7 @@ class WaveformWidget(QWidget):
         )
 
         handle_color = QColor(
-            "#42A5F5"
+            "#1E8449"
         )
 
         painter.setPen(
@@ -457,7 +474,97 @@ class WaveformWidget(QWidget):
                 for x, y in end_triangle
             ]
         )
+    def draw_silence_overlay(
+        self,
+        painter,
+        width,
+        timeline_height,
+    ):
 
+        parent_dialog = self.parent()
+
+        while (
+            parent_dialog
+            and not hasattr(
+                parent_dialog,
+                "settings"
+            )
+        ):
+            parent_dialog = parent_dialog.parent()
+
+        if parent_dialog is None:
+            return
+
+        settings = parent_dialog.settings
+
+        if not settings.silence_enabled:
+            return
+
+        if not hasattr(
+            parent_dialog,
+            "detected_silences"
+        ):
+            return
+
+        visible_duration = (
+            self.visible_end_time
+            - self.visible_start_time
+        )
+
+        if visible_duration <= 0:
+            return
+
+        silence_color = QColor(
+            106,
+            27,
+            154,
+            110
+        )
+
+        for start_time, end_time in (
+            parent_dialog.filtered_silences
+        ):
+
+            start_ratio = (
+                start_time
+                - self.visible_start_time
+            ) / visible_duration
+
+            end_ratio = (
+                end_time
+                - self.visible_start_time
+            ) / visible_duration
+
+            start_x = (
+                start_ratio
+                * width
+            )
+
+            end_x = (
+                end_ratio
+                * width
+            )
+
+            start_x = max(
+                0,
+                min(width, start_x)
+            )
+
+            end_x = max(
+                0,
+                min(width, end_x)
+            )
+
+            if end_x <= start_x:
+                continue
+
+            painter.fillRect(
+                int(start_x),
+                timeline_height,
+                int(end_x - start_x),
+                self.height() - timeline_height,
+                silence_color
+            )
     def draw_playback_cursor(
         self,
         painter,

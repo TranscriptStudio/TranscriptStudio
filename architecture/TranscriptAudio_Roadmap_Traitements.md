@@ -235,17 +235,21 @@ ajouter
 
 11.4 Waveform
 
-- passer la découpe en gris
-- ajouter les silences en rouge transparent
-- passer waveforme en couleur bleu par exemple (plutôt que gris actuel) et augmenter très légèrement l'épaisseur de la courbe
+- [✓] passer la découpe en gris
+- [✓] ajouter les silences en rouge transparent
+- [✓] passer waveforme en couleur bleu par exemple (plutôt que gris actuel) et augmenter très légèrement l'épaisseur de la courbe
 
 
 11.5 récap dans encart final
 
-- ajout Durée originale format HH:MM:SS
-- ajout Temps supprimé format HH:MM:SS
-- ajout Durée estimée finale format HH:MM:SS
+- [✓] ajout Durée originale format HH:MM:SS
+- [✓] ajout Temps supprimé format HH:MM:SS
+- [✓] ajout Durée estimée finale format HH:MM:SS
 
+11.6 ajustement calcul silence
+
+- [✓] réduire la plage de calcul de silence à la zone de trim si celle ci est activée
+- [✓] ajustement des couleurs
 
 ---
 
