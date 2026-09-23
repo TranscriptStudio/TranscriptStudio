@@ -167,7 +167,7 @@ Durée mini :
 
 ---
 
-# Commit 9a - Détection des silences
+# Commit 9a - Détection des silences V1.1.5
 
 ## Créer
 
@@ -189,7 +189,7 @@ Durée mini :
 
 
 ---
-# Commit 10 - UI Accélération
+# Commit 10 - UI Accélération V1.1.6
 
 ## Affichage
 
@@ -207,23 +207,46 @@ Ratio :
 
 ---
 
-# Commit 11a - Amélioration graphique
+# Commit 11 - Amélioration graphique et analyse prévisionelle globale v1.1.7
 
-- retrait des paramètres par rapport aux checkboxs.
-- passer le format temps au dixième de seconde au lieu de millième pour la découpe (pour les durées affichées la seconde suffit)
-- estomper labels lorsque checkbox désactivées
-- mettre la durée conservée à droite  de début et fin ()
-- mettre sur la même ligne les deux paramètres de silence
-- mettre en transparance la colobor si speed desactivée
-- mettre le ratio de vitesse à droite du slider
----
+11.1 Réorganisation UI
 
-# Commit 11b - Analyse prévisionnelle globale
+- [✓] retrait des labels sous les checkboxes ;
+- [✓] durée conservée sur la ligne Début / Fin ;
+- [✓] paramètres silence sur une seule ligne ;
+- [✓] ratio vitesse à droite du slider ;
+- [✓] colorbar full-transparente quand désactivée ;
+- [✓] labels estompés quand option inactive.
+- [✓] réduire hauteur de la piste par défaut 
+- [✓] augmenter la hauteur mini du panneau option
 
-- bloc découpe ajout temps supprimé
-- bloc silence ajout silence détecté et temps silencieux
-- affichage silences détectés sur la piste (en rouge transparent)
-- bloc vitesse ajout gain théorique
+11.2 Affichage temps
+
+- [✓] temps de saisie découpe au dixième 
+- [✓] temps récapitulatifs à la seconde 
+
+11.3 Analyse prévisionnelle
+
+ajouter 
+- [✓] Découpe : Temps supprimé / sur la même ligne que les paramètres découpe
+- [✓] Silences : Nb silences détectés  et Temps total de silence, sur la même ligne que les paramètres
+- [✓] Vitesse : Gain théorique, sur la même ligne que le slider
+- [✓] rendre ces paramètres invisibles quand option décochée
+
+11.4 Waveform
+
+- passer la découpe en gris
+- ajouter les silences en rouge transparent
+- passer waveforme en couleur bleu par exemple (plutôt que gris actuel) et augmenter très légèrement l'épaisseur de la courbe
+
+
+11.5 récap dans encart final
+
+- ajout Durée originale format HH:MM:SS
+- ajout Temps supprimé format HH:MM:SS
+- ajout Durée estimée finale format HH:MM:SS
+
+
 ---
 
 

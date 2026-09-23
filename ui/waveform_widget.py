@@ -942,7 +942,7 @@ class WaveformWidget(QWidget):
                 )
 
                 parent_dialog.trim_start_edit.setText(
-                    parent_dialog.format_time_ms(
+                    parent_dialog.format_time_tenth(
                         settings.trim_start_time
                     )
                 )
@@ -975,7 +975,7 @@ class WaveformWidget(QWidget):
                 )
 
                 parent_dialog.trim_end_edit.setText(
-                    parent_dialog.format_time_ms(
+                    parent_dialog.format_time_tenth(
                         settings.trim_end_time
                     )
                 )

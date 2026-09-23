@@ -40,7 +40,7 @@ class AudioPreprocessDialog(QDialog):
         super().__init__(parent)
         self.trim_start_enabled = False
         self.trim_end_enabled = False
-
+        self.opacity_fade = 0.4
         self.trim_start_time = 0.0
         self.trim_end_time = 0.0
         self.setWindowFlag(
@@ -164,7 +164,7 @@ class AudioPreprocessDialog(QDialog):
         self.effects_panel = QWidget()
 
         self.effects_panel.setMinimumHeight(
-            140
+            220
         )
         effects_title = QLabel("Options de traitement")
 
@@ -193,15 +193,25 @@ class AudioPreprocessDialog(QDialog):
         )
 
         self.trim_start_edit = QLineEdit(
-            "00:00:00.000"
+            "00:00:00.0"
         )
 
         self.trim_end_edit = QLineEdit(
-            "00:00:00.000"
+            "00:00:00.0"
         )
 
         self.trim_duration_label = QLabel(
-            "Durée conservée : 00:00:00.000"
+            "Durée conservée : 00:00:00"
+        )
+        self.trim_removed_label = QLabel(
+            "Temps supprimé : 00:00:00"
+        )
+        self.trim_duration_label.setVisible(
+            self.settings.trim_start_enabled
+        )
+
+        self.trim_removed_label.setVisible(
+            self.settings.trim_start_enabled
         )
 
         self.trim_start_edit.setFixedWidth(
@@ -226,11 +236,15 @@ class AudioPreprocessDialog(QDialog):
             "Supprimer les silences"
         )
         self.silence_threshold_edit = QLineEdit(
-            "-35"
+            str(
+                self.settings.silence_threshold_db
+                )
         )
 
         self.silence_duration_edit = QLineEdit(
-            "0.5"
+            str(
+                self.settings.silence_min_duration
+                )
         )
 
         self.silence_threshold_edit.setFixedWidth(
@@ -247,6 +261,21 @@ class AudioPreprocessDialog(QDialog):
 
         self.silence_duration_edit.setEnabled(
             False
+        )
+
+        self.silence_count_label = QLabel(
+            "Silences détectés : 0"
+        )
+        
+        self.silence_total_label = QLabel(
+            "Temps total des silences : 00:00:00"
+        )
+        self.silence_count_label.setVisible(
+            self.settings.silence_enabled
+        )
+
+        self.silence_total_label.setVisible(
+            self.settings.silence_enabled
         )
 
         self.speed_checkbox = QCheckBox(
@@ -280,7 +309,7 @@ class AudioPreprocessDialog(QDialog):
         )
 
         self.speed_slider.setValue(
-            0
+            self.settings.speed_percent
         )
 
         self.speed_slider.setEnabled(
@@ -288,7 +317,13 @@ class AudioPreprocessDialog(QDialog):
         )
 
         self.speed_ratio_label = QLabel(
-            "1.00x"
+            f"{1 + self.settings.speed_percent / 100:.2f}x"
+        )
+        self.speed_gain_label = QLabel(
+            "Gain théorique : 00:00:00"
+        )
+        self.speed_gain_label.setVisible(
+            self.settings.speed_enabled
         )
 
         self.speed_ratio_label.setEnabled(
@@ -305,7 +340,8 @@ class AudioPreprocessDialog(QDialog):
 
         self.speed_ratio_label.setEnabled(
             self.settings.speed_enabled
-        )
+        )        
+
         effects_layout.addWidget(
             effects_title
         )
@@ -326,8 +362,12 @@ class AudioPreprocessDialog(QDialog):
 
         trim_values_layout = QHBoxLayout()
 
+        self.trim_start_label = QLabel(
+        "Début :"
+        )
+        
         trim_values_layout.addWidget(
-            QLabel("Début :")
+        self.trim_start_label
         )
 
         trim_values_layout.addWidget(
@@ -338,22 +378,38 @@ class AudioPreprocessDialog(QDialog):
             20
         )
 
+        self.trim_end_label = QLabel(
+            "Fin :"
+        )
+
         trim_values_layout.addWidget(
-            QLabel("Fin :")
+            self.trim_end_label
         )
 
         trim_values_layout.addWidget(
             self.trim_end_edit
         )
 
+        trim_values_layout.addSpacing(
+            20
+        )
+
+        trim_values_layout.addWidget(
+            self.trim_duration_label
+        )
+
+        trim_values_layout.addSpacing(
+            20
+        )
+
+        trim_values_layout.addWidget(
+            self.trim_removed_label
+        )
+
         trim_values_layout.addStretch()
 
         trim_layout.addLayout(
             trim_values_layout
-        )
-
-        trim_layout.addWidget(
-            self.trim_duration_label
         )
 
         effects_layout.addLayout(
@@ -366,36 +422,55 @@ class AudioPreprocessDialog(QDialog):
             self.silence_checkbox
         )
 
-        threshold_layout = QHBoxLayout()
+        silence_params_layout = QHBoxLayout()
 
-        threshold_layout.addWidget(
-            QLabel("Seuil (dB) :")
+        self.silence_threshold_label = QLabel(
+            "Seuil (dB) :"
         )
 
-        threshold_layout.addWidget(
+        silence_params_layout.addWidget(
+            self.silence_threshold_label
+        )
+
+        silence_params_layout.addWidget(
             self.silence_threshold_edit
         )
 
-        threshold_layout.addStretch()
-
-        silence_layout.addLayout(
-            threshold_layout
+        silence_params_layout.addSpacing(
+            20
         )
 
-        duration_layout = QHBoxLayout()
-
-        duration_layout.addWidget(
-            QLabel("Durée mini (s) :")
+        self.silence_duration_label = QLabel(
+            "Durée mini (s) :"
         )
 
-        duration_layout.addWidget(
+        silence_params_layout.addWidget(
+            self.silence_duration_label
+        )
+
+        silence_params_layout.addWidget(
             self.silence_duration_edit
         )
+        silence_params_layout.addSpacing(
+            30
+        )
 
-        duration_layout.addStretch()
+        silence_params_layout.addWidget(
+            self.silence_count_label
+        )
+
+        silence_params_layout.addSpacing(
+            20
+        )
+
+        silence_params_layout.addWidget(
+            self.silence_total_label
+        )
+
+        silence_params_layout.addStretch()
 
         silence_layout.addLayout(
-            duration_layout
+            silence_params_layout
         )
 
         effects_layout.addLayout(
@@ -407,22 +482,34 @@ class AudioPreprocessDialog(QDialog):
         speed_layout.addWidget(
             self.speed_checkbox
         )
-
-        slider_layout = QHBoxLayout()
-
+        self.speed_colorbar.setWindowOpacity(
+            0.25
+        )
+        
         speed_layout.addWidget(
             self.speed_colorbar,
             alignment=Qt.AlignLeft
         )
 
-        speed_layout.addWidget(
-            self.speed_slider,
-            alignment=Qt.AlignLeft
+        slider_layout = QHBoxLayout()
+
+        slider_layout.addWidget(
+            self.speed_slider
         )
 
         slider_layout.addWidget(
             self.speed_ratio_label
         )
+
+        slider_layout.addSpacing(
+            20
+        )
+
+        slider_layout.addWidget(
+            self.speed_gain_label
+        )
+
+        slider_layout.addStretch()
 
         speed_layout.addLayout(
             slider_layout
@@ -455,7 +542,35 @@ class AudioPreprocessDialog(QDialog):
 
         self.silence_duration_edit.setEnabled(
             self.settings.silence_enabled
-        )        
+        )     
+
+        self.trim_start_label.setEnabled(
+            self.settings.trim_start_enabled
+        )
+
+        self.trim_end_label.setEnabled(
+            self.settings.trim_start_enabled
+        )
+
+        self.silence_threshold_label.setEnabled(
+            self.settings.silence_enabled
+        )
+
+        self.silence_duration_label.setEnabled(
+            self.settings.silence_enabled
+        )
+        
+        self.on_trim_toggled(
+            self.settings.trim_start_enabled
+        )
+
+        self.on_silence_toggled(
+            self.settings.silence_enabled
+        )
+
+        self.on_speed_toggled(
+            self.settings.speed_enabled
+        )
 
         splitter = QSplitter(
             Qt.Vertical
@@ -472,8 +587,8 @@ class AudioPreprocessDialog(QDialog):
         )
 
         splitter.setSizes([
-            450,
-            180,
+            200,
+            400,
         ])
 
         layout.addWidget(
@@ -565,7 +680,22 @@ class AudioPreprocessDialog(QDialog):
         self.trim_end_edit.setEnabled(
             checked
         )
+        self.trim_duration_label.setVisible(
+            checked
+        )
 
+        self.trim_removed_label.setVisible(
+            checked
+        )
+
+        for widget in [
+            self.trim_start_label,
+            self.trim_end_label,
+
+        ]:
+            widget.setEnabled(
+                checked
+            )
         self.settings.trim_start_enabled = checked
         self.settings.trim_end_enabled = checked
         self.waveform_widget.update()
@@ -599,7 +729,7 @@ class AudioPreprocessDialog(QDialog):
 
             self.trim_duration_label.setText(
                 "Durée conservée : "
-                + self.format_time_ms(duration)
+                + self.format_duration(duration)
             )
             self.waveform_widget.update()
             
@@ -619,7 +749,7 @@ class AudioPreprocessDialog(QDialog):
             + float(s)
         )
 
-    def format_time_ms(
+    def format_time_tenth(
         self,
         seconds
     ):
@@ -635,7 +765,29 @@ class AudioPreprocessDialog(QDialog):
         return (
             f"{hours:02d}:"
             f"{minutes:02d}:"
-            f"{secs:06.3f}"
+            f"{secs:04.1f}"
+        )
+
+
+    def format_duration(
+        self,
+        seconds
+    ):
+
+        total = int(seconds)
+
+        hours = total // 3600
+
+        minutes = (
+            total % 3600
+        ) // 60
+
+        secs = total % 60
+
+        return (
+            f"{hours:02d}:"
+            f"{minutes:02d}:"
+            f"{secs:02d}"
         )
 
     def validate_trim_range(self):
@@ -673,16 +825,16 @@ class AudioPreprocessDialog(QDialog):
         self.settings.trim_end_time = end_time
 
         self.trim_start_edit.setText(
-            self.format_time_ms(start_time)
+            self.format_time_tenth(start_time)
         )
 
         self.trim_end_edit.setText(
-            self.format_time_ms(end_time)
+            self.format_time_tenth(end_time)
         )
 
         self.trim_duration_label.setText(
             "Durée conservée : "
-            + self.format_time_ms(
+            + self.format_duration(
                 end_time - start_time
             )
         )
@@ -701,6 +853,17 @@ class AudioPreprocessDialog(QDialog):
         self.silence_duration_edit.setEnabled(
             checked
         )
+
+        self.silence_count_label.setVisible(
+            checked
+        )
+
+        self.silence_total_label.setVisible(
+            checked
+        )
+
+
+
 
     def on_silence_changed(
         self
@@ -733,6 +896,35 @@ class AudioPreprocessDialog(QDialog):
         self.speed_ratio_label.setEnabled(
             checked
         )
+
+        self.speed_gain_label.setVisible(
+            checked
+        )
+        
+        if checked:
+
+            self.speed_colorbar.setStyleSheet("""
+            QWidget {
+                border-radius: 4px;
+                background: qlineargradient(
+                    x1:0, y1:0,
+                    x2:1, y2:0,
+                    stop:0.0 #4CAF50,
+                    stop:0.5 #4CAF50,
+                    stop:0.75 #FFA000,
+                    stop:1.0 #D32F2F
+                );
+            }
+            """)
+
+        else:
+
+            self.speed_colorbar.setStyleSheet("""
+            QWidget {
+                border-radius: 4px;
+                background: rgba(255,255,255,30);
+            }
+            """)
 
 
     def on_speed_changed(
@@ -828,15 +1020,15 @@ class AudioPreprocessDialog(QDialog):
             f"00:00 / "
             f"{self.format_time(duration)}"
         )
-        if self.trim_end_edit.text() == "00:00:00.000":
+        if self.settings.trim_end_time == 0:
 
             self.trim_end_edit.setText(
-                self.format_time_ms(duration)
+                self.format_time_tenth(duration)
             )
 
             self.trim_duration_label.setText(
                 "Durée conservée : "
-                + self.format_time_ms(duration)
+                + self.format_duration(duration)
             )
 
             self.settings.trim_end_time = duration

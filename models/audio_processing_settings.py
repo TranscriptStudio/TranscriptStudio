@@ -32,4 +32,4 @@ class AudioProcessingSettings:
     #
 
     speed_enabled: bool = False
-    speed_percent: int = 0
+    speed_percent: int = 50
