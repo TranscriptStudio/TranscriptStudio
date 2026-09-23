@@ -167,20 +167,28 @@ Durée mini :
 
 ---
 
-# Commit 9 - Détection des silences
+# Commit 9a - Détection des silences
 
 ## Créer
 
-SilenceDetectionService
+- [✓] SilenceDetectionService
 
 ### Fonction
 
-Détecter les zones silencieuses.
+- [✓] Détecter les zones silencieuses.
 
 ### Pas encore de suppression réelle.
 
 ---
 
+# Commit 9b - conversion audio wave
+
+
+- instancier audio converti en wav
+- rendu opérationnnel par utilisation SilenceDetectionService
+
+
+---
 # Commit 10 - UI Accélération
 
 ## Affichage

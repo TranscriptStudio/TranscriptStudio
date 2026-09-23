@@ -1,6 +1,7 @@
 # services/audio_processing_pipeline.py
 
 from pathlib import Path
+from services.silence_detection_service import SilenceDetectionService
 
 class AudioProcessingPipeline:
 
@@ -57,6 +58,33 @@ class AudioProcessingPipeline:
             print(
                 "[PIPELINE] Suppression silences"
             )
+
+            detector = (
+                SilenceDetectionService()
+            )
+
+            # silences = (
+            #     detector.detect_silences(
+            #         audio_file,
+            #         self.settings.silence_threshold_db,
+            #         self.settings.silence_min_duration
+            #     )
+            # )
+
+            # print(
+            #     f"{len(silences)} silence(s) trouvé(s)"
+            # )
+            
+
+
+            # for start, end in silences[:20]:
+
+            #     print(
+            #         f"Silence : "
+            #         f"{start:.3f}s -> "
+            #         f"{end:.3f}s"
+            #     )
+            print("TODO : utiliser working_wav")
 
         return audio_file
 
