@@ -156,10 +156,6 @@ class AudioPreprocessDialog(QDialog):
             position_layout
         )
 
-        
-        
-
-
         self.effects_panel = QWidget()
 
         self.effects_panel.setMinimumHeight(
@@ -218,12 +214,35 @@ class AudioPreprocessDialog(QDialog):
         self.trim_end_edit.setEnabled(
             False
         )
+
         
 
         self.silence_checkbox = QCheckBox(
             "Supprimer les silences"
         )
+        self.silence_threshold_edit = QLineEdit(
+            "-35"
+        )
 
+        self.silence_duration_edit = QLineEdit(
+            "0.5"
+        )
+
+        self.silence_threshold_edit.setFixedWidth(
+            80
+        )
+
+        self.silence_duration_edit.setFixedWidth(
+            80
+        )
+
+        self.silence_threshold_edit.setEnabled(
+            False
+        )
+
+        self.silence_duration_edit.setEnabled(
+            False
+        )
         self.speed_checkbox = QCheckBox(
             "Accélérer"
         )
@@ -281,8 +300,46 @@ class AudioPreprocessDialog(QDialog):
             trim_layout
         )
 
-        effects_layout.addWidget(
+        silence_layout = QVBoxLayout()
+
+        silence_layout.addWidget(
             self.silence_checkbox
+        )
+
+        threshold_layout = QHBoxLayout()
+
+        threshold_layout.addWidget(
+            QLabel("Seuil (dB) :")
+        )
+
+        threshold_layout.addWidget(
+            self.silence_threshold_edit
+        )
+
+        threshold_layout.addStretch()
+
+        silence_layout.addLayout(
+            threshold_layout
+        )
+
+        duration_layout = QHBoxLayout()
+
+        duration_layout.addWidget(
+            QLabel("Durée mini (s) :")
+        )
+
+        duration_layout.addWidget(
+            self.silence_duration_edit
+        )
+
+        duration_layout.addStretch()
+
+        silence_layout.addLayout(
+            duration_layout
+        )
+
+        effects_layout.addLayout(
+            silence_layout
         )
 
         effects_layout.addWidget(
@@ -301,6 +358,17 @@ class AudioPreprocessDialog(QDialog):
         self.trim_end_edit.setEnabled(
             self.settings.trim_start_enabled
         )
+        self.silence_checkbox.setChecked(
+            self.settings.silence_enabled
+        )
+
+        self.silence_threshold_edit.setEnabled(
+            self.settings.silence_enabled
+        )
+
+        self.silence_duration_edit.setEnabled(
+            self.settings.silence_enabled
+        )        
 
         splitter = QSplitter(
             Qt.Vertical
@@ -378,6 +446,17 @@ class AudioPreprocessDialog(QDialog):
 
         self.trim_end_edit.editingFinished.connect(
             self.on_trim_changed
+        )
+        self.silence_checkbox.toggled.connect(
+            self.on_silence_toggled
+        )
+
+        self.silence_threshold_edit.editingFinished.connect(
+            self.on_silence_changed
+        )
+
+        self.silence_duration_edit.editingFinished.connect(
+            self.on_silence_changed
         )
 
     def on_trim_toggled(
@@ -513,6 +592,41 @@ class AudioPreprocessDialog(QDialog):
                 end_time - start_time
             )
         )
+
+    def on_silence_toggled(
+        self,
+        checked
+    ):
+
+        self.settings.silence_enabled = checked
+
+        self.silence_threshold_edit.setEnabled(
+            checked
+        )
+
+        self.silence_duration_edit.setEnabled(
+            checked
+        )
+
+    def on_silence_changed(
+        self
+    ):
+
+        try:
+
+            self.settings.silence_threshold_db = float(
+                self.silence_threshold_edit.text()
+            )
+
+            self.settings.silence_min_duration = (
+                float(
+                    self.silence_duration_edit.text()
+                )
+                / 1000
+            )
+
+        except ValueError:
+            pass
 
     def on_speed_changed(
         self,

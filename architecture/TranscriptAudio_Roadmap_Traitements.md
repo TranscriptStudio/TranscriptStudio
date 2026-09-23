@@ -5,7 +5,7 @@ Découper le développement en petits commits cohérents, faciles à tester et �
 
 ---
 
-# Commit 1 - Suppression du panneau Réglages
+# Commit 1 - Suppression du panneau Réglages 
 
 ## Objectif
 Afficher les options de traitement en permanence dans la fenêtre principale.
@@ -25,7 +25,7 @@ Afficher les options de traitement en permanence dans la fenêtre principale.
 
 ---
 
-# Commit 2 - Modèle de données TraitementsAudio
+# Commit 2 - Modèle de données TraitementsAudio V1.1.2
 
 ## Objectif
 Centraliser les paramètres futurs dans une structure unique.
@@ -103,7 +103,7 @@ Textbox → poignée
 
 ---
 
-# Commit 6 - Validation découpe
+# Commit 6 - Validation découpe V1.1.3
 
 ## Objectif
 
@@ -123,7 +123,7 @@ Sécuriser les saisies.
 
 ---
 
-# Commit 7 - Architecture pipeline
+# Commit 7 - Architecture pipeline V1.1.4
 
 ## Objectif
 
@@ -163,7 +163,7 @@ Durée mini :
 
 ### Comportement
 
-Activation dynamique des champs.
+- [✓] Activation dynamique des champs.
 
 ---
 
