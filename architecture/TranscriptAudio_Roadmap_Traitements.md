@@ -396,15 +396,15 @@ sur WAV de travail.
 
 À chaque nouveau traitement :
 
-- arrêter l'ancienne écoute ;
-- recharger audio_processed.wav ;
-- recalculer sa waveform ;
-- remettre le curseur à 0 ;
-- afficher la zone résultat.
+- [✓]  arrêter l'ancienne écoute ;
+- [✓]  recharger audio_processed.wav ;
+- [✓]  recalculer sa waveform ;
+- [✓]  remettre le curseur à 0 ;
+- [✓]  afficher la zone résultat.
 
 ## 16.5
 
-Petite adaptation de WaveformWidget pour que la waveform résultat soit neutre, sans poignées de trim ni zones de silence. Actuellement le widget recherche son parent_dialog.settings et affiche automatiquement ces overlays lorsqu'il est dans AudioPreprocessDialog.
+ [✓] Petite adaptation de WaveformWidget pour que la waveform résultat soit neutre, sans poignées de trim ni zones de silence. Actuellement le widget recherche son parent_dialog.settings et affiche automatiquement ces overlays lorsqu'il est dans AudioPreprocessDialog.
 
 ## 16.6 ajouter des popup avec barre de chargement
  - au lancement de audio process dialog qui prend maintenant plus du temps (probablement du fait de la conversion audio en wav sans compression)

@@ -1623,6 +1623,29 @@ class AudioPreprocessDialog(QDialog):
             )
         
     def process_audio(self):
+        #
+        # Réinitialisation de l'ancien résultat
+        #
+        self.result_playback.stop()
+        self.result_playback.set_position(
+            0.0
+        )
+
+        self.result_position_slider.blockSignals(
+            True
+        )
+        self.result_position_slider.setValue(
+            0
+        )
+        self.result_position_slider.blockSignals(
+            False
+        )
+
+        self.result_position_label.setText(
+            "00:00 / 00:00"
+        )
+
+        self.result_duration = 0.0
 
         output_file = (
             self.project_folder
@@ -1646,6 +1669,12 @@ class AudioPreprocessDialog(QDialog):
         self.result_waveform_widget.load_audio(
             self.processed_audio_file
         )
+        self.result_waveform_widget.document.current_time = (
+            0.0
+        )
+
+        self.result_waveform_widget.fit_all()
+        
         self.result_waveform_widget.set_display_duration(
             self.duration
         )
@@ -1653,6 +1682,9 @@ class AudioPreprocessDialog(QDialog):
             str(
                 self.processed_audio_file
             )
+        )
+        self.result_playback.set_position(
+            0.0
         )
         self.result_panel.setVisible(
             True

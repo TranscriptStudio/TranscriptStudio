@@ -1359,8 +1359,6 @@ class WaveformWidget(QWidget):
 
         self.update()
 
-        self.update()
-
     def mouseReleaseEvent(self, event):
 
         self.dragging = False
