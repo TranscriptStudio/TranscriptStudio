@@ -309,7 +309,7 @@ sur WAV de travail.
 - [✓] Les parcours Direct et Prétraitement s'ouvrent toujours normalement.
 - [✓] print(result) ok
 
-## Commit 15c
+## Commit 15c V1.1.8
 - [✓] Corriger ProjectManager.create_project_folder()
 - [✓] création du dossier projet dès l'entrée du workflow
 - [✓] sauvegarde de audio_processed.wav dans ce dossier
@@ -345,6 +345,70 @@ sur WAV de travail.
 
 ## commit 16
 - affichage waveform final avec options de lecture sous le résumé des infos finales
+                 AudioPreprocessDialog
+                         │
+             ┌───────────┴────────────┐
+             │                        │
+     waveform originale       options traitement
+             │                        │
+             └───────────┬────────────┘
+                         │
+                  Lancer traitement
+                         │
+                         ▼
+               audio_processed.wav
+                         │
+                statistiques réelles
+                         │
+                         ▼
+              Résultat du traitement
+              ┌─────────────────────┐
+              │ waveform résultat   │
+              └─────────────────────┘
+                 ◀   ▶/⏸   ⏹
+                 slider + temps
+                         │
+                         ▼
+                    ☁ Transcrire
+## 16.1
+
+- [✓] Créer la zone Résultat sous le résumé, masquée avant le premier traitement.
+
+## 16.2
+
+- [✓] Ajouter une deuxième WaveformWidget pour audio_processed.wav.
+- [✓] aujuster les graphismes
+
+## 16.3
+
+
+- [✓]  lecteur indépendant ;
+- [✓]  lecture/pause ;
+- [✓]  stop ;
+- [✓]  slider et temps ;
+- [✓]  curseur piloté par la lecture ;
+- [✓]  corriger : échelle temporelle ;
+- [✓]  corriger : positionnement/double-clic du curseur ;
+- [✓]   zoom ;
+- [✓]   déplacement horizontal ;
+- [✓]  à améliorer : séparation visuelle Options / Résultat. 
+## 16.4
+
+À chaque nouveau traitement :
+
+- arrêter l'ancienne écoute ;
+- recharger audio_processed.wav ;
+- recalculer sa waveform ;
+- remettre le curseur à 0 ;
+- afficher la zone résultat.
+
+## 16.5
+
+Petite adaptation de WaveformWidget pour que la waveform résultat soit neutre, sans poignées de trim ni zones de silence. Actuellement le widget recherche son parent_dialog.settings et affiche automatiquement ces overlays lorsqu'il est dans AudioPreprocessDialog.
+
+## 16.6 ajouter des popup avec barre de chargement
+ - au lancement de audio process dialog qui prend maintenant plus du temps (probablement du fait de la conversion audio en wav sans compression)
+ - lors du lancement du traitement avec une barre pour chacune des 3 opérations
 
 ---
 

@@ -69,6 +69,8 @@ class AudioPreprocessDialog(QDialog):
         self.playback = PlaybackManager()
 
         self.playback.load_file(self.audio_file)
+        self.result_playback = PlaybackManager()
+        self.result_duration = 0.0
 
         self.setWindowTitle("Prétraitement audio")
 
@@ -175,12 +177,14 @@ class AudioPreprocessDialog(QDialog):
         self.effects_panel.setMinimumHeight(
             220
         )
-        effects_title = QLabel("Options de traitement")
+        effects_title = QLabel(
+            "Options de traitement"
+        )
 
         effects_title.setStyleSheet("""
             font-weight: bold;
-            font-size: 12px;
-        """)        
+            font-size: 16px;
+        """)    
         effects_layout = QVBoxLayout(
             self.effects_panel
         )
@@ -546,8 +550,6 @@ class AudioPreprocessDialog(QDialog):
             speed_layout
         )
 
-        effects_layout.addStretch()
-
         separator = QLabel(
             "────────────────────────────────────────────"
         )
@@ -591,7 +593,117 @@ class AudioPreprocessDialog(QDialog):
         effects_layout.addLayout(
             summary_layout
         )
-        
+
+        #
+        # Résultat du traitement
+        #
+        self.result_panel = QWidget()
+
+        result_layout = QVBoxLayout(
+            self.result_panel
+        )
+
+        result_layout.setContentsMargins(
+            0,
+            14,
+            0,
+            0
+        )
+
+        result_layout.setSpacing(
+            6
+        )
+
+        self.result_title = QLabel(
+            "Résultat du traitement"
+        )
+
+        self.result_title.setStyleSheet("""
+            font-weight: bold;
+            font-size: 16px;
+        """)
+
+        result_layout.addWidget(
+            self.result_title
+        )
+
+        self.result_waveform_widget = (
+            WaveformWidget(
+                show_processing_overlays=False,
+                waveform_color="#F39C12"
+            )
+        )
+
+        self.result_waveform_widget.setMinimumHeight(
+            100
+        )
+
+        result_layout.addWidget(
+            self.result_waveform_widget
+        )
+        #
+        # Commandes de lecture du résultat
+        #
+        result_controls_layout = QHBoxLayout()
+
+        self.result_play_button = QPushButton(
+            "▶"
+        )
+
+        self.result_stop_button = QPushButton(
+            "⏹"
+        )
+
+        self.result_position_slider = QSlider(
+            Qt.Horizontal
+        )
+
+        self.result_position_label = QLabel(
+            "00:00 / 00:00"
+        )
+
+        self.result_play_button.setFixedSize(
+            36,
+            30
+        )
+
+        self.result_stop_button.setFixedSize(
+            36,
+            30
+        )
+
+        self.result_position_label.setFixedWidth(
+            90
+        )
+
+        result_controls_layout.addWidget(
+            self.result_play_button
+        )
+
+        result_controls_layout.addWidget(
+            self.result_stop_button
+        )
+
+        result_controls_layout.addWidget(
+            self.result_position_slider,
+            1
+        )
+
+        result_controls_layout.addWidget(
+            self.result_position_label
+        )
+
+        result_layout.addLayout(
+            result_controls_layout
+        )
+        effects_layout.addWidget(
+            self.result_panel
+        )
+        effects_layout.addStretch()
+
+        self.result_panel.setVisible(
+            False
+        )
         
         self.trim_checkbox.setChecked(
             self.settings.trim_start_enabled
@@ -659,8 +771,8 @@ class AudioPreprocessDialog(QDialog):
         )
 
         splitter.setSizes([
-            200,
-            400,
+            120,
+            480,
         ])
 
         layout.addWidget(
@@ -738,6 +850,36 @@ class AudioPreprocessDialog(QDialog):
 
         self.speed_slider.valueChanged.connect(
             self.on_speed_changed
+        )
+        #
+        # Lecteur du résultat
+        #
+        self.result_play_button.clicked.connect(
+            self.result_playback.toggle_play_pause
+        )
+
+        self.result_stop_button.clicked.connect(
+            self.result_playback.stop
+        )
+
+        self.result_playback.position_changed.connect(
+            self.update_result_position
+        )
+
+        self.result_playback.duration_changed.connect(
+            self.update_result_duration
+        )
+
+        self.result_playback.playing_changed.connect(
+            self.update_result_play_button
+        )
+
+        self.result_position_slider.sliderMoved.connect(
+            self.seek_result_audio
+        )
+
+        self.result_waveform_widget.seek_requested.connect(
+            self.seek_result_audio
         )
 
     def on_trim_toggled(
@@ -1500,6 +1642,21 @@ class AudioPreprocessDialog(QDialog):
         self.processed_audio_file = (
             output_file
         )
+        
+        self.result_waveform_widget.load_audio(
+            self.processed_audio_file
+        )
+        self.result_waveform_widget.set_display_duration(
+            self.duration
+        )
+        self.result_playback.load_file(
+            str(
+                self.processed_audio_file
+            )
+        )
+        self.result_panel.setVisible(
+            True
+        )
 
         real_duration = (
             self.get_wav_duration(
@@ -1732,6 +1889,79 @@ class AudioPreprocessDialog(QDialog):
         self.playback.set_position(
             position
         )
+
+    def seek_result_audio(
+        self,
+        position
+    ):
+        self.result_playback.set_position(
+            position
+        )
+
+
+    def update_result_duration(
+        self,
+        duration
+    ):
+        self.result_duration = duration
+
+        self.result_position_slider.setMaximum(
+            int(duration)
+        )
+
+        self.result_position_label.setText(
+            "00:00 / "
+            + self.format_time(duration)
+        )
+
+
+    def update_result_position(
+        self,
+        position
+    ):
+        self.result_position_slider.blockSignals(
+            True
+        )
+
+        self.result_position_slider.setValue(
+            int(position)
+        )
+
+        self.result_position_slider.blockSignals(
+            False
+        )
+
+        self.result_position_label.setText(
+            self.format_time(position)
+            + " / "
+            + self.format_time(
+                self.result_duration
+            )
+        )
+
+        if (
+            self.result_waveform_widget.document
+            is not None
+        ):
+            self.result_waveform_widget.document.current_time = (
+                position
+            )
+
+            self.result_waveform_widget.update()
+
+
+    def update_result_play_button(
+        self,
+        playing
+    ):
+        if playing:
+            self.result_play_button.setText(
+                "⏸"
+            )
+        else:
+            self.result_play_button.setText(
+                "▶"
+            )
 
     def on_duration_changed(
         self,

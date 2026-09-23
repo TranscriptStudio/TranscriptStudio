@@ -23,9 +23,19 @@ class WaveformWidget(QWidget):
 
     def __init__(
         self,
-        parent=None
+        parent=None,
+        show_processing_overlays=True,
+        waveform_color="#4A90E2"
     ):
         super().__init__(parent)
+
+        self.show_processing_overlays = (
+            show_processing_overlays
+        )
+
+        self.waveform_color = (
+            waveform_color
+        )
 
         self.document = None
 
@@ -44,6 +54,7 @@ class WaveformWidget(QWidget):
         self.setMouseTracking(
             True
         )
+        self.display_duration_seconds = None
 
     def format_time(
         self,
@@ -109,22 +120,8 @@ class WaveformWidget(QWidget):
         ):
             return
 
-        visible_samples, start, end = (
-            self.get_visible_samples()
-        )
-        total_samples = len(
-            self.document.waveform
-        )
-        visible_start_time = (
-            start
-            / total_samples
-            * self.document.duration_seconds
-        )
-
-        visible_end_time = (
-            end
-            / total_samples
-            * self.document.duration_seconds
+        visible_start_time, visible_end_time = (
+            self.get_visible_time_range()
         )
 
         self.visible_start_time = (
@@ -135,15 +132,13 @@ class WaveformWidget(QWidget):
             visible_end_time
         )
 
-        mins, maxs = (
-            self.build_waveform_envelope(
-                visible_samples
-            )
+        visible_samples, start, end = (
+            self.get_visible_samples()
         )
 
-
-        if len(visible_samples) == 0:
-            return  
+        total_samples = len(
+            self.document.waveform
+        )
 
         timeline_height = (
             self.timeline_height
@@ -172,6 +167,59 @@ class WaveformWidget(QWidget):
 
         width = self.width()
 
+        visible_duration = (
+            visible_end_time
+            - visible_start_time
+        )
+
+        audio_visible_start = max(
+            visible_start_time,
+            0.0
+        )
+
+        audio_visible_end = min(
+            visible_end_time,
+            self.document.duration_seconds
+        )
+
+        audio_visible_duration = max(
+            0.0,
+            audio_visible_end
+            - audio_visible_start
+        )
+
+        draw_width = 0
+
+        if visible_duration > 0:
+            draw_width = int(
+                width
+                * audio_visible_duration
+                / visible_duration
+            )
+        draw_x = 0
+
+        if visible_duration > 0:
+            draw_x = int(
+                (
+                    audio_visible_start
+                    - visible_start_time
+                )
+                / visible_duration
+                * width
+            )
+        if (
+            draw_width > 0
+            and len(visible_samples) > 0
+        ):
+            mins, maxs = (
+                self.build_waveform_envelope(
+                    visible_samples,
+                    draw_width
+                )
+            )
+        else:
+            mins = np.array([])
+            maxs = np.array([])
         self.draw_timeline(
             painter,
             width,
@@ -185,8 +233,10 @@ class WaveformWidget(QWidget):
             mins,
             maxs,
             center_y,
-            waveform_height
-        )       
+            waveform_height,
+            draw_x
+        )
+     
         self.draw_trim_overlay(
             painter,
             width,
@@ -289,11 +339,14 @@ class WaveformWidget(QWidget):
         mins,
         maxs,
         center_y,
-        waveform_height
+        waveform_height,
+        draw_x=0
     ):
     
         painter.setPen(
-            QColor("#4A90E2")
+            QColor(
+                self.waveform_color
+            )
         )
         for x in range(len(mins)):
 
@@ -310,20 +363,11 @@ class WaveformWidget(QWidget):
             )
 
             painter.drawLine(
-                x,
+                draw_x + x,
                 int(y_min),
-                x,
+                draw_x + x,
                 int(y_max)
             )
-
-            # if y_max - y_min > 1:
-
-            #     painter.drawLine(
-            #         x + 1,
-            #         int(y_min),
-            #         x + 1,
-            #         int(y_max)
-            #     )
 
     def draw_trim_overlay(
         self,
@@ -331,7 +375,8 @@ class WaveformWidget(QWidget):
         width,
         timeline_height,
     ):
-
+        if not self.show_processing_overlays:
+            return  
         parent_dialog = self.parent()
 
         while (
@@ -480,7 +525,8 @@ class WaveformWidget(QWidget):
         width,
         timeline_height,
     ):
-
+        if not self.show_processing_overlays:
+            return
         parent_dialog = self.parent()
 
         while (
@@ -757,74 +803,215 @@ class WaveformWidget(QWidget):
 
         self.update()
 
-    def get_visible_ratio(self):
+    def get_display_duration(
+        self
+    ):
+        if self.display_duration_seconds:
+            return self.display_duration_seconds
 
-        total_samples = len(
-            self.document.waveform
+        if self.document is None:
+            return 0.0
+
+        return self.document.duration_seconds
+
+    def get_visible_time_range(
+        self
+    ):
+        display_duration = (
+            self.get_display_duration()
         )
 
-        visible_samples = int(
-            total_samples
+        if display_duration <= 0:
+            return (
+                0.0,
+                0.0
+            )
+
+        visible_duration = (
+            display_duration
             / self.document.zoom_factor
         )
 
-        visible_samples = max(
-            50,
-            visible_samples
+        visible_duration = min(
+            display_duration,
+            max(
+                0.001,
+                visible_duration
+            )
+        )
+
+        max_view_start = max(
+            0.0,
+            display_duration
+            - visible_duration
+        )
+
+        start_time = (
+            self.document.view_offset
+            * max_view_start
+        )
+
+        end_time = (
+            start_time
+            + visible_duration
         )
 
         return (
-            visible_samples
-            / total_samples
+            start_time,
+            end_time
         )
 
-    def get_visible_samples(self):
+    def get_visible_ratio(
+        self
+    ):
+        if self.document is None:
+            return 1.0
 
+        return min(
+            1.0,
+            1.0
+            / self.document.zoom_factor
+        )
+    
+    def get_visible_samples(
+        self
+    ):
         waveform = self.document.waveform
 
-        total_samples = len(waveform)
+        total_samples = len(
+            waveform
+        )
 
-        visible_samples = int(
-            total_samples
+        if total_samples == 0:
+            return (
+                waveform,
+                0,
+                0
+            )
+
+        audio_duration = (
+            self.document.duration_seconds
+        )
+
+        display_duration = (
+            self.get_display_duration()
+        )
+
+        if (
+            audio_duration <= 0
+            or display_duration <= 0
+        ):
+            return (
+                waveform,
+                0,
+                total_samples
+            )
+
+        #
+        # Durée de la fenêtre visible.
+        #
+        visible_duration = (
+            display_duration
             / self.document.zoom_factor
         )
 
-        visible_samples = max(
-            50,
-            visible_samples
+        visible_duration = max(
+            0.001,
+            visible_duration
         )
 
-        max_offset = max(
-            0,
-            total_samples - visible_samples
+        #
+        # Position temporelle du début
+        # de la fenêtre visible.
+        #
+        max_view_start = max(
+            0.0,
+            display_duration
+            - visible_duration
         )
+
+        view_start_time = (
+            self.document.view_offset
+            * max_view_start
+        )
+
+        view_end_time = (
+            view_start_time
+            + visible_duration
+        )
+
+        #
+        # Intersection entre la fenêtre
+        # affichée et l'audio réel.
+        #
+        audio_start_time = max(
+            0.0,
+            view_start_time
+        )
+
+        audio_end_time = min(
+            audio_duration,
+            view_end_time
+        )
+
+        #
+        # La fenêtre peut être entièrement
+        # située après la fin de l'audio.
+        #
+        if audio_end_time <= audio_start_time:
+            return (
+                waveform[0:0],
+                0,
+                0
+            )
 
         start = int(
-            self.document.view_offset
-            * max_offset
+            audio_start_time
+            / audio_duration
+            * total_samples
         )
 
-        end = min(
-            total_samples,
-            start + visible_samples
+        end = int(
+            audio_end_time
+            / audio_duration
+            * total_samples
         )
 
-        visible = waveform[start:end]
+        start = max(
+            0,
+            min(
+                total_samples,
+                start
+            )
+        )
+
+        end = max(
+            start,
+            min(
+                total_samples,
+                end
+            )
+        )
 
         return (
-            visible,
+            waveform[start:end],
             start,
             end
         )
 
     def build_waveform_envelope(
         self,
-        samples
+        samples,
+        pixel_width=None
     ):
+    
+
+        if pixel_width is None:
+            pixel_width = self.width()
 
         pixel_width = max(
             1,
-            self.width()
+            pixel_width
         )
 
         if len(samples) <= pixel_width:
@@ -896,18 +1083,30 @@ class WaveformWidget(QWidget):
 
         return 1
 
-    def wheelEvent(self, event):
-
+    def wheelEvent(
+        self,
+        event
+    ):
         if self.document is None:
             return
 
-        old_visible_ratio = (
-            self.get_visible_ratio()
+        display_duration = (
+            self.get_display_duration()
         )
 
-        center_ratio = (
-            self.document.view_offset
-            + old_visible_ratio / 2
+        if display_duration <= 0:
+            return
+
+        old_start, old_end = (
+            self.get_visible_time_range()
+        )
+
+        old_center = (
+            old_start
+            + (
+                old_end
+                - old_start
+            ) / 2
         )
 
         if event.angleDelta().y() > 0:
@@ -916,30 +1115,49 @@ class WaveformWidget(QWidget):
             self.document.zoom_factor /= 1.2
 
         self.document.zoom_factor = max(
-            1,
+            1.0,
             min(
-                10000,
+                10000.0,
                 self.document.zoom_factor
             )
         )
 
-        new_visible_ratio = (
-            self.get_visible_ratio()
+        if self.document.zoom_factor == 1:
+            self.document.view_offset = 0.0
+            self.update()
+            return
+
+        new_visible_duration = (
+            display_duration
+            / self.document.zoom_factor
         )
 
-        self.document.view_offset = (
-            center_ratio
-            - new_visible_ratio / 2
+        desired_start = (
+            old_center
+            - new_visible_duration / 2
         )
 
-        self.document.view_offset = max(
+        max_start = max(
+            0.0,
+            display_duration
+            - new_visible_duration
+        )
+
+        desired_start = max(
             0.0,
             min(
-                1.0 - new_visible_ratio,
-                self.document.view_offset
+                max_start,
+                desired_start
             )
         )
-        
+
+        if max_start > 0:
+            self.document.view_offset = (
+                desired_start
+                / max_start
+            )
+        else:
+            self.document.view_offset = 0.0
 
         self.update()
 
@@ -1108,23 +1326,38 @@ class WaveformWidget(QWidget):
             dx
             / self.width()
         )
-        visible_ratio = (
-            self.get_visible_ratio()
+        if self.document.zoom_factor <= 1:
+            return
+
+        max_view_start_ratio = (
+            1.0
+            - 1.0
+            / self.document.zoom_factor
+        )
+
+        if max_view_start_ratio <= 0:
+            return
+
+        movement = (
+            dx
+            / self.width()
+            / self.document.zoom_factor
         )
 
         self.document.view_offset -= (
-            dx
-            / self.width()
-            * visible_ratio
+            movement
+            / max_view_start_ratio
         )
 
         self.document.view_offset = max(
             0.0,
             min(
-                1.0 - visible_ratio,
+                1.0,
                 self.document.view_offset
             )
         )
+
+        self.update()
 
         self.update()
 
@@ -1164,7 +1397,17 @@ class WaveformWidget(QWidget):
             + ratio
             * visible_duration
         )
+
+        target_time = max(
+            0.0,
+            min(
+                target_time,
+                self.document.duration_seconds
+            )
+        )
+
         self.document.disable_auto_follow = True
+
         self.seek_requested.emit(
             target_time
         )
@@ -1205,4 +1448,14 @@ class WaveformWidget(QWidget):
             event
         )
             
+    def set_display_duration(
+        self,
+        duration
+    ):
+        self.display_duration_seconds = (
+            duration
+        )
+
+        self.update()
+
         
