@@ -248,8 +248,63 @@ class AudioPreprocessDialog(QDialog):
         self.silence_duration_edit.setEnabled(
             False
         )
+
         self.speed_checkbox = QCheckBox(
             "Accélérer"
+        )
+        slider_width = 300
+        self.speed_colorbar = QWidget()
+        self.speed_colorbar.setFixedSize(slider_width, 8)
+        self.speed_colorbar.setStyleSheet("""
+        QWidget {
+            border-radius: 4px;
+            background: qlineargradient(
+                x1:0, y1:0,
+                x2:1, y2:0,
+                stop:0.0 #4CAF50,
+                stop:0.5 #4CAF50,
+                stop:0.75 #FFA000,
+                stop:1.0 #D32F2F
+            );
+        }
+        """)
+
+        self.speed_slider = QSlider(
+            Qt.Horizontal
+        )
+        self.speed_slider.setFixedWidth(slider_width)
+
+        self.speed_slider.setRange(
+            0,
+            100
+        )
+
+        self.speed_slider.setValue(
+            0
+        )
+
+        self.speed_slider.setEnabled(
+            False
+        )
+
+        self.speed_ratio_label = QLabel(
+            "1.00x"
+        )
+
+        self.speed_ratio_label.setEnabled(
+            False
+        )
+
+        self.speed_checkbox.setChecked(
+            self.settings.speed_enabled
+        )
+
+        self.speed_slider.setEnabled(
+            self.settings.speed_enabled
+        )
+
+        self.speed_ratio_label.setEnabled(
+            self.settings.speed_enabled
         )
         effects_layout.addWidget(
             effects_title
@@ -347,9 +402,36 @@ class AudioPreprocessDialog(QDialog):
             silence_layout
         )
 
-        effects_layout.addWidget(
+        speed_layout = QVBoxLayout()
+
+        speed_layout.addWidget(
             self.speed_checkbox
         )
+
+        slider_layout = QHBoxLayout()
+
+        speed_layout.addWidget(
+            self.speed_colorbar,
+            alignment=Qt.AlignLeft
+        )
+
+        speed_layout.addWidget(
+            self.speed_slider,
+            alignment=Qt.AlignLeft
+        )
+
+        slider_layout.addWidget(
+            self.speed_ratio_label
+        )
+
+        speed_layout.addLayout(
+            slider_layout
+        )
+
+        effects_layout.addLayout(
+            speed_layout
+        )
+
         effects_layout.addStretch()
         
         self.trim_checkbox.setChecked(
@@ -462,6 +544,13 @@ class AudioPreprocessDialog(QDialog):
 
         self.silence_duration_edit.editingFinished.connect(
             self.on_silence_changed
+        )
+        self.speed_checkbox.toggled.connect(
+            self.on_speed_toggled
+        )
+
+        self.speed_slider.valueChanged.connect(
+            self.on_speed_changed
         )
 
     def on_trim_toggled(
@@ -623,23 +712,38 @@ class AudioPreprocessDialog(QDialog):
                 self.silence_threshold_edit.text()
             )
 
-            self.settings.silence_min_duration = (
-                float(
+            self.settings.silence_min_duration = float(
                     self.silence_duration_edit.text()
-                )
-                / 1000
             )
 
         except ValueError:
             pass
 
+    def on_speed_toggled(
+        self,
+        checked
+    ):
+
+        self.settings.speed_enabled = checked
+
+        self.speed_slider.setEnabled(
+            checked
+        )
+
+        self.speed_ratio_label.setEnabled(
+            checked
+        )
+
+
     def on_speed_changed(
         self,
         value
     ):
+
         self.settings.speed_percent = value
-        self.speed_label.setText(
-            f"+{value} %"
+
+        self.speed_ratio_label.setText(
+            f"{1 + value / 100:.2f}x"
         )
 
     def process_audio(self):

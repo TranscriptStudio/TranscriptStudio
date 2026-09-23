@@ -203,19 +203,29 @@ vert → orange → rouge
 Ratio :
 [1.00x]
 
----
-
-# Commit 11 - Conversion pourcentage → ratio
-
-### Exemple
-
-0 % = x1.00
-
-50 % = x1.50
-
-100 % = x2.00
+- [✓] mise en place de l'UI pour l'accélération
 
 ---
+
+# Commit 11a - Amélioration graphique
+
+- retrait des paramètres par rapport aux checkboxs.
+- passer le format temps au dixième de seconde au lieu de millième pour la découpe (pour les durées affichées la seconde suffit)
+- estomper labels lorsque checkbox désactivées
+- mettre la durée conservée à droite  de début et fin ()
+- mettre sur la même ligne les deux paramètres de silence
+- mettre en transparance la colobor si speed desactivée
+- mettre le ratio de vitesse à droite du slider
+---
+
+# Commit 11b - Analyse prévisionnelle globale
+
+- bloc découpe ajout temps supprimé
+- bloc silence ajout silence détecté et temps silencieux
+- affichage silences détectés sur la piste (en rouge transparent)
+- bloc vitesse ajout gain théorique
+---
+
 
 # Commit 12 - Découpe réelle
 
