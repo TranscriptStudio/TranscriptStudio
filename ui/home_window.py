@@ -46,6 +46,10 @@ class HomeWindow(QWidget):
         super().__init__()
 
         self.settings = SettingsManager()
+        self.transcription_thread = None
+        self.transcription_worker = None
+        self.progress_dialog = None
+        self.transcription_started = False
 
         self.setWindowTitle(
             "Transcript Studio"
@@ -279,13 +283,33 @@ class HomeWindow(QWidget):
             )
 
             if not dialog.exec():
+                try:
+                    manager.delete_provisional_project(
+                        project_folder
+                    )
+
+                except OSError as e:
+                    QMessageBox.critical(
+                        self,
+                        "Erreur de nettoyage",
+                        (
+                            "Impossible de supprimer "
+                            "le projet provisoire.\n\n"
+                            + str(e)
+                        )
+                    )
+
                 return
 
             options = dialog.get_options()
 
-            print(options)
+            self.start_transcription(
+                project_audio_file,
+                options
+            )
 
             return
+            
             
         if mode == (
             TranscriptionEntryDialog.MODE_PREPROCESSING
@@ -373,8 +397,8 @@ class HomeWindow(QWidget):
         self,
         data
     ):
-
-        self.progress_dialog.close()
+        if self.progress_dialog is not None:
+            self.progress_dialog.close()
 
         manager = ProjectManager()
 
@@ -392,6 +416,7 @@ class HomeWindow(QWidget):
         project.audio_file = str(
             self.current_audio_file
         )
+
         project.name = Path(
             self.current_audio_file
         ).stem
@@ -405,25 +430,26 @@ class HomeWindow(QWidget):
             project,
             project.project_file
         )
-        
+
         self.settings.add_recent_project(
             project.project_file
         )
 
         self.refresh_recent_projects()
-        
-        self.editor = MainWindow(project)
-        
-        self.editor.show()
 
+        self.editor = MainWindow(
+            project
+        )
+
+        self.editor.show()
         self.close()
 
     def transcription_error(
         self,
         message
     ):
-
-        self.progress_dialog.close()
+        if self.progress_dialog is not None:
+            self.progress_dialog.close()
 
         QMessageBox.critical(
             self,
@@ -667,12 +693,32 @@ class HomeWindow(QWidget):
         )
 
         if not dialog.exec():
+            try:
+                manager = ProjectManager()
+
+                manager.delete_provisional_project(
+                    project_folder
+                )
+
+            except OSError as e:
+                QMessageBox.critical(
+                    self,
+                    "Erreur de nettoyage",
+                    (
+                        "Impossible de supprimer "
+                        "le projet provisoire.\n\n"
+                        + str(e)
+                    )
+                )
+
             return
 
         options = dialog.get_options()
 
-        print(options)
-
+        self.start_transcription(
+            processed_audio_file,
+            options
+        )
 
     def audio_loading_error(
         self,
@@ -700,4 +746,118 @@ class HomeWindow(QWidget):
         self.audio_loading_progress = None
         self.audio_loading_thread = None
         self.audio_loading_worker = None
+
+    def start_transcription(
+        self,
+        audio_file,
+        options
+    ):
+        if self.transcription_thread is not None:
+            return
+
+        audio_file = Path(
+            audio_file
+        )
+
+        if not audio_file.exists():
+            QMessageBox.critical(
+                self,
+                "Fichier audio introuvable",
+                (
+                    "Le fichier audio à transcrire "
+                    "est introuvable.\n\n"
+                    f"{audio_file}"
+                )
+            )
+            return
+
+        #
+        # Dès cet instant, le projet ne doit
+        # plus être considéré comme provisoire.
+        #
+        self.transcription_started = True
+
+        self.current_audio_file = audio_file
+
+        #
+        # Fenêtre de progression existante.
+        #
+        self.progress_dialog = ProgressDialog(
+            str(audio_file),
+            self
+        )
+
+        self.progress_dialog.setWindowModality(
+            Qt.WindowModal
+        )
+
+        #
+        # Thread.
+        #
+        self.transcription_thread = QThread(
+            self
+        )
+
+        self.transcription_worker = (
+            TranscriptionWorker(
+                str(audio_file),
+                options
+            )
+        )
+
+        self.transcription_worker.moveToThread(
+            self.transcription_thread
+        )
+
+        #
+        # Démarrage.
+        #
+        self.transcription_thread.started.connect(
+            self.transcription_worker.run
+        )
+
+        #
+        # Succès.
+        #
+        self.transcription_worker.finished.connect(
+            self.transcription_finished
+        )
+
+        self.transcription_worker.finished.connect(
+            self.transcription_thread.quit
+        )
+
+        #
+        # Erreur.
+        #
+        self.transcription_worker.error.connect(
+            self.transcription_error
+        )
+
+        self.transcription_worker.error.connect(
+            self.transcription_thread.quit
+        )
+
+        #
+        # Nettoyage Qt.
+        #
+        self.transcription_thread.finished.connect(
+            self.transcription_worker.deleteLater
+        )
+
+        self.transcription_thread.finished.connect(
+            self.cleanup_transcription
+        )
+
+        #
+        # Afficher avant le démarrage.
+        #
+        self.progress_dialog.show()
+        self.transcription_thread.start()
+
+    def cleanup_transcription(
+        self
+    ):
+        self.transcription_thread = None
+        self.transcription_worker = None
 

@@ -501,13 +501,13 @@ Commit 17 - Validation du prétraitement et fichier final
 
 
 
-# Commit 19 - annulation dans new_transcription_dialob
+# Commit 19 - annulation dans new_transcription_dialog V1.1.12
 - [✓] Centraliser la suppression d'un projet provisoire dans ProjectManager
-- [ ] Intercepter l'annulation de NewTranscriptionDialogdans le parcours direct
-- [ ] Faire la même chose après prétraitement
-- [ ] Ajouter une confirmation : "Abandonner cette transcription ? Le projet provisoire et ses fichiers seront supprimés."
-- [ ] Ne jamais supprimer un projet dès que la transcription ElevenLabs a effectivement été lancée
-- [ ] Tests Direct / Prétraitement / Annuler / Transcrire
+- [✓] Intercepter l'annulation de NewTranscriptionDialogdans le parcours direct
+- [✓] Faire la même chose après prétraitement
+- [✓] Ajouter une confirmation : "Abandonner cette transcription ? Le projet provisoire et ses fichiers seront supprimés."
+- [✓] Ne jamais supprimer un projet dès que la transcription ElevenLabs a effectivement été lancée
+- [✓] Tests Direct / Prétraitement / Annuler / Transcrire
 
 
 

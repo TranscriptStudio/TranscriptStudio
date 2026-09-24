@@ -186,13 +186,45 @@ class NewTranscriptionDialog(QDialog):
             self.cancel_button
         )
         self.cancel_button.clicked.connect(
-            self.reject
+            self.request_cancel
         )
         self.transcribe_button.clicked.connect(
             self.accept
         )
         self.update_diarization_options()
-        
+
+    def confirm_cancel(self):
+        reply = QMessageBox.question(
+            self,
+            "Abandonner la transcription",
+            (
+                "Abandonner cette transcription ?\n\n"
+                "Le projet provisoire et ses fichiers "
+                "seront supprimés."
+            ),
+            (
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No
+            ),
+            QMessageBox.StandardButton.No
+        )
+
+        return (
+            reply
+            == QMessageBox.StandardButton.Yes
+        )
+
+    def request_cancel(self):
+        if not self.confirm_cancel():
+            return
+
+        self.reject()        
+
+    def closeEvent(self, event):
+        if self.confirm_cancel():
+            event.accept()
+        else:
+            event.ignore()
 
     def get_options(self):
 
