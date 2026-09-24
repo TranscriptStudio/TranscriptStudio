@@ -421,7 +421,7 @@ sur WAV de travail.
 ---
 
 
-## commit 17 - sauvegarde et export audio
+## commit 17 - sauvegarde et export audio V1.1.10
 
 Commit 17 - Validation du prétraitement et fichier final
  
@@ -460,7 +460,7 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] erreur de conversion finale
 - [✓] erreur de suppression Windows
 
-# Commit 18 - Buffer de suppression des silences
+# Commit 18 - Buffer de suppression des silences V1.1.11
 
 ## 18.1 - Modèle et UI
 - [✓] ajouter silence_buffer_duration
@@ -476,19 +476,21 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] ignorer les zones devenues nulles
 
 ## 18.3 - Analyse prévisionnelle
-- [ ] nombre de silences réellement supprimés
-- [ ] durée supprimée tenant compte du buffer
-- [ ] durée finale estimée tenant compte du buffer
+- [✓] nombre de silences réellement supprimés
+- [✓] durée supprimée tenant compte du buffer
+- [✓] durée finale estimée tenant compte du buffer
+- [✓] contrainte buffer < durée mini / 2
+- [✓] tooltip d'explication du buffer
 
 ## 18.4 - Waveform
-- [ ] afficher en violet uniquement removal_silences
-- [ ] représentation graphique identique au traitement réel
+- [✓] afficher en violet uniquement removal_silences
+- [✓] représentation graphique identique au traitement réel
 
 ## 18.5 - Traitement réel
-- [ ] appliquer exactement le même buffer dans le pipeline
-- [ ] conserver le buffer amont
-- [ ] conserver le buffer aval
-- [ ] buffer = 0 reproduit le comportement actuel
+- [✓] appliquer exactement le même buffer dans le pipeline
+- [✓] conserver le buffer amont
+- [✓] conserver le buffer aval
+- [✓] buffer = 0 reproduit le comportement actuel
 
 ## 18.6 - Validation
 - [ ] buffer = 0

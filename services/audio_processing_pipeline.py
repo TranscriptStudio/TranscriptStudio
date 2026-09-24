@@ -180,7 +180,7 @@ class AudioProcessingPipeline:
             SilenceDetectionService()
         )
 
-        silences = (
+        detected_silences = (
             detector.detect_silences(
                 audio_file,
                 self.settings.silence_threshold_db,
@@ -189,11 +189,57 @@ class AudioProcessingPipeline:
         )
 
         print(
-            f"{len(silences)} silence(s) trouvé(s)"
+            f"{len(detected_silences)} "
+            "silence(s) détecté(s)"
         )
 
-        if not silences:
+        if not detected_silences:
+            return audio_file
 
+        #
+        # Appliquer exactement le même buffer
+        # que celui utilisé par l'analyse
+        # prévisionnelle et la waveform.
+        #
+        buffer_duration = max(
+            0.0,
+            self.settings.silence_buffer_duration
+        )
+
+        removal_silences = []
+
+        for start, end in detected_silences:
+            removal_start = (
+                start
+                + buffer_duration
+            )
+
+            removal_end = (
+                end
+                - buffer_duration
+            )
+
+            #
+            # Si le buffer occupe toute la zone,
+            # aucune partie de ce silence
+            # ne doit être supprimée.
+            #
+            if removal_end <= removal_start:
+                continue
+
+            removal_silences.append(
+                (
+                    removal_start,
+                    removal_end
+                )
+            )
+
+        print(
+            f"{len(removal_silences)} "
+            "silence(s) réellement supprimé(s)"
+        )
+
+        if not removal_silences:
             return audio_file
 
         output_file = (
@@ -207,11 +253,13 @@ class AudioProcessingPipeline:
 
         remover.remove_silences(
             audio_file,
-            silences,
+            removal_silences,
             output_file
         )
 
-        self.working_file = output_file
+        self.working_file = (
+            output_file
+        )
 
         return output_file
 

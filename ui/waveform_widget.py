@@ -548,7 +548,7 @@ class WaveformWidget(QWidget):
 
         if not hasattr(
             parent_dialog,
-            "detected_silences"
+            "removal_silences"
         ):
             return
 
@@ -568,7 +568,7 @@ class WaveformWidget(QWidget):
         )
 
         for start_time, end_time in (
-            parent_dialog.filtered_silences
+            parent_dialog.removal_silences
         ):
 
             start_ratio = (
