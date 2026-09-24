@@ -25,7 +25,8 @@ class AudioProcessingSettings:
 
     silence_enabled: bool = False
     silence_threshold_db: float = -40.0
-    silence_min_duration: float = 0.5
+    silence_min_duration: float = 1.0
+    silence_buffer_duration: float = 0.2
 
     #
     # Accélération

@@ -57,6 +57,7 @@ class AudioPreprocessDialog(QDialog):
         self.trim_end_time = 0.0
         self.detected_silences = []
         self.filtered_silences = []
+        self.removal_silences = []
         self.setWindowFlag(
             Qt.WindowMinMaxButtonsHint,
             True
@@ -296,6 +297,11 @@ class AudioPreprocessDialog(QDialog):
                 self.settings.silence_min_duration
                 )
         )
+        self.silence_buffer_edit = QLineEdit(
+            str(
+                self.settings.silence_buffer_duration
+            )
+        )
 
         self.silence_threshold_edit.setFixedWidth(
             80
@@ -304,12 +310,18 @@ class AudioPreprocessDialog(QDialog):
         self.silence_duration_edit.setFixedWidth(
             80
         )
+        self.silence_buffer_edit.setFixedWidth(
+            80
+        )
 
         self.silence_threshold_edit.setEnabled(
             False
         )
 
         self.silence_duration_edit.setEnabled(
+            False
+        )
+        self.silence_buffer_edit.setEnabled(
             False
         )
 
@@ -519,6 +531,23 @@ class AudioPreprocessDialog(QDialog):
         silence_params_layout.addWidget(
             self.silence_duration_edit
         )
+
+        silence_params_layout.addSpacing(
+            20
+        )
+
+        self.silence_buffer_label = QLabel(
+            "Buffer (s) :"
+        )
+
+        silence_params_layout.addWidget(
+            self.silence_buffer_label
+        )
+
+        silence_params_layout.addWidget(
+            self.silence_buffer_edit
+        )
+
         silence_params_layout.addSpacing(
             30
         )
@@ -765,6 +794,11 @@ class AudioPreprocessDialog(QDialog):
             self.settings.silence_enabled
         )     
 
+        self.silence_buffer_label.setEnabled(
+            self.settings.silence_enabled
+        )
+
+
         self.trim_start_label.setEnabled(
             self.settings.trim_start_enabled
         )
@@ -881,6 +915,11 @@ class AudioPreprocessDialog(QDialog):
         self.silence_duration_edit.editingFinished.connect(
             self.on_silence_changed
         )
+
+        self.silence_buffer_edit.editingFinished.connect(
+            self.on_silence_changed
+        )
+
         self.speed_checkbox.toggled.connect(
             self.on_speed_toggled
         )
@@ -1119,6 +1158,10 @@ class AudioPreprocessDialog(QDialog):
             checked
         )
 
+        self.silence_buffer_edit.setEnabled(
+            checked
+        )
+        
         self.silence_count_label.setVisible(
             checked
         )
@@ -1143,7 +1186,12 @@ class AudioPreprocessDialog(QDialog):
             self.settings.silence_min_duration = float(
                     self.silence_duration_edit.text()
             )
-            
+            self.settings.silence_buffer_duration = max(
+                0.0,
+                float(
+                    self.silence_buffer_edit.text()
+                )
+            )
 
             try:
 
@@ -2267,7 +2315,10 @@ class AudioPreprocessDialog(QDialog):
 
             "silence_min_duration":
                 self.settings.silence_min_duration,
-
+                
+            "silence_buffer_duration":
+                self.settings.silence_buffer_duration,
+            
             "speed_enabled":
                 self.settings.speed_enabled,
 

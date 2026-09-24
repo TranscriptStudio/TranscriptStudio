@@ -458,9 +458,47 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] formats audio compressés
 - [✓] entrées vidéo
 - [✓] erreur de conversion finale
-- [ ] erreur de suppression Windows
+- [✓] erreur de suppression Windows
 
-# Commit 18 - Stabilisation
+# Commit 18 - Buffer de suppression des silences
+
+## 18.1 - Modèle et UI
+- [✓] ajouter silence_buffer_duration
+- [✓] valeur par défaut : 0.2 s
+- [✓] ajouter le champ Buffer (s)
+- [✓] activation dynamique avec l'option silences
+
+## 18.2 - Calcul des zones réellement supprimées
+- [ ] conserver detected_silences comme détection brute
+- [ ] conserver filtered_silences comme détection limitée au trim
+- [ ] ajouter removal_silences
+- [ ] appliquer le buffer aux deux extrémités
+- [ ] ignorer les zones devenues nulles
+
+## 18.3 - Analyse prévisionnelle
+- [ ] nombre de silences réellement supprimés
+- [ ] durée supprimée tenant compte du buffer
+- [ ] durée finale estimée tenant compte du buffer
+
+## 18.4 - Waveform
+- [ ] afficher en violet uniquement removal_silences
+- [ ] représentation graphique identique au traitement réel
+
+## 18.5 - Traitement réel
+- [ ] appliquer exactement le même buffer dans le pipeline
+- [ ] conserver le buffer amont
+- [ ] conserver le buffer aval
+- [ ] buffer = 0 reproduit le comportement actuel
+
+## 18.6 - Validation
+- [ ] buffer = 0
+- [ ] buffer = 0.2
+- [ ] silence <= 2 × buffer
+- [ ] interaction avec trim
+- [ ] comparaison estimation / résultat réel
+
+
+# Commit 19 - Stabilisation
 
 ## Actions
 
