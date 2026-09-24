@@ -10,13 +10,32 @@ from PySide6.QtCore import (
 )
 
 from services.ffmpeg_paths import (
-    FFMPEG_PATH
+    FFMPEG_PATH,
 )
 
 
 class AudioFinalizationWorker(QObject):
+
     finished = Signal(object)
     error = Signal(str)
+
+    AUDIO_EXTENSIONS = {
+        ".wav",
+        ".mp3",
+        ".m4a",
+        ".aac",
+        ".flac",
+        ".ogg",
+        ".opus",
+    }
+
+    VIDEO_EXTENSIONS = {
+        ".mp4",
+        ".mov",
+        ".mkv",
+        ".avi",
+        ".webm",
+    }
 
     def __init__(
         self,
@@ -38,6 +57,99 @@ class AudioFinalizationWorker(QObject):
             project_folder
         )
 
+    def get_final_extension(self):
+        original_extension = (
+            self.original_file
+            .suffix
+            .lower()
+        )
+
+        if original_extension in self.AUDIO_EXTENSIONS:
+            return original_extension
+
+        if original_extension in self.VIDEO_EXTENSIONS:
+            return ".m4a"
+
+        raise ValueError(
+            "Format du fichier original "
+            "non pris en charge pour la "
+            "finalisation : "
+            f"{original_extension or '(aucune extension)'}"
+        )
+
+    def build_ffmpeg_command(
+        self,
+        final_file,
+        final_extension
+    ):
+        command = [
+            str(FFMPEG_PATH),
+            "-y",
+            "-i",
+            str(self.source_wav),
+            "-vn",
+        ]
+
+        if final_extension == ".wav":
+            command.extend([
+                "-c:a",
+                "pcm_s16le",
+            ])
+
+        elif final_extension == ".mp3":
+            command.extend([
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "192k",
+            ])
+
+        elif final_extension in {
+            ".m4a",
+            ".aac",
+        }:
+            command.extend([
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+            ])
+
+        elif final_extension == ".flac":
+            command.extend([
+                "-c:a",
+                "flac",
+            ])
+
+        elif final_extension == ".ogg":
+            command.extend([
+                "-c:a",
+                "libvorbis",
+                "-q:a",
+                "5",
+            ])
+
+        elif final_extension == ".opus":
+            command.extend([
+                "-c:a",
+                "libopus",
+                "-b:a",
+                "128k",
+            ])
+
+        else:
+            raise ValueError(
+                "Aucun encodeur configuré "
+                "pour le format final : "
+                f"{final_extension}"
+            )
+
+        command.append(
+            str(final_file)
+        )
+
+        return command
+
     @Slot()
     def run(self):
         try:
@@ -48,17 +160,16 @@ class AudioFinalizationWorker(QObject):
                     f"{self.source_wav}"
                 )
 
-            final_extension = (
-                self.original_file
-                .suffix
-                .lower()
-            )
-
-            if not final_extension:
-                raise ValueError(
-                    "Impossible de déterminer "
-                    "l'extension du fichier original."
+            if not self.original_file.exists():
+                raise FileNotFoundError(
+                    "Le fichier original "
+                    "est introuvable : "
+                    f"{self.original_file}"
                 )
+
+            final_extension = (
+                self.get_final_extension()
+            )
 
             final_file = (
                 self.project_folder
@@ -69,25 +180,49 @@ class AudioFinalizationWorker(QObject):
                 )
             )
 
-            command = [
-                str(FFMPEG_PATH),
-                "-y",
-                "-i",
-                str(self.source_wav),
-                str(final_file),
-            ]
+            command = (
+                self.build_ffmpeg_command(
+                    final_file,
+                    final_extension
+                )
+            )
 
-            subprocess.run(
+            result = subprocess.run(
                 command,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=True
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
+
+            if result.returncode != 0:
+                error_message = (
+                    result.stderr.strip()
+                )
+
+                if not error_message:
+                    error_message = (
+                        "FFmpeg a retourné une erreur "
+                        "sans message détaillé."
+                    )
+
+                raise RuntimeError(
+                    "La conversion finale a échoué.\n\n"
+                    f"{error_message}"
+                )
 
             if not final_file.exists():
                 raise RuntimeError(
-                    "Le fichier audio final "
+                    "FFmpeg n'a signalé aucune erreur, "
+                    "mais le fichier audio final "
                     "n'a pas été créé."
+                )
+
+            if final_file.stat().st_size == 0:
+                raise RuntimeError(
+                    "Le fichier audio final créé "
+                    "est vide."
                 )
 
             self.finished.emit(

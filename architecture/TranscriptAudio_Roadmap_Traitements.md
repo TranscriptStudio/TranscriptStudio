@@ -454,10 +454,10 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] conserver le dossier projet validé
  
 17.5 - Cas particuliers
-- [ ] original WAV
-- [ ] formats audio compressés
-- [ ] entrées vidéo
-- [ ] erreur de conversion finale
+- [✓] original WAV
+- [✓] formats audio compressés
+- [✓] entrées vidéo
+- [✓] erreur de conversion finale
 - [ ] erreur de suppression Windows
 
 # Commit 18 - Stabilisation

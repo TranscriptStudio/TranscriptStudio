@@ -2,6 +2,7 @@
 
 import wave
 import shutil
+import time
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -2150,7 +2151,23 @@ class AudioPreprocessDialog(QDialog):
         # La conversion finale étant validée,
         # supprimer tous les WAV temporaires.
         #
-        self.cleanup_temporary_wav_files()
+        failed_files = (
+            self.cleanup_temporary_wav_files()
+        )
+
+        if failed_files:
+            QMessageBox.warning(
+                self,
+                "Nettoyage incomplet",
+                (
+                    "Le fichier audio final a bien été créé, "
+                    "mais certains fichiers temporaires "
+                    "n'ont pas pu être supprimés.\n\n"
+                    "Ils pourront être supprimés "
+                    "ultérieurement."
+                )
+            )
+
         #
         # Le prétraitement est maintenant
         # officiellement validé.
@@ -2617,9 +2634,76 @@ class AudioPreprocessDialog(QDialog):
         # et tout ce qu'il contient.
         #
         if self.project_folder.exists():
-            shutil.rmtree(
-                self.project_folder
+
+            last_error = None
+
+            for attempt in range(3):
+                try:
+                    shutil.rmtree(
+                        self.project_folder
+                    )
+                    return
+
+                except FileNotFoundError:
+                    return
+
+                except OSError as e:
+                    last_error = e
+
+                    if attempt < 2:
+                        time.sleep(
+                            0.15
+                        )
+
+            if last_error is not None:
+                raise last_error
+
+    def remove_file_with_retry(
+        self,
+        file_path,
+        attempts=3,
+        delay=0.15
+    ):
+        file_path = Path(
+            file_path
+        )
+
+        if not file_path.exists():
+            return True
+
+        last_error = None
+
+        for attempt in range(
+            attempts
+        ):
+            try:
+                file_path.unlink()
+                return True
+
+            except FileNotFoundError:
+                return True
+
+            except OSError as e:
+                last_error = e
+
+                if attempt < attempts - 1:
+                    time.sleep(
+                        delay
+                    )
+
+        print(
+            "[CLEANUP] Impossible de supprimer : "
+            f"{file_path}"
+        )
+
+        if last_error is not None:
+            print(
+                "[CLEANUP] "
+                f"{type(last_error).__name__}: "
+                f"{last_error}"
             )
+
+        return False
 
     def cleanup_temporary_wav_files(self):
         temp_files = set()
@@ -2716,18 +2800,21 @@ class AudioPreprocessDialog(QDialog):
             else None
         )
 
-        #
+       #
         # Suppression des WAV temporaires.
         #
-        for temp_file in temp_files:
-            try:
-                if (
-                    temp_file.exists()
-                    and
-                    temp_file != final_file
-                ):
-                    temp_file.unlink()
+        failed_files = []
 
-            except OSError:
-                pass
-    
+        for temp_file in temp_files:
+
+            if temp_file == final_file:
+                continue
+
+            if not self.remove_file_with_retry(
+                temp_file
+            ):
+                failed_files.append(
+                    temp_file
+                )
+
+        return failed_files
