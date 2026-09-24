@@ -493,14 +493,25 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] buffer = 0 reproduit le comportement actuel
 
 ## 18.6 - Validation
-- [ ] buffer = 0
-- [ ] buffer = 0.2
-- [ ] silence <= 2 × buffer
-- [ ] interaction avec trim
-- [ ] comparaison estimation / résultat réel
+- [✓] buffer = 0
+- [✓] buffer = 0.2
+- [✓] silence <= 2 × buffer
+- [✓] interaction avec trim
+- [✓] comparaison estimation / résultat réel
 
 
-# Commit 19 - Stabilisation
+
+# Commit 19 - annulation dans new_transcription_dialob
+- [✓] Centraliser la suppression d'un projet provisoire dans ProjectManager
+- [ ] Intercepter l'annulation de NewTranscriptionDialogdans le parcours direct
+- [ ] Faire la même chose après prétraitement
+- [ ] Ajouter une confirmation : "Abandonner cette transcription ? Le projet provisoire et ses fichiers seront supprimés."
+- [ ] Ne jamais supprimer un projet dès que la transcription ElevenLabs a effectivement été lancée
+- [ ] Tests Direct / Prétraitement / Annuler / Transcrire
+
+
+
+# Commit 20 - Stabilisation
 
 ## Actions
 

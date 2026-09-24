@@ -1,7 +1,6 @@
 # ui/audio_preprocess_dialog.py
 
 import wave
-import shutil
 import time
 
 from PySide6.QtWidgets import (
@@ -19,10 +18,7 @@ from PySide6.QtWidgets import (
     QProgressDialog,
     QMessageBox,
 )
-from PySide6.QtMultimedia import (
-    QMediaPlayer,
-    QAudioOutput
-)
+
 
 from PySide6.QtCore import Qt, QUrl, QThread
 from pathlib import Path
@@ -36,6 +32,7 @@ from services.silence_detection_service import SilenceDetectionService
 from services.audio_processing_worker import AudioProcessingWorker
 from services.ffmpeg_paths import FFMPEG_PATH
 from services.audio_finalization_worker import AudioFinalizationWorker
+from services.project_manager import ProjectManager
 
 from ui.waveform_widget import WaveformWidget
 
@@ -2772,33 +2769,14 @@ class AudioPreprocessDialog(QDialog):
         self.cleanup_temporary_wav_files()
 
         #
-        # Supprimer le dossier projet provisoire
-        # et tout ce qu'il contient.
+        # Suppression centralisée
+        # du projet provisoire.
         #
-        if self.project_folder.exists():
+        manager = ProjectManager()
 
-            last_error = None
-
-            for attempt in range(3):
-                try:
-                    shutil.rmtree(
-                        self.project_folder
-                    )
-                    return
-
-                except FileNotFoundError:
-                    return
-
-                except OSError as e:
-                    last_error = e
-
-                    if attempt < 2:
-                        time.sleep(
-                            0.15
-                        )
-
-            if last_error is not None:
-                raise last_error
+        manager.delete_provisional_project(
+            self.project_folder
+        )
 
     def remove_file_with_retry(
         self,

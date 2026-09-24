@@ -3,6 +3,7 @@ from datetime import datetime
 import shutil
 import json
 import re
+import time
 from services.settings import (
     SettingsManager
 )
@@ -103,6 +104,46 @@ class ProjectManager:
         )
 
         return destination
+
+    def delete_provisional_project(
+        self,
+        project_folder,
+        attempts=3,
+        delay=0.15
+    ):
+        project_folder = Path(
+            project_folder
+        )
+
+        if not project_folder.exists():
+            return True
+
+        last_error = None
+
+        for attempt in range(
+            attempts
+        ):
+            try:
+                shutil.rmtree(
+                    project_folder
+                )
+                return True
+
+            except FileNotFoundError:
+                return True
+
+            except OSError as e:
+                last_error = e
+
+                if attempt < attempts - 1:
+                    time.sleep(
+                        delay
+                    )
+
+        if last_error is not None:
+            raise last_error
+
+        return False
 
     def save_transcription_json(
         self,
