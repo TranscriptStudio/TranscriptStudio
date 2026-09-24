@@ -57,7 +57,7 @@ class HomeWindow(QWidget):
 
         self.resize(
             700,
-            500
+            700
         )
 
         self.build_ui()
@@ -113,26 +113,30 @@ class HomeWindow(QWidget):
             font-weight:bold;
         """)
         subtitle_label = QLabel(
-            "Transcription audio assistée par ElevenLabs"
+            "Prétraitement audio et transcription assistée par ElevenLabs"
         )
-
+        "#A8A8A8"
         subtitle_label.setStyleSheet("""
-            color:#666666;
-            font-size:12px;
+            color:#A8A8A8;
+            font-size:13px;
+            font-weight:500;
         """)
+        
 
         version_label = QLabel(
-            "Version 1.0\nAoût 2026"
+            "Version 1.2\nSeptembre 2026"
         )
 
         version_label.setStyleSheet("""
-            color:#666666;
+            color:#888888;
             font-size:12px;
         """)
 
 
         title_layout.addWidget(title_label)
+        title_layout.addSpacing(4)
         title_layout.addWidget(subtitle_label)
+        title_layout.addSpacing(8)
         title_layout.addWidget(version_label)
         
         header_layout.addWidget(

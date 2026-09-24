@@ -543,9 +543,9 @@ Commit 17 - Validation du prétraitement et fichier final
 
 # Commit 24 réglage taille texte blocs words
 
- - ajouter boutons taille + e taille -
- - augmenter la taille de police des blocs
- - réajuster les blocs
+ - [✓] ajouter boutons taille + e taille - avec icones spécifiques
+ - [✓] augmenter la taille de police des blocs
+ - [✓] réajuster les blocs
 
 # Commit final
 ## Actions

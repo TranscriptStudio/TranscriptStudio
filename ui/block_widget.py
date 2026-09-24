@@ -86,6 +86,7 @@ class BlockWidget(QWidget):
         block,
         speaker_names,
         current_speaker_name,
+        text_font_size=15,
         parent=None
     ):
         super().__init__(parent)
@@ -95,6 +96,9 @@ class BlockWidget(QWidget):
 
         self.active_word = None
         self.last_clicked_word = None
+        self.text_font_size = (
+            text_font_size
+        )
         # Layout principal
         root_layout = QHBoxLayout(self)
         self.setSizePolicy(
@@ -310,6 +314,7 @@ class BlockWidget(QWidget):
             margin: 0px;
             padding: 0px;
             width: 100%;
+            font-size: {self.text_font_size}px;
         }}
 
         a {{
@@ -325,7 +330,19 @@ class BlockWidget(QWidget):
         """
 
         self.text_edit.setHtml(html)
-        
+
+    def set_text_font_size(
+        self,
+        size
+    ):
+        self.text_font_size = (
+            size
+        )
+
+        self.render_words()
+
+        self.update_text_height()
+    
     def on_word_clicked(self, url):
         
         word_index = int(url.toString().replace("word_",""))

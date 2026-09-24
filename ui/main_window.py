@@ -13,9 +13,22 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QInputDialog,
 )
-
-from PySide6.QtCore import QRectF, Qt, QTimer
-from PySide6.QtGui import QShortcut, QKeySequence
+from PySide6.QtCore import (
+    QRectF,
+    Qt,
+    QTimer,
+    QSize,
+)
+from PySide6.QtGui import (
+    QShortcut,
+    QKeySequence,
+    QPixmap,
+    QPainter,
+    QPen,
+    QColor,
+    QFont,
+    QIcon,
+)
 from pathlib import Path
 
 
@@ -42,6 +55,13 @@ class MainWindow(QMainWindow):
         self.playback = PlaybackManager()
 
         self.current_duration = 0
+
+        #
+        # Taille du texte des blocs de transcription.
+        #
+        self.text_font_size = 15
+        self.text_font_size_min = 11
+        self.text_font_size_max = 24
         
         self.block_widgets = {}
 
@@ -105,7 +125,42 @@ class MainWindow(QMainWindow):
         self.export_button = QPushButton("📤")
         self.help_button = QPushButton("📖")
 
-        
+        #
+        # Taille du texte de transcription.
+        #
+        self.text_smaller_button = QPushButton()
+        self.text_larger_button = QPushButton()
+
+        self.text_smaller_button.setIcon(
+            self.create_text_size_icon("−")
+        )
+
+        self.text_larger_button.setIcon(
+            self.create_text_size_icon("+")
+        )
+
+        self.text_smaller_button.setIconSize(
+            QSize(
+                32,
+                32
+            )
+        )
+
+        self.text_larger_button.setIconSize(
+            QSize(
+                32,
+                32
+            )
+        )
+
+        self.text_smaller_button.setToolTip(
+            "Réduire la taille du texte"
+        )
+
+        self.text_larger_button.setToolTip(
+            "Augmenter la taille du texte"
+        )
+
         self.home_button.setToolTip(
             "Retour à l'accueil"
         )
@@ -134,9 +189,25 @@ class MainWindow(QMainWindow):
         action_layout.addWidget(
             self.help_button
         )
-        action_layout.addSpacing(50)
 
-        self.zoom_label = QLabel("Zoom timeline :")
+        #
+        # Taille du texte.
+        #
+        action_layout.addSpacing(20)
+
+        action_layout.addWidget(
+            self.text_smaller_button
+        )
+
+        action_layout.addWidget(
+            self.text_larger_button
+        )
+
+        action_layout.addSpacing(30)
+
+        self.zoom_label = QLabel(
+            "Zoom timeline :"
+        )
         self.zoom_fit_button = QPushButton("⛶")
         self.zoom_minus_button = QPushButton("-")
         self.zoom_plus_button = QPushButton("+")
@@ -209,6 +280,10 @@ class MainWindow(QMainWindow):
             self.save_button,
             self.export_button,
             self.help_button,
+
+            self.text_smaller_button,
+            self.text_larger_button,
+
             self.zoom_fit_button,
             self.zoom_minus_button,
             self.zoom_plus_button,
@@ -364,7 +439,8 @@ class MainWindow(QMainWindow):
                 block=block,
                 speaker_names=speaker_names,
                 current_speaker_name=speaker.name,
-                )
+                text_font_size=self.text_font_size,
+            )
             widget.word_clicked.connect(self.on_word_clicked)
             self.block_widgets[block.id] = widget
             self.main_layout.addWidget(widget)
@@ -491,6 +567,45 @@ class MainWindow(QMainWindow):
         self.cleanup_speakers_button.clicked.connect(
             self.cleanup_unused_speakers
         )
+        self.text_larger_button.clicked.connect(
+            self.increase_text_size
+        )
+
+        self.text_smaller_button.clicked.connect(
+            self.decrease_text_size
+        )
+
+    def increase_text_size(self):
+        if (
+            self.text_font_size
+            >= self.text_font_size_max
+        ):
+            return
+
+        self.text_font_size += 1
+
+        self.apply_text_font_size()
+
+
+    def decrease_text_size(self):
+        if (
+            self.text_font_size
+            <= self.text_font_size_min
+        ):
+            return
+
+        self.text_font_size -= 1
+
+        self.apply_text_font_size()
+
+
+    def apply_text_font_size(self):
+        for widget in (
+            self.block_widgets.values()
+        ):
+            widget.set_text_font_size(
+                self.text_font_size
+            )
         
     def format_time(self, seconds):
 
@@ -1223,6 +1338,88 @@ class MainWindow(QMainWindow):
                 "Nettoyage",
                 "Aucun intervenant inutilisé."
             )
-    
+
+
+    def create_text_size_icon(
+        self,
+        symbol
+    ):
+        pixmap = QPixmap(
+            32,
+            32
+        )
+
+        pixmap.fill(
+            Qt.GlobalColor.transparent
+        )
+
+        painter = QPainter(
+            pixmap
+        )
+
+        painter.setRenderHint(
+            QPainter.RenderHint.Antialiasing
+        )
+
+        #
+        # Lettre A dans la couleur normale
+        # du texte de l'interface.
+        #
+        text_color = (
+            self.palette()
+            .text()
+            .color()
+        )
+
+        painter.setPen(
+            QPen(text_color)
+        )
+
+        font = QFont()
+        font.setPixelSize(18)
+        font.setWeight(
+            QFont.Weight.DemiBold
+        )
+
+        painter.setFont(
+            font
+        )
+
+        painter.drawText(
+            2,
+            23,
+            "A"
+        )
+
+        #
+        # + ou - en bleu.
+        #
+        painter.setPen(
+            QPen(
+                QColor("#2A7DDC")
+            )
+        )
+
+        symbol_font = QFont()
+        symbol_font.setPixelSize(16)
+        symbol_font.setWeight(
+            QFont.Weight.Bold
+        )
+
+        painter.setFont(
+            symbol_font
+        )
+
+        painter.drawText(
+            18,
+            17,
+            symbol
+        )
+
+        painter.end()
+
+        return QIcon(
+            pixmap
+        )
 
    
