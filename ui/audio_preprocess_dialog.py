@@ -1,6 +1,7 @@
 # ui/audio_preprocess_dialog.py
 
 import wave
+import shutil
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -88,6 +89,8 @@ class AudioPreprocessDialog(QDialog):
         self.finalization_progress = None
         self.finalization_thread = None
         self.finalization_worker = None
+
+        self.preprocessing_validated = False
 
         self.setWindowTitle("Prétraitement audio")
 
@@ -2148,7 +2151,11 @@ class AudioPreprocessDialog(QDialog):
         # supprimer tous les WAV temporaires.
         #
         self.cleanup_temporary_wav_files()
-
+        #
+        # Le prétraitement est maintenant
+        # officiellement validé.
+        #
+        self.preprocessing_validated = True
         #
         # Fermer le dialogue avec succès.
         #
@@ -2181,11 +2188,42 @@ class AudioPreprocessDialog(QDialog):
         self.finalization_worker = None
 
     def get_processed_audio_file(self):
+        #
+        # Aucun fichier ne doit sortir du dialogue
+        # tant que le prétraitement n'a pas été
+        # officiellement validé.
+        #
+        if not self.preprocessing_validated:
+            return None
+
         if self.processed_audio_file is None:
             return None
 
-        return str(
+        processed_file = Path(
             self.processed_audio_file
+        )
+
+        #
+        # Sécurité : le WAV de travail temporaire
+        # ne doit jamais être transmis au workflow
+        # de transcription.
+        #
+        temporary_wav = (
+            self.project_folder
+            / "audio_processed.wav"
+        )
+
+        if processed_file == temporary_wav:
+            return None
+
+        #
+        # Le fichier final doit réellement exister.
+        #
+        if not processed_file.exists():
+            return None
+
+        return str(
+            processed_file
         )
 
     def get_options(self):
@@ -2472,6 +2510,116 @@ class AudioPreprocessDialog(QDialog):
         self.player.setPosition(
             value
         )
+
+    def closeEvent(self, event):
+        #
+        # Si le prétraitement a été validé
+        # par Transcrire, ne rien supprimer.
+        #
+        if self.preprocessing_validated:
+            event.accept()
+            return
+
+        #
+        # Ne pas autoriser la fermeture pendant
+        # un traitement audio en cours.
+        #
+        if self.processing_thread is not None:
+            QMessageBox.information(
+                self,
+                "Traitement en cours",
+                (
+                    "Le traitement audio est "
+                    "actuellement en cours.\n\n"
+                    "Veuillez attendre sa fin "
+                    "avant de fermer cette fenêtre."
+                )
+            )
+
+            event.ignore()
+            return
+
+        #
+        # Ne pas autoriser la fermeture pendant
+        # la finalisation du fichier.
+        #
+        if self.finalization_thread is not None:
+            QMessageBox.information(
+                self,
+                "Finalisation en cours",
+                (
+                    "La finalisation du fichier audio "
+                    "est actuellement en cours.\n\n"
+                    "Veuillez attendre sa fin."
+                )
+            )
+
+            event.ignore()
+            return
+
+        #
+        # Demander confirmation avant abandon.
+        #
+        reply = QMessageBox.question(
+            self,
+            "Abandonner le prétraitement",
+            (
+                "Voulez-vous vraiment abandonner "
+                "le prétraitement audio ?\n\n"
+                "Le projet provisoire et les fichiers "
+                "générés seront supprimés."
+            ),
+            (
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No
+            ),
+            QMessageBox.StandardButton.No
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            event.ignore()
+            return
+
+        try:
+            self.cleanup_abandoned_preprocessing()
+
+        except OSError as e:
+            QMessageBox.critical(
+                self,
+                "Erreur de nettoyage",
+                (
+                    "Impossible de supprimer complètement "
+                    "le projet provisoire.\n\n"
+                    + str(e)
+                )
+            )
+
+            event.ignore()
+            return
+
+        event.accept()
+
+    def cleanup_abandoned_preprocessing(self):
+        #
+        # Libérer tous les fichiers utilisés
+        # par les lecteurs.
+        #
+        self.playback.unload()
+        self.result_playback.unload()
+
+        #
+        # Supprimer les WAV temporaires.
+        #
+        self.cleanup_temporary_wav_files()
+
+        #
+        # Supprimer le dossier projet provisoire
+        # et tout ce qu'il contient.
+        #
+        if self.project_folder.exists():
+            shutil.rmtree(
+                self.project_folder
+            )
 
     def cleanup_temporary_wav_files(self):
         temp_files = set()

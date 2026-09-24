@@ -442,16 +442,16 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] ajouter une loading page pour la conversion du fichier
  
 17.3 - Abandon du prétraitement
-- [ ] interception fermeture fenêtre
-- [ ] arrêt des lecteurs
-- [ ] suppression fichiers temporaires
-- [ ] suppression audio_processed
-- [ ] suppression du dossier projet provisoire
+- [✓] interception fermeture fenêtre
+- [✓] arrêt des lecteurs
+- [✓] suppression fichiers temporaires
+- [✓] suppression audio_processed
+- [✓] suppression du dossier projet provisoire
  
 17.4 - Continuité workflow
-- [ ] transmettre audio_processed.ext à NewTranscriptionDialog
-- [ ] ne jamais transmettre audio_processed.wav temporaire
-- [ ] conserver le dossier projet validé
+- [✓] transmettre audio_processed.ext à NewTranscriptionDialog
+- [✓] ne jamais transmettre audio_processed.wav temporaire
+- [✓] conserver le dossier projet validé
  
 17.5 - Cas particuliers
 - [ ] original WAV

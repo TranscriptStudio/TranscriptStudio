@@ -626,16 +626,43 @@ class HomeWindow(QWidget):
         )
 
         if not processed_audio_file:
+            QMessageBox.critical(
+                self,
+                "Fichier audio indisponible",
+                (
+                    "Le fichier audio finalisé "
+                    "est introuvable.\n\n"
+                    "La transcription ne peut pas "
+                    "être poursuivie."
+                )
+            )
+            return
+
+        processed_audio_file = Path(
+            processed_audio_file
+        )
+
+        if not processed_audio_file.exists():
+            QMessageBox.critical(
+                self,
+                "Fichier audio introuvable",
+                (
+                    "Le fichier audio finalisé "
+                    "n'existe plus :\n\n"
+                    f"{processed_audio_file}"
+                )
+            )
             return
 
         self.current_audio_file = (
-            Path(
-                processed_audio_file
-            )
+            processed_audio_file
         )
-
+        print(
+            "[WORKFLOW] Audio transmis à NewTranscriptionDialog :",
+            processed_audio_file
+        )
         dialog = NewTranscriptionDialog(
-            processed_audio_file,
+            str(processed_audio_file),
             self
         )
 
