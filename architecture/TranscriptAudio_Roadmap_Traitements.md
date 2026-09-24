@@ -423,7 +423,40 @@ sur WAV de travail.
 
 ## commit 17 - sauvegarde et export audio
 
-- conversion audio process dans format origine
+Commit 17 - Validation du prétraitement et fichier final
+ 
+17.1 - Simplification toolbar
+- [✓] supprimer Annuler les modifications
+- [✓] supprimer Sauvegarder
+- [✓] désactiver Transcrire avant premier traitement
+- [✓] tooltip explicite sur Transcrire
+ 
+17.2 - Validation audio
+- [ ] clic Transcrire
+- [ ] arrêt des lecteurs
+- [ ] conversion audio_processed.wav vers format final
+- [ ] conserver audio original
+- [ ] conserver audio_processed.ext
+- [ ] supprimer les WAV temporaires
+ 
+17.3 - Abandon du prétraitement
+- [ ] interception fermeture fenêtre
+- [ ] arrêt des lecteurs
+- [ ] suppression fichiers temporaires
+- [ ] suppression audio_processed
+- [ ] suppression du dossier projet provisoire
+ 
+17.4 - Continuité workflow
+- [ ] transmettre audio_processed.ext à NewTranscriptionDialog
+- [ ] ne jamais transmettre audio_processed.wav temporaire
+- [ ] conserver le dossier projet validé
+ 
+17.5 - Cas particuliers
+- [ ] original WAV
+- [ ] formats audio compressés
+- [ ] entrées vidéo
+- [ ] erreur de conversion finale
+- [ ] erreur de suppression Windows
 
 # Commit 18 - Stabilisation
 

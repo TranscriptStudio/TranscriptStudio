@@ -125,25 +125,35 @@ class AudioPreprocessDialog(QDialog):
         toolbar = QHBoxLayout()
 
         self.play_button = QPushButton("▶")
+        self.play_button.setToolTip("Lecture du fichier origine")
 
         self.pause_button = QPushButton("⏸")
+        self.pause_button.setToolTip("Mettre en pause")
 
         self.stop_button = QPushButton("⏹")
+        self.stop_button.setToolTip("Arrêter la lecture")
 
         self.zoom_in_button = QPushButton("➕")
+        self.zoom_in_button.setToolTip("Zoom avant de la piste")
 
         self.zoom_out_button = QPushButton("➖")
+        self.zoom_out_button.setToolTip("Zoom arrière de la piste")
 
         self.fit_button = QPushButton("↔️")
+        self.fit_button.setToolTip("Revenir à l'affichage complet de la piste")
 
         self.process_button = QPushButton("✨ Lancer le traitement")
+        self.process_button.setToolTip("Lance le traitement des effets sélectionnées")
 
-        self.restore_button = QPushButton("↶ Annuler les modifications")
-
-        self.save_button = QPushButton("💾")
-
-        self.transcribe_button = QPushButton("☁")
-
+        self.transcribe_button = QPushButton("☁ Transcrire")
+        self.transcribe_button.setEnabled(
+            False
+        )
+        self.transcribe_button.setToolTip(
+        "Lancez d'abord le traitement audio "
+        "pour pouvoir utiliser le fichier traité "
+        "pour la transcription."
+    )
         for btn in [
             self.play_button,
             self.pause_button,
@@ -152,16 +162,14 @@ class AudioPreprocessDialog(QDialog):
             self.zoom_out_button,
             self.fit_button,
             self.process_button,
-            self.restore_button,
-            self.save_button,
             self.transcribe_button,
         ]:
 
             btn.setFixedSize(40, 40)
             if btn == self.process_button:
                 btn.setFixedSize(150, 40)
-            if btn == self.restore_button:
-                btn.setFixedSize(190, 40)
+            if btn == self.transcribe_button:
+                            btn.setFixedSize(100, 40)
             toolbar.addWidget(btn)
         toolbar.addStretch()
         layout.addLayout(toolbar)
@@ -1829,6 +1837,13 @@ class AudioPreprocessDialog(QDialog):
         #
         self.processed_audio_file = (
             output_file
+        )
+        self.transcribe_button.setEnabled(
+            True
+        )
+        self.transcribe_button.setToolTip(
+            "Utiliser le fichier audio traité "
+            "pour poursuivre vers la transcription."
         )
 
         #
