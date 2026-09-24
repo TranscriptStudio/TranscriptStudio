@@ -534,6 +534,20 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] ouverture de transcription en pleine page par défaut
 
 
+# Commit 23 -  fix et amélioration graphique mainwindows
+- [✓] corriger le temps total qui reste à zéro
+- [✓] aumgenter la police des icones
+- [✓] timeline : centrer le zoom sur le curseur
+- [✓] clic + mouvement souris = déplacement timeline (en mode zoom)
+- [✓] clic seul = position curseur
+
+# Commit 24 réglage taille texte blocs words
+
+ - ajouter boutons taille + e taille -
+ - augmenter la taille de police des blocs
+ - réajuster les blocs
+
+# Commit final
 ## Actions
 
 - nettoyage UI

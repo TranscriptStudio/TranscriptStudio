@@ -63,6 +63,27 @@ class TimelineWidget(QWidget):
         self.zoom_fit()
         self.block_rects = []
         self.timeline_scroll = None
+        #
+        # Etats des interactions souris.
+        #
+        self.dragging_cursor = False
+        self.panning = False
+        self.mouse_pressed = False
+        self.mouse_has_moved = False
+
+        self.mouse_press_x = 0.0
+        self.last_mouse_x = 0.0
+
+        self.drag_threshold = 4
+        self.setMouseTracking(
+            True
+        )
+
+        #
+        # Rectangle de la bulle du curseur.
+        # Il sera recalculé dans paintEvent().
+        #
+        self.cursor_rect = QRectF()
         
     def set_current_time(
         self,
@@ -87,29 +108,92 @@ class TimelineWidget(QWidget):
 
         self.update_timeline_width()
 
-        # self.update()
+    def apply_zoom_at_cursor(
+        self,
+        new_zoom
+    ):
+        duration = self.get_duration()
 
-    def zoom_in(self):
+        if (
+            duration <= 0
+            or self.timeline_scroll is None
+        ):
+            return
 
-        self.zoom = min(
-            self.zoom * 1.5,
-            self.max_zoom
+        fit_zoom = (
+            self.get_fit_zoom()
         )
 
-        self.update_timeline_width()
+        new_zoom = max(
+            fit_zoom,
+            min(
+                new_zoom,
+                self.max_zoom
+            )
+        )
+
+        #
+        # Rien à faire si le zoom
+        # ne change réellement pas.
+        #
+        if abs(
+            new_zoom - self.zoom
+        ) < 0.000001:
+            return
+
+        self.zoom = new_zoom
+
+        new_width = max(
+            1,
+            int(
+                duration
+                * self.zoom
+            )
+        )
+
+        self.setFixedWidth(
+            new_width
+        )
+
+        scrollbar = (
+            self.timeline_scroll
+            .horizontalScrollBar()
+        )
+
+        viewport_width = (
+            self.timeline_scroll
+            .viewport()
+            .width()
+        )
+
+        cursor_x = (
+            self.current_time
+            / duration
+            * new_width
+        )
+
+        #
+        # Les boutons +/- sont explicitement
+        # centrés sur le curseur de lecture.
+        #
+        scrollbar.setValue(
+            int(
+                cursor_x
+                - viewport_width / 2
+            )
+        )
+
+        self.update()
+        
+    def zoom_in(self):
+        self.apply_zoom_at_cursor(
+            self.zoom * 1.5
+        )
 
     def zoom_out(self):
-
-        fit_zoom = self.get_fit_zoom()
-
-        new_zoom = self.zoom / 1.5
-
-        self.zoom = max(
-            new_zoom,
-            fit_zoom
+        self.apply_zoom_at_cursor(
+            self.zoom / 1.5
         )
-
-        self.update_timeline_width()
 
     def get_fit_zoom(self):
 
@@ -515,7 +599,18 @@ class TimelineWidget(QWidget):
             self.height()
         )   
  
-    def mousePressEvent(self, event):
+    def mousePressEvent(
+        self,
+        event
+    ):
+        if (
+            event.button()
+            != Qt.MouseButton.LeftButton
+        ):
+            super().mousePressEvent(
+                event
+            )
+            return
 
         click_pos = event.position()
 
@@ -526,27 +621,40 @@ class TimelineWidget(QWidget):
             8
         )
 
-        if hit_rect.contains(click_pos):
+        self.mouse_pressed = True
+        self.mouse_has_moved = False
+        self.panning = False
 
+        self.mouse_press_x = (
+            click_pos.x()
+        )
+
+        self.last_mouse_x = (
+            click_pos.x()
+        )
+
+        #
+        # La bulle du curseur a été attrapée.
+        #
+        if hit_rect.contains(
+            click_pos
+        ):
             self.dragging_cursor = True
 
+            self.setCursor(
+                Qt.CursorShape.ClosedHandCursor
+            )
+
+            event.accept()
             return
 
-        duration = self.get_duration()
+        #
+        # Sinon il s'agit potentiellement
+        # d'un clic simple ou d'un pan.
+        #
+        self.dragging_cursor = False
 
-        if duration <= 0:
-            return
-
-        ratio = (
-            click_pos.x()
-            / self.width()
-        )
-
-        new_time = ratio * duration
-
-        self.seek_requested.emit(
-            new_time
-        )
+        event.accept()
 
     def update_timeline_width(self):
 
@@ -559,7 +667,7 @@ class TimelineWidget(QWidget):
             duration * self.zoom
         )
 
-        self.setMinimumWidth(width)
+        self.setFixedWidth(width)
 
         self.update()
 
@@ -572,21 +680,148 @@ class TimelineWidget(QWidget):
 
         self.update()
 
-    def wheelEvent(self, event):
+    def update_mouse_cursor(
+        self,
+        position
+    ):
+        if self.dragging_cursor:
+            self.setCursor(
+                Qt.CursorShape.ClosedHandCursor
+            )
+            return
 
-        delta = event.angleDelta().y()
+        hit_rect = self.cursor_rect.adjusted(
+            -8,
+            -8,
+            8,
+            8
+        )
+
+        if hit_rect.contains(position):
+            self.setCursor(
+                Qt.CursorShape.OpenHandCursor
+            )
+        else:
+            self.setCursor(
+                Qt.CursorShape.ArrowCursor
+            )
+
+    def wheelEvent(
+        self,
+        event
+    ):
+        if self.timeline_scroll is None:
+            event.ignore()
+            return
+
+        duration = self.get_duration()
+
+        if duration <= 0:
+            event.ignore()
+            return
+
+        old_width = self.width()
+
+        if old_width <= 0:
+            event.ignore()
+            return
+
+        scrollbar = (
+            self.timeline_scroll
+            .horizontalScrollBar()
+        )
+
+        #
+        # event.position().x() est une coordonnée
+        # locale dans TimelineWidget.
+        #
+        mouse_widget_x = (
+            event.position().x()
+        )
+
+        #
+        # Position de la souris dans le viewport.
+        #
+        mouse_viewport_x = (
+            mouse_widget_x
+            - scrollbar.value()
+        )
+
+        #
+        # Temps actuellement situé sous la souris.
+        #
+        time_under_mouse = (
+            mouse_widget_x
+            / old_width
+            * duration
+        )
+
+        delta = (
+            event.angleDelta().y()
+        )
 
         if delta > 0:
-
-            self.set_zoom(
+            new_zoom = (
                 self.zoom * 1.1
             )
-
-        else:
-
-            self.set_zoom(
+        elif delta < 0:
+            new_zoom = (
                 self.zoom / 1.1
             )
+        else:
+            return
+
+        fit_zoom = self.get_fit_zoom()
+
+        self.zoom = max(
+            fit_zoom,
+            min(
+                new_zoom,
+                self.max_zoom
+            )
+        )
+
+        #
+        # Calcul direct de la nouvelle largeur.
+        #
+        new_width = max(
+            1,
+            int(
+                duration
+                * self.zoom
+            )
+        )
+
+        if new_width != self.width():
+            self.setFixedWidth(
+                new_width
+            )
+
+        #
+        # Nouvelle position X du même instant.
+        #
+        new_time_x = (
+            time_under_mouse
+            / duration
+            * new_width
+        )
+
+        #
+        # Repositionner le scroll pour conserver
+        # ce temps sous la souris.
+        #
+        new_scroll = (
+            new_time_x
+            - mouse_viewport_x
+        )
+
+        scrollbar.setValue(
+            int(new_scroll)
+        )
+
+        self.update()
+
+        event.accept()
 
     def compute_fit_zoom(self):
 
@@ -735,38 +970,231 @@ class TimelineWidget(QWidget):
             )
         )  
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(
+        self,
+        event
+    ):
+        position = event.position()
 
-        if not self.dragging_cursor:
+        #
+        # Aucun bouton enfoncé :
+        # uniquement mise à jour du pointeur.
+        #
+        if not self.mouse_pressed:
+            self.update_mouse_cursor(
+                position
+            )
             return
 
+        current_x = (
+            position.x()
+        )
+
+        total_movement = (
+            current_x
+            - self.mouse_press_x
+        )
+
+        if (
+            not self.mouse_has_moved
+            and abs(total_movement)
+            >= self.drag_threshold
+        ):
+            self.mouse_has_moved = True
+
+        #
+        # CAS 1
+        # Drag du curseur.
+        #
+        if self.dragging_cursor:
+            duration = self.get_duration()
+
+            if duration <= 0:
+                return
+
+            ratio = (
+                current_x
+                / self.width()
+            )
+
+            ratio = max(
+                0.0,
+                min(
+                    ratio,
+                    1.0
+                )
+            )
+
+            new_time = (
+                ratio
+                * duration
+            )
+
+            self.current_time = (
+                new_time
+            )
+
+            self.seek_requested.emit(
+                new_time
+            )
+
+            self.setCursor(
+                Qt.CursorShape.ClosedHandCursor
+            )
+
+            self.update()
+            event.accept()
+            return
+
+        #
+        # Pas encore assez de mouvement :
+        # cela peut toujours être un clic simple.
+        #
+        if not self.mouse_has_moved:
+            return
+
+        #
+        # CAS 2
+        # Pan de la timeline.
+        #
+        fit_zoom = (
+            self.get_fit_zoom()
+        )
+
+        if self.zoom <= fit_zoom:
+            return
+
+        if self.timeline_scroll is None:
+            return
+
+        self.panning = True
+
+        dx = (
+            current_x
+            - self.last_mouse_x
+        )
+
+        self.last_mouse_x = (
+            current_x
+        )
+
+        scrollbar = (
+            self.timeline_scroll
+            .horizontalScrollBar()
+        )
+
+        scrollbar.setValue(
+            scrollbar.value()
+            - int(dx)
+        )
+
+        event.accept()
+    
+    def mouseReleaseEvent(
+        self,
+        event
+    ):
+        if (
+            event.button()
+            != Qt.MouseButton.LeftButton
+        ):
+            super().mouseReleaseEvent(
+                event
+            )
+            return
+
+        release_pos = (
+            event.position()
+        )
+
+        was_dragging_cursor = (
+            self.dragging_cursor
+        )
+
+        was_panning = (
+            self.panning
+        )
+
+        was_moved = (
+            self.mouse_has_moved
+        )
+
+        #
+        # Réinitialiser les états.
+        #
+        self.mouse_pressed = False
+        self.dragging_cursor = False
+        self.panning = False
+        self.mouse_has_moved = False
+
+        #
+        # Remettre le pointeur adapté
+        # à la position actuelle.
+        #
+        self.update_mouse_cursor(
+            release_pos
+        )
+
+        #
+        # Un drag curseur est terminé.
+        #
+        if was_dragging_cursor:
+            event.accept()
+            return
+
+        #
+        # Un pan est terminé.
+        #
+        if was_panning or was_moved:
+            event.accept()
+            return
+
+        #
+        # CAS 3
+        # Clic simple :
+        # positionner le curseur.
+        #
         duration = self.get_duration()
 
+        if duration <= 0:
+            return
+
         ratio = (
-            event.position().x()
+            release_pos.x()
             / self.width()
         )
 
         ratio = max(
             0.0,
-            min(ratio, 1.0)
+            min(
+                ratio,
+                1.0
+            )
         )
 
         new_time = (
-            ratio * duration
+            ratio
+            * duration
         )
-
-        self.current_time = new_time
 
         self.seek_requested.emit(
             new_time
         )
 
-        self.update()
-    
-    def mouseReleaseEvent(self, event):
+        event.accept()
 
-        self.dragging_cursor = False
+    def leaveEvent(
+        self,
+        event
+    ):
+        if not self.dragging_cursor:
+            self.setCursor(
+                Qt.CursorShape.ArrowCursor
+            )
+
+        super().leaveEvent(
+            event
+        )
 
     def is_current_time_visible(self):
 

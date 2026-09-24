@@ -204,25 +204,37 @@ class MainWindow(QMainWindow):
         
         action_layout.addStretch()
         root_layout.addLayout(action_layout)
-        for btn in [
+        icon_buttons = [
             self.home_button,
             self.save_button,
             self.export_button,
+            self.help_button,
+            self.zoom_fit_button,
+            self.zoom_minus_button,
+            self.zoom_plus_button,
+            self.cleanup_speakers_button,
             self.btn_prev,
             self.btn_play,
             self.btn_next,
-        ]:
-            btn.setFixedSize(36, 36)
+        ]
+
+        for btn in icon_buttons:
+            btn.setFixedSize(
+                40,
+                40
+            )
+
             btn.setStyleSheet("""
                 QPushButton {
                     border: none;
-                    font-size: 16px;
+                    font-size: 20px;
                 }
+
                 QPushButton:hover {
-                    background-color: #E8E8E8;
-                    border-radius: 4px;
+                    background-color: rgba(128, 128, 128, 45);
+                    border-radius: 5px;
                 }
-                """)
+            """)
 
 
         #
@@ -422,9 +434,15 @@ class MainWindow(QMainWindow):
         self.playback.position_changed.connect(
             self.update_position
         )
+
         self.playback.position_changed.connect(
             self.update_active_block
         )
+
+        self.playback.duration_changed.connect(
+            self.update_duration
+        )
+
         self.playback.duration_changed.connect(
             self.timeline.set_duration
         )
