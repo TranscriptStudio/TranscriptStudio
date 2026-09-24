@@ -514,9 +514,25 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] ajout des formats vidéos *.mp4 *.mov *.mkv *.avi *.webm *.mpeg *.mpg *.ts *.m2ts
 - [✓] convertion des formats vidéo en audio m4a AAC
 - [✓] empecher la transcription directe de vidéo vers elevenlabs
-- [✓] fix bug graphique : ajout des couleurs sombre / clair selon paramètres windows 
+- [✓] graphique : corrections des couleurs quand mode sombre windows activé des couleurs sombre / clair selon paramètres windows 
 
-# Commit 20 - Stabilisation
+
+
+
+# Commit 21 - correction processing audio
+
+- [✓] fix désynchronisation entre current_block_id et block_widgets après une reconstruction des blocs
+
+- supprimer bouton pause de process audio pour le fusionera avec lecture
+- passer la barre de lecture du deuxième waveforme au dessus de celui-ci
+- adapter la taille minimale du waveforme resultant, sa barre de lecture et le panneau option
+- augmenter la police des symbole des icones
+
+# Commit 22 - correction ergonomie
+- ouvrir un projet doit ouvrir par défaut le répertoire des projets défini dans les paramètres
+- ouverture de audio processing en pleine page par défaut
+- ouverture de transcription en pleine page par défaut
+
 
 ## Actions
 
@@ -526,8 +542,3 @@ Commit 17 - Validation du prétraitement et fichier final
 - revue architecture
 - documentation
 
-- ouvrir un projet doit ouvrir par défaut le répertoire des projets défini dans les paramètres
-- corrections des couleurs quand mode sombre windows activé
-- ouverture de fichier mpeg
-- ouverture de audio processing en pleine page par défaut
-- ouverture de transcription en pleine page par défaut

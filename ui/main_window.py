@@ -500,35 +500,16 @@ class MainWindow(QMainWindow):
         else:
             self.btn_play.setText("▶")
 
-    def update_active_block(self, current_time):
-
-        word_index = (self.project.find_word_at_time(current_time))
-        if (
-            word_index is not None
-            and
-            word_index != self.current_word_index
-        ):
-
-            self.current_word_index = word_index
-
-            for widget in self.block_widgets.values():
-
-                widget.set_active_word(None)
-
-            block = (
-                self.project
-                .get_block_for_word(
-                    word_index
-                )
+    def update_active_block(
+        self,
+        current_time
+    ):
+        word_index = (
+            self.project.find_word_at_time(
+                current_time
             )
+        )
 
-            if block:
-
-                self.block_widgets[
-                    block.id
-                ].set_active_word(
-                    word_index
-                )
         if word_index is None:
             return
 
@@ -542,35 +523,76 @@ class MainWindow(QMainWindow):
         if block is None:
             return
 
-        if block.id == self.current_block_id:
+        widget = self.block_widgets.get(
+            block.id
+        )
 
-            # widget = self.block_widgets[
-            #     block.id
-            # ]
-
-            # self.scroll_to_widget(widget)
-
+        #
+        # Le modèle et l'interface peuvent être
+        # brièvement désynchronisés pendant une
+        # reconstruction des blocs.
+        #
+        if widget is None:
             return
 
-        if self.current_block_id:
-
-            old_widget = (
-                self.block_widgets[
-                    self.current_block_id
-                ]
+        #
+        # Mise à jour du mot actif uniquement
+        # lorsque le mot change.
+        #
+        if (
+            word_index
+            != self.current_word_index
+        ):
+            self.current_word_index = (
+                word_index
             )
 
-            old_widget.set_active(False)
-            
+            for block_widget in (
+                self.block_widgets.values()
+            ):
+                block_widget.set_active_word(
+                    None
+                )
 
-        self.current_block_id = block.id
+            widget.set_active_word(
+                word_index
+            )
 
-        widget = self.block_widgets[
+        #
+        # Pas de changement de bloc.
+        #
+        if (
             block.id
-        ]
+            == self.current_block_id
+        ):
+            return
 
-        widget.set_active(True)
-        # self.scroll_to_widget(widget)
+        #
+        # Désactiver l'ancien bloc uniquement
+        # s'il existe encore dans l'interface.
+        #
+        if self.current_block_id is not None:
+            old_widget = (
+                self.block_widgets.get(
+                    self.current_block_id
+                )
+            )
+
+            if old_widget is not None:
+                old_widget.set_active(
+                    False
+                )
+
+        #
+        # Le nouveau bloc devient le bloc actif.
+        #
+        self.current_block_id = (
+            block.id
+        )
+
+        widget.set_active(
+            True
+        )
         
     def on_word_clicked(self, word_index):
 
@@ -738,12 +760,10 @@ class MainWindow(QMainWindow):
         self.reload_blocks()
 
     def reload_blocks(self):
-
         #
-        # Supprimer les widgets existants
+        # Supprimer les widgets existants.
         #
         while self.main_layout.count():
-
             item = self.main_layout.takeAt(0)
 
             widget = item.widget()
@@ -752,12 +772,16 @@ class MainWindow(QMainWindow):
                 widget.deleteLater()
 
         #
-        # Réinitialiser le dictionnaire
+        # Réinitialiser complètement l'état
+        # associé aux anciens widgets.
         #
         self.block_widgets.clear()
 
+        self.current_block_id = None
+        self.current_word_index = None
+
         #
-        # Recréer les blocs
+        # Recréer les blocs.
         #
         self.populate_blocks()
 
