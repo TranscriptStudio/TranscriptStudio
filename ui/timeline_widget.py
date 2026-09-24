@@ -7,7 +7,8 @@ from PySide6.QtGui import (
     QPainter,
     QColor,
     QPen,
-    QBrush
+    QBrush,
+    QPalette,
 )
 
 from PySide6.QtCore import Qt, QRectF, Signal
@@ -51,9 +52,7 @@ class TimelineWidget(QWidget):
         self.setMinimumHeight(height)
         self.setMinimumWidth(1000)
 
-        self.setStyleSheet("""
-        background:#EEEEEE;
-        """)
+
 
         self.header_height = 25
         self.zoom = 1.0
@@ -162,7 +161,23 @@ class TimelineWidget(QWidget):
     ):
 
         painter = QPainter(self)
-        
+        palette = self.palette()
+
+        text_color = palette.color(
+            QPalette.ColorRole.Text
+        )
+
+        grid_color = palette.color(
+            QPalette.ColorRole.Mid
+        )
+
+        bubble_color = palette.color(
+            QPalette.ColorRole.Text
+        )
+
+        bubble_text_color = palette.color(
+            QPalette.ColorRole.Base
+        )
 
         painter.setRenderHint(
             QPainter.RenderHint.Antialiasing
@@ -177,14 +192,6 @@ class TimelineWidget(QWidget):
         #
         speaker_rows = {}
 
-        #
-        # Fond
-        #
-        painter.fillRect(
-            self.rect(),
-            QColor("#F8F8F8")
-        )
-
         self.header_height = HEADER_HEIGHT
 
         block_height =  self.row_height - 8
@@ -192,7 +199,7 @@ class TimelineWidget(QWidget):
         # Axe temporel
         #
         painter.setPen(
-            QColor("#888888")
+            text_color
         )
 
         duration = self.get_duration()
@@ -261,7 +268,7 @@ class TimelineWidget(QWidget):
         # Ligne séparatrice sous l'axe
         #
         painter.setPen(
-            QColor("#D0D0D0")
+            grid_color
         )
 
         painter.drawLine(
@@ -274,7 +281,7 @@ class TimelineWidget(QWidget):
         # Grille horizontale
         #
         painter.setPen(
-            QColor("#E0E0E0")
+            grid_color
         )
 
         for row in range(
@@ -463,7 +470,7 @@ class TimelineWidget(QWidget):
         )
 
         painter.setBrush(
-            QColor("#333333")
+            bubble_color
         )
 
         self.cursor_rect = QRectF(
@@ -480,7 +487,7 @@ class TimelineWidget(QWidget):
         )
 
         painter.setPen(
-            QColor("white")
+            bubble_text_color
         )
 
         painter.drawText(

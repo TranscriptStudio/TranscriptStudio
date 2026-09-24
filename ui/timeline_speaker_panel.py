@@ -4,7 +4,8 @@ from PySide6.QtWidgets import (
 
 from PySide6.QtGui import (
     QPainter,
-    QColor
+    QColor,
+    QPalette,
 )
 from PySide6.QtCore import Signal, QRectF
 ROW_HEIGHT = 23
@@ -59,6 +60,14 @@ class TimelineSpeakerPanel(QWidget):
                 12,
                 12,
                 QColor(speaker.color)
+            )
+
+            text_color = self.palette().color(
+                QPalette.ColorRole.Text
+            )
+
+            painter.setPen(
+                text_color
             )
 
             painter.drawText(

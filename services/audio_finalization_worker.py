@@ -9,33 +9,15 @@ from PySide6.QtCore import (
     Slot,
 )
 
-from services.ffmpeg_paths import (
-    FFMPEG_PATH,
-)
+from services.ffmpeg_paths import FFMPEG_PATH
+from services.media_formats import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS
+
 
 
 class AudioFinalizationWorker(QObject):
 
     finished = Signal(object)
     error = Signal(str)
-
-    AUDIO_EXTENSIONS = {
-        ".wav",
-        ".mp3",
-        ".m4a",
-        ".aac",
-        ".flac",
-        ".ogg",
-        ".opus",
-    }
-
-    VIDEO_EXTENSIONS = {
-        ".mp4",
-        ".mov",
-        ".mkv",
-        ".avi",
-        ".webm",
-    }
 
     def __init__(
         self,
@@ -64,10 +46,10 @@ class AudioFinalizationWorker(QObject):
             .lower()
         )
 
-        if original_extension in self.AUDIO_EXTENSIONS:
+        if original_extension in AUDIO_EXTENSIONS:
             return original_extension
 
-        if original_extension in self.VIDEO_EXTENSIONS:
+        if original_extension in VIDEO_EXTENSIONS:
             return ".m4a"
 
         raise ValueError(

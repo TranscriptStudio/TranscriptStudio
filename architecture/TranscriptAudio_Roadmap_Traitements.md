@@ -509,7 +509,12 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] Ne jamais supprimer un projet dès que la transcription ElevenLabs a effectivement été lancée
 - [✓] Tests Direct / Prétraitement / Annuler / Transcrire
 
+# Commit 20 - configuration des vidéos V1.1.13
 
+- [✓] ajout des formats vidéos *.mp4 *.mov *.mkv *.avi *.webm *.mpeg *.mpg *.ts *.m2ts
+- [✓] convertion des formats vidéo en audio m4a AAC
+- [✓] empecher la transcription directe de vidéo vers elevenlabs
+- [✓] fix bug graphique : ajout des couleurs sombre / clair selon paramètres windows 
 
 # Commit 20 - Stabilisation
 
@@ -520,3 +525,9 @@ Commit 17 - Validation du prétraitement et fichier final
 - revue performances
 - revue architecture
 - documentation
+
+- ouvrir un projet doit ouvrir par défaut le répertoire des projets défini dans les paramètres
+- corrections des couleurs quand mode sombre windows activé
+- ouverture de fichier mpeg
+- ouverture de audio processing en pleine page par défaut
+- ouverture de transcription en pleine page par défaut

@@ -17,11 +17,13 @@ from PySide6.QtWidgets import (
     QComboBox,
 )
 
+from services.media_formats import (
+    build_media_filter,
+    is_video_file,
+)
 
-SUPPORTED_AUDIO_FILTER = (
-    "Médias supportés (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus "
-    "*.mp4 *.mov *.mkv *.avi *.webm);;"
-    "Tous les fichiers (*.*)"
+SUPPORTED_MEDIA_FILTER = (
+    build_media_filter()
 )
 
 
@@ -80,6 +82,10 @@ class TranscriptionEntryDialog(QDialog):
 
         self.file_edit = QLineEdit()
 
+        self.file_edit.textChanged.connect(
+            self._update_media_mode
+        )
+
         self.file_edit.setReadOnly(True)
 
         browse_btn = QPushButton("Parcourir...")
@@ -93,6 +99,31 @@ class TranscriptionEntryDialog(QDialog):
         file_layout.addWidget(browse_btn)
 
         main_layout.addWidget(file_group)
+
+        self.video_info_label = QLabel(
+            "Le fichier sélectionné est une vidéo. "
+            "La piste audio sera extraite et convertie "
+            "avant transcription."
+        )
+
+        self.video_info_label.setWordWrap(
+            True
+        )
+
+        self.video_info_label.setStyleSheet("""
+            QLabel {
+                color: palette(mid);
+                padding: 4px;
+            }
+        """)
+
+        self.video_info_label.setVisible(
+            False
+        )
+
+        main_layout.addWidget(
+            self.video_info_label
+        )
 
         # --------------------------------------------------------------
         # Sous-répertoire projet
@@ -183,12 +214,17 @@ class TranscriptionEntryDialog(QDialog):
             self,
             "Sélectionner un média",
             "",
-            SUPPORTED_AUDIO_FILTER,
+            SUPPORTED_MEDIA_FILTER,
         )
 
         if filename:
+            self.file_edit.setText(
+                filename
+            )
 
-            self.file_edit.setText(filename)
+            self._update_media_mode(
+                filename
+            )
 
     def _validate(self):
 
@@ -213,6 +249,15 @@ class TranscriptionEntryDialog(QDialog):
             )
 
             return
+
+        if is_video_file(path):
+            self.preprocessing_radio.setChecked(
+                True
+            )
+
+            self.direct_radio.setChecked(
+                False
+            )
 
         self.accept()
 
@@ -242,3 +287,86 @@ class TranscriptionEntryDialog(QDialog):
                 .strip()
             ),
         }
+
+    def _update_media_mode(
+        self,
+        filename
+    ):
+        video_extensions = {
+            ".mp4",
+            ".mov",
+            ".mkv",
+            ".avi",
+            ".webm",
+            ".mpeg",
+            ".mpg",
+            ".ts",
+            ".m2ts",
+        }
+
+        extension = (
+            Path(filename)
+            .suffix
+            .lower()
+        )
+
+        is_video = (
+            extension
+            in video_extensions
+        )
+
+        if is_video:
+            self.preprocessing_radio.setChecked(
+                True
+            )
+
+        self.direct_radio.setEnabled(
+            not is_video
+        )
+
+    def _update_media_mode(
+        self,
+        filename
+    ):
+        video_selected = (
+            is_video_file(
+                filename
+            )
+        )
+
+        if video_selected:
+            #
+            # Une vidéo doit obligatoirement
+            # passer par le prétraitement afin
+            # d'en extraire une piste audio.
+            #
+            self.preprocessing_radio.setChecked(
+                True
+            )
+
+            self.direct_radio.setChecked(
+                False
+            )
+
+        self.direct_radio.setEnabled(
+            not video_selected
+        )
+
+        self.video_info_label.setVisible(
+            video_selected
+        )
+
+        if video_selected:
+            self.direct_radio.setToolTip(
+                "La transcription directe est "
+                "désactivée pour les vidéos. "
+                "La piste audio doit d'abord "
+                "être extraite."
+            )
+        else:
+            self.direct_radio.setToolTip(
+                ""
+            )
+
+
+

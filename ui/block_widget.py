@@ -270,6 +270,13 @@ class BlockWidget(QWidget):
         #     self.setStyleSheet("")
 
     def render_words(self):
+        text_color = (
+            self.text_edit
+            .palette()
+            .text()
+            .color()
+            .name()
+        )
         items = self.project.get_block_items(
             self.block
         )
@@ -306,7 +313,7 @@ class BlockWidget(QWidget):
         }}
 
         a {{
-            color: black;
+            color: {text_color};
             text-decoration: none;
         }}
         </style>
