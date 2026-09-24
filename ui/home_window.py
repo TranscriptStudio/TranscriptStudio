@@ -345,10 +345,15 @@ class HomeWindow(QWidget):
 
     def open_project(self):
 
+        projects_root = (
+            self.settings
+            .get_projects_root()
+        )
+
         filename, _ = QFileDialog.getOpenFileName(
             self,
             "Ouvrir un projet",
-            "",
+            projects_root,
             "Projet (*.sttproj)"
         )
 

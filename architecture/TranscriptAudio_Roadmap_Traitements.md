@@ -523,15 +523,15 @@ Commit 17 - Validation du prétraitement et fichier final
 
 - [✓] fix désynchronisation entre current_block_id et block_widgets après une reconstruction des blocs
 
-- supprimer bouton pause de process audio pour le fusionera avec lecture
-- passer la barre de lecture du deuxième waveforme au dessus de celui-ci
-- adapter la taille minimale du waveforme resultant, sa barre de lecture et le panneau option
-- augmenter la police des symbole des icones
+- [✓] supprimer bouton pause de process audio pour le fusionera avec lecture
+- [✓] passer la barre de lecture du deuxième waveforme au dessus de celui-ci
+- [✓] adapter la taille minimale du waveforme resultant, sa barre de lecture et le panneau option
+- [✓] augmenter la police des symbole des icones
 
 # Commit 22 - correction ergonomie
-- ouvrir un projet doit ouvrir par défaut le répertoire des projets défini dans les paramètres
-- ouverture de audio processing en pleine page par défaut
-- ouverture de transcription en pleine page par défaut
+- [✓] ouvrir un projet doit ouvrir par défaut le répertoire des projets défini dans les paramètres
+- [✓] ouverture de audio processing en pleine page par défaut
+- [✓] ouverture de transcription en pleine page par défaut
 
 
 ## Actions

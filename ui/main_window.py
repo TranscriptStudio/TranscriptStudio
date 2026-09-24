@@ -56,6 +56,10 @@ class MainWindow(QMainWindow):
         self.build_ui()
 
         self.update_window_title()
+        self.setWindowState(
+            self.windowState()
+            | Qt.WindowState.WindowMaximized
+        )
 
         self.save_shortcut = QShortcut(
             QKeySequence("Ctrl+S"),
@@ -682,7 +686,7 @@ class MainWindow(QMainWindow):
         self.project.mark_modified()
 
         self.update_window_title()
-
+        
         self.reload_blocks()
 
     def rename_speaker(

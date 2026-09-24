@@ -92,10 +92,13 @@ class AudioPreprocessDialog(QDialog):
         self.preprocessing_validated = False
 
         self.setWindowTitle("Prétraitement audio")
-
         self.resize(1200, 700)
-
         self.build_ui()
+
+        self.setWindowState(
+            self.windowState()
+            | Qt.WindowState.WindowMaximized
+        )
 
     def build_ui(self):
 
@@ -133,13 +136,14 @@ class AudioPreprocessDialog(QDialog):
         toolbar = QHBoxLayout()
 
         self.play_button = QPushButton("▶")
-        self.play_button.setToolTip("Lecture du fichier origine")
-
-        self.pause_button = QPushButton("⏸")
-        self.pause_button.setToolTip("Mettre en pause")
+        self.play_button.setToolTip(
+            "Lire / mettre en pause le fichier original"
+        )
 
         self.stop_button = QPushButton("⏹")
-        self.stop_button.setToolTip("Arrêter la lecture")
+        self.stop_button.setToolTip(
+            "Arrêter la lecture"
+        )
 
         self.zoom_in_button = QPushButton("➕")
         self.zoom_in_button.setToolTip("Zoom avant de la piste")
@@ -158,13 +162,17 @@ class AudioPreprocessDialog(QDialog):
             False
         )
         self.transcribe_button.setToolTip(
-        "Lancez d'abord le traitement audio "
-        "pour pouvoir utiliser le fichier traité "
-        "pour la transcription."
-    )
+            "Lancez d'abord le traitement audio "
+            "pour pouvoir utiliser le fichier traité "
+            "pour la transcription."
+        )
+        icon_button_style = """
+            QPushButton {
+                font-size: 18px;
+            }
+        """
         for btn in [
             self.play_button,
-            self.pause_button,
             self.stop_button,
             self.zoom_in_button,
             self.zoom_out_button,
@@ -172,13 +180,37 @@ class AudioPreprocessDialog(QDialog):
             self.process_button,
             self.transcribe_button,
         ]:
+            btn.setFixedSize(
+                40,
+                40
+            )
 
-            btn.setFixedSize(40, 40)
+            if btn in [
+                self.play_button,
+                self.stop_button,
+                self.zoom_in_button,
+                self.zoom_out_button,
+                self.fit_button,
+            ]:
+                btn.setStyleSheet(
+                    icon_button_style
+                )
+
             if btn == self.process_button:
-                btn.setFixedSize(150, 40)
+                btn.setFixedSize(
+                    150,
+                    40
+                )
+
             if btn == self.transcribe_button:
-                            btn.setFixedSize(100, 40)
-            toolbar.addWidget(btn)
+                btn.setFixedSize(
+                    100,
+                    40
+                )
+
+            toolbar.addWidget(
+                btn
+            )
         toolbar.addStretch()
         layout.addLayout(toolbar)
 
@@ -210,7 +242,7 @@ class AudioPreprocessDialog(QDialog):
         self.effects_panel = QWidget()
 
         self.effects_panel.setMinimumHeight(
-            220
+            460
         )
         effects_title = QLabel(
             "Options de traitement"
@@ -669,10 +701,13 @@ class AudioPreprocessDialog(QDialog):
         #
         self.result_panel = QWidget()
 
+        self.result_panel.setMinimumHeight(
+            160
+        )
+
         result_layout = QVBoxLayout(
             self.result_panel
         )
-
         result_layout.setContentsMargins(
             0,
             14,
@@ -708,9 +743,6 @@ class AudioPreprocessDialog(QDialog):
             100
         )
 
-        result_layout.addWidget(
-            self.result_waveform_widget
-        )
         #
         # Commandes de lecture du résultat
         #
@@ -765,6 +797,10 @@ class AudioPreprocessDialog(QDialog):
 
         result_layout.addLayout(
             result_controls_layout
+        )
+        result_layout.addWidget(
+            self.result_waveform_widget,
+            1
         )
         effects_layout.addWidget(
             self.result_panel
@@ -855,15 +891,15 @@ class AudioPreprocessDialog(QDialog):
             stretch=1
         )
         self.play_button.clicked.connect(
-            self.playback.play
-        )
-
-        self.pause_button.clicked.connect(
-            self.playback.pause
+            self.playback.toggle_play_pause
         )
 
         self.stop_button.clicked.connect(
             self.playback.stop
+        )
+
+        self.playback.playing_changed.connect(
+            self.update_play_button
         )
 
         self.zoom_in_button.clicked.connect(
@@ -961,6 +997,25 @@ class AudioPreprocessDialog(QDialog):
         self.result_waveform_widget.seek_requested.connect(
             self.seek_result_audio
         )
+
+    def update_play_button(
+        self,
+        playing
+    ):
+        if playing:
+            self.play_button.setText(
+                "⏸"
+            )
+            self.play_button.setToolTip(
+                "Mettre en pause le fichier original"
+            )
+        else:
+            self.play_button.setText(
+                "▶"
+            )
+            self.play_button.setToolTip(
+                "Lire le fichier original"
+            )
 
     def on_trim_toggled(
         self,
@@ -1811,6 +1866,9 @@ class AudioPreprocessDialog(QDialog):
         self.result_playback.stop()
         self.result_playback.set_position(
             0.0
+        )
+        self.result_play_button.setText(
+            "▶"
         )
 
         self.result_position_slider.blockSignals(
