@@ -469,11 +469,11 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] activation dynamique avec l'option silences
 
 ## 18.2 - Calcul des zones réellement supprimées
-- [ ] conserver detected_silences comme détection brute
-- [ ] conserver filtered_silences comme détection limitée au trim
-- [ ] ajouter removal_silences
-- [ ] appliquer le buffer aux deux extrémités
-- [ ] ignorer les zones devenues nulles
+- [✓] conserver detected_silences comme détection brute
+- [✓] conserver filtered_silences comme détection limitée au trim
+- [✓] ajouter removal_silences
+- [✓] appliquer le buffer aux deux extrémités
+- [✓] ignorer les zones devenues nulles
 
 ## 18.3 - Analyse prévisionnelle
 - [ ] nombre de silences réellement supprimés

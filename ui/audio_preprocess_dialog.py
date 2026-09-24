@@ -1146,8 +1146,8 @@ class AudioPreprocessDialog(QDialog):
         else:
             
             self.detected_silences = []
-            
             self.waveform_widget.update()
+            self.removal_silences = []
 
         self.waveform_widget.update()
         self.silence_threshold_edit.setEnabled(
@@ -1170,8 +1170,6 @@ class AudioPreprocessDialog(QDialog):
             checked
         )
         self.update_summary()
-
-
 
     def on_silence_changed(
         self
@@ -1213,8 +1211,9 @@ class AudioPreprocessDialog(QDialog):
                 self.update_summary()
 
             except Exception:
-
                 self.detected_silences = []
+                self.filtered_silences = []
+                self.removal_silences = []
 
 
         except ValueError:
@@ -1691,7 +1690,57 @@ class AudioPreprocessDialog(QDialog):
                     min(end, trim_end)
                 )
             )
+        self.update_removal_silences()
         self.update_analysis()
+
+    def update_removal_silences(
+        self
+    ):
+        #
+        # Les filtered_silences représentent
+        # les silences détectés à l'intérieur
+        # de la zone conservée par le trim.
+        #
+        # removal_silences représente uniquement
+        # la partie qui sera réellement supprimée
+        # après conservation du buffer de chaque côté.
+        #
+        self.removal_silences = []
+
+        if not self.settings.silence_enabled:
+            return
+
+        buffer_duration = max(
+            0.0,
+            self.settings.silence_buffer_duration
+        )
+
+        for start, end in self.filtered_silences:
+
+            removal_start = (
+                start
+                + buffer_duration
+            )
+
+            removal_end = (
+                end
+                - buffer_duration
+            )
+
+            #
+            # Si le buffer occupe toute la durée
+            # du silence, aucune suppression
+            # n'est réalisée pour cette zone.
+            #
+            if removal_end <= removal_start:
+                continue
+
+            self.removal_silences.append(
+                (
+                    removal_start,
+                    removal_end
+                )
+            )
 
     def get_wav_duration(
         self,
@@ -2315,7 +2364,7 @@ class AudioPreprocessDialog(QDialog):
 
             "silence_min_duration":
                 self.settings.silence_min_duration,
-                
+
             "silence_buffer_duration":
                 self.settings.silence_buffer_duration,
             
