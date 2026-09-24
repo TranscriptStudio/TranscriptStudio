@@ -432,12 +432,14 @@ Commit 17 - Validation du prétraitement et fichier final
 - [✓] tooltip explicite sur Transcrire
  
 17.2 - Validation audio
-- [ ] clic Transcrire
-- [ ] arrêt des lecteurs
-- [ ] conversion audio_processed.wav vers format final
-- [ ] conserver audio original
-- [ ] conserver audio_processed.ext
-- [ ] supprimer les WAV temporaires
+- [✓] clic Transcrire
+- [✓] arrêt des lecteurs
+- [✓] conversion audio_processed.wav vers format final
+- [✓] conserver audio original
+- [✓] conserver audio_processed.ext
+- [✓] supprimer les WAV temporaires
+- [✓] supprimer le audio_process.wav
+- [✓] ajouter une loading page pour la conversion du fichier
  
 17.3 - Abandon du prétraitement
 - [ ] interception fermeture fenêtre

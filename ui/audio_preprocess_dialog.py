@@ -1,6 +1,7 @@
 # ui/audio_preprocess_dialog.py
 
 import wave
+
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -25,13 +26,14 @@ from PySide6.QtCore import Qt, QUrl, QThread
 from pathlib import Path
 
 from models.audio_processing_settings import AudioProcessingSettings
+
 from services.playback import PlaybackManager
 from services.audio_waveform_service import AudioWaveformService
 from services.audio_processing_pipeline import  AudioProcessingPipeline
 from services.silence_detection_service import SilenceDetectionService
 from services.audio_processing_worker import AudioProcessingWorker
-
-
+from services.ffmpeg_paths import FFMPEG_PATH
+from services.audio_finalization_worker import AudioFinalizationWorker
 
 from ui.waveform_widget import WaveformWidget
 
@@ -82,6 +84,10 @@ class AudioPreprocessDialog(QDialog):
         self.processing_progress = None
         self.processing_thread = None
         self.processing_worker = None
+
+        self.finalization_progress = None
+        self.finalization_thread = None
+        self.finalization_worker = None
 
         self.setWindowTitle("Prétraitement audio")
 
@@ -1977,9 +1983,202 @@ class AudioPreprocessDialog(QDialog):
         if self.processed_audio_file is None:
             return
 
+        if self.finalization_thread is not None:
+            return
+
+        #
+        # Arrêter les deux lecteurs.
+        #
         self.playback.stop()
+        self.result_playback.stop()
+
+        #
+        # Désactiver Transcrire pour éviter
+        # un double lancement.
+        #
+        self.transcribe_button.setEnabled(
+            False
+        )
+
+        #
+        # Popup indéterminé.
+        #
+        self.finalization_progress = (
+            QProgressDialog(
+                (
+                    "Finalisation du fichier audio...\n"
+                    "Veuillez patienter."
+                ),
+                "",
+                0,
+                0,
+                self
+            )
+        )
+
+        self.finalization_progress.setWindowTitle(
+            "Finalisation audio"
+        )
+
+        self.finalization_progress.setWindowModality(
+            Qt.WindowModal
+        )
+
+        self.finalization_progress.setCancelButton(
+            None
+        )
+
+        self.finalization_progress.setMinimumDuration(
+            0
+        )
+
+        self.finalization_progress.setRange(
+            0,
+            0
+        )
+
+        self.finalization_progress.setAutoClose(
+            False
+        )
+
+        self.finalization_progress.setAutoReset(
+            False
+        )
+
+        #
+        # Thread.
+        #
+        self.finalization_thread = QThread(
+            self
+        )
+
+        #
+        # Worker.
+        #
+        self.finalization_worker = (
+            AudioFinalizationWorker(
+                self.processed_audio_file,
+                self.audio_file,
+                self.project_folder
+            )
+        )
+
+        self.finalization_worker.moveToThread(
+            self.finalization_thread
+        )
+
+        #
+        # Démarrage.
+        #
+        self.finalization_thread.started.connect(
+            self.finalization_worker.run
+        )
+
+        #
+        # Fin correcte.
+        #
+        self.finalization_worker.finished.connect(
+            self.finalization_finished
+        )
+
+        self.finalization_worker.finished.connect(
+            self.finalization_thread.quit
+        )
+
+        #
+        # Erreur.
+        #
+        self.finalization_worker.error.connect(
+            self.finalization_error
+        )
+
+        self.finalization_worker.error.connect(
+            self.finalization_thread.quit
+        )
+
+        #
+        # Nettoyage Qt.
+        #
+        self.finalization_thread.finished.connect(
+            self.finalization_worker.deleteLater
+        )
+
+        self.finalization_thread.finished.connect(
+            self.cleanup_finalization
+        )
+
+        #
+        # Afficher avant de démarrer.
+        #
+        self.finalization_progress.show()
+
+        self.finalization_thread.start()
+
+    def finalization_finished(
+        self,
+        final_file
+    ):
+        #
+        # Fermer le popup.
+        #
+        if self.finalization_progress is not None:
+            self.finalization_progress.close()
+
+        #
+        # Le fichier compressé devient
+        # le fichier final officiel.
+        #
+        self.processed_audio_file = Path(
+            final_file
+        )
+
+        #
+        # Libérer audio_processed.wav
+        # du lecteur résultat avant suppression.
+        #
+        self.result_playback.unload()
+
+        #
+        # Libérer également l'original.
+        #
+        self.playback.unload()
+
+        #
+        # La conversion finale étant validée,
+        # supprimer tous les WAV temporaires.
+        #
         self.cleanup_temporary_wav_files()
+
+        #
+        # Fermer le dialogue avec succès.
+        #
         self.accept()
+
+    def finalization_error(
+        self,
+        message
+    ):
+        if self.finalization_progress is not None:
+            self.finalization_progress.close()
+
+        self.transcribe_button.setEnabled(
+            True
+        )
+
+        QMessageBox.critical(
+            self,
+            "Erreur de finalisation",
+            (
+                "Impossible de finaliser "
+                "le fichier audio traité.\n\n"
+                + message
+            )
+        )
+
+    def cleanup_finalization(self):
+        self.finalization_progress = None
+        self.finalization_thread = None
+        self.finalization_worker = None
 
     def get_processed_audio_file(self):
         if self.processed_audio_file is None:
@@ -2275,19 +2474,41 @@ class AudioPreprocessDialog(QDialog):
         )
 
     def cleanup_temporary_wav_files(self):
-        temp_files = {
-            Path(
+        temp_files = set()
+
+        #
+        # WAV temporaires de la waveform originale.
+        #
+        if (
+            self.waveform_widget.document
+            is not None
+        ):
+            display_wav = (
                 self.waveform_widget
                 .document
                 .display_wav
-            ),
-            Path(
+            )
+
+            processing_wav = (
                 self.waveform_widget
                 .document
                 .processing_wav
-            ),
-        }
+            )
 
+            if display_wav is not None:
+                temp_files.add(
+                    Path(display_wav)
+                )
+
+            if processing_wav is not None:
+                temp_files.add(
+                    Path(processing_wav)
+                )
+
+        #
+        # WAV intermédiaires produits
+        # par le pipeline audio.
+        #
         processing_wav = Path(
             self.processing_wav
         )
@@ -2298,15 +2519,67 @@ class AudioPreprocessDialog(QDialog):
             )
         )
 
+        #
+        # WAV de travail final situé
+        # dans le dossier projet.
+        #
+        temp_files.add(
+            self.project_folder
+            / "audio_processed.wav"
+        )
+
+        #
+        # WAV temporaires générés pour
+        # la waveform du résultat.
+        #
+        if (
+            self.result_waveform_widget.document
+            is not None
+        ):
+            result_display_wav = (
+                self.result_waveform_widget
+                .document
+                .display_wav
+            )
+
+            result_processing_wav = (
+                self.result_waveform_widget
+                .document
+                .processing_wav
+            )
+
+            if result_display_wav is not None:
+                temp_files.add(
+                    Path(result_display_wav)
+                )
+
+            if result_processing_wav is not None:
+                temp_files.add(
+                    Path(result_processing_wav)
+                )
+
+        #
+        # Le fichier final validé doit
+        # impérativement être conservé.
+        #
+        final_file = (
+            Path(self.processed_audio_file)
+            if self.processed_audio_file
+            else None
+        )
+
+        #
+        # Suppression des WAV temporaires.
+        #
         for temp_file in temp_files:
             try:
                 if (
                     temp_file.exists()
                     and
-                    temp_file
-                    != self.processed_audio_file
+                    temp_file != final_file
                 ):
                     temp_file.unlink()
+
             except OSError:
                 pass
-
+    

@@ -45,7 +45,12 @@ class PlaybackManager(QObject):
         self.player.setSource(
             QUrl.fromLocalFile(filename)
         )
-
+        
+    def unload(self):
+        self.player.stop()
+        self.player.setSource(
+            QUrl()
+        )
     # -----------------------
     # Lecture
     # -----------------------
