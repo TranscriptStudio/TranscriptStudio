@@ -108,28 +108,29 @@ class HomeWindow(QWidget):
         title_label.setFont(
             title_font
         )
-        title_label.setStyleSheet("""
-            font-size:26px;
-            font-weight:bold;
-        """)
+        
+
         subtitle_label = QLabel(
             "Prétraitement audio et transcription assistée par ElevenLabs"
         )
-        "#A8A8A8"
+
         subtitle_label.setStyleSheet("""
-            color:#A8A8A8;
-            font-size:13px;
-            font-weight:500;
+            QLabel {
+                color: palette(mid);
+                font-size: 13px;
+                font-weight: 500;
+            }
         """)
-        
 
         version_label = QLabel(
             "Version 1.2\nSeptembre 2026"
         )
 
         version_label.setStyleSheet("""
-            color:#888888;
-            font-size:12px;
+            QLabel {
+                color: palette(mid);
+                font-size: 12px;
+            }
         """)
 
 

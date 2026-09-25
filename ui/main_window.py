@@ -76,6 +76,15 @@ class MainWindow(QMainWindow):
         self.build_ui()
 
         self.update_window_title()
+        #
+        # Informer l'utilisateur lorsqu'un ancien
+        # projet a nécessité une réparation de ses
+        # associations d'intervenants.
+        #
+        QTimer.singleShot(
+            0,
+            self.show_speaker_repair_information
+        )
         self.setWindowState(
             self.windowState()
             | Qt.WindowState.WindowMaximized
@@ -246,7 +255,7 @@ class MainWindow(QMainWindow):
         # Lecteur audio
         #
         self.btn_prev = QPushButton("⏪")
-        self.btn_play = QPushButton("▶")
+        self.btn_play = QPushButton("▶️")
         self.btn_next = QPushButton("⏩")
 
         self.time_label = QLabel("00:00 / 00:00")
@@ -424,6 +433,50 @@ class MainWindow(QMainWindow):
         )
         self.populate_blocks()
 
+    def show_speaker_repair_information(
+        self
+    ):
+        report = getattr(
+            self.project,
+            "speaker_repair_report",
+            None
+        )
+
+        if not report:
+            return
+
+        count = report["count"]
+        generic_name = report[
+            "generic_name"
+        ]
+
+        if count == 1:
+            block_text = (
+                "1 bloc comportait une association "
+                "d'intervenant invalide."
+            )
+        else:
+            block_text = (
+                f"{count} blocs comportaient des "
+                "associations d'intervenants invalides."
+            )
+
+        QMessageBox.information(
+            self,
+            "Réparation du projet",
+            (
+                "Une incohérence provenant d'une "
+                "ancienne version de Transcript Studio "
+                "a été détectée dans ce projet.\n\n"
+                f"{block_text}\n\n"
+                "Les blocs concernés ont été affectés "
+                "automatiquement à l'intervenant :\n\n"
+                f"« {generic_name} »\n\n"
+                "Vérifiez l'intervenant de ces blocs "
+                "avant d'enregistrer le projet."
+            )
+        )
+
     def populate_blocks(self):
 
         speaker_names = [
@@ -433,6 +486,7 @@ class MainWindow(QMainWindow):
 
         for i, block in enumerate(self.project.blocks):
             speaker = (self.project.get_speaker_by_id(block.speaker_id))
+            
             text = (self.project.get_block_text(block))
             widget = BlockWidget(
                 project=self.project,
@@ -633,9 +687,9 @@ class MainWindow(QMainWindow):
     def update_play_button(self, playing):
 
         if playing:
-            self.btn_play.setText("⏸")
+            self.btn_play.setText("⏸️")
         else:
-            self.btn_play.setText("▶")
+            self.btn_play.setText("▶️")
 
     def update_active_block(
         self,
@@ -806,20 +860,23 @@ class MainWindow(QMainWindow):
         block_id,
         speaker_id
     ):
-
         block = self.project.get_block_by_id(
             block_id
         )
-
         if block is None:
+            return
+
+        speaker = self.project.get_speaker_by_id(
+            speaker_id
+        )
+        if speaker is None:
             return
 
         block.speaker_id = speaker_id
 
         self.project.mark_modified()
-
         self.update_window_title()
-        
+
         self.reload_blocks()
 
     def rename_speaker(
@@ -1006,20 +1063,23 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(title)
 
     def save_current_project(self):
-
-        
         if not self.project.project_file:
             return
+
+        #
+        # Le projet doit être marqué comme sauvegardé
+        # avant son écriture afin que l'état
+        # "modified" enregistré soit False.
+        #
+        self.project.mark_saved()
 
         save_project(
             self.project,
             self.project.project_file
         )
 
-        self.project.mark_saved()
-
         self.update_window_title()
-        
+    
     def closeEvent(self, event):
 
         if not self.project.modified:
@@ -1159,19 +1219,68 @@ class MainWindow(QMainWindow):
             )
 
     def return_to_home(self):
-
         if self.project.modified:
+            reply = QMessageBox.question(
+                self,
+                "Projet modifié",
+                (
+                    "Le projet a été modifié.\n\n"
+                    "Voulez-vous enregistrer les modifications "
+                    "avant de revenir à l'accueil ?"
+                ),
+                (
+                    QMessageBox.StandardButton.Save
+                    | QMessageBox.StandardButton.Discard
+                    | QMessageBox.StandardButton.Cancel
+                )
+            )
 
-            self.save_current_project()
+            if reply == QMessageBox.StandardButton.Save:
+                self.save_current_project()
+
+            elif reply == QMessageBox.StandardButton.Discard:
+                #
+                # Les modifications sont abandonnées.
+                # On remet uniquement l'état mémoire à False
+                # afin que closeEvent() ne repose pas
+                # la même question.
+                #
+                self.project.mark_saved()
+
+            elif reply == QMessageBox.StandardButton.Cancel:
+                return
+
+        #
+        # Ajouter le projet à la liste des projets récents
+        # dès lors qu'il possède un fichier projet valide.
+        #
+        if self.project.project_file:
+            from services.settings import SettingsManager
+
+            settings = SettingsManager()
+
+            settings.add_recent_project(
+                self.project.project_file
+            )
+
+        #
+        # Libérer le fichier audio.
+        #
+        self.playback.stop()
+        self.playback.unload()
 
         from ui.home_window import HomeWindow
 
         self.home_window = HomeWindow()
-
         self.home_window.show()
 
+        #
+        # modified est maintenant False.
+        # closeEvent() ne déclenchera donc pas
+        # une seconde confirmation.
+        #
         self.close()
-
+        
     def on_timeline_seek(
         self,
         position
@@ -1210,7 +1319,6 @@ class MainWindow(QMainWindow):
         block_id,
         speaker_id
     ):
-
         block = self.project.get_block_by_id(
             block_id
         )
@@ -1218,14 +1326,28 @@ class MainWindow(QMainWindow):
         if block is None:
             return
 
+        #
+        # Ne jamais affecter à un bloc
+        # un intervenant inexistant.
+        #
+        speaker = self.project.get_speaker_by_id(
+            speaker_id
+        )
+
+        if speaker is None:
+            return
+
+        #
+        # Aucun changement réel.
+        #
+        if block.speaker_id == speaker_id:
+            return
+
         block.speaker_id = speaker_id
 
         self.project.mark_modified()
-
         self.reload_blocks()
-
         self.timeline.update()
-
         self.update_window_title()
 
     def timeline_rename_speaker(
@@ -1239,16 +1361,38 @@ class MainWindow(QMainWindow):
             "Nom :",
             text=current_name
         )
+
+        # Annulation / Echap :
+        # ne modifier strictement rien.
+        if not ok:
+            return
+
+        new_name = new_name.strip()
+
+        # Un intervenant ne peut pas avoir
+        # de nom vide.
+        if not new_name:
+            return
+
         speaker = self.project.get_speaker_by_id(
             speaker_id
         )
 
+        if speaker is None:
+            return
+
+        # Aucun changement réel.
+        if new_name == speaker.name:
+            return
+
         speaker.name = new_name
+
+        self.project.mark_modified()
+
         self.refresh_speaker_names()
-
         self.timeline_speakers.update()
-
         self.timeline.update()
+        self.update_window_title()
 
     def create_new_speaker(self,block_id):
 

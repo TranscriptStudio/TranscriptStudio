@@ -135,12 +135,12 @@ class AudioPreprocessDialog(QDialog):
 
         toolbar = QHBoxLayout()
 
-        self.play_button = QPushButton("▶")
+        self.play_button = QPushButton("▶️")
         self.play_button.setToolTip(
             "Lire / mettre en pause le fichier original"
         )
 
-        self.stop_button = QPushButton("⏹")
+        self.stop_button = QPushButton("⏹️")
         self.stop_button.setToolTip(
             "Arrêter la lecture"
         )
@@ -1004,14 +1004,14 @@ class AudioPreprocessDialog(QDialog):
     ):
         if playing:
             self.play_button.setText(
-                "⏸"
+                "⏸️"
             )
             self.play_button.setToolTip(
                 "Mettre en pause le fichier original"
             )
         else:
             self.play_button.setText(
-                "▶"
+                "▶️"
             )
             self.play_button.setToolTip(
                 "Lire le fichier original"
@@ -1868,7 +1868,7 @@ class AudioPreprocessDialog(QDialog):
             0.0
         )
         self.result_play_button.setText(
-            "▶"
+            "▶️"
         )
 
         self.result_position_slider.blockSignals(
@@ -2667,11 +2667,11 @@ class AudioPreprocessDialog(QDialog):
     ):
         if playing:
             self.result_play_button.setText(
-                "⏸"
+                "⏸️"
             )
         else:
             self.result_play_button.setText(
-                "▶"
+                "▶️"
             )
 
     def on_duration_changed(

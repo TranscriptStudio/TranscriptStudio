@@ -62,6 +62,143 @@ def save_project(project: Project, filename: str) -> None:
             indent=2
         )
 
+def repair_project_speakers(
+    speakers,
+    blocks
+):
+    """
+    Vérifie la cohérence entre les intervenants
+    et les blocs d'un ancien projet.
+
+    Les blocs dont l'intervenant est :
+    - absent ;
+    - associé à un ID vide ;
+    - associé à un intervenant sans nom ;
+
+    sont réaffectés à un intervenant générique.
+
+    Retourne un rapport de réparation ou None.
+    """
+
+    generic_name = (
+        "Intervenant non identifié"
+    )
+
+    #
+    # Intervenants considérés comme valides.
+    #
+    valid_speakers = {
+        speaker.id: speaker
+        for speaker in speakers
+        if (
+            speaker.id
+            and str(speaker.id).strip()
+            and speaker.name
+            and str(speaker.name).strip()
+        )
+    }
+
+    #
+    # Chercher les blocs dont l'association
+    # à un intervenant n'est pas valide.
+    #
+    invalid_blocks = []
+
+    for block in blocks:
+        speaker = valid_speakers.get(
+            block.speaker_id
+        )
+
+        if speaker is None:
+            invalid_blocks.append(
+                block
+            )
+
+    #
+    # Projet déjà cohérent.
+    #
+    if not invalid_blocks:
+        return None
+
+    #
+    # Chercher si l'intervenant générique
+    # existe déjà.
+    #
+    generic_speaker = next(
+        (
+            speaker
+            for speaker in speakers
+            if (
+                speaker.name
+                and speaker.name.strip()
+                == generic_name
+            )
+        ),
+        None
+    )
+
+    #
+    # Sinon le créer avec un ID garanti
+    # unique dans le projet.
+    #
+    if generic_speaker is None:
+        existing_ids = {
+            speaker.id
+            for speaker in speakers
+        }
+
+        base_id = (
+            "speaker_unidentified"
+        )
+        generic_id = base_id
+        counter = 1
+
+        while generic_id in existing_ids:
+            generic_id = (
+                f"{base_id}_{counter}"
+            )
+            counter += 1
+
+        generic_speaker = Speaker(
+            id=generic_id,
+            name=generic_name,
+            color="#808080"
+        )
+
+        speakers.append(
+            generic_speaker
+        )
+
+    #
+    # Réaffecter uniquement les blocs
+    # réellement incohérents.
+    #
+    repaired_block_ids = []
+
+    for block in invalid_blocks:
+        block.speaker_id = (
+            generic_speaker.id
+        )
+
+        repaired_block_ids.append(
+            block.id
+        )
+
+    return {
+        "generic_name": (
+            generic_speaker.name
+        ),
+        "generic_id": (
+            generic_speaker.id
+        ),
+        "repaired_blocks": (
+            repaired_block_ids
+        ),
+        "count": (
+            len(repaired_block_ids)
+        ),
+    }
+
 def load_project(filename: str) -> Project:
     """
     Recharge un projet sauvegardé.
@@ -103,7 +240,34 @@ def load_project(filename: str) -> Project:
         )
         for b in data["blocks"]
     ]
+    repair_report = (
+        repair_project_speakers(
+            speakers,
+            blocks
+        )
+    )
 
+    #
+    # Compatibilité avec certains anciens projets :
+    # un bloc pouvait être enregistré avec un
+    # speaker_id vide ou devenu invalide.
+    #
+    valid_speaker_ids = {
+        speaker.id
+        for speaker in speakers
+    }
+
+    fallback_speaker_id = (
+        speakers[0].id
+        if speakers
+        else None
+    )
+
+    if fallback_speaker_id is not None:
+        for block in blocks:
+            if block.speaker_id not in valid_speaker_ids:
+                block.speaker_id = fallback_speaker_id
+                
     project = Project(
         project_file=data.get("project_file"),
         modified=data.get("modified", False),
@@ -129,7 +293,14 @@ def load_project(filename: str) -> Project:
     )
     if not project.project_file:
         project.project_file = filename
-
+    #
+    # Rapport transitoire utilisé uniquement
+    # pour informer l'utilisateur après
+    # l'ouverture d'un ancien projet réparé.
+    #
+    project.speaker_repair_report = (
+        repair_report
+    )
     return project
 
 def save_as_project(project: Project, filename: str):

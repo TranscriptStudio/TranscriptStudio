@@ -21,7 +21,7 @@ class TimelineWidget(QWidget):
     seek_requested = Signal(float)
 
     block_clicked = Signal(int)
-    new_speaker_requested = Signal()
+    new_speaker_requested = Signal(int)
     speaker_change_requested = Signal(
         int,   # block_id
         str    # speaker_id
@@ -874,19 +874,19 @@ class TimelineWidget(QWidget):
 
         return candidate_steps[-1]
 
-    def contextMenuEvent(self, event):
-
+    def contextMenuEvent(
+        self,
+        event
+    ):
         click_pos = event.pos()
 
         selected_block = None
 
         for rect, block in self.block_rects:
-
             if rect.contains(
                 click_pos.x(),
                 click_pos.y()
             ):
-
                 selected_block = block
                 break
 
@@ -898,42 +898,55 @@ class TimelineWidget(QWidget):
         actions = {}
 
         for speaker in self.project.speakers:
-
             action = menu.addAction(
                 speaker.name
             )
 
-            actions[action] = speaker.id
+            actions[action] = (
+                speaker.id
+            )
 
         menu.addSeparator()
 
         new_speaker_action = menu.addAction(
             "+ Nouvel intervenant..."
         )
+
         selected_action = menu.exec(
             event.globalPos()
         )
 
-        if not selected_action:
+        #
+        # Menu fermé sans sélection.
+        #
+        if selected_action is None:
             return
 
-        elif selected_action == new_speaker_action:
-            self.new_speaker_requested.emit()
-            return
-
-        else :
-            speaker_id = selected_action.data()
-        # if selected_action:
-
-        #     speaker_id = actions[
-        #         selected_action
-        #     ]
-
-            self.speaker_change_requested.emit(
-                selected_block.id,
-                speaker_id
+        #
+        # Création d'un nouvel intervenant.
+        #
+        if selected_action == new_speaker_action:
+            self.new_speaker_requested.emit(
+                selected_block.id
             )
+            return
 
+        #
+        # Récupérer l'ID réellement associé
+        # à l'action sélectionnée.
+        #
+        speaker_id = actions.get(
+            selected_action
+        )
+
+        if not speaker_id:
+            return
+
+        self.speaker_change_requested.emit(
+            selected_block.id,
+            speaker_id
+        )
+        
     def ensure_time_visible(
         self,
         time_position

@@ -76,6 +76,8 @@ class SettingsManager:
 
             "recent_projects": [],
 
+            "theme": "system",
+            
             "transcription_defaults": {
 
                 "model_id": "scribe_v2","language_code": "fr",
@@ -216,7 +218,29 @@ class SettingsManager:
 
         return existing_projects
 
+    def get_theme(self):
+        return self.settings.get(
+            "theme",
+            "system"
+        )
 
+
+    def set_theme(
+            self,
+            theme
+        ):
+            if theme not in {
+                "system",
+                "light",
+                "dark",
+            }:
+                theme = "system"
+
+            self.settings[
+                "theme"
+            ] = theme
+
+            self.save()
 
 
 

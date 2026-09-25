@@ -6,15 +6,15 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMessageBox,
     QFileDialog,
+    QComboBox,
+    QApplication,
 )
 
 from services.settings import SettingsManager
-from services.elevenlabs_transcriber import (
-    ElevenLabsTranscriber
-)
-from services.help import (
-    open_user_manual
-)
+from services.elevenlabs_transcriber import ElevenLabsTranscriber
+from services.help import open_user_manual
+from services.theme_manager import ThemeManager
+
 
 class SettingsDialog(QDialog):
 
@@ -70,6 +70,39 @@ class SettingsDialog(QDialog):
         self.cancel_button = QPushButton(
             "Annuler"
         )
+
+        self.theme_combo = QComboBox()
+
+        self.theme_combo.addItem(
+            "Système",
+            "system"
+        )
+        self.theme_combo.addItem(
+            "Clair",
+            "light"
+        )
+        self.theme_combo.addItem(
+            "Sombre",
+            "dark"
+        )
+
+        current_theme = (
+            self.settings.get_theme()
+        )
+
+        index = (
+            self.theme_combo.findData(
+                current_theme
+            )
+        )
+
+        if index >= 0:
+            self.theme_combo.setCurrentIndex(
+                index
+            )
+            
+
+
         # ordre des éléments
 
         layout.addWidget(
@@ -79,6 +112,9 @@ class SettingsDialog(QDialog):
         )
         layout.addWidget(
             self.api_key_edit
+        )
+        layout.addWidget(
+            self.test_button
         )
         layout.addWidget(
                 QLabel(
@@ -91,15 +127,23 @@ class SettingsDialog(QDialog):
         layout.addWidget(
             self.projects_root_button
         )
+        
+        # option thème
 
+        layout.addWidget(
+            QLabel(
+                "Apparence"
+            )
+        )
 
+        layout.addWidget(
+            self.theme_combo
+        )
         # layout.addWidget(
         #     self.help_button
         # )
 
-        layout.addWidget(
-            self.test_button
-        )
+
 
         layout.addWidget(
             self.save_button
@@ -127,6 +171,7 @@ class SettingsDialog(QDialog):
             self.select_projects_folder
         )
 
+        
     def save_settings(self):
 
         self.settings.set_api_key(
@@ -135,6 +180,23 @@ class SettingsDialog(QDialog):
         self.settings.set_projects_root(
             self.projects_root_edit.text()
         )
+
+
+        theme = (
+            self.theme_combo.currentData()
+        )
+
+        self.settings.set_theme(
+            theme
+        )
+
+        app = QApplication.instance()
+
+        if app is not None:
+            ThemeManager.apply_theme(
+                app,
+                theme
+            )
         self.accept()
 
     def test_connection(self):
