@@ -1,15 +1,36 @@
 from pathlib import Path
-import sys
 
 
-def resource_path(relative_path: Path) -> Path:
+def get_application_root() -> Path:
     """
-    Compatible Python normal et PyInstaller.
+    Retourne le répertoire racine contenant
+    les ressources de Transcript Studio.
+
+    Fonctionne lorsque l'application est :
+    - exécutée depuis les sources ;
+    - déplacée avec son arborescence ;
+    - compilée en mode standalone avec Nuitka,
+      à condition que les ressources soient
+      incluses dans le build.
     """
 
-    if hasattr(sys, "_MEIPASS"):
-        base_path = Path(sys._MEIPASS)
-    else:
-        base_path = Path(__file__).resolve().parent.parent
+    return (
+        Path(__file__)
+        .resolve()
+        .parent
+        .parent
+    )
 
-    return base_path / relative_path
+
+def resource_path(
+    relative_path
+) -> Path:
+    """
+    Retourne le chemin absolu d'une ressource
+    à partir de la racine de l'application.
+    """
+
+    return (
+        get_application_root()
+        / Path(relative_path)
+    )

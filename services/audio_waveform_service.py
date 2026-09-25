@@ -4,7 +4,9 @@ import tempfile
 
 import numpy as np
 
-from services.resources import resource_path
+from services.ffmpeg_paths import (
+    FFMPEG_PATH,
+)
 from models.audio_document import AudioDocument
 
 
@@ -12,9 +14,7 @@ class AudioWaveformService:
 
     def __init__(self):
 
-        self.ffmpeg = resource_path(
-            "tools/ffmpeg/ffmpeg.exe"
-        )
+        self.ffmpeg = FFMPEG_PATH
 
     def extract_waveform(
         self,
