@@ -1,0 +1,13 @@
+# Transcript Studio - development dependencies
+# Install runtime dependencies first via the include below.
+
+-r requirements.txt
+
+# Tests
+pytest==9.1.1
+
+# Windows application build
+Nuitka==4.2
+
+# Git history maintenance utility used during development
+git-filter-repo==2.47.0
