@@ -1,8 +1,10 @@
-# Python
+# Python cache
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+
+# Temporary files
+*.tmp
+~$*
 
 # VS Code
 .vscode/
@@ -38,3 +40,7 @@ dist/
 *.flac
 *.ogg
 *.aac
+
+# Local FFmpeg binaries
+tools/ffmpeg/ffmpeg.exe
+tools/ffmpeg/ffprobe.exe
