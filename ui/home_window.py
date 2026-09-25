@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QListWidget,
+    QListWidgetItem,
     QLabel,
     QFileDialog,
     QMessageBox,
@@ -12,10 +13,12 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import (
     QThread,
     Qt,
+    QSize,
 )
 from PySide6.QtGui import (
     QPixmap,
     QFont,
+    QIcon,
 )
 
 from pathlib import Path
@@ -56,64 +59,53 @@ class HomeWindow(QWidget):
         )
 
         self.resize(
-            700,
-            700
+            550,
+            500
         )
 
         self.build_ui()
 
     def build_ui(self):
-        
-        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 16, 20, 14)
+        layout.setSpacing(10)
 
+        # En-tête
         header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(14)
 
-        #
-        # Icône
-        #
         icon_label = QLabel()
-
-        
-
-        pixmap = QPixmap(str(resource_path("icons/logo.png")))  
-            
-
+        pixmap = QPixmap(
+            str(resource_path("icons/logo.png"))
+        )
         icon_label.setPixmap(
             pixmap.scaled(
-                128,
-                128,
+                120,
+                120,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation
             )
         )
 
-        #
-        # Texte
-        #
         title_layout = QVBoxLayout()
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_layout.setSpacing(2)
 
-        title_label = QLabel(
-            "Transcript Studio"
-        )
-        title_font = QFont(
-            "Segoe UI Light",
-            28
-        )
-
-        title_font.setWeight(
-            QFont.Weight.Light
-        )
-        title_label.setFont(
-            title_font
-        )
-        
+        title_label = QLabel("Transcript Studio")
+        title_font = QFont("Segoe UI Light", 28)
+        title_font.setWeight(QFont.Weight.Light)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("""
+            QLabel {
+                color: palette(window-text);
+                font-size: 26px;
+            }
+        """)
 
         subtitle_label = QLabel(
             "Prétraitement audio et transcription assistée par ElevenLabs"
         )
-
         subtitle_label.setStyleSheet("""
             QLabel {
                 color: palette(mid);
@@ -125,7 +117,6 @@ class HomeWindow(QWidget):
         version_label = QLabel(
             "Version 1.2\nSeptembre 2026"
         )
-
         version_label.setStyleSheet("""
             QLabel {
                 color: palette(mid);
@@ -133,101 +124,269 @@ class HomeWindow(QWidget):
             }
         """)
 
-
         title_layout.addWidget(title_label)
         title_layout.addSpacing(4)
         title_layout.addWidget(subtitle_label)
         title_layout.addSpacing(8)
         title_layout.addWidget(version_label)
-        
+
         header_layout.addWidget(
             icon_label,
             alignment=Qt.AlignmentFlag.AlignVCenter
         )
-
-        header_layout.addLayout(
-            title_layout
-        )
-
+        header_layout.addLayout(title_layout)
         header_layout.addStretch()
-        layout = QVBoxLayout(self)
-        layout.addLayout(
-            header_layout
-        )
-        layout.addSpacing(10)
+        layout.addLayout(header_layout)
+        layout.addSpacing(6)
 
-        self.help_button = QPushButton(
-            "📖 Manuel"
-        )
-        self.elevenlabs_button = QPushButton(
-            "👤 Compte ElevenLabs"
+        # Deux actions principales, alignées et de même taille
+        self.new_transcription_button = QPushButton(
+            "Nouvelle transcription"
         )
 
-        self.new_transcription_button = (
-            QPushButton(
-                "Nouvelle transcription"
+        self.open_project_button = QPushButton(
+            "Ouvrir un projet"
+        )
+
+        self.new_transcription_button.setIcon(
+            QIcon(
+                str(
+                    resource_path(
+                        "icons/bubble-text.svg"
+                    )
+                )
             )
         )
 
-        self.open_project_button = (
-            QPushButton(
-                "Ouvrir un projet"
+        self.open_project_button.setIcon(
+            QIcon(
+                str(
+                    resource_path(
+                        "icons/folder-open.svg"
+                    )
+                )
             )
         )
-        self.open_project_button.clicked.connect(
-            self.open_project
+        self.new_transcription_button.setToolTip(
+            "Créer une nouvelle transcription"
         )
+        self.open_project_button.setToolTip(
+            "Ouvrir un projet existant"
+        )
+
+        for button in (
+            self.new_transcription_button,
+            self.open_project_button,
+        ):
+            button.setFixedSize(200, 38)
+
+        main_actions_layout = QHBoxLayout()
+        main_actions_layout.setSpacing(12)
+        main_actions_layout.addStretch()
+        main_actions_layout.addWidget(
+            self.new_transcription_button
+        )
+        main_actions_layout.addWidget(
+            self.open_project_button
+        )
+        main_actions_layout.addStretch()
+        layout.addLayout(main_actions_layout)
+        layout.addSpacing(6)
+
+        #
+        # Projets récents
+        #
+        recent_label = QLabel(
+            "Projets récents"
+        )
+
+        layout.addWidget(
+            recent_label
+        )
+
         self.recent_projects = QListWidget()
-        self.settings_button = QPushButton(
-            "Paramètres"
+
+        #
+        # Liste plus compacte au démarrage.
+        # Elle continuera à s'agrandir avec la fenêtre
+        # grâce au stretch du layout.
+        #
+        self.recent_projects.setMinimumHeight(
+            160
         )
 
         for project in (
             self.settings.cleanup_recent_projects()
         ):
-            self.recent_projects.addItem(
+            project_path = Path(
                 project
             )
+
+            #
+            # Le fichier projet est :
+            #
+            # .../Nom_du_projet/project.sttproj
+            #
+            # On affiche donc le nom du dossier projet.
+            #
+            project_name = (
+                project_path.parent.name
+            )
+
+            category_name = (
+                project_path.parent.parent.name
+            )
+
+            display_name = (
+                f"{category_name} ▸ {project_name}"
+            )
+
+            item = QListWidgetItem(
+                display_name
+            )
+
+            #
+            # Conserver le chemin réel sans l'afficher.
+            #
+            item.setData(
+                Qt.ItemDataRole.UserRole,
+                str(project_path)
+            )
+
+            #
+            # Le chemin complet reste accessible
+            # au survol de la souris.
+            #
+            item.setToolTip(
+                str(project_path)
+            )
+
+            self.recent_projects.addItem(
+                item
+            )
+
         self.recent_projects.itemDoubleClicked.connect(
             self.open_recent_project
         )
 
         layout.addWidget(
-            self.new_transcription_button
+            self.recent_projects,
+            stretch=1
         )
 
-        layout.addWidget(
-            self.open_project_button
+        #
+        # Un peu plus d'air avant les actions secondaires.
+        #
+        layout.addSpacing(
+            10
         )
 
-        layout.addWidget(
-            QLabel("Projets récents")
+        # Trois actions secondaires identiques
+        self.settings_button = QPushButton(
+            "Paramètres"
         )
 
-        layout.addWidget(
-            self.recent_projects
+        self.elevenlabs_button = QPushButton(
+            "Compte ElevenLabs"
         )
+
+        self.help_button = QPushButton(
+            "Manuel"
+        )
+
+        self.settings_button.setIcon(
+            QIcon(
+                str(
+                    resource_path(
+                        "icons/settings.svg"
+                    )
+                )
+            )
+        )
+
+        self.elevenlabs_button.setIcon(
+            QIcon(
+                str(
+                    resource_path(
+                        "icons/user.svg"
+                    )
+                )
+            )
+        )
+
+        self.help_button.setIcon(
+            QIcon(
+                str(
+                    resource_path(
+                        "icons/info-square-rounded.svg"
+                    )
+                )
+            )
+        )
+
+        self.settings_button.setToolTip(
+            "Configurer Transcript Studio"
+        )
+        self.elevenlabs_button.setToolTip(
+            "Afficher les informations du compte ElevenLabs"
+        )
+        self.help_button.setToolTip(
+            "Ouvrir le manuel utilisateur"
+        )
+
+        for button in (
+            self.settings_button,
+            self.elevenlabs_button,
+            self.help_button,
+        ):
+            button.setFixedSize(150, 36)
+
+        bottom_actions_layout = QHBoxLayout()
+        bottom_actions_layout.setSpacing(10)
+        bottom_actions_layout.addStretch()
+        bottom_actions_layout.addWidget(
+            self.settings_button
+        )
+        bottom_actions_layout.addWidget(
+            self.elevenlabs_button
+        )
+        bottom_actions_layout.addWidget(
+            self.help_button
+        )
+        bottom_actions_layout.addStretch()
+        layout.addLayout(bottom_actions_layout)
+        button_icon_size = QSize(
+            19,
+            19
+        )
+
+        for button in (
+            self.new_transcription_button,
+            self.open_project_button,
+            self.settings_button,
+            self.elevenlabs_button,
+            self.help_button,
+        ):
+            button.setIconSize(
+                button_icon_size
+            )
+        # Connexions
         self.new_transcription_button.clicked.connect(
             self.new_transcription
         )
-        layout.addWidget(
-            self.settings_button
-        )
-        layout.addWidget(
-            self.elevenlabs_button
-        )
-        layout.addWidget(
-            self.help_button
+        self.open_project_button.clicked.connect(
+            self.open_project
         )
         self.settings_button.clicked.connect(
             self.open_settings
-        )     
-        self.help_button.clicked.connect(
-            open_user_manual
         )
         self.elevenlabs_button.clicked.connect(
             self.open_elevenlabs_account
         )
+        self.help_button.clicked.connect(
+            open_user_manual
+        )
+        
 
     def new_transcription(self):
 
@@ -340,8 +499,37 @@ class HomeWindow(QWidget):
         for project in (
             self.settings.cleanup_recent_projects()
         ):
-            self.recent_projects.addItem(
+            project_path = Path(
                 project
+            )
+
+            project_name = (
+                project_path.parent.name
+            )
+
+            category_name = (
+                project_path.parent.parent.name
+            )
+
+            display_name = (
+                f"{category_name} ▸ {project_name}"
+            )
+
+            item = QListWidgetItem(
+                display_name
+            )
+
+            item.setData(
+                Qt.ItemDataRole.UserRole,
+                str(project_path)
+            )
+
+            item.setToolTip(
+                str(project_path)
+            )
+
+            self.recent_projects.addItem(
+                item
             )
 
     def open_project(self):
@@ -373,18 +561,29 @@ class HomeWindow(QWidget):
 
         self.close()
 
-    def open_recent_project(self, item):
+    def open_recent_project(
+        self,
+        item
+    ):
+        filename = item.data(
+            Qt.ItemDataRole.UserRole
+        )
 
-        filename = item.text()
+        if not filename:
+            return
 
-        if not Path(filename).exists():
-
+        if not Path(
+            filename
+        ).exists():
             QMessageBox.warning(
                 self,
                 "Projet introuvable",
-                f"Le fichier\n\n{filename}\n\nn'existe plus."
+                (
+                    "Le fichier\n\n"
+                    f"{filename}\n\n"
+                    "n'existe plus."
+                )
             )
-
             return
 
         project = load_project(
