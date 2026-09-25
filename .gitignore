@@ -14,13 +14,13 @@ project_dump.txt
 
 # Logs
 *.log
- 
+
 # Cache pytest
 .pytest_cache/
- 
+
 # Cache mypy
 .mypy_cache/
- 
+
 # Environnements virtuels
 venv/
 .venv/
