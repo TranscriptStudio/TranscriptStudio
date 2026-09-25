@@ -434,7 +434,7 @@ class WaveformWidget(QWidget):
             46,
             204,
             113,
-            110
+            180
         )
 
         painter.fillRect(
@@ -561,10 +561,10 @@ class WaveformWidget(QWidget):
             return
 
         silence_color = QColor(
-            106,
-            27,
-            154,
-            110
+            220,
+            0,
+            0,
+            180
         )
 
         for start_time, end_time in (

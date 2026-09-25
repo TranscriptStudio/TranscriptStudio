@@ -191,6 +191,30 @@ class SettingsManager:
 
         self.save()
 
+    def cleanup_recent_projects(self):
+        """
+        Supprime de la liste des projets récents
+        les fichiers qui n'existent plus.
+        """
+
+        projects = (
+            self.get_recent_projects()
+        )
+
+        existing_projects = [
+            project
+            for project in projects
+            if Path(project).is_file()
+        ]
+
+        if existing_projects != projects:
+            self.settings[
+                "recent_projects"
+            ] = existing_projects
+
+            self.save()
+
+        return existing_projects
 
 
 

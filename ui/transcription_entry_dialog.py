@@ -15,11 +15,15 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QMessageBox,
     QComboBox,
+    QInputDialog,
 )
 
 from services.media_formats import (
     build_media_filter,
     is_video_file,
+)
+from services.project_manager import (
+    ProjectManager
 )
 
 SUPPORTED_MEDIA_FILTER = (
@@ -43,14 +47,24 @@ class TranscriptionEntryDialog(QDialog):
     MODE_DIRECT = "direct"
 
     def __init__(self, parent=None):
-
         super().__init__(parent)
 
-        self.setWindowTitle("Nouvelle transcription")
+        self.project_manager = (
+            ProjectManager()
+        )
 
-        self.resize(700, 220)
+        self.setWindowTitle(
+            "Nouvelle transcription"
+        )
 
-        self.setModal(True)
+        self.resize(
+            700,
+            220
+        )
+
+        self.setModal(
+            True
+        )
 
         self._build_ui()
 
@@ -125,30 +139,54 @@ class TranscriptionEntryDialog(QDialog):
             self.video_info_label
         )
 
-        # --------------------------------------------------------------
+        #
         # Sous-répertoire projet
-        # --------------------------------------------------------------
+        #
         category_group = QGroupBox(
             "Sous-répertoire du projet"
         )
-        category_layout = QVBoxLayout(
+
+        category_layout = QHBoxLayout(
             category_group
         )
 
-        self.category_combo = QComboBox()
-        self.category_combo.setEditable(True)
-        self.category_combo.addItems([
-            "",
-            "Commun",
-        ])
+        self.category_combo = (
+            QComboBox()
+        )
+
+        self.category_combo.setEditable(
+            False
+        )
+
+        self.new_category_button = (
+            QPushButton(
+                "Nouveau..."
+            )
+        )
+
+        self.new_category_button.setToolTip(
+            "Créer un nouveau sous-répertoire "
+            "pour classer le projet"
+        )
 
         category_layout.addWidget(
-            self.category_combo
+            self.category_combo,
+            1
+        )
+
+        category_layout.addWidget(
+            self.new_category_button
         )
 
         main_layout.addWidget(
             category_group
         )
+
+        self.new_category_button.clicked.connect(
+            self._create_category
+        )
+
+        self._refresh_categories()
 
         # --------------------------------------------------------------
         # Choix workflow
@@ -207,6 +245,107 @@ class TranscriptionEntryDialog(QDialog):
     # ------------------------------------------------------------------
     # Actions
     # ------------------------------------------------------------------
+
+    def _refresh_categories(
+        self,
+        selected_category=None
+    ):
+        """
+        Recharge la liste des sous-répertoires
+        existants.
+        """
+
+        if selected_category is None:
+            selected_category = (
+                self.category_combo
+                .currentText()
+                .strip()
+            )
+
+        categories = (
+            self.project_manager
+            .get_categories()
+        )
+
+        self.category_combo.blockSignals(
+            True
+        )
+
+        self.category_combo.clear()
+
+        self.category_combo.addItems(
+            categories
+        )
+
+        if (
+            selected_category
+            and selected_category
+            in categories
+        ):
+            self.category_combo.setCurrentText(
+                selected_category
+            )
+        else:
+            self.category_combo.setCurrentText(
+                self.project_manager
+                .default_category
+            )
+
+        self.category_combo.blockSignals(
+            False
+        )
+
+    def _create_category(self):
+        """
+        Demande le nom d'un nouveau
+        sous-répertoire puis le crée.
+        """
+
+        category, ok = (
+            QInputDialog.getText(
+                self,
+                "Nouveau sous-répertoire",
+                "Nom du sous-répertoire :"
+            )
+        )
+
+        if not ok:
+            return
+
+        category = (
+            category.strip()
+        )
+
+        if not category:
+            return
+
+        try:
+            folder = (
+                self.project_manager
+                .create_category(
+                    category
+                )
+            )
+
+        except OSError as e:
+            QMessageBox.critical(
+                self,
+                "Erreur de création",
+                (
+                    "Impossible de créer "
+                    "le sous-répertoire.\n\n"
+                    + str(e)
+                )
+            )
+            return
+
+        #
+        # Recharge immédiatement la liste
+        # et sélectionne le répertoire créé.
+        #
+        self._refresh_categories(
+            folder.name
+        )
 
     def _browse_file(self):
 

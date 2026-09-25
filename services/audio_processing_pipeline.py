@@ -116,8 +116,6 @@ class AudioProcessingPipeline:
         ):
             return audio_file
 
-        print("[PIPELINE] Découpe")
-
         start_time = (
             self.settings.trim_start_time
             if self.settings.trim_start_enabled
@@ -172,10 +170,6 @@ class AudioProcessingPipeline:
         if not self.settings.silence_enabled:
             return audio_file
 
-        print(
-            "[PIPELINE] Suppression silences"
-        )
-
         detector = (
             SilenceDetectionService()
         )
@@ -186,11 +180,6 @@ class AudioProcessingPipeline:
                 self.settings.silence_threshold_db,
                 self.settings.silence_min_duration
             )
-        )
-
-        print(
-            f"{len(detected_silences)} "
-            "silence(s) détecté(s)"
         )
 
         if not detected_silences:
@@ -234,10 +223,6 @@ class AudioProcessingPipeline:
                 )
             )
 
-        print(
-            f"{len(removal_silences)} "
-            "silence(s) réellement supprimé(s)"
-        )
 
         if not removal_silences:
             return audio_file
@@ -271,9 +256,6 @@ class AudioProcessingPipeline:
         if not self.settings.speed_enabled:
             return audio_file
 
-        print(
-            "[PIPELINE] Accélération"
-        )
 
         speed_ratio = (
             1.0

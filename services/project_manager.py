@@ -8,12 +8,11 @@ from services.settings import (
     SettingsManager
 )
 
-
+DEFAULT_CATEGORY = "Commun"
 
 class ProjectManager:
 
     def __init__(self):
-
         settings = SettingsManager()
 
         self.root = Path(
@@ -25,6 +24,114 @@ class ProjectManager:
             exist_ok=True
         )
 
+        #
+        # Répertoire de classement utilisé
+        # par défaut pour les nouveaux projets.
+        #
+        self.default_category = (
+            DEFAULT_CATEGORY
+        )
+
+        self.ensure_default_category()
+
+    def ensure_default_category(self):
+        """
+        Garantit l'existence du répertoire
+        de classement par défaut.
+        """
+        default_folder = (
+            self.root
+            / self.default_category
+        )
+
+        default_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        return default_folder
+
+
+    def get_categories(self):
+        """
+        Retourne les sous-répertoires existants
+        du répertoire racine des projets.
+        """
+
+        self.ensure_default_category()
+
+        categories = sorted(
+            (
+                item.name
+                for item in self.root.iterdir()
+                if item.is_dir()
+            ),
+            key=str.casefold
+        )
+
+        #
+        # Commun reste toujours en première
+        # position dans la liste.
+        #
+        categories = [
+            category
+            for category in categories
+            if category.casefold()
+            != self.default_category.casefold()
+        ]
+
+        return [
+            self.default_category,
+            *categories
+        ]
+
+
+    def create_category(
+        self,
+        category
+    ):
+        """
+        Crée un nouveau sous-répertoire
+        de classement.
+        """
+
+        category = category.strip()
+
+        if not category:
+            category = (
+                self.default_category
+            )
+
+        #
+        # Un classement correspond à un seul
+        # niveau de sous-répertoire.
+        #
+        category = re.sub(
+            r'[\\/:*?"<>|]',
+            "_",
+            category
+        )
+
+        category = category.strip(
+            " ."
+        )
+
+        if not category:
+            category = (
+                self.default_category
+            )
+
+        folder = (
+            self.root
+            / category
+        )
+
+        folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        return folder
 
     def create_project_folder(
         self,
@@ -50,18 +157,21 @@ class ProjectManager:
             f"{date_prefix}_{audio_name}"
         )
 
-        base_folder = self.root
+        category = (
+            category.strip()
+            if category
+            else self.default_category
+        )
 
-        if category:
-
-            base_folder = (
-                self.root
-                / category
+        if not category:
+            category = (
+                self.default_category
             )
 
-        base_folder.mkdir(
-            parents=True,
-            exist_ok=True
+        base_folder = (
+            self.create_category(
+                category
+            )
         )
 
         folder = (

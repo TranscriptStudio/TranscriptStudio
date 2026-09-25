@@ -1075,8 +1075,27 @@ class MainWindow(QMainWindow):
         extension = options["format"]
 
         default_name = Path(
-                        self.project.name
-                    ).stem
+            self.project.name
+        ).stem
+
+        #
+        # Utiliser par défaut le répertoire
+        # contenant le projet.
+        #
+        if self.project.project_file:
+            export_folder = (
+                Path(
+                    self.project.project_file
+                ).parent
+            )
+        else:
+            export_folder = Path.cwd()
+
+        default_file = (
+            export_folder
+            / f"{default_name}.{extension}"
+        )
+
         filters = (
             "Texte (*.txt);;"
             "JSON (*.json);;"
@@ -1094,7 +1113,7 @@ class MainWindow(QMainWindow):
         filename, _ = QFileDialog.getSaveFileName(
             self,
             "Exporter la transcription",
-            f"{default_name}.{extension}",
+            str(default_file),
             filters,
             selected_filter
         )

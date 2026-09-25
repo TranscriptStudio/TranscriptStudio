@@ -182,7 +182,7 @@ class HomeWindow(QWidget):
         )
 
         for project in (
-            self.settings.get_recent_projects()
+            self.settings.cleanup_recent_projects()
         ):
             self.recent_projects.addItem(
                 project
@@ -334,18 +334,14 @@ class HomeWindow(QWidget):
         dialog.exec()
 
     def refresh_recent_projects(self):
-
         self.recent_projects.clear()
 
         for project in (
-            self.settings.get_recent_projects()
+            self.settings.cleanup_recent_projects()
         ):
-
-            if Path(project).exists():
-
-                self.recent_projects.addItem(
-                    project
-                )
+            self.recent_projects.addItem(
+                project
+            )
 
     def open_project(self):
 
