@@ -44,3 +44,6 @@ dist/
 # Local FFmpeg binaries
 tools/ffmpeg/ffmpeg.exe
 tools/ffmpeg/ffprobe.exe
+
+# Source Word du manuel utilisateur, non publiee
+docs/Manuel_utilisateur_Transcript_Studio_v1.2.docx
