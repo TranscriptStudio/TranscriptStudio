@@ -19,6 +19,8 @@ from PySide6.QtGui import (
     QPixmap,
     QFont,
     QIcon,
+    QPalette,
+    QColor,
 )
 
 from pathlib import Path
@@ -70,21 +72,19 @@ class HomeWindow(QWidget):
         layout.setContentsMargins(20, 16, 20, 14)
         layout.setSpacing(10)
 
-        # En-tête
+        # En-tete
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(14)
 
         icon_label = QLabel()
-        pixmap = QPixmap(
-            str(resource_path("icons/logo.png"))
-        )
+        pixmap = QPixmap(str(resource_path("icons/logo.png")))
         icon_label.setPixmap(
             pixmap.scaled(
                 120,
                 120,
                 Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
+                Qt.TransformationMode.SmoothTransformation,
             )
         )
 
@@ -92,81 +92,46 @@ class HomeWindow(QWidget):
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_layout.setSpacing(2)
 
-        title_label = QLabel("Transcript Studio")
+        self.title_label = QLabel("Transcript Studio")
         title_font = QFont("Segoe UI Light", 28)
         title_font.setWeight(QFont.Weight.Light)
-        title_label.setFont(title_font)
-        title_label.setStyleSheet("""
-            QLabel {
-                color: palette(window-text);
-                font-size: 26px;
-            }
-        """)
+        self.title_label.setFont(title_font)
 
-        subtitle_label = QLabel(
+        self.subtitle_label = QLabel(
             "Prétraitement audio et transcription assistée par ElevenLabs"
         )
-        subtitle_label.setStyleSheet("""
-            QLabel {
-                color: palette(mid);
-                font-size: 13px;
-                font-weight: 500;
-            }
-        """)
+        self.version_label = QLabel("Version 1.1\nSeptembre 2026")
 
-        version_label = QLabel(
-            "Version 1.2\nSeptembre 2026"
-        )
-        version_label.setStyleSheet("""
-            QLabel {
-                color: palette(mid);
-                font-size: 12px;
-            }
-        """)
+        # Les couleurs sont appliquees par une methode separee afin de pouvoir
+        # les recalculer immediatement apres un changement de theme.
+        self.update_header_colors()
 
-        title_layout.addWidget(title_label)
+        title_layout.addWidget(self.title_label)
         title_layout.addSpacing(4)
-        title_layout.addWidget(subtitle_label)
+        title_layout.addWidget(self.subtitle_label)
         title_layout.addSpacing(8)
-        title_layout.addWidget(version_label)
+        title_layout.addWidget(self.version_label)
 
         header_layout.addWidget(
             icon_label,
-            alignment=Qt.AlignmentFlag.AlignVCenter
+            alignment=Qt.AlignmentFlag.AlignVCenter,
         )
         header_layout.addLayout(title_layout)
         header_layout.addStretch()
         layout.addLayout(header_layout)
         layout.addSpacing(6)
 
-        # Deux actions principales, alignées et de même taille
-        self.new_transcription_button = QPushButton(
-            "Nouvelle transcription"
-        )
-
-        self.open_project_button = QPushButton(
-            "Ouvrir un projet"
-        )
+        # Actions principales
+        self.new_transcription_button = QPushButton("Nouvelle transcription")
+        self.open_project_button = QPushButton("Ouvrir un projet")
 
         self.new_transcription_button.setIcon(
-            QIcon(
-                str(
-                    resource_path(
-                        "icons/bubble-text.svg"
-                    )
-                )
-            )
+            QIcon(str(resource_path("icons/bubble-text.svg")))
+        )
+        self.open_project_button.setIcon(
+            QIcon(str(resource_path("icons/folder-open.svg")))
         )
 
-        self.open_project_button.setIcon(
-            QIcon(
-                str(
-                    resource_path(
-                        "icons/folder-open.svg"
-                    )
-                )
-            )
-        )
         self.new_transcription_button.setToolTip(
             "Créer une nouvelle transcription"
         )
@@ -181,89 +146,35 @@ class HomeWindow(QWidget):
             button.setFixedSize(200, 38)
 
         main_actions_layout = QHBoxLayout()
+        main_actions_layout.setContentsMargins(0, 0, 0, 0)
         main_actions_layout.setSpacing(12)
         main_actions_layout.addStretch()
-        main_actions_layout.addWidget(
-            self.new_transcription_button
-        )
-        main_actions_layout.addWidget(
-            self.open_project_button
-        )
+        main_actions_layout.addWidget(self.new_transcription_button)
+        main_actions_layout.addWidget(self.open_project_button)
         main_actions_layout.addStretch()
         layout.addLayout(main_actions_layout)
         layout.addSpacing(6)
 
-        #
-        # Projets récents
-        #
-        recent_label = QLabel(
-            "Projets récents"
-        )
-
-        layout.addWidget(
-            recent_label
-        )
+        # Projets recents
+        recent_label = QLabel("Projets récents")
+        layout.addWidget(recent_label)
 
         self.recent_projects = QListWidget()
+        self.recent_projects.setMinimumHeight(160)
 
-        #
-        # Liste plus compacte au démarrage.
-        # Elle continuera à s'agrandir avec la fenêtre
-        # grâce au stretch du layout.
-        #
-        self.recent_projects.setMinimumHeight(
-            160
-        )
+        for project in self.settings.cleanup_recent_projects():
+            project_path = Path(project)
+            project_name = project_path.parent.name
+            category_name = project_path.parent.parent.name
+            display_name = f"{category_name} ▸ {project_name}"
 
-        for project in (
-            self.settings.cleanup_recent_projects()
-        ):
-            project_path = Path(
-                project
-            )
-
-            #
-            # Le fichier projet est :
-            #
-            # .../Nom_du_projet/project.sttproj
-            #
-            # On affiche donc le nom du dossier projet.
-            #
-            project_name = (
-                project_path.parent.name
-            )
-
-            category_name = (
-                project_path.parent.parent.name
-            )
-
-            display_name = (
-                f"{category_name} ▸ {project_name}"
-            )
-
-            item = QListWidgetItem(
-                display_name
-            )
-
-            #
-            # Conserver le chemin réel sans l'afficher.
-            #
+            item = QListWidgetItem(display_name)
             item.setData(
                 Qt.ItemDataRole.UserRole,
-                str(project_path)
+                str(project_path),
             )
-
-            #
-            # Le chemin complet reste accessible
-            # au survol de la souris.
-            #
-            item.setToolTip(
-                str(project_path)
-            )
-
-            self.recent_projects.addItem(
-                item
-            )
+            item.setToolTip(str(project_path))
+            self.recent_projects.addItem(item)
 
         self.recent_projects.itemDoubleClicked.connect(
             self.open_recent_project
@@ -271,68 +182,30 @@ class HomeWindow(QWidget):
 
         layout.addWidget(
             self.recent_projects,
-            stretch=1
+            stretch=1,
         )
+        layout.addSpacing(10)
 
-        #
-        # Un peu plus d'air avant les actions secondaires.
-        #
-        layout.addSpacing(
-            10
-        )
-
-        # Trois actions secondaires identiques
-        self.settings_button = QPushButton(
-            "Paramètres"
-        )
-
-        self.elevenlabs_button = QPushButton(
-            "Compte ElevenLabs"
-        )
-
-        self.help_button = QPushButton(
-            "Manuel"
-        )
+        # Actions secondaires
+        self.settings_button = QPushButton("Paramètres")
+        self.elevenlabs_button = QPushButton("Compte ElevenLabs")
+        self.help_button = QPushButton("Manuel")
 
         self.settings_button.setIcon(
-            QIcon(
-                str(
-                    resource_path(
-                        "icons/settings.svg"
-                    )
-                )
-            )
+            QIcon(str(resource_path("icons/settings.svg")))
         )
-
         self.elevenlabs_button.setIcon(
-            QIcon(
-                str(
-                    resource_path(
-                        "icons/user.svg"
-                    )
-                )
-            )
+            QIcon(str(resource_path("icons/user.svg")))
         )
-
         self.help_button.setIcon(
-            QIcon(
-                str(
-                    resource_path(
-                        "icons/info-square-rounded.svg"
-                    )
-                )
-            )
+            QIcon(str(resource_path("icons/info-square-rounded.svg")))
         )
 
-        self.settings_button.setToolTip(
-            "Configurer Transcript Studio"
-        )
+        self.settings_button.setToolTip("Configurer Transcript Studio")
         self.elevenlabs_button.setToolTip(
             "Afficher les informations du compte ElevenLabs"
         )
-        self.help_button.setToolTip(
-            "Ouvrir le manuel utilisateur"
-        )
+        self.help_button.setToolTip("Ouvrir le manuel utilisateur")
 
         for button in (
             self.settings_button,
@@ -342,24 +215,17 @@ class HomeWindow(QWidget):
             button.setFixedSize(150, 36)
 
         bottom_actions_layout = QHBoxLayout()
+        bottom_actions_layout.setContentsMargins(0, 0, 0, 0)
         bottom_actions_layout.setSpacing(10)
         bottom_actions_layout.addStretch()
-        bottom_actions_layout.addWidget(
-            self.settings_button
-        )
-        bottom_actions_layout.addWidget(
-            self.elevenlabs_button
-        )
-        bottom_actions_layout.addWidget(
-            self.help_button
-        )
+        bottom_actions_layout.addWidget(self.settings_button)
+        bottom_actions_layout.addWidget(self.elevenlabs_button)
+        bottom_actions_layout.addWidget(self.help_button)
         bottom_actions_layout.addStretch()
         layout.addLayout(bottom_actions_layout)
-        button_icon_size = QSize(
-            19,
-            19
-        )
 
+        # Taille commune des icones
+        button_icon_size = QSize(19, 19)
         for button in (
             self.new_transcription_button,
             self.open_project_button,
@@ -367,9 +233,8 @@ class HomeWindow(QWidget):
             self.elevenlabs_button,
             self.help_button,
         ):
-            button.setIconSize(
-                button_icon_size
-            )
+            button.setIconSize(button_icon_size)
+
         # Connexions
         self.new_transcription_button.clicked.connect(
             self.new_transcription
@@ -383,11 +248,52 @@ class HomeWindow(QWidget):
         self.elevenlabs_button.clicked.connect(
             self.open_elevenlabs_account
         )
-        self.help_button.clicked.connect(
-            open_user_manual
-        )
-        
+        self.help_button.clicked.connect(open_user_manual)
 
+
+    def update_header_colors(self):
+        theme = self.settings.get_theme()
+
+        if theme == "dark":
+            title_color = "#F0F0F0"
+            subtitle_color = "#C0C0C0"
+            version_color = "#A8A8A8"
+        elif theme == "light":
+            title_color = "#191919"
+            subtitle_color = "#555555"
+            version_color = "#777777"
+        else:
+            is_dark = (
+                self.palette().window().color().lightness() < 128
+            )
+            if is_dark:
+                title_color = "#F0F0F0"
+                subtitle_color = "#C0C0C0"
+                version_color = "#A8A8A8"
+            else:
+                title_color = "#191919"
+                subtitle_color = "#555555"
+                version_color = "#777777"
+
+        self.title_label.setStyleSheet(
+            f"color: {title_color}; font-size: 26px;"
+        )
+        self.subtitle_label.setStyleSheet(
+            f"color: {subtitle_color}; font-size: 13px; font-weight: 400;"
+        )
+        self.version_label.setStyleSheet(
+            f"color: {version_color}; font-size: 12px;"
+        )
+
+
+    def open_settings(self):
+        dialog = SettingsDialog(self)
+        result = dialog.exec()
+
+        if result:
+            self.settings.load()
+            self.update_header_colors()
+                
     def new_transcription(self):
 
         entry_dialog = (
@@ -484,14 +390,6 @@ class HomeWindow(QWidget):
             )
 
             return     
-        
-    def open_settings(self):
-
-        dialog = SettingsDialog(
-            self
-        )
-
-        dialog.exec()
 
     def refresh_recent_projects(self):
         self.recent_projects.clear()
