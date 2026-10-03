@@ -25,6 +25,7 @@ from services.media_formats import (
 from services.project_manager import (
     ProjectManager
 )
+from services.api_capabilities import has_transcription_api
 
 SUPPORTED_MEDIA_FILTER = (
     build_media_filter()
@@ -389,6 +390,18 @@ class TranscriptionEntryDialog(QDialog):
 
             return
 
+        # Si le mode direct est sélectionné mais que l'API n'est pas disponible,
+        # basculer automatiquement sur le prétraitement
+        if self.direct_radio.isChecked() and not has_transcription_api():
+            QMessageBox.information(
+                self,
+                "Service de transcription non configuré",
+                "Une clé API ElevenLabs est nécessaire pour la transcription directe.\n\n"
+                "Le projet sera créé en mode prétraitement pour une transcription ultérieure."
+            )
+            self.preprocessing_radio.setChecked(True)
+            self.direct_radio.setChecked(False)
+
         if is_video_file(path):
             self.preprocessing_radio.setChecked(
                 True
@@ -399,6 +412,24 @@ class TranscriptionEntryDialog(QDialog):
             )
 
         self.accept()
+
+    def _update_direct_radio_tooltip(self, is_video: bool):
+        """Met à jour le tooltip du bouton radio de transcription directe."""
+        if is_video:
+            self.direct_radio.setToolTip(
+                "La transcription directe est "
+                "désactivée pour les vidéos. "
+                "La piste audio doit d'abord "
+                "être extraite."
+            )
+        else:
+            if not has_transcription_api():
+                self.direct_radio.setToolTip(
+                    "Une clé API ElevenLabs est requise pour la transcription directe. "
+                    "Configurez-la dans les paramètres."
+                )
+            else:
+                self.direct_radio.setToolTip("")
 
     # ------------------------------------------------------------------
     # API publique
@@ -431,42 +462,6 @@ class TranscriptionEntryDialog(QDialog):
         self,
         filename
     ):
-        video_extensions = {
-            ".mp4",
-            ".mov",
-            ".mkv",
-            ".avi",
-            ".webm",
-            ".mpeg",
-            ".mpg",
-            ".ts",
-            ".m2ts",
-        }
-
-        extension = (
-            Path(filename)
-            .suffix
-            .lower()
-        )
-
-        is_video = (
-            extension
-            in video_extensions
-        )
-
-        if is_video:
-            self.preprocessing_radio.setChecked(
-                True
-            )
-
-        self.direct_radio.setEnabled(
-            not is_video
-        )
-
-    def _update_media_mode(
-        self,
-        filename
-    ):
         video_selected = (
             is_video_file(
                 filename
@@ -488,24 +483,11 @@ class TranscriptionEntryDialog(QDialog):
             )
 
         self.direct_radio.setEnabled(
-            not video_selected
+            not video_selected and has_transcription_api()
         )
 
         self.video_info_label.setVisible(
             video_selected
         )
 
-        if video_selected:
-            self.direct_radio.setToolTip(
-                "La transcription directe est "
-                "désactivée pour les vidéos. "
-                "La piste audio doit d'abord "
-                "être extraite."
-            )
-        else:
-            self.direct_radio.setToolTip(
-                ""
-            )
-
-
-
+        self._update_direct_radio_tooltip(video_selected)

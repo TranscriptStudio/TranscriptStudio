@@ -1,0 +1,19 @@
+```toml 
+agent_type = "agent"
+display_name = "TranscriptStudio" 
+description = "Agent de développement dédié au projet TranscriptStudio" 
+safety = "neutral" 
+# Le modèle actif reste volontairement non imposé ici. 
+# Utiliser le modèle sélectionné dans la configuration Vibe. 
+# L'agent peut modifier les fichiers du projet. 
+# Les commandes shell restent soumises à approbation afin de garder 
+# un contrôle utilisateur sur Git, les tests et les commandes système. 
+[tools.read_file] 
+permission = "always" 
+[tools.search_replace] 
+permission = "always" 
+[tools.write_file] 
+permission = "always" 
+[tools.bash] 
+permission = "ask" 
+```

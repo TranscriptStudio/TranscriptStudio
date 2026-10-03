@@ -5,6 +5,7 @@ import requests
 from services.settings import (
     SettingsManager
 )
+from services.api_capabilities import has_api_key
 
 
 class ElevenLabsAPI:
@@ -22,6 +23,10 @@ class ElevenLabsAPI:
         self.headers = {
             "xi-api-key": self.api_key
         }
+        
+        # Vérifier que la clé API est disponible
+        if not has_api_key():
+            raise ValueError("Clé API ElevenLabs manquante. Impossible d'initialiser l'API ElevenLabs.")
 
     def get_account_info(self):
 

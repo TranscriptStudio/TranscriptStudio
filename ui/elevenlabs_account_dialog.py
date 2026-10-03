@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 
 from services.elevenlabs_api import ElevenLabsAPI
+from services.api_capabilities import has_api_key, can_access_account_info
 
 
 class ElevenLabsAccountDialog(QDialog):
@@ -25,6 +26,16 @@ class ElevenLabsAccountDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
+        if not can_access_account_info():
+            QMessageBox.information(
+                self,
+                "Service non configuré",
+                "Pour consulter les informations de votre compte ElevenLabs, "
+                "vous devez d'abord configurer une clé API valide dans les paramètres."
+            )
+            self.close()
+            return
+        
         try:
             info = ElevenLabsAPI().get_account_summary()
             usage_percent = int(info["utilization"])

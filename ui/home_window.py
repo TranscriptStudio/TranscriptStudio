@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import (
+﻿from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -26,6 +26,7 @@ from PySide6.QtGui import (
 from pathlib import Path
 
 from services.settings import SettingsManager
+from services.api_capabilities import can_access_account_info
 from ui.new_transcription_dialog import NewTranscriptionDialog
 from ui.settings_dialog import SettingsDialog
 from ui.elevenlabs_account_dialog import ElevenLabsAccountDialog
@@ -561,6 +562,15 @@ class HomeWindow(QWidget):
         )
 
     def open_elevenlabs_account(self):
+
+        if not can_access_account_info():
+            QMessageBox.information(
+                self,
+                "Service non configuré",
+                "Pour consulter les informations de votre compte ElevenLabs, "
+                "vous devez d'abord configurer une clé API valide dans les paramètres."
+            )
+            return
 
         dialog = ElevenLabsAccountDialog(
             self
