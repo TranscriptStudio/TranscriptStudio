@@ -12,10 +12,11 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import (
     QSize,
+    Qt,
 )
-
 from PySide6.QtGui import (
     QIcon,
+    QCloseEvent,
 )
 from services.resources import resource_path
 from services.settings import SettingsManager
@@ -26,18 +27,83 @@ from services.theme_manager import ThemeManager
 
 class SettingsDialog(QDialog):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, first_run=False):
         super().__init__(parent)
 
         self.settings = SettingsManager()
+        self._is_first_run = first_run
 
-        self.setWindowTitle(
-            "Paramètres"
-        )
+        # En mode first-run, le titre est different et le comportement aussi
+        if self._is_first_run:
+            self.setWindowTitle("Bienvenue dans Transcript Studio - Configuration initiale")
+        else:
+            self.setWindowTitle("Paramètres")
 
-        self.resize(500, 200)
+        self.resize(500, 250)
 
         self.build_ui()
+        
+        # En mode first-run, on desactive le bouton Annuler et on le renomme Quitter
+        if self._is_first_run:
+            self.cancel_button.setText("Quitter")
+            self.cancel_button.setToolTip("Quitter Transcript Studio")
+    
+    def validate_projects_root(self) -> tuple[bool, str]:
+        """
+        Valide le repertoire projets.
+        Retourne (valide, message_erreur) ou (True, "") si OK.
+        """
+        from pathlib import Path
+        
+        projects_root = self.projects_root_edit.text().strip()
+        
+        # Verifier non vide
+        if not projects_root:
+            return False, "Le répertoire projets est obligatoire. Veuillez sélectionner un répertoire."
+        
+        # Verifier que c'est un repertoire (ou creable)
+        path = Path(projects_root)
+        
+        # Si le chemin existe, verifier que c'est un repertoire
+        if path.exists():
+            if not path.is_dir():
+                return False, f"Le chemin '{projects_root}' existe mais n'est pas un repertoire."
+        else:
+            # Le repertoire n'existe pas, essayer de le creer
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                return False, f"Impossible de creer le repertoire '{projects_root}': {e}"
+        
+        # Verifier les droits d'ecriture
+        test_file = path / ".transcript_studio_test"
+        try:
+            test_file.write_text("test")
+            test_file.unlink()  # Supprimer le fichier de test
+        except OSError as e:
+            return False, f"Pas de droits d'ecriture dans '{projects_root}': {e}"
+        
+        return True, ""
+    
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """
+        Intercepter la fermeture de la fenetre.
+        En mode first-run, on quitte l'application si l'utilisateur ferme.
+        """
+        if self._is_first_run:
+            # En mode first-run, fermer la fenetre = quitter l'application
+            QApplication.instance().quit()
+            event.accept()
+        else:
+            # Comportement normal : accepter la fermeture
+            event.accept()
+    
+    def quit_application(self):
+        """
+        Quitte l'application entiere.
+        Utilise en mode first-run quand l'utilisateur clique sur Quitter.
+        """
+        QApplication.instance().quit()
 
     def build_ui(self):
         #
@@ -58,13 +124,26 @@ class SettingsDialog(QDialog):
             12
         )
 
+        # Message d'introduction en mode first-run
+        if self._is_first_run:
+            intro_label = QLabel(
+                "<b>Configuration initiale requise</b><br><br>"
+                "Veuillez configurer le répertoire où vos projets seront enregistrés.<br>"
+                "La clé API ElevenLabs est facultative et peut être ajoutée ultérieurement.<br><br>"
+                "<i>Cette configuration ne peut pas être ignorée.</i>"
+            )
+            intro_label.setWordWrap(True)
+            intro_label.setStyleSheet("color: #555;")
+            layout.addWidget(intro_label)
+            layout.addSpacing(20)
+        
         #
         # ==================================================
         # Clé API ElevenLabs
         # ==================================================
         #
         api_label = QLabel(
-            "Clé API ElevenLabs"
+            "Clé API ElevenLabs (facultative)"
         )
 
         layout.addWidget(
@@ -120,9 +199,15 @@ class SettingsDialog(QDialog):
         # Répertoire des projets
         # ==================================================
         #
-        projects_label = QLabel(
-            "Répertoire des projets"
-        )
+        if self._is_first_run:
+            projects_label = QLabel(
+                "Répertoire des projets <span style='color: #D32F2F;'>*</span>"
+            )
+        else:
+            projects_label = QLabel(
+                "Répertoire des projets"
+            )
+        projects_label.setWordWrap(True)
 
         layout.addWidget(
             projects_label
@@ -141,9 +226,13 @@ class SettingsDialog(QDialog):
             8
         )
 
-        self.projects_root_edit = QLineEdit(
-            self.settings.get_projects_root()
-        )
+        # En mode first-run, on part d'un champ vide pour forcer la selection
+        if self._is_first_run:
+            self.projects_root_edit = QLineEdit("")
+        else:
+            self.projects_root_edit = QLineEdit(
+                self.settings.get_projects_root()
+            )
 
         self.projects_root_button = QPushButton(
             "Parcourir..."
@@ -322,9 +411,12 @@ class SettingsDialog(QDialog):
             self.save_settings
         )
 
-        self.cancel_button.clicked.connect(
-            self.reject
-        )
+        # En mode first-run, le bouton Quitter doit quitter l'application
+        # Sinon, le bouton Annuler ferme juste le dialogue
+        if self._is_first_run:
+            self.cancel_button.clicked.connect(self.quit_application)
+        else:
+            self.cancel_button.clicked.connect(self.reject)
 
         self.test_button.clicked.connect(
             self.test_connection
@@ -335,13 +427,24 @@ class SettingsDialog(QDialog):
         )        
     def save_settings(self):
 
+        # En mode first-run, on valide que le repertoire projets est valide
+        if self._is_first_run:
+            is_valid, error_msg = self.validate_projects_root()
+            if not is_valid:
+                QMessageBox.critical(
+                    self,
+                    "Repertoire invalide",
+                    error_msg
+                )
+                return  # Ne pas fermer le dialogue, l'utilisateur doit corriger
+        
+        # Sauvegarder les parametres
         self.settings.set_api_key(
             self.api_key_edit.text().strip()
         )
         self.settings.set_projects_root(
             self.projects_root_edit.text()
         )
-
 
         theme = (
             self.theme_combo.currentData()
@@ -350,6 +453,10 @@ class SettingsDialog(QDialog):
         self.settings.set_theme(
             theme
         )
+
+        # En mode first-run, marquer la configuration comme terminee
+        if self._is_first_run:
+            self.settings.set_initial_setup_completed(True)
 
         app = QApplication.instance()
 
@@ -391,10 +498,16 @@ class SettingsDialog(QDialog):
             )
 
     def select_projects_folder(self):
-
+        from PySide6.QtCore import QStandardPaths
+        from pathlib import Path
+        
+        # Definir le repertoire par defaut pour le dialogue
+        default_dir = str(Path(QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)) / "TranscriptStudio Projects")
+        
         folder = QFileDialog.getExistingDirectory(
             self,
-            "Choisir le répertoire projets"
+            "Choisir le répertoire projets",
+            default_dir
         )
 
         if folder:

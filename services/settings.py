@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
+from PySide6.QtCore import QStandardPaths
 from services.app_paths import (
     APP_DATA_DIR,
-    PROJECTS_DIR,
+    LEGACY_PROJECTS_DIR,
 )
 
 class SettingsManager:
@@ -91,10 +92,25 @@ class SettingsManager:
                 "detect_speaker_roles": False
 
             },
-            "projects_root": str(
-                PROJECTS_DIR
-            ),
+            "projects_root": "",
+            "initial_setup_completed": False,
         }
+    
+    def get_default_projects_root(self) -> str:
+        """
+        Retourne le chemin par defaut pour le repertoire projets.
+        Utilise le dossier Documents natif de l'OS + /Projets Transcript Studio
+        """
+        try:
+            # Obtenir le dossier Documents natif
+            docs_path = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+            if docs_path:
+                return str(Path(docs_path) / "Projets Transcript Studio")
+        except Exception:
+            pass
+        
+        # Fallback : utiliser l'ancien emplacement pour compatibilite
+        return str(LEGACY_PROJECTS_DIR)
 
     def get_api_key(self):
 
@@ -102,6 +118,21 @@ class SettingsManager:
             "elevenlabs_api_key",
             ""
         )
+
+    def is_initial_setup_completed(self) -> bool:
+        """
+        Verifie si la configuration initiale a ete validee.
+        Retourne True si l'utilisateur a deja valide un repertoire projets.
+        """
+        return self.settings.get("initial_setup_completed", False)
+
+    def set_initial_setup_completed(self, completed: bool) -> None:
+        """
+        Definit l'etat de la configuration initiale.
+        Ne doit etre appele qu'apres validation reussie du repertoire projets.
+        """
+        self.settings["initial_setup_completed"] = completed
+        self.save()
 
     def set_api_key(
         self,
@@ -179,7 +210,7 @@ class SettingsManager:
 
         return self.settings.get(
             "projects_root",
-            str(PROJECTS_DIR)
+            str(LEGACY_PROJECTS_DIR)
         )
 
     def set_projects_root(
