@@ -170,7 +170,8 @@ Si des problèmes sont trouvés lors des tests P1.1, les corriger d'abord.
 
 | Commit | Message | Statut |
 |--------|---------|--------|
-| HEAD | P1.2 - Resolution a l'ouverture | ⏳ En cours |
+| HEAD | P1.3 - Migration non-destructive des anciens projets | ⏳ En cours |
+| 71ac2cf | P1.2 - Resolution a l'ouverture | ✅ Implémenté |
 | 76dc6cf | P1.1 - Portable project format v1 | ✅ Implémenté |
 | fd615c9 | P0.3 - Minimal cross-platform FFmpeg resolver | ✅ Implémenté |
 | 7a2a2c4 | Commit P0-2 - API capability decoupling | ✅ Implémenté |
