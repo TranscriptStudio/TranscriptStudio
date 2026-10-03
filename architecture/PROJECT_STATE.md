@@ -91,8 +91,18 @@
   - **Jamais** de résolution relative au `projects_root` global
   - Normalisation de tous les chemins avec `pathlib.Path`
 
+#### ✅ **P1.3 - Migration non-destructive des anciens projets** (IMPLEMENTE)
+- **Statut** : Implémenté et testé
+- **Fichiers concernés** : `services/project_io.py`
+- **Fonctionnalités** :
+  - Ouverture d'un ancien projet **ne modifie PAS** le fichier sur disque
+  - À la sauvegarde, `audio_file` est converti en relatif **si dans le dossier projet**
+  - `project_file` est **supprimé** du JSON lors de la sauvegarde
+  - Toutes les données de transcription sont conservées sans régression
+  - Logic de réparation des anciens `speaker_id` est conservée (via `repair_project_speakers`)
+
 ### Phases en cours
-- P1.3 - Migration non-destructive des anciens projets
+- P1.4 - Sauvegarde et autosave après déplacement
 
 ### Phases Suivantes (selon roadmap)
 1. **P1 - PORTABILITE DES PROJETS**
@@ -142,10 +152,10 @@
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
 ### Priorité immédiate
-**Valider P1.2 par tests manuels** avant de passer à P1.3
+**Valider P1.3 par tests manuels** avant de passer à P1.4
 
-### Si P1.2 est validé
-**Passer à P1.3 - Migration non-destructive des anciens projets**
+### Si P1.3 est validé
+**Passer à P1.4 - Sauvegarde et autosave après déplacement**
 - Ne pas modifier le fichier sur disque à l'ouverture
 - À la prochaine sauvegarde, convertir audio_file en relatif si l'audio est dans le dossier projet
 - Supprimer project_file du JSON lors de la sauvegarde des anciens projets
@@ -181,10 +191,10 @@ Si des problèmes sont trouvés lors des tests P1.1, les corriger d'abord.
 ### Pour que P1 soit considéré comme terminé
 - [x] P1.1 : Définir le contrat du format projet
 - [x] P1.2 : Résolution à l'ouverture
-- [ ] P1.3 : Migration non-destructive des anciens projets
+- [x] P1.3 : Migration non-destructive des anciens projets
 - [ ] P1.4 : Sauvegarde et autosave après déplacement
 
-**P1 global** : **En cours** (2/4 sous-phases complétées)
+**P1 global** : **En cours** (3/4 sous-phases complétées)
 
 ---
 
