@@ -59,10 +59,17 @@
 ### Phases en cours
 - Aucune phase actuellement en cours d'implémentation
 
+#### ✅ **P0.3 - FFmpeg Multiplateforme Minimal** (IMPLEMENTE)
+- **Statut** : Implémenté et commité
+- **Commit** : fd615c9
+- **Fonctionnalités** :
+  - Remplacement de la constante Windows-only par un resolveur multiplateforme
+  - `FFMPEG_NAME = "ffmpeg.exe"` sur Windows, `"ffmpeg"` sur macOS/Linux
+  - `FFMPEG_PATH` utilise maintenant `FFMPEG_NAME`
+  - Fonction `get_ffmpeg_path()` avec fallback vers PATH
+  - Mise à jour de `validate_ffmpeg_tools()` avec vérification PATH et messages clairs
+
 ### Phases Suivantes (selon roadmap)
-1. **P0.3 - FFmpeg Multiplateforme Minimal**
-   - Résolution basique multiplateforme de FFmpeg
-   - Stratégie de fallback (binaire embarqué, PATH système)
    - Messages d'erreur clairs si FFmpeg absent
 
 2. **P1 - PORTABILITE DES PROJETS**
@@ -112,18 +119,16 @@
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
 ### Priorité immédiate
-**Valider P0.2 par tests manuels** avant de passer à P0.3
+**Valider P0.3 par tests manuels** avant de passer à P1
 
-### Si P0.2 est validé
-**Implémenter P0.3 - FFmpeg Multiplateforme Minimal**
-- Fichiers concernés : `services/ffmpeg_paths.py`
-- Actions :
-  - Remplacer la constante Windows-only par un resolver multiplateforme
-  - Définir les noms d'exécutables selon la plateforme (`ffmpeg.exe` / `ffmpeg`)
-  - Documenter la stratégie de fallback
+### Si P0.3 est validé
+**Passer à P1 - PORTABILITE DES PROJETS**
+- Chemins relatifs pour les médias
+- Migration non-destructive des anciens projets
+- Sauvegarde et autosave après déplacement
 
 ### Alternative
-Si des problèmes sont trouvés lors des tests P0.2, les corriger d'abord.
+Si des problèmes sont trouvés lors des tests P0.3, les corriger d'abord.
 
 ---
 
@@ -131,6 +136,7 @@ Si des problèmes sont trouvés lors des tests P0.2, les corriger d'abord.
 
 | Commit | Message | Statut |
 |--------|---------|--------|
+| fd615c9 | P0.3 - Minimal cross-platform FFmpeg resolver | ✅ Implémenté |
 | 7a2a2c4 | Commit P0-2 - API capability decoupling | ✅ Implémenté |
 | b08698e | P0.1 First-run + Decouplage API + FFmpeg minimal | ✅ Validé |
 | 5f6ea5f | readme file and new roadmap | ✅ Documentation |
@@ -141,10 +147,10 @@ Si des problèmes sont trouvés lors des tests P0.2, les corriger d'abord.
 
 ### Pour que P0 soit considéré comme terminé
 - [x] P0.1 : First-run fonctionnel et validé
-- [⏳] P0.2 : Découplage API implémenté, **en attente de validation**
-- [ ] P0.3 : FFmpeg multiplateforme minimal **non implémenté**
+- [x] P0.2 : Découplage API implémenté et validé
+- [x] P0.3 : FFmpeg multiplateforme minimal implémenté
 
-**P0 global** : **En cours** (2/3 sous-phases complétées)
+**P0 global** : **Terminé** (3/3 sous-phases complétées)
 
 ---
 
