@@ -101,8 +101,17 @@
   - Toutes les données de transcription sont conservées sans régression
   - Logic de réparation des anciens `speaker_id` est conservée (via `repair_project_speakers`)
 
+#### ✅ **P1.4 - Sauvegarde et autosave après déplacement** (IMPLEMENTE)
+- **Statut** : Implémenté via P1.2
+- **Fichiers concernés** : `ui/main_window.py`
+- **Fonctionnalités** :
+  - `Ctrl+S` sauvegarde dans le `.sttproj` effectivement ouvert (via `save_current_project()`)
+  - L'autosave écrit au nouvel emplacement (via `autosave_project()` → `save_current_project()`)
+  - L'export propose le dossier du `.sttproj` effectivement ouvert (via `Path(project.project_file).parent`)
+  - Le titre de l'éditeur utilise le dossier courant (via `update_window_title()`)
+
 ### Phases en cours
-- P1.4 - Sauvegarde et autosave après déplacement
+- Aucune (P1 terminé)
 
 ### Phases Suivantes (selon roadmap)
 1. **P1 - PORTABILITE DES PROJETS**
@@ -152,10 +161,10 @@
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
 ### Priorité immédiate
-**Valider P1.3 par tests manuels** avant de passer à P1.4
+**Valider P1 par tests manuels complets** avant de passer à P2
 
-### Si P1.3 est validé
-**Passer à P1.4 - Sauvegarde et autosave après déplacement**
+### Si P1 est validé
+**Passer à P2 - MODE SANS CLE API**
 - Ne pas modifier le fichier sur disque à l'ouverture
 - À la prochaine sauvegarde, convertir audio_file en relatif si l'audio est dans le dossier projet
 - Supprimer project_file du JSON lors de la sauvegarde des anciens projets
@@ -170,7 +179,8 @@ Si des problèmes sont trouvés lors des tests P1.1, les corriger d'abord.
 
 | Commit | Message | Statut |
 |--------|---------|--------|
-| HEAD | P1.3 - Migration non-destructive des anciens projets | ⏳ En cours |
+| HEAD | P1.4 - Sauvegarde et autosave après déplacement | ⏳ En cours |
+| 528ce8c | P1.3 - Migration non-destructive des anciens projets | ✅ Implémenté |
 | 71ac2cf | P1.2 - Resolution a l'ouverture | ✅ Implémenté |
 | 76dc6cf | P1.1 - Portable project format v1 | ✅ Implémenté |
 | fd615c9 | P0.3 - Minimal cross-platform FFmpeg resolver | ✅ Implémenté |
@@ -193,9 +203,9 @@ Si des problèmes sont trouvés lors des tests P1.1, les corriger d'abord.
 - [x] P1.1 : Définir le contrat du format projet
 - [x] P1.2 : Résolution à l'ouverture
 - [x] P1.3 : Migration non-destructive des anciens projets
-- [ ] P1.4 : Sauvegarde et autosave après déplacement
+- [x] P1.4 : Sauvegarde et autosave après déplacement
 
-**P1 global** : **En cours** (3/4 sous-phases complétées)
+**P1 global** : **Terminé** (4/4 sous-phases complétées)
 
 ---
 
