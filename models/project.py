@@ -21,6 +21,7 @@ class Project:
     transcription_id: Optional[str] = None
     language_code: Optional[str] = None
     duration_seconds: float = 0.0
+    project_format_version: int = 1
 
     speakers: List[Speaker] = field(default_factory=list)
     words: List[Word] = field(default_factory=list)

@@ -69,13 +69,25 @@
   - Fonction `get_ffmpeg_path()` avec fallback vers PATH
   - Mise à jour de `validate_ffmpeg_tools()` avec vérification PATH et messages clairs
 
-### Phases Suivantes (selon roadmap)
-   - Messages d'erreur clairs si FFmpeg absent
+#### ✅ **P1.1 - Définir le contrat du format projet** (IMPLEMENTE)
+- **Statut** : Implémenté et testé
+- **Fichiers concernés** : `models/project.py`, `services/project_io.py`
+- **Fonctionnalités** :
+  - Ajout de `project_format_version: 1` au modèle Project
+  - `project_file` **n'est plus sauvegardé** dans le JSON des nouveaux projets
+  - `audio_file` est converti en chemin relatif lors de la sauvegarde (si dans dossier projet)
+  - Utilisation de `/` pour les chemins JSON (compatible Windows)
+  - `Project.project_file` reste **uniquement en mémoire** pour sauvegarde/autosave/titre/export
+  - Gestion des médias externes au dossier projet (gardés en absolu pour l'instant)
 
-2. **P1 - PORTABILITE DES PROJETS**
-   - Chemins relatifs pour les médias
-   - Migration non-destructive des anciens projets
-   - Sauvegarde et autosave après déplacement
+### Phases en cours
+- P1.2 - Résolution à l'ouverture
+
+### Phases Suivantes (selon roadmap)
+1. **P1 - PORTABILITE DES PROJETS**
+   - P1.2 - Résolution à l'ouverture (chemins relatifs)
+   - P1.3 - Migration non-destructive des anciens projets
+   - P1.4 - Sauvegarde et autosave après déplacement
 
 ---
 
@@ -119,16 +131,16 @@
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
 ### Priorité immédiate
-**Valider P0.3 par tests manuels** avant de passer à P1
+**Valider P1.1 par tests manuels** avant de passer à P1.2
 
-### Si P0.3 est validé
-**Passer à P1 - PORTABILITE DES PROJETS**
-- Chemins relatifs pour les médias
-- Migration non-destructive des anciens projets
-- Sauvegarde et autosave après déplacement
+### Si P1.1 est validé
+**Passer à P1.2 - Résolution à l'ouverture**
+- Fix project.project_file en mémoire avec filename
+- Si audio_file est relatif, le résoudre depuis le dossier du .sttproj
+- Gérer les anciens projets avec chemins absolus
 
 ### Alternative
-Si des problèmes sont trouvés lors des tests P0.3, les corriger d'abord.
+Si des problèmes sont trouvés lors des tests P1.1, les corriger d'abord.
 
 ---
 
@@ -136,6 +148,7 @@ Si des problèmes sont trouvés lors des tests P0.3, les corriger d'abord.
 
 | Commit | Message | Statut |
 |--------|---------|--------|
+| HEAD | P1.1 - Portable project format v1 | ⏳ En cours |
 | fd615c9 | P0.3 - Minimal cross-platform FFmpeg resolver | ✅ Implémenté |
 | 7a2a2c4 | Commit P0-2 - API capability decoupling | ✅ Implémenté |
 | b08698e | P0.1 First-run + Decouplage API + FFmpeg minimal | ✅ Validé |
@@ -151,6 +164,14 @@ Si des problèmes sont trouvés lors des tests P0.3, les corriger d'abord.
 - [x] P0.3 : FFmpeg multiplateforme minimal implémenté
 
 **P0 global** : **Terminé** (3/3 sous-phases complétées)
+
+### Pour que P1 soit considéré comme terminé
+- [x] P1.1 : Définir le contrat du format projet
+- [ ] P1.2 : Résolution à l'ouverture
+- [ ] P1.3 : Migration non-destructive des anciens projets
+- [ ] P1.4 : Sauvegarde et autosave après déplacement
+
+**P1 global** : **En cours** (1/4 sous-phases complétées)
 
 ---
 

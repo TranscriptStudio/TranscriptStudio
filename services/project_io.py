@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from models.project import Project
 from models.speaker import Speaker
@@ -6,18 +7,90 @@ from models.word import Word
 from models.block import Block
 
 
+def _normalize_path_for_json(path_str: str) -> str:
+    """
+    Normalise un chemin pour stockage JSON.
+    - Remplace les backslashes Windows par des slashes (compatible toutes plateformes)
+    - Conserve les chemins relatifs ou absolus tels quels (sauf normalisation des séparateurs)
+    """
+    if path_str is None:
+        return None
+    # Normaliser tous les séparateurs en /
+    return path_str.replace("\\", "/")
+
+
+def _make_relative_path(audio_path: str, project_dir: Path) -> str:
+    """
+    Convertit un chemin audio en chemin relatif par rapport au dossier du projet.
+    
+    Si l'audio est dans le dossier projet ou un sous-dossier, retourne un chemin relatif.
+    Sinon, retourne le chemin original (absolu ou externe).
+    
+    Args:
+        audio_path: Chemin de l'audio (absolu ou relatif)
+        project_dir: Répertoire contenant le fichier .sttproj
+        
+    Returns:
+        Chemin relatif si l'audio est dans le projet, chemin original sinon
+    """
+    if not audio_path:
+        return audio_path
+        
+    audio_path_obj = Path(audio_path)
+    
+    # Si c'est déjà un chemin relatif, vérifier s'il existe par rapport à project_dir
+    if not audio_path_obj.is_absolute():
+        # Test si le chemin relatif pointe vers un fichier dans le dossier projet
+        test_path = project_dir / audio_path_obj
+        if test_path.exists():
+            return _normalize_path_for_json(str(audio_path_obj))
+        # Sinon, retourner tel quel
+        return _normalize_path_for_json(audio_path)
+    
+    # Si c'est un chemin absolu, essayer de le rendre relatif
+    try:
+        # Résoudre le chemin pour éliminer les .. et .
+        resolved_audio = audio_path_obj.resolve()
+        resolved_project = project_dir.resolve()
+        
+        # Vérifier si l'audio est dans le dossier projet
+        if resolved_audio.parent == resolved_project or resolved_project in resolved_audio.parents:
+            # Calculer le chemin relatif
+            relative = resolved_audio.relative_to(resolved_project)
+            return _normalize_path_for_json(str(relative))
+        else:
+            # Media externe au dossier projet - garder absolu pour l'instant
+            # (Migration future vers chemin relatif si l'utilisateur déplace le fichier)
+            return _normalize_path_for_json(audio_path)
+    except (ValueError, OSError):
+        # Si relative_to échoue ou autre problème, retourner l'original
+        return _normalize_path_for_json(audio_path)
+
+
 def save_project(project: Project, filename: str) -> None:
     """
     Sauvegarde un projet au format JSON.
+    
+    Pour P1.1 :
+    - N'écrit PAS project_file dans le JSON (uniquement en mémoire)
+    - Convertit audio_file en chemin relatif si possible
+    - Utilise des / pour les chemins (compatible Windows)
+    - Ajoute project_format_version
     """
+    project_path = Path(filename)
+    project_dir = project_path.parent
+
+    # Convertir audio_file en chemin relatif pour la sauvegarde
+    relative_audio_file = _make_relative_path(project.audio_file, project_dir)
 
     data = {
+        "project_format_version": project.project_format_version,
         "name": project.name,
-        "audio_file": project.audio_file,
+        "audio_file": relative_audio_file,
         "transcription_id": project.transcription_id,
         "language_code": project.language_code,
         "duration_seconds": project.duration_seconds,
-        "project_file": project.project_file,
+        # NE PAS SAUVEGARDER project_file dans le JSON (uniquement en mémoire)
         "modified": project.modified,
         "speakers": [
             {
@@ -61,6 +134,7 @@ def save_project(project: Project, filename: str) -> None:
             ensure_ascii=False,
             indent=2
         )
+
 
 def repair_project_speakers(
     speakers,
@@ -199,14 +273,24 @@ def repair_project_speakers(
         ),
     }
 
+
 def load_project(filename: str) -> Project:
     """
     Recharge un projet sauvegardé.
+    
+    Pour P1.1 :
+    - Fix project.project_file en mémoire avec le chemin absolu du fichier
+    - Si audio_file est relatif, le résoudre depuis le dossier du .sttproj
+    - Gérer les anciens projets avec chemins absolus
     """
+
+    project_path = Path(filename)
+    project_dir = project_path.parent
 
     with open(filename, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Charger les données de base
     speakers = [
         Speaker(
             id=s["id"],
@@ -240,6 +324,7 @@ def load_project(filename: str) -> Project:
         )
         for b in data["blocks"]
     ]
+    
     repair_report = (
         repair_project_speakers(
             speakers,
@@ -268,11 +353,31 @@ def load_project(filename: str) -> Project:
             if block.speaker_id not in valid_speaker_ids:
                 block.speaker_id = fallback_speaker_id
                 
+    # Charger audio_file - gérer les anciens formats avec chemins absolus
+    audio_file = data.get("audio_file", "")
+    
+    # Pour P1.1 : Si audio_file est relatif (avec /), le résoudre depuis project_dir
+    # Sinon, garder tel quel (ancien projet avec chemin absolu)
+    if audio_file and not Path(audio_file).is_absolute():
+        # Chemin relatif - résoudre depuis le dossier du projet
+        # Remplacer / par le séparateur du système pour la résolution
+        relative_audio = Path(audio_file.replace("/", "\\") if "\\" in str(Path(".")) else audio_file)
+        audio_file_path = project_dir / relative_audio
+        # Normaliser le chemin
+        audio_file = str(audio_file_path.resolve())
+    
+    # Récupérer project_file depuis le JSON s'il existe (ancien format)
+    # Sinon, on le définira en mémoire après
+    legacy_project_file = data.get("project_file")
+    
+    # Récupérer project_format_version (default à 1 si absent pour compatibilité)
+    project_format_version = data.get("project_format_version", 1)
+    
     project = Project(
-        project_file=data.get("project_file"),
+        project_file=legacy_project_file,  # Peut être None pour les nouveaux projets
         modified=data.get("modified", False),
         name=data["name"],  
-        audio_file=data["audio_file"],
+        audio_file=audio_file,
         transcription_id=data.get(
             "transcription_id"
         ),
@@ -289,10 +394,15 @@ def load_project(filename: str) -> Project:
         original_elevenlabs_response=data.get(
             "original_elevenlabs_response",
             {}
-        )
+        ),
+        project_format_version=project_format_version
     )
+    
+    # P1.1 : TOUJOURS définir project.project_file en mémoire avec le chemin absolu
+    # Cela permet la sauvegarde, autosave, titre et export
     if not project.project_file:
-        project.project_file = filename
+        project.project_file = str(project_path.resolve())
+    
     #
     # Rapport transitoire utilisé uniquement
     # pour informer l'utilisateur après
@@ -303,8 +413,8 @@ def load_project(filename: str) -> Project:
     )
     return project
 
+
 def save_as_project(project: Project, filename: str):
     if not filename.endswith(".sttproj"):
         filename += ".sttproj"
     save_project(project, filename)
-        
