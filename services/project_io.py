@@ -278,10 +278,12 @@ def load_project(filename: str) -> Project:
     """
     Recharge un projet sauvegardé.
     
-    Pour P1.1 :
-    - Fix project.project_file en mémoire avec le chemin absolu du fichier
-    - Si audio_file est relatif, le résoudre depuis le dossier du .sttproj
-    - Gérer les anciens projets avec chemins absolus
+    Pour P1.1 + P1.2 :
+    - Fix project.project_file = Path(filename).resolve() en mémoire
+    - Si audio_file est relatif, le résoudre depuis Path(filename).parent
+    - Si audio_file est absolu et existe, accepter l'ancien projet
+    - Si audio_file absolu n'existe pas, rechercher dans le dossier projet
+    - Ne JAMAIS résoudre un media relativement au projects_root global
     """
 
     project_path = Path(filename)
@@ -353,21 +355,36 @@ def load_project(filename: str) -> Project:
             if block.speaker_id not in valid_speaker_ids:
                 block.speaker_id = fallback_speaker_id
                 
-    # Charger audio_file - gérer les anciens formats avec chemins absolus
+    # Charger audio_file - P1.2 : Résolution robuste des chemins audio
     audio_file = data.get("audio_file", "")
     
-    # Pour P1.1 : Si audio_file est relatif (avec /), le résoudre depuis project_dir
-    # Sinon, garder tel quel (ancien projet avec chemin absolu)
-    if audio_file and not Path(audio_file).is_absolute():
-        # Chemin relatif - résoudre depuis le dossier du projet
-        # Remplacer / par le séparateur du système pour la résolution
-        relative_audio = Path(audio_file.replace("/", "\\") if "\\" in str(Path(".")) else audio_file)
-        audio_file_path = project_dir / relative_audio
-        # Normaliser le chemin
-        audio_file = str(audio_file_path.resolve())
+    # P1.2 : Résoudre le chemin audio selon son type
+    # 1. Si audio_file est vide, garder vide
+    # 2. Si audio_file est un chemin relatif (avec / ou \), le résoudre depuis project_dir
+    # 3. Si audio_file est absolu et existe, l'accepter (ancien projet)
+    # 4. Si audio_file est absolu et N'EXISTE PAS, rechercher dans project_dir
+    if audio_file:
+        audio_path_obj = Path(audio_file)
+        
+        # Normaliser : remplacer / par le séparateur du système
+        # Les chemins JSON utilisent /, mais Path gère les deux
+        if not audio_path_obj.is_absolute():
+            # Chemin relatif - résoudre depuis le dossier du projet
+            audio_path_resolved = project_dir / audio_path_obj
+            audio_file = str(audio_path_resolved.resolve())
+        else:
+            # Chemin absolu - vérifier s'il existe
+            if not audio_path_obj.exists():
+                # Essayer de trouver un fichier de même nom dans le dossier projet
+                # Extraire juste le nom de fichier
+                filename_only = audio_path_obj.name
+                potential_path = project_dir / filename_only
+                if potential_path.exists():
+                    audio_file = str(potential_path.resolve())
+                # Sinon, garder le chemin original (même s'il n'existe pas)
+                # L'utilisateur devra le relocaliser manuellement
     
-    # Récupérer project_file depuis le JSON s'il existe (ancien format)
-    # Sinon, on le définira en mémoire après
+    # Récupérer project_file depuis le JSON s'il existe (compatibilité ancien format)
     legacy_project_file = data.get("project_file")
     
     # Récupérer project_format_version (default à 1 si absent pour compatibilité)

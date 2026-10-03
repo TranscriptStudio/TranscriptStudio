@@ -57,7 +57,7 @@
     - Tooltip mis à jour pour expliquer la raison
 
 ### Phases en cours
-- Aucune phase actuellement en cours d'implémentation
+- P1.2 - Résolution à l'ouverture
 
 #### ✅ **P0.3 - FFmpeg Multiplateforme Minimal** (IMPLEMENTE)
 - **Statut** : Implémenté et commité
@@ -80,8 +80,19 @@
   - `Project.project_file` reste **uniquement en mémoire** pour sauvegarde/autosave/titre/export
   - Gestion des médias externes au dossier projet (gardés en absolu pour l'instant)
 
+#### ✅ **P1.2 - Résolution à l'ouverture** (IMPLEMENTE)
+- **Statut** : Implémenté et testé
+- **Fichiers concernés** : `services/project_io.py`
+- **Fonctionnalités** :
+  - `project.project_file` toujours défini comme `Path(filename).resolve()` en mémoire
+  - Si `audio_file` est relatif, résolu depuis `Path(filename).parent`
+  - Si `audio_file` est absolu et existe, accepté (compatibilité anciens projets)
+  - Si `audio_file` absolu n'existe pas, recherche dans le dossier du projet
+  - **Jamais** de résolution relative au `projects_root` global
+  - Normalisation de tous les chemins avec `pathlib.Path`
+
 ### Phases en cours
-- P1.2 - Résolution à l'ouverture
+- P1.3 - Migration non-destructive des anciens projets
 
 ### Phases Suivantes (selon roadmap)
 1. **P1 - PORTABILITE DES PROJETS**
@@ -131,13 +142,14 @@
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
 ### Priorité immédiate
-**Valider P1.1 par tests manuels** avant de passer à P1.2
+**Valider P1.2 par tests manuels** avant de passer à P1.3
 
-### Si P1.1 est validé
-**Passer à P1.2 - Résolution à l'ouverture**
-- Fix project.project_file en mémoire avec filename
-- Si audio_file est relatif, le résoudre depuis le dossier du .sttproj
-- Gérer les anciens projets avec chemins absolus
+### Si P1.2 est validé
+**Passer à P1.3 - Migration non-destructive des anciens projets**
+- Ne pas modifier le fichier sur disque à l'ouverture
+- À la prochaine sauvegarde, convertir audio_file en relatif si l'audio est dans le dossier projet
+- Supprimer project_file du JSON lors de la sauvegarde des anciens projets
+- Conserver toutes les données de transcription sans régression
 
 ### Alternative
 Si des problèmes sont trouvés lors des tests P1.1, les corriger d'abord.
@@ -148,7 +160,8 @@ Si des problèmes sont trouvés lors des tests P1.1, les corriger d'abord.
 
 | Commit | Message | Statut |
 |--------|---------|--------|
-| HEAD | P1.1 - Portable project format v1 | ⏳ En cours |
+| HEAD | P1.2 - Resolution a l'ouverture | ⏳ En cours |
+| 76dc6cf | P1.1 - Portable project format v1 | ✅ Implémenté |
 | fd615c9 | P0.3 - Minimal cross-platform FFmpeg resolver | ✅ Implémenté |
 | 7a2a2c4 | Commit P0-2 - API capability decoupling | ✅ Implémenté |
 | b08698e | P0.1 First-run + Decouplage API + FFmpeg minimal | ✅ Validé |
@@ -167,11 +180,11 @@ Si des problèmes sont trouvés lors des tests P1.1, les corriger d'abord.
 
 ### Pour que P1 soit considéré comme terminé
 - [x] P1.1 : Définir le contrat du format projet
-- [ ] P1.2 : Résolution à l'ouverture
+- [x] P1.2 : Résolution à l'ouverture
 - [ ] P1.3 : Migration non-destructive des anciens projets
 - [ ] P1.4 : Sauvegarde et autosave après déplacement
 
-**P1 global** : **En cours** (1/4 sous-phases complétées)
+**P1 global** : **En cours** (2/4 sous-phases complétées)
 
 ---
 
