@@ -1,7 +1,7 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-09
-> **Commit actuel** : 93f90e9
+> **Commit actuel** : 5744295
 > **Branche** : master
 
 ---
@@ -10,10 +10,10 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +19 commits (en avance sur origin/master)
-- **Dernier commit** : `93f90e9 P5 - Nettoyage et standardisation : TranscriptAudio->TranscriptStudio, audit pathlib, cleanup imports`
+- **Local vs Origin** : +22 commits (en avance sur origin/master)
+- **Dernier commit** : `5744295 P6 - Stockage securise des cles API : CredentialStore et migration depuis SettingsManager`
 - **Commits récents** :
-  - `93f90e9 P5 - Nettoyage et standardisation : TranscriptAudio->TranscriptStudio, audit pathlib, cleanup imports`
+  - `5744295 P6 - Stockage securise des cles API : CredentialStore et migration depuis SettingsManager`
   - `c5ca718 P4 - Resilience face a un media manquant : dialogue de recuperation et mode edition sans audio`
   - `dbe13f1 P3 - Decouplage finalisation audio / transcription`
   - `749ed6c P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
@@ -143,12 +143,12 @@
 
 #### ✅ **P6 - STOCKAGE SECURISE DES CLES API** ⭐ **TERMINE**
 - **P6.1 Abstraction** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : 5744295
   - Creation de `services/credential_store.py`
   - Intégration dans api_capabilities, elevenlabs_api, elevenlabs_transcriber, settings_dialog
   
 - **P6.2 Migration** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : 5744295
   - Méthode de migration depuis SettingsManager
   - Ne jamais journaliser la clé
 
@@ -233,7 +233,7 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
-| (à définir) | P6 - Stockage securise des cles API | ✅ VALIDE | P6 |
+| 5744295 | P6 - Stockage securise des cles API | ✅ VALIDE | P6 |
 | 93f90e9 | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
 | c5ca718 | P4 - Resilience face a un media manquant | ✅ VALIDE | P4 |
 | dbe13f1 | P3 - Decouplage finalisation audio / transcription | ✅ VALIDE | P3 |
