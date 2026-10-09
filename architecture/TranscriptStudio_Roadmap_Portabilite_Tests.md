@@ -89,122 +89,137 @@ Apres analyse approfondie du code actuel, cette roadmap a ete **reorganisee** po
 
 ---
 
-## P0.2 Decouplage Cle API / Capacites
+## P0.2 Decouplage Cle API / Capacites ⭐ **VALIDE**
 
 **Objectif** : Centraliser la gestion des capacites API pour eviter les tests disperses.
 
 ### Actions
-- [ ] Creer `services/api_capabilities.py` avec :
+- [x] Creer `services/api_capabilities.py` avec :
   ```python
   def has_transcription_api() -> bool: ...
   def can_transcribe_direct() -> bool: ...
   def can_finalize_audio() -> bool: return True  # Toujours vrai
   ```
-- [ ] Remplacer tous les `if api_key` disperses par `if has_transcription_api()`
-- [ ] **Ne jamais appeler ElevenLabs sans cle valide** (verifier `elevenlabs_transcriber.py`)
+- [x] Remplacer tous les `if api_key` disperses par `if has_transcription_api()`
+- [x] **Ne jamais appeler ElevenLabs sans cle valide** (verifier `elevenlabs_transcriber.py`)
 
 ### Fichiers concernes
 - Nouveau `services/api_capabilities.py`
-- `ui/*_dialog.py` (remplacement des tests `if api_key`)
-- `services/elevenlabs_*.py`
+- `ui/elevenlabs_account_dialog.py` (remplacement des tests `if api_key`)
+- `ui/transcription_entry_dialog.py` (remplacement des tests `if api_key`)
+- `services/elevenlabs_api.py`
+- `services/elevenlabs_transcriber.py`
 
 ### Tests P0.2
-- [ ] Demarrage sans cle -> pas d'erreur
-- [ ] Tentative de transcription directe -> message clair, aucune requete HTTP
-- [ ] Ajout d'une cle depuis Parametres -> transcription disponible sans redemarrage
+- [x] Demarrage sans cle -> pas d'erreur
+- [x] Tentative de transcription directe -> message clair, aucune requete HTTP
+- [x] Ajout d'une cle depuis Parametres -> transcription disponible sans redemarrage
 
 **Criteres de sortie** : Absence de cle = degradation fonctionnelle controlee, jamais blocage global
 
+**Validation** : Implémenté via commit 952a010 + tests manuels effectues
+
 ---
 
-## P0.3 FFmpeg Multiplateforme Minimal
+## P0.3 FFmpeg Multiplateforme Minimal ⭐ **VALIDE**
 
 **Objectif** : Permettre le fonctionnement sur tous les OS avec une detection basique.
 
 ### Actions
-- [ ] Remplacer `FFMPEG_PATH = FFMPEG_DIR / "ffmpeg.exe"` par un resolveur multiplateforme :
+- [x] Remplacer `FFMPEG_PATH = FFMPEG_DIR / "ffmpeg.exe"` par un resolveur multiplateforme :
   ```python
   import sys
   FFMPEG_NAME = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
   FFMPEG_PATH = FFMPEG_DIR / FFMPEG_NAME
   ```
-- [ ] **Conserver** `tools/ffmpeg/ffmpeg.exe` pour Windows
-- [ ] **Documenter** : Sur macOS/Linux, FFmpeg doit etre dans `PATH` ou dans `tools/ffmpeg/ffmpeg`
-- [ ] Produire un message d'erreur clair lorsque FFmpeg est absent
+- [x] **Conserver** `tools/ffmpeg/ffmpeg.exe` pour Windows
+- [x] **Documenter** : Sur macOS/Linux, FFmpeg doit etre dans `PATH` ou dans `tools/ffmpeg/ffmpeg`
+- [x] Produire un message d'erreur clair lorsque FFmpeg est absent
 
 ### Fichiers concernes
 - `services/ffmpeg_paths.py`
 
 ### Tests P0.3
-- [ ] FFmpeg trouve dans `tools/ffmpeg/ffmpeg.exe` (Windows)
-- [ ] FFmpeg trouve dans `tools/ffmpeg/ffmpeg` (macOS/Linux)
-- [ ] FFmpeg trouve via `PATH` si present
-- [ ] FFmpeg absent -> message explicite, pas de crash
+- [x] FFmpeg trouve dans `tools/ffmpeg/ffmpeg.exe` (Windows)
+- [x] FFmpeg trouve dans `tools/ffmpeg/ffmpeg` (macOS/Linux)
+- [x] FFmpeg trouve via `PATH` si present
+- [x] FFmpeg absent -> message explicite, pas de crash
 
 **Criteres de sortie** : FFmpeg est detecte sur chaque plateforme avec un fallback clair
 
+**Validation** : Implémenté via commit fd615c9, validé via commit a02afb3
+
 ---
 
-# PHASE P1 - PORTABILITE DES PROJETS (⭐ Originalement Phase 1)
+# PHASE P1 - PORTABILITE DES PROJETS (⭐ Originalement Phase 1) ⭐ **VALIDE**
 
 > **Objectif** : Corriger le bug actuel : un projet copie ou deplace doit continuer a retrouver son audio et a sauvegarder au nouvel emplacement.
 > **Duree estimee** : 3-5 jours
 > **Pre-requis** : P0 termine (first-run stabilise `projects_root`)
+> **Statut** : **Terminée** - Toutes les sous-phases implémentées et validées
 
-## P1.1 Definir le contrat du format projet
+## P1.1 Definir le contrat du format projet ⭐ **VALIDE**
 
-- [ ] Ajouter un numero de version de format, par exemple `project_format_version: 1`
-- [ ] Definir que `audio_file` est persiste **relativement** au repertoire contenant `project.sttproj` lorsque l'audio appartient au projet
-- [ ] Utiliser un chemin JSON canonique avec `/` pour les references relatives (compatible Windows)
-- [ ] **Ne plus ecrire `project_file` dans les nouveaux `.sttproj`**
-- [ ] Conserver `Project.project_file` **uniquement en memoire** pour sauvegarde, autosave, titre et export
-- [ ] Definir explicitement le comportement pour un media externe au dossier projet
+- [x] Ajouter un numero de version de format, par exemple `project_format_version: 1`
+- [x] Definir que `audio_file` est persiste **relativement** au repertoire contenant `project.sttproj` lorsque l'audio appartient au projet
+- [x] Utiliser un chemin JSON canonique avec `/` pour les references relatives (compatible Windows)
+- [x] **Ne plus ecrire `project_file` dans les nouveaux `.sttproj`**
+- [x] Conserver `Project.project_file` **uniquement en memoire** pour sauvegarde, autosave, titre et export
+- [x] Definir explicitement le comportement pour un media externe au dossier projet
 
 ### Choix recommande pour les nouveaux projets
-- [ ] Copier le media dans le dossier projet (comme aujourd'hui)
-- [ ] Enregistrer seulement son chemin relatif
-- [ ] Eviter les references permanentes a des medias externes pour les nouveaux projets
+- [x] Copier le media dans le dossier projet (comme aujourd'hui)
+- [x] Enregistrer seulement son chemin relatif
+- [x] Eviter les references permanentes a des medias externes pour les nouveaux projets
 
 ### Fichiers concernes
 - `services/project_io.py`
 - `models/project.py`
 
+**Validation** : Implémenté via commit 76dc6cf
+
 ---
 
-## P1.2 Resolution a l'ouverture
+## P1.2 Resolution a l'ouverture ⭐ **VALIDE**
 
-- [ ] Dans `load_project(filename)`, **fixer systematiquement** `project.project_file = Path(filename).resolve()`
-- [ ] Si `audio_file` est relatif, le resoudre depuis `Path(filename).parent`
-- [ ] Si `audio_file` est absolu et existe, accepter l'ancien projet tel quel en memoire
-- [ ] Si l'ancien chemin absolu n'existe plus, rechercher dans le dossier actuel du projet un fichier de meme nom
-- [ ] **Ne jamais resoudre un media relativement au `projects_root` global**
-- [ ] Normaliser tous les chemins avec `pathlib.Path`
+- [x] Dans `load_project(filename)`, **fixer systematiquement** `project.project_file = Path(filename).resolve()`
+- [x] Si `audio_file` est relatif, le resoudre depuis `Path(filename).parent`
+- [x] Si `audio_file` est absolu et existe, accepter l'ancien projet tel quel en memoire
+- [x] Si l'ancien chemin absolu n'existe plus, rechercher dans le dossier actuel du projet un fichier de meme nom
+- [x] **Ne jamais resoudre un media relativement au `projects_root` global**
+- [x] Normaliser tous les chemins avec `pathlib.Path`
 
 ### Fichiers concernes
 - `services/project_io.py`
 
+**Validation** : Implémenté via commit 71ac2cf
+
 ---
 
-## P1.3 Migration non destructive des anciens projets
+## P1.3 Migration non destructive des anciens projets ⭐ **VALIDE**
 
-- [ ] L'ouverture d'un ancien projet ne doit pas modifier immediatement le fichier sur disque
-- [ ] A la prochaine sauvegarde, convertir `audio_file` en relatif **si l'audio se trouve dans le dossier projet**
-- [ ] Supprimer alors `project_file` du JSON ecrit
-- [ ] Conserver toutes les donnees de transcription existantes sans regression
-- [ ] Conserver la logique de reparation des anciens `speaker_id`
+- [x] L'ouverture d'un ancien projet ne doit pas modifier immediatement le fichier sur disque
+- [x] A la prochaine sauvegarde, convertir `audio_file` en relatif **si l'audio se trouve dans le dossier projet**
+- [x] Supprimer alors `project_file` du JSON ecrit
+- [x] Conserver toutes les donnees de transcription existantes sans regression
+- [x] Conserver la logique de reparation des anciens `speaker_id`
 
 ### Fichiers concernes
 - `services/project_io.py`
 - `models/project.py`
 
+**Validation** : Implémenté via commit 528ce8c
+
 ---
 
-## P1.4 Sauvegarde et autosave apres deplacement
+## P1.4 Sauvegarde et autosave apres deplacement ⭐ **VALIDE**
 
-- [ ] Verifier que `Ctrl+S` sauvegarde dans le `.sttproj` effectivement ouvert
-- [ ] Verifier que l'autosave ecrit au nouvel emplacement et jamais dans l'ancien dossier
-- [ ] Verifier que l'export propose le dossier du `.sttproj` effectivement ouvert
-- [ ] Verifier que le titre de l'editeur utilise le dossier courant
+- [x] Verifier que `Ctrl+S` sauvegarde dans le `.sttproj` effectivement ouvert
+- [x] Verifier que l'autosave ecrit au nouvel emplacement et jamais dans l'ancien dossier
+- [x] Verifier que l'export propose le dossier du `.sttproj` effectivement ouvert
+- [x] Verifier que le titre de l'editeur utilise le dossier courant
+
+**Validation** : Implémenté via commit a52e208 (déjà implémenté via P1.2)
 
 ---
 
@@ -225,17 +240,19 @@ Creer des tests `pytest` sans dependre de l'UI :
 
 ## Tests manuels P1
 
-- [ ] Creer un projet neuf et transcrire un petit audio
-- [ ] Fermer l'application
-- [ ] Copier tout le dossier projet ailleurs
-- [ ] Ouvrir le `.sttproj` copie
-- [ ] Verifier lecture audio, duree, timeline et synchronisation
-- [ ] Modifier un mot, sauvegarder, fermer et rouvrir
-- [ ] Verifier que l'ancien dossier n'a pas ete touche
-- [ ] Verifier le contenu JSON du nouveau `.sttproj`
-- [ ] Repeter avec un projet ancien contenant un chemin absolu devenu invalide
+- [x] Creer un projet neuf et transcrire un petit audio
+- [x] Fermer l'application
+- [x] Copier tout le dossier projet ailleurs
+- [x] Ouvrir le `.sttproj` copie
+- [x] Verifier lecture audio, duree, timeline et synchronisation
+- [x] Modifier un mot, sauvegarder, fermer et rouvrir
+- [x] Verifier que l'ancien dossier n'a pas ete touche
+- [x] Verifier le contenu JSON du nouveau `.sttproj`
+- [x] Repeter avec un projet ancien contenant un chemin absolu devenu invalide
 
 **Criteres de sortie** : Deplacement integral d'un dossier projet = ouverture, lecture, edition, sauvegarde et export fonctionnels
+
+**Validation** : Tous les tests manuels ont été effectués et validés
 
 ---
 
@@ -650,11 +667,12 @@ tools/ffmpeg/
 
 # 📅 PLANNING RECOMMANDE
 
-## SPRINT 1 (Semaine 1) : Deblocage & Portabilite
-- **J1-J2** : P0.1 (First-run) + P0.2 (Decouplage API) + P0.3 (FFmpeg minimal)
-- **J3-J5** : P1 (Portabilite projets)
+## SPRINT 1 (Semaine 1) : Deblocage & Portabilite ⭐ **TERMINE**
+- **J1-J2** : P0.1 (First-run) + P0.2 (Decouplage API) + P0.3 (FFmpeg minimal) ⭐ **TERMINE**
+- **J3-J5** : P1 (Portabilite projets) ⭐ **TERMINE**
 
 **Livrable** : Nouveau utilisateur peut demarrer, creer un projet portable.
+**Statut** : ✅ **Atteint** - Tous les objectifs du Sprint 1 réalisés
 
 ---
 
@@ -687,14 +705,14 @@ tools/ffmpeg/
 > **Note** : Les numeros de commits ont ete ajustes pour refleter la nouvelle prioritisation.
 
 ## Sprint 1 - Deblocage
-- [ ] **Commit P0-1 — First-run setup** : Repertoire projets obligatoire, Documents propose, cle facultative
-- [ ] **Commit P0-2 — API capability decoupling** : Centralisation des capacites, blocage cible des fonctions ElevenLabs
-- [ ] **Commit P0-3 — Minimal cross-platform FFmpeg** : Resolveur basique, strategie de fallback
+- [x] **Commit P0-1 — First-run setup** : b08698e - Repertoire projets obligatoire, Documents propose, cle facultative
+- [x] **Commit P0-2 — API capability decoupling** : 952a010 - Centralisation des capacites, blocage cible des fonctions ElevenLabs
+- [x] **Commit P0-3 — Minimal cross-platform FFmpeg** : fd615c9 - Resolveur basique, strategie de fallback
 
 ## Sprint 2 - Portabilite
-- [ ] **Commit P1-1 — Portable project format v1** : `project_format_version`, chemins relatifs, suppression `project_file` du JSON
-- [ ] **Commit P1-2 — Legacy project migration** : Resolution chemins, migration non-destructive
-- [ ] **Commit P1-3 — Project save/load refactoring** : Sauvegarde relative, autosave, export
+- [x] **Commit P1-1 — Portable project format v1** : 76dc6cf - `project_format_version`, chemins relatifs, suppression `project_file` du JSON
+- [x] **Commit P1-2 — Legacy project migration** : 71ac2cf - Resolution chemins, migration non-destructive
+- [x] **Commit P1-3 — Project save/load refactoring** : a52e208 - Sauvegarde relative, autosave, export
 
 ## Sprint 3 - Mode Degrade
 - [ ] **Commit P2-1 — API-less mode foundation** : Fonctions autorisees sans API
@@ -738,6 +756,28 @@ tools/ffmpeg/
 - [ ] Aucun `.sttproj` de fixture ne contient de donnee personnelle/confidentielle
 - [ ] README/architecture mis a jour lorsque le contrat fonctionnel change
 - [ ] **Chaque commit doit etre testable et reversible**
+
+---
+
+# 📊 ETAT GLOBAL DU PROJET
+
+## Phases Terminees
+- [x] **P0 - DEBLOCAGE IMMEDIAT** : 
+  - [x] P0.1 First-Run Minimal ⭐ **VALIDE**
+  - [x] P0.2 Decouplage Cle API / Capacites ⭐ **VALIDE**
+  - [x] P0.3 FFmpeg Multiplateforme Minimal ⭐ **VALIDE**
+
+- [x] **P1 - PORTABILITE DES PROJETS** ⭐ **VALIDE**
+  - [x] P1.1 Definir le contrat du format projet ⭐ **VALIDE**
+  - [x] P1.2 Resolution a l'ouverture ⭐ **VALIDE**
+  - [x] P1.3 Migration non destructive des anciens projets ⭐ **VALIDE**
+  - [x] P1.4 Sauvegarde et autosave apres deplacement ⭐ **VALIDE**
+
+## Phases en Cours
+- Aucune
+
+## Prochaine Phase
+**P2 - MODE SANS CLE API** : Centraliser la notion de capacite et implementer le mode degrade
 
 ---
 
