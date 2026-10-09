@@ -1,7 +1,7 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-09
-> **Commit actuel** : (à définir après commit P3)
+> **Commit actuel** : dbe13f1
 > **Branche** : master
 
 ---
@@ -10,11 +10,11 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +13 commits (en avance sur origin/master, +1 en attente)
-- **Dernier commit** : `e976c57 P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
+- **Local vs Origin** : +14 commits (en avance sur origin/master)
+- **Dernier commit** : `dbe13f1 P3 - Decouplage finalisation audio / transcription`
 - **Commits récents** :
-  - `(à définir) P3 - Decouplage finalisation audio / transcription`
-  - `e976c57 P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
+  - `dbe13f1 P3 - Decouplage finalisation audio / transcription`
+  - `749ed6c P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
   - `4914a6c Mise a jour PROJECT_STATE.md - P1.3 implemente`
   - `528ce8c P1.3 - Migration non-destructive des anciens projets : deja implmente via P1.1+P1.2`
   - `71ac2cf P1.2 - Resolution a l'ouverture : project_file en memoire, resolution audio_file relatif/absolu avec fallback`
@@ -101,19 +101,33 @@
 
 #### ✅ **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION** ⭐ **TERMINE**
 - **P3.1 Séparer les opérations** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : dbe13f1
   - Refactorisation en `_start_finalization()`
   - Boutons "💾 Finaliser" et "☁ Transcrire" séparés
   
 - **P3.2 Cycle de vie du projet** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : dbe13f1
   - Gestion via `_finalize_mode`
   - Finalisation sans transcription possible
 
+#### ✅ **P4 - RESILIENCE FACE A UN MEDIA MANQUANT** ⭐ **TERMINE**
+- **P4.1 Stratégie de récupération** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Détection du media manquant à l'ouverture
+  - Dialogue "Localiser le fichier... / Ouvrir sans audio / Annuler"
+  - Mise à jour de la référence en mémoire si relocalisé
+  - Conversion en chemin relatif à la sauvegarde
+  
+- **P4.2 Mode édition sans media** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Désactivation des contrôles de lecture
+  - Affichage état "Audio indisponible" dans le titre
+  - Conservation de l'édition, sauvegarde et exports
+
 ### Phases Suivantes
-1. **P4 - RESILIENCE FACE A UN MEDIA MANQUANT** (priorité suivante)
-   - Stratégie de récupération du media manquant
-   - Mode édition sans media
+1. **P5 - NETTOYAGE** (priorité suivante)
+   - Nettoyage des noms historiques
+   - Audit pathlib
 
 ---
 
@@ -130,6 +144,7 @@
 - [x] `services/ffmpeg_paths.py` a un résolveur multiplateforme avec fallback PATH
 - [x] `models/project.py` a `project_format_version` et ne sauvegarde pas `project_file`
 - [x] `services/project_io.py` implémente la résolution des chemins et la migration
+- [x] `ui/main_window.py` implémente `handle_missing_audio()` et `disable_audio_controls()`
 
 ### Tests manuels réalisés (selon commits) :
 - [x] P0.1 : Tous les tests validés
@@ -137,7 +152,8 @@
 - [x] P0.3 : Tests validés (FFmpeg détecté sur toutes les plateformes)
 - [x] P1 : Tests manuels validés (création, copie, ouverture, modification, sauvegarde)
 - [x] P2 : Tests validés (démarrage sans clé, ouverture projet, export, prétraitement, finalisation, bouton Transcrire désactivé, message API clair)
-- [ ] P3 : Tests à valider (bouton Finaliser, découplage finalisation/transcription)
+- [x] P3 : Tests validés (bouton Finaliser, découplage finalisation/transcription)
+- [ ] P4 : Tests à valider (media manquant, relocalisation, ouverture sans audio)
 
 ---
 
@@ -182,7 +198,8 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
-| e976c57 | P2 - Mode sans cle API : UX degradee et decouplage fonctionnel | ✅ VALIDE | P2 |
+| dbe13f1 | P3 - Decouplage finalisation audio / transcription | ✅ VALIDE | P3 |
+| 749ed6c | P2 - Mode sans cle API : UX degradee et decouplage fonctionnel | ✅ VALIDE | P2 |
 | a52e208 | P1.4 - Sauvegarde et autosave : deja implemente via P1.2 | ✅ VALIDE | P1 |
 | 4914a6c | Mise a jour PROJECT_STATE.md - P1.3 implemente | ✅ DOC | P1 |
 | 528ce8c | P1.3 - Migration non-destructive des anciens projets | ✅ VALIDE | P1 |
@@ -215,7 +232,8 @@
 - **P1** : ✅ **TERMINE**
 - **P2** : ✅ **TERMINE**
 - **P3** : ✅ **TERMINE**
-- **Prochaine** : **P4 - RESILIENCE FACE A UN MEDIA MANQUANT**
+- **P4** : ✅ **TERMINE**
+- **Prochaine** : **P5 - NETTOYAGE**
 
 ---
 

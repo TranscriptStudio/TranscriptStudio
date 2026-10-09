@@ -95,15 +95,28 @@ class MainWindow(QMainWindow):
             self
         )
 
+        self.audio_available = True
+        
         if self.project.audio_file:
-            # print(
-            #     f"Chargement audio : "
-            #     f"{self.project.audio_file}"
-            # )
+            audio_path = Path(self.project.audio_file)
+            
+            # P4 : Vérifier si le fichier audio existe
+            if not audio_path.exists():
+                self.audio_available = False
+                # Appeler la gestion du media manquant
+                if not self.handle_missing_audio():
+                    # Si l'utilisateur a annulé, fermer la fenêtre
+                    self.close()
+                    return
+            else:
+                # print(
+                #     f"Chargement audio : "
+                #     f"{self.project.audio_file}"
+                # )
 
-            self.playback.load_file(
-                self.project.audio_file
-            )
+                self.playback.load_file(
+                    self.project.audio_file
+                )
 
 
         self.current_word_index = None
@@ -122,6 +135,91 @@ class MainWindow(QMainWindow):
             self.timeline.zoom_out
         )
   
+    def handle_missing_audio(self) -> bool:
+        """
+        P4 : Gère le cas où le fichier audio est manquant.
+        
+        Affiche un dialogue avec 3 options :
+        - Localiser le fichier... : Ouvrir un dialogue de sélection
+        - Ouvrir sans audio : Continuer sans audio
+        - Annuler : Fermer la fenêtre
+        
+        Retourne True si on continue (avec ou sans audio), False si on annule.
+        """
+        while True:
+            msg_box = QMessageBox()
+            msg_box.setWindowTitle("Audio manquant")
+            msg_box.setIcon(QMessageBox.Warning)
+            audio_filename = Path(self.project.audio_file).name
+            msg_box.setText(
+                f"Le fichier audio '{audio_filename}' est introuvable."
+            )
+            msg_box.setInformativeText(
+                "Souhaitez-vous localiser le fichier, ouvrir le projet sans audio, ou annuler ?"
+            )
+            
+            # Boutons personnalisés
+            locate_button = msg_box.addButton("Localiser le fichier...", QMessageBox.ActionRole)
+            open_without_button = msg_box.addButton("Ouvrir sans audio", QMessageBox.ActionRole)
+            cancel_button = msg_box.addButton("Annuler", QMessageBox.RejectRole)
+            
+            msg_box.exec()
+            
+            # Gérer la réponse
+            clicked_button = msg_box.clickedButton()
+            
+            if clicked_button == locate_button:
+                # Ouvrir un dialogue de sélection de fichier
+                file_dialog = QFileDialog()
+                file_dialog.setWindowTitle("Localiser le fichier audio")
+                file_dialog.setNameFilter("Fichiers audio (*.wav *.mp3 *.m4a *.flac *.ogg *.opus *.mp4 *.avi)")
+                file_dialog.setFileMode(QFileDialog.ExistingFile)
+                
+                if file_dialog.exec():
+                    selected_files = file_dialog.selectedFiles()
+                    if selected_files:
+                        new_audio_path = selected_files[0]
+                        # Vérifier que le fichier existe
+                        if Path(new_audio_path).exists():
+                            # Mettre à jour la référence audio du projet en mémoire
+                            self.project.audio_file = new_audio_path
+                            self.audio_available = True
+                            # Charger le nouveau fichier audio
+                            self.playback.load_file(new_audio_path)
+                            return True
+                        else:
+                            # Le fichier sélectionné n'existe pas, afficher un message d'erreur
+                            QMessageBox.warning(
+                                self,
+                                "Fichier introuvable",
+                                "Le fichier sélectionné n'existe pas. Veuillez en choisir un autre."
+                            )
+                            # La boucle continue, le dialogue sera réaffiché
+                    # Si aucun fichier sélectionné, la boucle continue
+                    # et le dialogue sera réaffiché
+                
+            elif clicked_button == open_without_button:
+                # Continuer sans audio
+                self.audio_available = False
+                # Désactiver les contrôles de lecture
+                self.disable_audio_controls()
+                return True
+                
+            else:  # cancel_button ou fermeture du dialogue
+                return False
+    
+    def disable_audio_controls(self):
+        """
+        P4 : Désactive les contrôles de lecture audio.
+        """
+        # Désactiver les boutons de lecture
+        if hasattr(self, 'btn_play'):
+            self.btn_play.setEnabled(False)
+        if hasattr(self, 'btn_prev'):
+            self.btn_prev.setEnabled(False)
+        if hasattr(self, 'btn_next'):
+            self.btn_next.setEnabled(False)
+        
     def build_ui(self):
 
         main_widget = QWidget()
@@ -1059,6 +1157,10 @@ class MainWindow(QMainWindow):
         if self.project.modified:
 
             title += " *"
+        
+        # P4 : Indiquer si l'audio est indisponible
+        if not self.audio_available:
+            title += " [Audio indisponible]"
 
         self.setWindowTitle(title)
 

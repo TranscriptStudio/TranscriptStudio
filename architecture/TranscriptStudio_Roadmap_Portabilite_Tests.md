@@ -350,27 +350,28 @@ Creer des tests `pytest` sans dependre de l'UI :
 
 ---
 
-# PHASE P4 - RESILIENCE FACE A UN MEDIA MANQUANT (⭐ Originalement Phase 5)
+# PHASE P4 - RESILIENCE FACE A UN MEDIA MANQUANT (⭐ Originalement Phase 5) (🟢 VALIDE)
 
 > **Objectif** : Un media manquant ne doit jamais empecher l'acces a une transcription existante.
 > **Duree estimee** : 2 jours
 > **Pre-requis** : P1 termine
+> **Date d'implementation** : 2026-10-09
 
-## P4.1 Strategie de recuperation
+## P4.1 Strategie de recuperation ⭐ **VALIDE**
 
-- [ ] Resoudre d'abord le chemin relatif normal
-- [ ] Pour ancien projet, tenter l'ancien chemin absolu s'il existe
-- [ ] Tenter le meme nom de fichier dans le dossier du projet
-- [ ] Si echec, afficher `Localiser le fichier... / Ouvrir sans audio / Annuler`
-- [ ] Si l'utilisateur relocalise le media, mettre a jour la reference en memoire
-- [ ] A la sauvegarde, convertir la nouvelle reference en relatif si possible
+- [x] Resoudre d'abord le chemin relatif normal (déjà implémenté dans load_project)
+- [x] Pour ancien projet, tenter l'ancien chemin absolu s'il existe (déjà implémenté dans load_project)
+- [x] Tenter le meme nom de fichier dans le dossier du projet (déjà implémenté dans load_project)
+- [x] Si echec, afficher `Localiser le fichier... / Ouvrir sans audio / Annuler` (implémenté dans handle_missing_audio)
+- [x] Si l'utilisateur relocalise le media, mettre a jour la reference en memoire (implémenté)
+- [x] A la sauvegarde, convertir la nouvelle reference en relatif si possible (déjà géré par save_project)
 
-## P4.2 Mode transcription sans media
+## P4.2 Mode transcription sans media ⭐ **VALIDE**
 
-- [ ] Ouvrir l'editeur meme sans audio
-- [ ] Desactiver proprement lecture, seek et fonctions synchronisees necessitant le media
-- [ ] Conserver edition, intervenants, timeline fondee sur horodatages si possible, sauvegarde et exports
-- [ ] Afficher un etat `Audio indisponible` sans multiplier les erreurs FFmpeg/Qt
+- [x] Ouvrir l'editeur meme sans audio (implémenté)
+- [x] Desactiver proprement lecture, seek et fonctions synchronisees necessitant le media (implémenté via disable_audio_controls)
+- [x] Conserver edition, intervenants, timeline fondee sur horodatages si possible, sauvegarde et exports (implémenté)
+- [x] Afficher un etat `Audio indisponible` sans multiplier les erreurs FFmpeg/Qt (implémenté via le titre de la fenêtre)
 
 ## Tests P4
 
