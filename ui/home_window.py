@@ -26,7 +26,7 @@ from PySide6.QtGui import (
 from pathlib import Path
 
 from services.settings import SettingsManager
-from services.api_capabilities import can_access_account_info
+from services.api_capabilities import can_access_account_info, has_transcription_api
 from ui.new_transcription_dialog import NewTranscriptionDialog
 from ui.settings_dialog import SettingsDialog
 from ui.elevenlabs_account_dialog import ElevenLabsAccountDialog
@@ -102,16 +102,21 @@ class HomeWindow(QWidget):
             "Prétraitement audio et transcription assistée par ElevenLabs"
         )
         self.version_label = QLabel("Version 1.1\nSeptembre 2026")
+        self.api_status_label = QLabel("")
+        self.api_status_label.setStyleSheet("font-size: 12px; color: #666666;")
 
         # Les couleurs sont appliquees par une methode separee afin de pouvoir
         # les recalculer immediatement apres un changement de theme.
         self.update_header_colors()
+        self.update_api_status()
 
         title_layout.addWidget(self.title_label)
         title_layout.addSpacing(4)
         title_layout.addWidget(self.subtitle_label)
         title_layout.addSpacing(8)
         title_layout.addWidget(self.version_label)
+        title_layout.addSpacing(4)
+        title_layout.addWidget(self.api_status_label)
 
         header_layout.addWidget(
             icon_label,
@@ -294,7 +299,14 @@ class HomeWindow(QWidget):
         if result:
             self.settings.load()
             self.update_header_colors()
+            self.update_api_status()
                 
+    def update_api_status(self):
+        """Met à jour l'affichage de l'état de l'API de transcription."""
+        if has_transcription_api():
+            self.api_status_label.setText("Service de transcription : configuré")
+        else:
+            self.api_status_label.setText("Service de transcription : non configuré")
     def new_transcription(self):
 
         entry_dialog = (
@@ -354,6 +366,10 @@ class HomeWindow(QWidget):
             )
 
             if not dialog.exec():
+                # Vérifier si l'utilisateur a demandé à ouvrir les paramètres
+                if dialog.should_open_settings():
+                    self.open_settings()
+                
                 try:
                     manager.delete_provisional_project(
                         project_folder
@@ -806,6 +822,10 @@ class HomeWindow(QWidget):
         )
 
         if not dialog.exec():
+            # Vérifier si l'utilisateur a demandé à ouvrir les paramètres
+            if dialog.should_open_settings():
+                self.open_settings()
+            
             try:
                 manager = ProjectManager()
 

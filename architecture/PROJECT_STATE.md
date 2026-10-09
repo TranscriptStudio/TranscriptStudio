@@ -1,7 +1,7 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-09
-> **Commit actuel** : a52e208
+> **Commit actuel** : e976c57
 > **Branche** : master
 
 ---
@@ -10,9 +10,10 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +11 commits (en avance sur origin/master)
-- **Dernier commit** : `a52e208 P1.4 - Sauvegarde et autosave : deja implemente via P1.2`
+- **Local vs Origin** : +13 commits (en avance sur origin/master)
+- **Dernier commit** : `e976c57 P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
 - **Commits récents** :
+  - `e976c57 P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
   - `4914a6c Mise a jour PROJECT_STATE.md - P1.3 implemente`
   - `528ce8c P1.3 - Migration non-destructive des anciens projets : deja implmente via P1.1+P1.2`
   - `71ac2cf P1.2 - Resolution a l'ouverture : project_file en memoire, resolution audio_file relatif/absolu avec fallback`
@@ -76,11 +77,31 @@
   - Sauvegarde au bon emplacement après déplacement
   - Title de l'éditeur mis à jour
 
+#### ✅ **P2 - MODE SANS CLE API** ⭐ **TERMINE**
+- **P2.1 Centraliser la notion de capacité** ⭐ **VALIDE**
+  - Commit : e976c57
+  - `services/api_capabilities.py` avec APICapabilityManager
+  - Distinction capacités locales (FFmpeg) et en ligne (API)
+  
+- **P2.2 Fonctions autorisées sans API** ⭐ **VALIDE**
+  - Commit : e976c57
+  - Toutes les fonctions vérifiées : ouverture, lecture, modification, sauvegarde, export, prétraitement, finalisation, playback
+  
+- **P2.3 Fonctions nécessitant l'API** ⭐ **VALIDE**
+  - Commit : e976c57
+  - Blocage des appels sans clé dans `ElevenLabsTranscriber`
+  - UX dégradée : bouton Transcrire désactivé + message clair
+  - Proposition d'ouvrir les paramètres
+  
+- **P2.4 UX recommandée** ⭐ **VALIDE**
+  - Commit : e976c57
+  - Bouton Transcrire visible mais désactivé sans clé
+  - Affichage discret de l'état API sur l'accueil
+
 ### Phases Suivantes
-1. **P2 - MODE SANS CLE API** (priorité suivante)
-   - Centraliser la notion de capacité
-   - Implémenter le mode dégradé
-   - Bloquer les appels API sans clé
+1. **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION** (priorité suivante)
+   - Séparer finalisation et transcription
+   - Cycle de vie du projet
 
 2. **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION**
    - Séparer finalisation et transcription
@@ -91,10 +112,12 @@
 ## 🔍 VERIFICATION DES REALISATIONS
 
 ### Ce qui a été confirmé dans le code :
-- [x] `services/api_capabilities.py` existe avec toutes les fonctions requises
+- [x] `services/api_capabilities.py` existe avec APICapabilityManager et toutes les fonctions requises
 - [x] `services/elevenlabs_api.py` vérifie la clé API à l'initialisation
 - [x] `ui/elevenlabs_account_dialog.py` utilise `can_access_account_info()`
 - [x] `ui/transcription_entry_dialog.py` utilise `has_transcription_api()` et désactive l'option sans API
+- [x] `ui/new_transcription_dialog.py` utilise `has_transcription_api()` pour désactiver le bouton Transcrire
+- [x] `ui/home_window.py` affiche l'état API et gère l'ouverture des paramètres
 - [x] `services/ffmpeg_paths.py` a un résolveur multiplateforme avec fallback PATH
 - [x] `models/project.py` a `project_format_version` et ne sauvegarde pas `project_file`
 - [x] `services/project_io.py` implémente la résolution des chemins et la migration
@@ -104,6 +127,7 @@
 - [x] P0.2 : Tests validés (démarrage sans clé, transcription directe bloquée, ajout clé fonctionnel)
 - [x] P0.3 : Tests validés (FFmpeg détecté sur toutes les plateformes)
 - [x] P1 : Tests manuels validés (création, copie, ouverture, modification, sauvegarde)
+- [x] P2 : Tests validés (démarrage sans clé, ouverture projet, export, prétraitement, finalisation, bouton Transcrire désactivé, message API clair)
 
 ---
 
@@ -122,25 +146,24 @@
 
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
-### Priorité immédiate : **P2 - MODE SANS CLE API**
+### Priorité immédiate : **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION**
 
-**Objectif** : Rendre Transcript Studio utile sans clé ElevenLabs
+**Objectif** : Permettre la finalisation audio sans lancer la transcription
 
 #### Actions principales :
-- [ ] Créer `APICapabilityManager` (déjà commencé dans P0.2, à compléter)
-- [ ] Distinguer capacités locales (pretraitement, finalisation) et en ligne (transcription)
-- [ ] Bloquer les appels réels à ElevenLabs sans clé
-- [ ] Afficher des messages clairs pour guider l'utilisateur
-- [ ] Conserver toutes les fonctions non-API disponibles
+- [ ] Ajouter un bouton "Finaliser l'audio" dans AudioPreprocessDialog
+- [ ] Séparer le workflow : finalisation uniquement vs finalisation + transcription
+- [ ] Définir les états du projet (provisoire, audio_finalise, transcrit)
+- [ ] Adapter home_window.py pour gérer le choix utilisateur
 
 #### Fichiers concernés :
-- `services/api_capabilities.py` (à étendre)
-- `ui/*_dialog.py` (UX dégradée)
-- `services/elevenlabs_*.py` (vérifications supplémentaires)
+- `ui/audio_preprocess_dialog.py` (bouton Finaliser)
+- `ui/home_window.py` (gestion du workflow)
 
 #### Prérequis :
 - ✅ P0 terminé (first-run + découplage API + FFmpeg)
 - ✅ P1 terminé (portabilité des projets)
+- ✅ P2 terminé (mode sans clé API)
 
 ---
 
@@ -148,6 +171,7 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
+| e976c57 | P2 - Mode sans cle API : UX degradee et decouplage fonctionnel | ✅ VALIDE | P2 |
 | a52e208 | P1.4 - Sauvegarde et autosave : deja implemente via P1.2 | ✅ VALIDE | P1 |
 | 4914a6c | Mise a jour PROJECT_STATE.md - P1.3 implemente | ✅ DOC | P1 |
 | 528ce8c | P1.3 - Migration non-destructive des anciens projets | ✅ VALIDE | P1 |
@@ -178,7 +202,8 @@
 ### Global
 - **P0** : ✅ **TERMINE**
 - **P1** : ✅ **TERMINE**
-- **Prochaine** : **P2 - MODE SANS CLE API**
+- **P2** : ✅ **TERMINE**
+- **Prochaine** : **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION**
 
 ---
 

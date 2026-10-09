@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from pathlib import Path
+from services.api_capabilities import has_transcription_api
 
 class NewTranscriptionDialog(QDialog):
 
@@ -24,6 +25,7 @@ class NewTranscriptionDialog(QDialog):
         super().__init__(parent)
 
         self.audio_file = audio_file
+        self._open_settings_requested = False
 
         self.setWindowTitle(
             "Nouvelle transcription"
@@ -189,9 +191,10 @@ class NewTranscriptionDialog(QDialog):
             self.request_cancel
         )
         self.transcribe_button.clicked.connect(
-            self.accept
+            self._handle_transcribe
         )
         self.update_diarization_options()
+        self._update_transcribe_button_state()
 
     def confirm_cancel(self):
         reply = QMessageBox.question(
@@ -226,6 +229,43 @@ class NewTranscriptionDialog(QDialog):
         else:
             event.ignore()
 
+    def _handle_transcribe(self):
+        """
+        Gère le clic sur le bouton Transcrire.
+        Vérifie si l'API est disponible avant d'accepter.
+        """
+        if not has_transcription_api():
+            reply = QMessageBox.question(
+                self,
+                "Clé API requise",
+                "Pour lancer une transcription, vous devez configurer une clé API ElevenLabs valide.\n\n"
+                "Voulez-vous ouvrir les paramètres pour la configurer ?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                # Signaler qu'il faut ouvrir les paramètres
+                # On utilise un attribut pour communiquer avec l'appelant
+                self._open_settings_requested = True
+                self.reject()
+            return
+        
+        self.accept()
+    
+    def _update_transcribe_button_state(self):
+        """
+        Met à jour l'état du bouton Transcrire en fonction
+        de la disponibilité de l'API.
+        """
+        api_available = has_transcription_api()
+        self.transcribe_button.setEnabled(api_available)
+        
+        if api_available:
+            self.transcribe_button.setToolTip("")
+        else:
+            self.transcribe_button.setToolTip(
+                "Clé API ElevenLabs requise. Configurez-la dans les paramètres pour activer la transcription."
+            )
+    
     def get_options(self):
 
         return {
@@ -255,6 +295,10 @@ class NewTranscriptionDialog(QDialog):
                 if x.strip()
             ],
         }
+    
+    def should_open_settings(self) -> bool:
+        """Retourne True si l'utilisateur a demandé à ouvrir les paramètres."""
+        return self._open_settings_requested
     
     def get_language_code(self):
 

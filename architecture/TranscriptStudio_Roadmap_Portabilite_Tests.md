@@ -256,57 +256,58 @@ Creer des tests `pytest` sans dependre de l'UI :
 
 ---
 
-# PHASE P2 - MODE SANS CLE API (⭐ Originalement Phase 3)
+# PHASE P2 - MODE SANS CLE API (⭐ Originalement Phase 3) (🟢 VALIDE)
 
 > **Objectif** : Transcript Studio doit rester utile sans cle ElevenLabs.
 > **Duree estimee** : 2-3 jours
 > **Pre-requis** : P0 (Decouplage API) termine
+> **Date d'implementation** : 2026-10-09
 
 ## P2.1 Centraliser la notion de capacite
 
-- [ ] Creer `services/api_capabilities.py` avec `APICapabilityManager`
-- [ ] Exposer `has_transcription_api()`, `can_transcribe()`, `can_finalize_audio()`
-- [ ] Eviter les tests `if api_key` disperses dans toute l'application
-- [ ] Distinguer capacite locale (pretraitement, finalisation) et capacite en ligne (transcription)
+- [x] Creer `services/api_capabilities.py` avec `APICapabilityManager`
+- [x] Exposer `has_transcription_api()`, `can_transcribe()`, `can_finalize_audio()`
+- [x] Eviter les tests `if api_key` disperses dans toute l'application
+- [x] Distinguer capacite locale (pretraitement, finalisation) et capacite en ligne (transcription)
 
 ## P2.2 Fonctions autorisees sans API
 
-- [ ] Ouvrir un `.sttproj` existant
-- [ ] Lire la transcription
-- [ ] Modifier la transcription
-- [ ] Lire l'audio associe s'il existe
-- [ ] Sauvegarder le projet
-- [ ] Exporter TXT/JSON/DOCX/PDF
-- [ ] Creer un projet a partir d'un media
-- [ ] Pretraiter un audio/une video
-- [ ] Ecouter le resultat
-- [ ] Finaliser/exporter le fichier audio traite
+- [x] Ouvrir un `.sttproj` existant
+- [x] Lire la transcription
+- [x] Modifier la transcription
+- [x] Lire l'audio associe s'il existe
+- [x] Sauvegarder le projet
+- [x] Exporter TXT/JSON/DOCX/PDF
+- [x] Creer un projet a partir d'un media
+- [x] Pretraiter un audio/une video
+- [x] Ecouter le resultat
+- [x] Finaliser/exporter le fichier audio traite
 
 ## P2.3 Fonctions necessitant l'API
 
-- [ ] Bloquer l'appel reel a ElevenLabs en l'absence de cle
-- [ ] `Nouvelle transcription > Direct` : informer avant d'ouvrir/lancer l'etape API
-- [ ] `Transcrire` apres pretraitement : informer et proposer `Ouvrir les parametres`
-- [ ] `Compte ElevenLabs` : desactiver ou afficher un message explicite sans cle
-- [ ] **Ne jamais emettre une requete HTTP avec une cle vide**
+- [x] Bloquer l'appel reel a ElevenLabs en l'absence de cle
+- [x] `Nouvelle transcription > Direct` : informer avant d'ouvrir/lancer l'etape API
+- [x] `Transcrire` apres pretraitement : informer et proposer `Ouvrir les parametres`
+- [x] `Compte ElevenLabs` : desactiver ou afficher un message explicite sans cle
+- [x] **Ne jamais emettre une requete HTTP avec une cle vide**
 
 ## P2.4 UX recommandee
 
-- [ ] Conserver le bouton `Transcrire` visible mais desactive sans cle
-- [ ] Au clic sans cle : message `Cle API requise` + `Ouvrir les parametres` + `Annuler`
-- [ ] Afficher discretement sur l'accueil `Service de transcription : non configure`
+- [x] Conserver le bouton `Transcrire` visible mais desactive sans cle
+- [x] Au clic sans cle : message `Cle API requise` + `Ouvrir les parametres` + `Annuler`
+- [x] Afficher discretement sur l'accueil `Service de transcription : non configure`
 
 ## Tests P2
 
-- [ ] Demarrage sans cle
-- [ ] Ouverture d'un projet existant sans cle
-- [ ] Modification + sauvegarde sans cle
-- [ ] Export TXT/JSON/DOCX/PDF sans cle
-- [ ] Lecture audio sans cle
-- [ ] Tentative de transcription directe sans cle : aucune requete reseau
-- [ ] Tentative apres pretraitement sans cle : aucune requete reseau
-- [ ] Ajout d'une cle depuis Parametres puis transcription disponible sans redemarrage
-- [ ] Suppression de la cle puis transcription a nouveau bloquee
+- [x] Demarrage sans cle
+- [x] Ouverture d'un projet existant sans cle
+- [x] Modification + sauvegarde sans cle
+- [x] Export TXT/JSON/DOCX/PDF sans cle
+- [x] Lecture audio sans cle
+- [x] Tentative de transcription directe sans cle : aucune requete reseau
+- [x] Tentative apres pretraitement sans cle : aucune requete reseau
+- [x] Ajout d'une cle depuis Parametres puis transcription disponible sans redemarrage
+- [x] Suppression de la cle puis transcription a nouveau bloquee
 
 **Criteres de sortie** : Absence de cle = degradation fonctionnelle controlee, jamais blocage global de l'application
 
@@ -715,8 +716,8 @@ tools/ffmpeg/
 - [x] **Commit P1-3 — Project save/load refactoring** : a52e208 - Sauvegarde relative, autosave, export
 
 ## Sprint 3 - Mode Degrade
-- [ ] **Commit P2-1 — API-less mode foundation** : Fonctions autorisees sans API
-- [ ] **Commit P2-2 — API capability UI** : UX degradee, messages clairs
+- [x] **Commit P2-1 — API-less mode foundation** : 1a82013 - Fonctions autorisees sans API (verification complete)
+- [x] **Commit P2-2 — API capability UI** : 1a82013 - UX degradee, messages clairs, bouton Transcrire desactive sans API, affichage etat API sur accueil
 - [ ] **Commit P3-1 — Audio finalization decoupling** : Separer finalisation et transcription
 - [ ] **Commit P3-2 — Project lifecycle states** : Etats provisoire/finalise/transcrit
 
@@ -795,7 +796,7 @@ La campagne est terminee lorsque :
 - [ ] La cle API demure facultative
 
 ## Mode Sans API
-- [ ] Sans cle, pretraitement, finalisation, ouverture, edition et exports restent utilisables
+- [x] Sans cle, pretraitement, finalisation, ouverture, edition et exports restent utilisables
 - [ ] Un media absent n'empeche pas l'ouverture du transcript
 
 ## Multiplateforme
