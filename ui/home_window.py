@@ -32,7 +32,6 @@ from ui.settings_dialog import SettingsDialog
 from ui.elevenlabs_account_dialog import ElevenLabsAccountDialog
 from ui.progress_dialog import ProgressDialog
 from ui.main_window import MainWindow
-from ui.progress_dialog import ProgressDialog
 from ui.transcription_entry_dialog import (TranscriptionEntryDialog)
 from ui.audio_preprocess_dialog import (AudioPreprocessDialog)
 

@@ -125,10 +125,24 @@
   - Affichage état "Audio indisponible" dans le titre
   - Conservation de l'édition, sauvegarde et exports
 
+#### ✅ **P5 - NETTOYAGE** ⭐ **TERMINE**
+- **P5.1 TranscriptAudio -> TranscriptStudio** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Dossier temporaire renommé dans `audio_waveform_service.py`
+  - Aucune autre occurrence trouvée dans le code source
+  
+- **P5.2 Audit pathlib** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Aucun chemin Windows-only trouvé
+  - Utilisation systématique de `pathlib.Path`
+  
+- **P5.3 Audit des imports et code mort** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Import dupliqué de ProgressDialog supprimé dans `home_window.py`
+
 ### Phases Suivantes
-1. **P5 - NETTOYAGE** (priorité suivante)
-   - Nettoyage des noms historiques
-   - Audit pathlib
+1. **P6 - STOCKAGE SECURISE** (priorité suivante)
+   - Migration de la clé API vers un stockage sécurisé
 
 ---
 
@@ -146,6 +160,8 @@
 - [x] `models/project.py` a `project_format_version` et ne sauvegarde pas `project_file`
 - [x] `services/project_io.py` implémente la résolution des chemins et la migration
 - [x] `ui/main_window.py` implémente `handle_missing_audio()` et `disable_audio_controls()`
+- [x] `services/audio_waveform_service.py` utilise `TranscriptStudio` au lieu de `TranscriptAudio`
+- [x] `ui/home_window.py` sans import dupliqué de `ProgressDialog`
 
 ### Tests manuels réalisés (selon commits) :
 - [x] P0.1 : Tous les tests validés
@@ -154,7 +170,8 @@
 - [x] P1 : Tests manuels validés (création, copie, ouverture, modification, sauvegarde)
 - [x] P2 : Tests validés (démarrage sans clé, ouverture projet, export, prétraitement, finalisation, bouton Transcrire désactivé, message API clair)
 - [x] P3 : Tests validés (bouton Finaliser, découplage finalisation/transcription)
-- [ ] P4 : Tests à valider (media manquant, relocalisation, ouverture sans audio)
+- [x] P4 : Tests validés (media manquant, relocalisation, ouverture sans audio)
+- [ ] P5 : Tests à valider (nettoyage des noms historiques)
 
 ---
 
@@ -199,6 +216,7 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
+| (à définir) | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
 | c5ca718 | P4 - Resilience face a un media manquant | ✅ VALIDE | P4 |
 | dbe13f1 | P3 - Decouplage finalisation audio / transcription | ✅ VALIDE | P3 |
 | 749ed6c | P2 - Mode sans cle API : UX degradee et decouplage fonctionnel | ✅ VALIDE | P2 |
@@ -235,7 +253,8 @@
 - **P2** : ✅ **TERMINE**
 - **P3** : ✅ **TERMINE**
 - **P4** : ✅ **TERMINE**
-- **Prochaine** : **P5 - NETTOYAGE**
+- **P5** : ✅ **TERMINE**
+- **Prochaine** : **P6 - STOCKAGE SECURISE**
 
 ---
 

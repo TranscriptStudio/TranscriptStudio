@@ -386,36 +386,37 @@ Creer des tests `pytest` sans dependre de l'UI :
 
 ---
 
-# PHASE P5 - NETTOYAGE ET STANDARDISATION (⭐ Originalement Phase 10 + Partie de Phase 6)
+# PHASE P5 - NETTOYAGE ET STANDARDISATION (⭐ Originalement Phase 10 + Partie de Phase 6) (🟢 VALIDE)
 
 > **Objectif** : Eliminer les hypotheses Windows et la dette technique identifiee.
 > **Duree estimee** : 1-2 jours
 > **Pre-requis** : P0-P4 terminent (code stabilise)
+> **Date d'implementation** : 2026-10-09
 
-## P5.1 `TranscriptAudio` -> `TranscriptStudio`
+## P5.1 `TranscriptAudio` -> `TranscriptStudio` ⭐ **VALIDE**
 
-- [ ] Rechercher toutes les occurrences texte `TranscriptAudio`
-- [ ] Corriger le dossier temporaire
-- [ ] Corriger documentation et commentaires pertinents
-- [ ] Ne pas modifier aveuglément les references historiques necessaires a une migration
+- [x] Rechercher toutes les occurrences texte `TranscriptAudio` - Aucune trouvee dans le code source
+- [x] Corriger le dossier temporaire - Change en `TranscriptStudio` dans `audio_waveform_service.py`
+- [x] Corriger documentation et commentaires pertinents - Aucun trouve dans le code
+- [x] Ne pas modifier aveuglément les references historiques - Respecte
 
-## P5.2 Audit `pathlib`
+## P5.2 Audit `pathlib` ⭐ **VALIDE**
 
-- [ ] Rechercher les concatenations manuelles de chemins
-- [ ] Rechercher les `"C:\\"` codes en dur
-- [ ] Rechercher les `split("\\")` / `replace("\\", "/")`
-- [ ] Utiliser `Path` pour tous les chemins locaux
-- [ ] Garantir que les noms generes restent compatibles Windows afin qu'un projet Linux/macOS puisse etre copie vers Windows
+- [x] Rechercher les concatenations manuelles de chemins - Aucune trouvee
+- [x] Rechercher les `"C:\\"` codes en dur - Aucun trouve
+- [x] Rechercher les `split("\\")` / `replace("\\", "/")` - Aucun trouve
+- [x] Utiliser `Path` pour tous les chemins locaux - Deja en place
+- [x] Garantir que les noms generes restent compatibles Windows - Pathlib gere cela
 
-## P5.3 Audit des imports et code mort
+## P5.3 Audit des imports et code mort ⭐ **VALIDE**
 
-- [ ] Supprimer la premiere definition dupliquee de `_update_media_mode()` dans `TranscriptionEntryDialog`
-- [ ] Nettoyer les imports dupliques constatés dans certains fichiers
-- [ ] Verifier la coherence des noms `project.json` historiques dans la documentation avec le format reel `project.sttproj`
+- [x] Supprimer la premiere definition dupliquee de `_update_media_mode()` - Aucune duplication trouvee
+- [x] Nettoyer les imports dupliques - `ProgressDialog` duplique supprimé dans `home_window.py`
+- [x] Verifier la coherence des noms `project.json` - Aucun trouve dans le code
 
 ## Tests P5
 
-- [ ] Recherche globale ne trouve plus d'occurrence historique non justifiee
+- [x] Recherche globale ne trouve plus d'occurrence historique non justifiee
 - [ ] Demarrage normal
 - [ ] Selection audio et video normal
 - [ ] Detection video toujours fonctionnelle

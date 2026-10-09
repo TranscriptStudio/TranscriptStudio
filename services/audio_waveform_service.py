@@ -23,7 +23,7 @@ class AudioWaveformService:
 
         temp_dir = (
             Path(tempfile.gettempdir())
-            / "TranscriptAudio"
+            / "TranscriptStudio"
         )
 
         temp_dir.mkdir(
