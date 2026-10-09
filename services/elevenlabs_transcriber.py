@@ -4,17 +4,16 @@ from pathlib import Path
 
 import requests
 
-from services.settings import (
-    SettingsManager
-)
+from services.credential_store import CredentialStore
+from services.settings import APP_DATA_DIR
 
 class ElevenLabsTranscriber:
 
     def __init__(self):
 
-        settings = SettingsManager()
-
-        self.api_key = settings.get_api_key()
+        # P6 : Utiliser CredentialStore pour la clé API
+        credential_store = CredentialStore(APP_DATA_DIR / "settings.json")
+        self.api_key = credential_store.get_api_key()
 
     def test_connection(self):
 

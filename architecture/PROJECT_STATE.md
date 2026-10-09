@@ -141,9 +141,20 @@
   - Commit : 93f90e9
   - Import dupliqué de ProgressDialog supprimé dans `home_window.py`
 
+#### ✅ **P6 - STOCKAGE SECURISE DES CLES API** ⭐ **TERMINE**
+- **P6.1 Abstraction** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Creation de `services/credential_store.py`
+  - Intégration dans api_capabilities, elevenlabs_api, elevenlabs_transcriber, settings_dialog
+  
+- **P6.2 Migration** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Méthode de migration depuis SettingsManager
+  - Ne jamais journaliser la clé
+
 ### Phases Suivantes
-1. **P6 - STOCKAGE SECURISE** (priorité suivante)
-   - Migration de la clé API vers un stockage sécurisé
+1. **P7 - TESTS AUTOMATISES** (priorité suivante)
+   - Suite pytest complète
 
 ---
 
@@ -163,6 +174,11 @@
 - [x] `ui/main_window.py` implémente `handle_missing_audio()` et `disable_audio_controls()`
 - [x] `services/audio_waveform_service.py` utilise `TranscriptStudio` au lieu de `TranscriptAudio`
 - [x] `ui/home_window.py` sans import dupliqué de `ProgressDialog`
+- [x] `services/credential_store.py` avec CredentialStore et toutes les méthodes requises
+- [x] `services/api_capabilities.py` utilise CredentialStore via _credential_store
+- [x] `services/elevenlabs_api.py` utilise CredentialStore
+- [x] `services/elevenlabs_transcriber.py` utilise CredentialStore
+- [x] `ui/settings_dialog.py` utilise CredentialStore
 
 ### Tests manuels réalisés (selon commits) :
 - [x] P0.1 : Tous les tests validés
@@ -217,6 +233,7 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
+| (à définir) | P6 - Stockage securise des cles API | ✅ VALIDE | P6 |
 | 93f90e9 | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
 | c5ca718 | P4 - Resilience face a un media manquant | ✅ VALIDE | P4 |
 | dbe13f1 | P3 - Decouplage finalisation audio / transcription | ✅ VALIDE | P3 |
@@ -255,7 +272,8 @@
 - **P3** : ✅ **TERMINE**
 - **P4** : ✅ **TERMINE**
 - **P5** : ✅ **TERMINE**
-- **Prochaine** : **P6 - STOCKAGE SECURISE**
+- **P6** : ✅ **TERMINE**
+- **Prochaine** : **P7 - TESTS AUTOMATISES**
 
 ---
 

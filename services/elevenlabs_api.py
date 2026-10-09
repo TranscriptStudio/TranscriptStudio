@@ -2,9 +2,8 @@ from datetime import datetime
 
 import requests
 
-from services.settings import (
-    SettingsManager
-)
+from services.credential_store import CredentialStore
+from services.settings import APP_DATA_DIR
 from services.api_capabilities import has_api_key
 
 
@@ -14,10 +13,11 @@ class ElevenLabsAPI:
 
     def __init__(self):
 
-        settings = SettingsManager()
-
+        # P6 : Utiliser CredentialStore pour la clé API
+        credential_store = CredentialStore(APP_DATA_DIR / "settings.json")
+        
         self.api_key = (
-            settings.get_api_key()
+            credential_store.get_api_key()
         )
 
         self.headers = {

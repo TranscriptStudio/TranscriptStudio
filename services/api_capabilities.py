@@ -7,21 +7,27 @@ de l'API ElevenLabs.
 
 Ce module expose des fonctions simples pour vérifier si certaines opérations
 sont disponibles, sans avoir à vérifier manuellement la présence de la clé API.
+
+P6 : Utilise CredentialStore pour le stockage securise des cles API.
 """
 
-from services.settings import SettingsManager
+from services.credential_store import CredentialStore
+from services.settings import SettingsManager, APP_DATA_DIR
+
+# P6 : Initialiser le CredentialStore avec le fichier settings
+_credential_store = CredentialStore(APP_DATA_DIR / "settings.json")
 
 
 def has_api_key() -> bool:
     """
     Vérifie si une clé API ElevenLabs est configurée.
     
+    P6 : Utilise CredentialStore pour un accès centralisé.
+    
     Returns:
         bool: True si une clé API non vide est configurée, False sinon.
     """
-    settings = SettingsManager()
-    api_key = settings.get_api_key()
-    return bool(api_key and api_key.strip())
+    return _credential_store.has_api_key()
 
 
 def has_transcription_api() -> bool:
@@ -94,15 +100,17 @@ class APICapabilityManager:
     
     Cette classe permet de vérifier les capacités de manière centralisée
     et peut être étendue pour supporter plusieurs fournisseurs d'API.
+    
+    P6 : Utilise CredentialStore pour le stockage securise.
     """
     
     def __init__(self):
-        self._settings = SettingsManager()
+        # P6 : Utiliser CredentialStore au lieu de SettingsManager
+        self._credential_store = _credential_store
     
     def has_api_key(self) -> bool:
         """Vérifie si une clé API est configurée."""
-        api_key = self._settings.get_api_key()
-        return bool(api_key and api_key.strip())
+        return self._credential_store.has_api_key()
     
     def has_transcription_api(self) -> bool:
         """Vérifie si la transcription est disponible."""

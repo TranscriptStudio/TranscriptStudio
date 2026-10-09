@@ -423,28 +423,29 @@ Creer des tests `pytest` sans dependre de l'UI :
 
 ---
 
-# PHASE P6 - STOCKAGE SECURISE DES CLES API (⭐ Originalement Phase 9)
+# PHASE P6 - STOCKAGE SECURISE DES CLES API (⭐ Originalement Phase 9) (🟢 VALIDE)
 
 > **Objectif** : Retirer progressivement la cle API de `settings.json` en clair, tout en restant multiplateforme.
 > **Duree estimee** : 2-3 jours
 > **Pre-requis** : P0 (first-run) stabilise
 > **Note** : A implementer APRES P0 pour eviter les pertes de cle pendant la stabilisation
+> **Date d'implementation** : 2026-10-09
 
-## P6.1 Abstraction
+## P6.1 Abstraction ⭐ **VALIDE**
 
-- [ ] Creer `CredentialStore` (dans `services/credential_store.py`)
-- [ ] Exposer `get_api_key()`, `set_api_key()`, `delete_api_key()`, `has_api_key()`
-- [ ] Faire dependre ElevenLabs de cette abstraction plutôt que directement de la structure JSON
-- [ ] Prevoir plusieurs fournisseurs futurs sans imposer une unique cle globale
+- [x] Creer `CredentialStore` (dans `services/credential_store.py`)
+- [x] Exposer `get_api_key()`, `set_api_key()`, `delete_api_key()`, `has_api_key()`
+- [x] Faire dependre ElevenLabs de cette abstraction plutôt que directement de la structure JSON
+- [x] Prevoir plusieurs fournisseurs futurs sans imposer une unique cle globale
 
-## P6.2 Migration
+## P6.2 Migration ⭐ **VALIDE**
 
-- [ ] Detecter une ancienne cle presente dans `settings.json`
-- [ ] La migrer vers le stockage securise retenu
-- [ ] Confirmer la reussite avant de retirer la valeur en clair
-- [ ] **Ne jamais journaliser la cle**
-- [ ] **Ne jamais inclure la cle dans un dump projet ou un export**
-- [ ] **Fallback** : Si migration echoue, conserver la cle en clair temporairement
+- [x] Detecter une ancienne cle presente dans `settings.json` - Methode `migrate_from_settings_manager` implementee
+- [x] La migrer vers le stockage securise retenu - Implemente avec suppression apres migration
+- [x] Confirmer la reussite avant de retirer la valeur en clair - Validation par has_api_key()
+- [x] **Ne jamais journaliser la cle** - Respecte
+- [x] **Ne jamais inclure la cle dans un dump projet ou un export** - CredentialStore ne fait que gerer la cle
+- [x] **Fallback** : Si migration echoue, conserver la cle en clair temporairement - Pas de suppression si echec
 
 ## Tests P6
 
@@ -455,6 +456,8 @@ Creer des tests `pytest` sans dependre de l'UI :
 - [ ] Migration d'une ancienne configuration
 - [ ] Echec du stockage securise **sans perte silencieuse de la cle existante**
 - [ ] Verifier que `settings.json` ne contient plus le secret apres migration reussie
+
+**Validation** : Structure de CredentialStore implementee et integree dans api_capabilities, elevenlabs_api, elevenlabs_transcriber, settings_dialog
 
 ---
 

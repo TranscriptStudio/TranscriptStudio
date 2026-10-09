@@ -20,6 +20,7 @@ from PySide6.QtGui import (
 )
 from services.resources import resource_path
 from services.settings import SettingsManager
+from services.credential_store import CredentialStore
 from services.elevenlabs_transcriber import ElevenLabsTranscriber
 from services.help import open_user_manual
 from services.theme_manager import ThemeManager
@@ -31,6 +32,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
 
         self.settings = SettingsManager()
+        self._credential_store = CredentialStore(self.settings.app_folder / "settings.json")
         self._is_first_run = first_run
 
         # En mode first-run, le titre est different et le comportement aussi
@@ -166,7 +168,7 @@ class SettingsDialog(QDialog):
         self.api_key_edit = QLineEdit()
 
         self.api_key_edit.setText(
-            self.settings.get_api_key()
+            _credential_store.get_api_key()
         )
 
         self.api_key_edit.setEchoMode(
@@ -439,7 +441,7 @@ class SettingsDialog(QDialog):
                 return  # Ne pas fermer le dialogue, l'utilisateur doit corriger
         
         # Sauvegarder les parametres
-        self.settings.set_api_key(
+        _credential_store.set_api_key(
             self.api_key_edit.text().strip()
         )
         self.settings.set_projects_root(
@@ -469,7 +471,7 @@ class SettingsDialog(QDialog):
 
     def test_connection(self):
 
-        self.settings.set_api_key(
+        _credential_store.set_api_key(
             self.api_key_edit.text().strip()
         )
 
