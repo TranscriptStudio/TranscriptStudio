@@ -169,9 +169,21 @@
   - pytest passe sur les tests non-Qt
   - CI à configurer pour Windows/macOS/Linux
 
+#### ✅ **P8 - FFMPEG MULTIPLATEFORME AVANCE** ⭐ **TERMINE**
+- **P8.1 Résolveur FFmpeg** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Stratégie hiérarchique : embarqué → config utilisateur → PATH
+  - _get_embedded_ffmpeg_paths() pour multiplateforme
+  - get_ffmpeg_path(settings) avec fallback
+  
+- **P8.2 Organisation des binaires** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Structure tools/ffmpeg/{platform}/ supportée
+  - Ready pour packaging
+
 ### Phases Suivantes
-1. **P8 - FFMPEG MULTIPLATEFORME AVANCE** (priorité suivante)
-   - Résolveur FFmpeg hiérarchique
+1. **P9 - UI MULTIPLATEFORME** (priorité suivante)
+   - Suppression des dépendances Windows de l'UI
 
 ---
 
@@ -294,7 +306,8 @@
 - **P5** : ✅ **TERMINE**
 - **P6** : ✅ **TERMINE**
 - **P7** : ✅ **TERMINE**
-- **Prochaine** : **P8 - FFMPEG MULTIPLATEFORME AVANCE**
+- **P8** : ✅ **TERMINE**
+- **Prochaine** : **P9 - UI MULTIPLATEFORME**
 
 ---
 

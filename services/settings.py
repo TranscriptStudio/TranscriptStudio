@@ -272,7 +272,26 @@ class SettingsManager:
             ] = theme
 
             self.save()
-
+    
+    # P8 : Configuration utilisateur pour FFmpeg
+    def get_ffmpeg_path(self):
+        """
+        Récupère le chemin FFmpeg personnalisé configured par l'utilisateur.
+        
+        Returns:
+            str: Chemin personnalisé si configuré, None sinon
+        """
+        return self.settings.get("ffmpeg_path", None)
+    
+    def set_ffmpeg_path(self, path):
+        """
+        Définit le chemin FFmpeg personnalisé.
+        
+        Args:
+            path: Chemin vers l'executable FFmpeg
+        """
+        self.settings["ffmpeg_path"] = str(path) if path else None
+        self.save()
 
 
 
