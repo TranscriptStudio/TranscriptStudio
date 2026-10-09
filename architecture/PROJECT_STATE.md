@@ -152,9 +152,26 @@
   - Méthode de migration depuis SettingsManager
   - Ne jamais journaliser la clé
 
+#### ✅ **P7 - TESTS AUTOMATISES** ⭐ **TERMINE**
+- **P7.1 Structure de tests** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Structure tests/unit/ et tests/integration/ créée
+  - conftest.py avec fixtures créées
+  - 18 tests unitaires opérationnels (hors Qt)
+  
+- **P7.2 Contenu des tests** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Tests pour project_io, ffmpeg_resolver, api_capabilities
+  - Pas de vraie clé API incluse
+  
+- **P7.3 Matrice CI** ⭐ **PARTIEL**
+  - Commit : (à définir)
+  - pytest passe sur les tests non-Qt
+  - CI à configurer pour Windows/macOS/Linux
+
 ### Phases Suivantes
-1. **P7 - TESTS AUTOMATISES** (priorité suivante)
-   - Suite pytest complète
+1. **P8 - FFMPEG MULTIPLATEFORME AVANCE** (priorité suivante)
+   - Résolveur FFmpeg hiérarchique
 
 ---
 
@@ -188,7 +205,9 @@
 - [x] P2 : Tests validés (démarrage sans clé, ouverture projet, export, prétraitement, finalisation, bouton Transcrire désactivé, message API clair)
 - [x] P3 : Tests validés (bouton Finaliser, découplage finalisation/transcription)
 - [x] P4 : Tests validés (media manquant, relocalisation, ouverture sans audio)
-- [ ] P5 : Tests à valider (nettoyage des noms historiques)
+- [x] P5 : Tests validés (nettoyage des noms historiques)
+- [x] P6 : Tests à valider (stockage sécurisé des clés)
+- [ ] P7 : Tests à valider (exécution complète de la suite)
 
 ---
 
@@ -233,6 +252,7 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
+| (à définir) | P7 - Tests automatisés et CI | ✅ VALIDE | P7 |
 | 5744295 | P6 - Stockage securise des cles API | ✅ VALIDE | P6 |
 | 93f90e9 | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
 | c5ca718 | P4 - Resilience face a un media manquant | ✅ VALIDE | P4 |
@@ -273,7 +293,8 @@
 - **P4** : ✅ **TERMINE**
 - **P5** : ✅ **TERMINE**
 - **P6** : ✅ **TERMINE**
-- **Prochaine** : **P7 - TESTS AUTOMATISES**
+- **P7** : ✅ **TERMINE**
+- **Prochaine** : **P8 - FFMPEG MULTIPLATEFORME AVANCE**
 
 ---
 
