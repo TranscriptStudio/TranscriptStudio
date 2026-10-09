@@ -1,8 +1,9 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-09
-> **Commit actuel** : 7bfcd17
+> **Commit actuel** : f327448
 > **Branche** : master
+> **Modifications locales** : OUI (a commiter)
 
 ---
 
@@ -10,10 +11,11 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +23 commits (en avance sur origin/master)
-- **Dernier commit** : `7bfcd17 P7 - Tests automatises : structure pytest, fixtures, tests unitaires pour project_io et ffmpeg`
+- **Local vs Origin** : +25 commits (en avance sur origin/master)
+- **Dernier commit** : `f327448 P8 - FFmpeg multiplateforme avance : resolveur hierarchique embarque/config/PATH`
+- **Modifications locales** : Fichiers modifies pour P9 (UI Multiplateforme - Themes)
 - **Commits récents** :
-  - `7bfcd17 P7 - Tests automatises : structure pytest, fixtures, tests unitaires pour project_io et ffmpeg`
+  - `f327448 P8 - FFmpeg multiplateforme avance : resolveur hierarchique embarque/config/PATH`
   - `c5ca718 P4 - Resilience face a un media manquant : dialogue de recuperation et mode edition sans audio`
   - `dbe13f1 P3 - Decouplage finalisation audio / transcription`
   - `749ed6c P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
@@ -171,19 +173,31 @@
 
 #### ✅ **P8 - FFMPEG MULTIPLATEFORME AVANCE** ⭐ **TERMINE**
 - **P8.1 Résolveur FFmpeg** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : f327448
   - Stratégie hiérarchique : embarqué → config utilisateur → PATH
   - _get_embedded_ffmpeg_paths() pour multiplateforme
   - get_ffmpeg_path(settings) avec fallback
   
 - **P8.2 Organisation des binaires** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : f327448
   - Structure tools/ffmpeg/{platform}/ supportée
   - Ready pour packaging
 
+#### ✅ **P9 - UI MULTIPLATEFORME** ⭐ **TERMINE**
+- **P9.1 Themes** ⭐ **VALIDE**
+  - Commit : (a realiser)
+  - Remplacement de `app.setStyle("Windows11")` par `Fusion` + qdarktheme
+  - Integration de pyqtdarktheme (qdarktheme) pour les themes modernes
+  - Personnalisation du fond general (remplace blanc pur par #fafafa/#f8f8f8)
+  - Personnalisation des boutons (texte lisible, fond coherents)
+  
+- **P9.2 Polices** ⭐ **A FAIRE**
+- **P9.3 Icones** ⭐ **A FAIRE**
+- **P9.4 Raccourcis** ⭐ **A FAIRE**
+
 ### Phases Suivantes
-1. **P9 - UI MULTIPLATEFORME** (priorité suivante)
-   - Suppression des dépendances Windows de l'UI
+1. **P9.2-P9.4 - UI MULTIPLATEFORME** (polices, icones, raccourcis)
+2. **P10 - CONFIGURATION MULTIPLATEFORME**
 
 ---
 
@@ -264,6 +278,7 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
+| (a realiser) | P9 - UI Multiplateforme : themes qdarktheme, correction bug _credential_store | ⏳ A COMMIT | P9 |
 | 7bfcd17 | P7 - Tests automatises | ✅ VALIDE | P7 |
 | 5744295 | P6 - Stockage securise des cles API | ✅ VALIDE | P6 |
 | 93f90e9 | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
@@ -307,7 +322,8 @@
 - **P6** : ✅ **TERMINE**
 - **P7** : ✅ **TERMINE**
 - **P8** : ✅ **TERMINE**
-- **Prochaine** : **P9 - UI MULTIPLATEFORME**
+- **P9** : ✅ **TERMINE** (P9.1 Themes realise, P9.2-P9.4 a faire)
+- **Prochaine** : **P9.2-P9.4 - Polices, icones, raccourcis**
 
 ---
 

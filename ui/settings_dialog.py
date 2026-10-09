@@ -168,7 +168,7 @@ class SettingsDialog(QDialog):
         self.api_key_edit = QLineEdit()
 
         self.api_key_edit.setText(
-            _credential_store.get_api_key()
+            self._credential_store.get_api_key()
         )
 
         self.api_key_edit.setEchoMode(
@@ -441,7 +441,7 @@ class SettingsDialog(QDialog):
                 return  # Ne pas fermer le dialogue, l'utilisateur doit corriger
         
         # Sauvegarder les parametres
-        _credential_store.set_api_key(
+        self._credential_store.set_api_key(
             self.api_key_edit.text().strip()
         )
         self.settings.set_projects_root(
@@ -471,7 +471,7 @@ class SettingsDialog(QDialog):
 
     def test_connection(self):
 
-        _credential_store.set_api_key(
+        self._credential_store.set_api_key(
             self.api_key_edit.text().strip()
         )
 

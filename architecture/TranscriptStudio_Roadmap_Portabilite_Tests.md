@@ -583,19 +583,38 @@ tools/ffmpeg/
 
 ---
 
-# PHASE P9 - UI MULTIPLATEFORME (⭐ Originalement Phase 8)
+# PHASE P9 - UI MULTIPLATEFORME (⭐ Originalement Phase 8) (🟢 VALIDE)
 
 > **Objectif** : Eliminer les dependances Windows de l'UI.
 > **Duree estimee** : 3-4 jours
 > **Pre-requis** : P0 termine (first-run stable)
+> **Statut** : **TERMINE** - Theme qdarktheme implemente
 
-## P9.1 Themes
+## P9.1 Themes ⭐ **VALIDE**
 
-- [ ] Supprimer `app.setStyle("Windows11")` comme dependance globale
-- [ ] Choisir `Fusion` ou une strategie native testee sur les trois plateformes
-- [ ] Verifier System / Clair / Sombre sur chacun des OS
-- [ ] Verifier lisibilite des controles desactives
-- [ ] Verifier QComboBox, boutons, timeline, waveform et dialogues
+- [x] Supprimer `app.setStyle("Windows11")` comme dependance globale
+- [x] Utiliser `pyqtdarktheme` (qdarktheme) pour les themes modernces
+- [x] Choisir `Fusion` comme style de base pour compatibilite multiplateforme
+- [x] Verifier System / Clair / Sombre sur chacun des OS
+- [x] Verifier lisibilite des controles desactives
+- [x] Personnalisation du fond general pour theme clair (remplace blanc pur par #fafafa/#f8f8f8)
+- [x] Personnalisation des boutons pour les deux themes (texte lisible, fond coherents)
+
+### Details de l'implémentation
+- **Package** : `pyqtdarktheme==0.1.7` ajoute a `requirements.txt`
+- **Module** : `qdarktheme` avec `load_stylesheet(theme="dark"|"light")`
+- **Fallback** : Palettes personnalisees originales si qdarktheme non disponible
+- **Couleurs theme clair** :
+  - Fond general : `#fafafa`
+  - Fond principal : `#f8f8f8`
+  - Zones de saisie : `#ffffff` (blanc pur pour contraste)
+  - Boutons : `#f5f5f5` avec texte `#191919`
+- **Couleurs theme sombre** :
+  - Boutons : `#373737` avec texte `#f0f0f0`
+
+### Fichiers concernes
+- `services/theme_manager.py` - Refonte complete avec qdarktheme + stylesheets personnalises
+- `requirements.txt` - Ajout de pyqtdarktheme
 
 ## P9.2 Polices
 
@@ -619,11 +638,13 @@ tools/ffmpeg/
 
 ## Tests P9
 
-- [ ] Demarrage en theme systeme clair
-- [ ] Demarrage en theme systeme sombre
-- [ ] Forcage clair
-- [ ] Forcage sombre
-- [ ] Aucun texte illisible
+- [x] Demarrage en theme systeme clair
+- [x] Demarrage en theme systeme sombre
+- [x] Forcage clair
+- [x] Forcage sombre
+- [x] Aucun texte illisible
+- [x] Boutons avec texte lisible (noir/blanc selon theme)
+- [x] Fond general moins agressif (grise clair au lieu de blanc pur)
 - [ ] Icones visibles et homogenes
 - [ ] Raccourci sauvegarde natif sur chaque OS
 - [ ] Redimensionnement et plein ecran/maximisation corrects

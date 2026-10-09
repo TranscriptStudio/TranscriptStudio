@@ -6,6 +6,12 @@ from PySide6.QtGui import (
     QPalette,
 )
 
+try:
+    from qdarktheme import load_stylesheet
+    QDARKTHEME_AVAILABLE = True
+except ImportError:
+    QDARKTHEME_AVAILABLE = False
+
 
 class ThemeManager:
     SYSTEM = "system"
@@ -13,55 +19,159 @@ class ThemeManager:
     DARK = "dark"
 
     @staticmethod
-    def apply_theme(
-        app,
-        theme
-    ):
-        if theme == ThemeManager.DARK:
-            ThemeManager.apply_dark(
-                app
-            )
-            return
-
-        if theme == ThemeManager.LIGHT:
-            ThemeManager.apply_light(
-                app
-            )
-            return
-
-        #
-        # Mode système :
-        # utiliser le thème clair / sombre
-        # signalé par le système à Qt.
-        #
-        ThemeManager.apply_system(
-            app
-        )
+    def apply_theme(app, theme):
+        """
+        Applique le theme selectionne a l'application.
+        
+        Args:
+            app: QApplication instance
+            theme: ThemeManager.SYSTEM, ThemeManager.LIGHT, or ThemeManager.DARK
+        """
+        if theme == ThemeManager.SYSTEM:
+            ThemeManager.apply_system(app)
+        elif theme == ThemeManager.DARK:
+            ThemeManager.apply_dark(app)
+        elif theme == ThemeManager.LIGHT:
+            ThemeManager.apply_light(app)
 
     @staticmethod
-    def apply_system(
-        app
-    ):
-        color_scheme = (
-            app.styleHints()
-            .colorScheme()
-        )
-
-        if (
-            color_scheme
-            == Qt.ColorScheme.Dark
-        ):
-            ThemeManager.apply_dark(
-                app
-            )
+    def apply_system(app):
+        """
+        Applique le theme correspondant au theme systeme.
+        Detecte automatiquement si le systeme est en mode clair ou sombre.
+        """
+        color_scheme = app.styleHints().colorScheme()
+        
+        if color_scheme == Qt.ColorScheme.Dark:
+            ThemeManager.apply_dark(app)
         else:
-            ThemeManager.apply_light(
-                app
-            )
+            ThemeManager.apply_light(app)
+
+    @staticmethod
+    def _get_global_stylesheet(theme_type):
+        """
+        Retourne un stylesheet CSS pour personnaliser le fond général de l'interface.
+        Pour le thème clair, remplace le blanc pur par un gris très clair.
+        """
+        if theme_type == "light":
+            return """
+                /* Fond général de l'application */
+                QMainWindow, QWidget, QDialog, QFrame {
+                    background-color: #fafafa;
+                }
+                /* Zone de contenu */
+                QMainWindow {
+                    background-color: #f8f8f8;
+                }
+                /* Zones de saisie */
+                QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QListView, QTreeView {
+                    background-color: #ffffff;
+                    border: 1px solid #cccccc;
+                }
+                /* Panneaux et conteneurs */
+                QFrame, QGroupBox {
+                    background-color: #f8f8f8;
+                }
+            """
+        else:
+            # Theme sombre : garder les couleurs par défaut de qdarktheme
+            return ""
+
+    @staticmethod
+    def _get_button_stylesheet(theme_type):
+        """
+        Retourne un stylesheet CSS pour personnaliser les boutons.
+        Corrige :
+        - Texte des boutons en blanc (sombre) ou noir (clair) selon le theme
+        - Fond des boutons en gris clair au lieu de blanc pour le theme light
+        """
+        if theme_type == "dark":
+            # Theme sombre : texte blanc, fond gris foncé
+            return """
+                QPushButton {
+                    color: #f0f0f0;
+                    background-color: #373737;
+                    border: 1px solid #5f5f5f;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    min-height: 28px;
+                }
+                QPushButton:hover {
+                    background-color: #4a4a4a;
+                }
+                QPushButton:pressed {
+                    background-color: #2a2a2a;
+                }
+                QPushButton:disabled {
+                    color: #828282;
+                    background-color: #323232;
+                }
+            """
+        else:
+            # Theme clair : texte noir, fond gris clair élégant
+            return """
+                QPushButton {
+                    color: #191919;
+                    background-color: #f5f5f5;
+                    border: 1px solid #a0a0a0;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                    min-height: 28px;
+                }
+                QPushButton:hover {
+                    background-color: #e5e5e5;
+                }
+                QPushButton:pressed {
+                    background-color: #d5d5d5;
+                }
+                QPushButton:disabled {
+                    color: #828282;
+                    background-color: #e8e8e8;
+                }
+            """
 
     @staticmethod
     def apply_dark(app):
-        app.setStyle("Windows11")
+        """
+        Applique le theme sombre utilisant qdarktheme.
+        """
+        if QDARKTHEME_AVAILABLE:
+            # Utiliser qdarktheme pour un theme sombre moderne
+            app.setStyle("Fusion")
+            dark_stylesheet = load_stylesheet(theme="dark")
+            # Ajouter des ajustements pour les boutons et le fond
+            dark_stylesheet += ThemeManager._get_global_stylesheet("dark")
+            dark_stylesheet += ThemeManager._get_button_stylesheet("dark")
+            app.setStyleSheet(dark_stylesheet)
+        else:
+            # Fallback au theme personnalise si qdarktheme n'est pas disponible
+            ThemeManager._apply_dark_fallback(app)
+
+    @staticmethod
+    def apply_light(app):
+        """
+        Applique le theme clair utilisant qdarktheme.
+        """
+        if QDARKTHEME_AVAILABLE:
+            # Utiliser qdarktheme pour un theme clair moderne
+            app.setStyle("Fusion")
+            light_stylesheet = load_stylesheet(theme="light")
+            # Ajouter des ajustements pour le fond et les boutons
+            light_stylesheet += ThemeManager._get_global_stylesheet("light")
+            light_stylesheet += ThemeManager._get_button_stylesheet("light")
+            app.setStyleSheet(light_stylesheet)
+        else:
+            # Fallback au theme personnalise si qdarktheme n'est pas disponible
+            ThemeManager._apply_light_fallback(app)
+
+    @staticmethod
+    def _apply_dark_fallback(app):
+        """
+        Methode de fallback pour le theme sombre.
+        Utilise la palette personnalisee originale.
+        """
+        app.setStyle("Fusion")
+        
         palette = QPalette()
 
         palette.setColor(
@@ -117,9 +227,7 @@ class ThemeManager:
             QColor(95, 95, 95)
         )
 
-        app.setPalette(
-            palette
-        )
+        app.setPalette(palette)
         app.setStyleSheet("""
             QPushButton {
                 color: palette(button-text);
@@ -144,22 +252,16 @@ class ThemeManager:
         """)
 
     @staticmethod
-    def apply_light(app):
-        #
-        # Utiliser le style Qt Fusion lorsque
-        # le thème clair est forcé.
-        #
-        # Le style natif Windows peut continuer
-        # à tenir compte du mode sombre de Windows
-        # malgré l'application d'une QPalette claire.
-        #
-        app.setStyle("Windows11")
+    def _apply_light_fallback(app):
+        """
+        Methode de fallback pour le theme clair.
+        Utilise la palette personnalisee originale.
+        """
+        app.setStyle("Fusion")
 
         palette = QPalette()
 
-        #
-        # Fenêtres et panneaux
-        #
+        # Fenetres et panneaux
         palette.setColor(
             QPalette.ColorRole.Window,
             QColor(245, 245, 245)
@@ -169,9 +271,7 @@ class ThemeManager:
             QColor(25, 25, 25)
         )
 
-        #
         # Zones de saisie / listes
-        #
         palette.setColor(
             QPalette.ColorRole.Base,
             QColor(255, 255, 255)
@@ -185,9 +285,7 @@ class ThemeManager:
             QColor(25, 25, 25)
         )
 
-        #
         # Boutons
-        #
         palette.setColor(
             QPalette.ColorRole.Button,
             QColor(240, 240, 240)
@@ -197,9 +295,7 @@ class ThemeManager:
             QColor(25, 25, 25)
         )
 
-        #
-        # Texte secondaire / séparateurs
-        #
+        # Texte secondaire / separateurs
         palette.setColor(
             QPalette.ColorRole.Mid,
             QColor(150, 150, 150)
@@ -221,9 +317,7 @@ class ThemeManager:
             QColor(70, 70, 70)
         )
 
-        #
-        # Sélection
-        #
+        # Selection
         palette.setColor(
             QPalette.ColorRole.Highlight,
             QColor(42, 125, 220)
@@ -233,9 +327,7 @@ class ThemeManager:
             QColor(255, 255, 255)
         )
 
-        #
         # Liens
-        #
         palette.setColor(
             QPalette.ColorRole.Link,
             QColor(42, 125, 220)
@@ -245,9 +337,7 @@ class ThemeManager:
             QColor(90, 70, 160)
         )
 
-        #
         # Tooltips
-        #
         palette.setColor(
             QPalette.ColorRole.ToolTipBase,
             QColor(255, 255, 220)
@@ -257,16 +347,13 @@ class ThemeManager:
             QColor(25, 25, 25)
         )
 
-        #
-        # Texte très contrasté
-        #
+        # Texte tres contraste
         palette.setColor(
             QPalette.ColorRole.BrightText,
             QColor(255, 255, 255)
         )
-        #
-        # Champs de saisie et listes déroulantes.
-        #
+        
+        # Champs de saisie et listes deroulantes.
         for group in (
             QPalette.ColorGroup.Active,
             QPalette.ColorGroup.Inactive,
@@ -296,13 +383,8 @@ class ThemeManager:
                 QPalette.ColorRole.PlaceholderText,
                 QColor(120, 120, 120)
             )
-        #
-        # Contrôles désactivés.
-        #
-        # Important : on force explicitement ces rôles
-        # pour éviter le texte blanc provenant du thème
-        # sombre de Windows.
-        #
+        
+        # Controles desactives.
         disabled = QPalette.ColorGroup.Disabled
 
         palette.setColor(
@@ -346,10 +428,7 @@ class ThemeManager:
             QColor(110, 110, 110)
         )
 
-
-        app.setPalette(
-            palette
-        )
+        app.setPalette(palette)
 
         app.setStyleSheet("""
             QPushButton {
