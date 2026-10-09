@@ -208,6 +208,11 @@ class AudioPreprocessDialog(QDialog):
                     40
                 )
 
+            if btn == self.finalize_button:
+                btn.setFixedSize(
+                    100,
+                    40
+                )
             if btn == self.transcribe_button:
                 btn.setFixedSize(
                     100,
