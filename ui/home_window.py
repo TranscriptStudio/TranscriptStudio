@@ -812,6 +812,20 @@ class HomeWindow(QWidget):
         self.current_audio_file = (
             processed_audio_file
         )
+        
+        # Vérifier le mode de finalisation sélectionné
+        finalize_mode = preprocess_dialog.get_finalize_mode()
+        
+        # Si l'utilisateur a choisi de finaliser uniquement, ne pas ouvrir NewTranscriptionDialog
+        if finalize_mode == "finalize_only":
+            # Finalisation sans transcription - projet validé, pas de transcription
+            print(
+                "[WORKFLOW] Audio finalisé uniquement :",
+                processed_audio_file
+            )
+            return
+        
+        # Mode transcription : ouvrir NewTranscriptionDialog
         print(
             "[WORKFLOW] Audio transmis à NewTranscriptionDialog :",
             processed_audio_file
@@ -820,7 +834,7 @@ class HomeWindow(QWidget):
             str(processed_audio_file),
             self
         )
-
+        
         if not dialog.exec():
             # Vérifier si l'utilisateur a demandé à ouvrir les paramètres
             if dialog.should_open_settings():

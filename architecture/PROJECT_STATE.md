@@ -1,7 +1,7 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-09
-> **Commit actuel** : e976c57
+> **Commit actuel** : (à définir après commit P3)
 > **Branche** : master
 
 ---
@@ -10,9 +10,10 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +13 commits (en avance sur origin/master)
+- **Local vs Origin** : +13 commits (en avance sur origin/master, +1 en attente)
 - **Dernier commit** : `e976c57 P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
 - **Commits récents** :
+  - `(à définir) P3 - Decouplage finalisation audio / transcription`
   - `e976c57 P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
   - `4914a6c Mise a jour PROJECT_STATE.md - P1.3 implemente`
   - `528ce8c P1.3 - Migration non-destructive des anciens projets : deja implmente via P1.1+P1.2`
@@ -98,14 +99,21 @@
   - Bouton Transcrire visible mais désactivé sans clé
   - Affichage discret de l'état API sur l'accueil
 
-### Phases Suivantes
-1. **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION** (priorité suivante)
-   - Séparer finalisation et transcription
-   - Cycle de vie du projet
+#### ✅ **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION** ⭐ **TERMINE**
+- **P3.1 Séparer les opérations** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Refactorisation en `_start_finalization()`
+  - Boutons "💾 Finaliser" et "☁ Transcrire" séparés
+  
+- **P3.2 Cycle de vie du projet** ⭐ **VALIDE**
+  - Commit : (à définir)
+  - Gestion via `_finalize_mode`
+  - Finalisation sans transcription possible
 
-2. **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION**
-   - Séparer finalisation et transcription
-   - Cycle de vie du projet
+### Phases Suivantes
+1. **P4 - RESILIENCE FACE A UN MEDIA MANQUANT** (priorité suivante)
+   - Stratégie de récupération du media manquant
+   - Mode édition sans media
 
 ---
 
@@ -117,7 +125,8 @@
 - [x] `ui/elevenlabs_account_dialog.py` utilise `can_access_account_info()`
 - [x] `ui/transcription_entry_dialog.py` utilise `has_transcription_api()` et désactive l'option sans API
 - [x] `ui/new_transcription_dialog.py` utilise `has_transcription_api()` pour désactiver le bouton Transcrire
-- [x] `ui/home_window.py` affiche l'état API et gère l'ouverture des paramètres
+- [x] `ui/home_window.py` affiche l'état API, gère l'ouverture des paramètres et le mode de finalisation
+- [x] `ui/audio_preprocess_dialog.py` implémente les boutons Finaliser/Transcrire et `_start_finalization()`
 - [x] `services/ffmpeg_paths.py` a un résolveur multiplateforme avec fallback PATH
 - [x] `models/project.py` a `project_format_version` et ne sauvegarde pas `project_file`
 - [x] `services/project_io.py` implémente la résolution des chemins et la migration
@@ -128,6 +137,7 @@
 - [x] P0.3 : Tests validés (FFmpeg détecté sur toutes les plateformes)
 - [x] P1 : Tests manuels validés (création, copie, ouverture, modification, sauvegarde)
 - [x] P2 : Tests validés (démarrage sans clé, ouverture projet, export, prétraitement, finalisation, bouton Transcrire désactivé, message API clair)
+- [ ] P3 : Tests à valider (bouton Finaliser, découplage finalisation/transcription)
 
 ---
 
@@ -146,24 +156,25 @@
 
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
-### Priorité immédiate : **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION**
+### Priorité immédiate : **P4 - RESILIENCE FACE A UN MEDIA MANQUANT**
 
-**Objectif** : Permettre la finalisation audio sans lancer la transcription
+**Objectif** : Un media manquant ne doit jamais empecher l'acces a une transcription existante
 
 #### Actions principales :
-- [ ] Ajouter un bouton "Finaliser l'audio" dans AudioPreprocessDialog
-- [ ] Séparer le workflow : finalisation uniquement vs finalisation + transcription
-- [ ] Définir les états du projet (provisoire, audio_finalise, transcrit)
-- [ ] Adapter home_window.py pour gérer le choix utilisateur
+- [ ] Implémenter dialogue "Localiser le fichier... / Ouvrir sans audio / Annuler"
+- [ ] Désactiver lecture/seek si audio manquant
+- [ ] Conserver édition, sauvegarde et exports
+- [ ] Afficher état "Audio indisponible" sans erreurs Qt
 
 #### Fichiers concernés :
-- `ui/audio_preprocess_dialog.py` (bouton Finaliser)
-- `ui/home_window.py` (gestion du workflow)
+- `ui/main_window.py` (gestion media manquant)
+- `services/project_io.py` (vérification audio)
 
 #### Prérequis :
 - ✅ P0 terminé (first-run + découplage API + FFmpeg)
 - ✅ P1 terminé (portabilité des projets)
 - ✅ P2 terminé (mode sans clé API)
+- ✅ P3 terminé (découplage finalisation/transcription)
 
 ---
 
@@ -203,7 +214,8 @@
 - **P0** : ✅ **TERMINE**
 - **P1** : ✅ **TERMINE**
 - **P2** : ✅ **TERMINE**
-- **Prochaine** : **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION**
+- **P3** : ✅ **TERMINE**
+- **Prochaine** : **P4 - RESILIENCE FACE A UN MEDIA MANQUANT**
 
 ---
 

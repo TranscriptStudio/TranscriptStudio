@@ -80,9 +80,15 @@ Privilégier les changements :
 
 Éviter les refactorisations non nécessaires à la tâche demandée.
 
-### 5.2 Multiplateforme
+### 5.2 roadmap et commits
+
+Mettre à jour la raodmap à chaque fois qu'une tache a été réalisée.lancer le commit uniquement à la fin. ne pas relancer de commit quand seule la raodmap a été mise à jour. les commit doivent toujours correspondre à une étape de développpement.
+
+### 5.3 Multiplateforme
 
 Ne pas coder directement des chemins dépendants de Windows tels que :
+
+
 
 ```text
 C:\Users\...

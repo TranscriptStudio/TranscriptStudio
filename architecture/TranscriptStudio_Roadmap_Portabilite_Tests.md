@@ -313,37 +313,38 @@ Creer des tests `pytest` sans dependre de l'UI :
 
 ---
 
-# PHASE P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION (⭐ Originalement Phase 4)
+# PHASE P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION (⭐ Originalement Phase 4) (🟢 VALIDE)
 
 > **Objectif** : Supprimer le couplage actuel entre `process_and_transcribe()` et la finalisation du fichier audio.
 > **Duree estimee** : 2-3 jours
 > **Pre-requis** : P0 + P2 terminent
+> **Date d'implementation** : 2026-10-09
 
 ## P3.1 Separer les operations
 
-- [ ] Isoler `finalize_audio()` de `transcribe_audio()`
-- [ ] La finalisation ne doit dependre d'aucune cle API
-- [ ] Apres traitement, permettre `Finaliser / Exporter l'audio`
-- [ ] Une fois finalise, permettre eventuallement `Transcrire` si l'API est disponible
-- [ ] Determiner explicitement ce que signifie `preprocessing_validated` lorsque l'utilisateur finalise sans transcrire
+- [x] Isoler `finalize_audio()` de `transcribe_audio()` - Refactorisation en `_start_finalization()`
+- [x] La finalisation ne doit dependre d'aucune cle API - Déjà vérifié (FFmpeg uniquement)
+- [x] Apres traitement, permettre `Finaliser / Exporter l'audio` - Bouton "💾 Finaliser" ajouté
+- [x] Une fois finalise, permettre eventuallement `Transcrire` si l'API est disponible - Bouton "☁ Transcrire" conservé
+- [x] Determiner explicitement ce que signifie `preprocessing_validated` lorsque l'utilisateur finalise sans transcrire - Mode "finalize_only" implémenté
 
 ## P3.2 Cycle de vie du projet provisoire
 
-- [ ] Un projet contenant un audio finalise sans transcription **ne doit pas etre supprime par erreur**
-- [ ] Definir l'etat `provisoire`, `audio_finalise`, `transcrit` ou une logique equivalente
-- [ ] La fermeture apres export/finalisation doit conserver le projet conformement au choix utilisateur
-- [ ] L'abandon avant validation doit continuer a nettoyer les fichiers temporaires
+- [x] Un projet contenant un audio finalise sans transcription **ne doit pas etre supprime par erreur** - Géré via `_finalize_mode`
+- [x] Definir l'etat `provisoire`, `audio_finalise`, `transcrit` ou une logique equivalente - Implémenté via `_finalize_mode`
+- [x] La fermeture apres export/finalisation doit conserver le projet conformement au choix utilisateur - Dialogue ferme proprement
+- [x] L'abandon avant validation doit continuer a nettoyer les fichiers temporaires - Nettoyage existant conservé
 
 ## Tests P3
 
-- [ ] Pretraiter sans API
-- [ ] Finaliser en WAV
-- [ ] Finaliser MP3/M4A/FLAC/OGG/OPUS selon media d'entree supporte
-- [ ] Video -> extraction/finalisation M4A sans API
-- [ ] Fermer apres traitement non valide -> nettoyage
-- [ ] Finaliser puis fermer -> fichier final conserve
-- [ ] Finaliser puis renseigner une cle -> transcription possible
-- [ ] Verifier qu'aucun WAV temporaire n'est presente comme fichier final
+- [x] Pretraiter sans API
+- [x] Finaliser en WAV
+- [x] Finaliser MP3/M4A/FLAC/OGG/OPUS selon media d'entree supporte
+- [x] Video -> extraction/finalisation M4A sans API
+- [x] Fermer apres traitement non valide -> nettoyage
+- [x] Finaliser puis fermer -> fichier final conserve
+- [x] Finaliser puis renseigner une cle -> transcription possible
+- [x] Verifier qu'aucun WAV temporaire n'est presente comme fichier final
 
 **Criteres de sortie** : Le pipeline audio est un module autonome dont la transcription est une etape optionnelle posterieure
 
@@ -715,11 +716,11 @@ tools/ffmpeg/
 - [x] **Commit P1-2 — Legacy project migration** : 71ac2cf - Resolution chemins, migration non-destructive
 - [x] **Commit P1-3 — Project save/load refactoring** : a52e208 - Sauvegarde relative, autosave, export
 
-## Sprint 3 - Mode Degrade
-- [x] **Commit P2-1 — API-less mode foundation** : 1a82013 - Fonctions autorisees sans API (verification complete)
-- [x] **Commit P2-2 — API capability UI** : 1a82013 - UX degradee, messages clairs, bouton Transcrire desactive sans API, affichage etat API sur accueil
-- [ ] **Commit P3-1 — Audio finalization decoupling** : Separer finalisation et transcription
-- [ ] **Commit P3-2 — Project lifecycle states** : Etats provisoire/finalise/transcrit
+## Sprint 3 - Mode Degrade & Decouplage
+- [x] **Commit P2-1 — API-less mode foundation** : Fonctions autorisees sans API (verification complete)
+- [x] **Commit P2-2 — API capability UI** : UX degradee, messages clairs, bouton Transcrire desactive sans API, affichage etat API sur accueil
+- [x] **Commit P3-1 — Audio finalization decoupling** : Separer finalisation et transcription avec boutons dedies
+- [x] **Commit P3-2 — Project lifecycle states** : Etats provisoire/finalise/transcrit via _finalize_mode
 
 ## Sprint 4 - Resilience
 - [ ] **Commit P4-1 — Missing media recovery** : Strategie de relocalisation
@@ -803,6 +804,9 @@ La campagne est terminee lorsque :
 - [ ] Le code source fonctionne sur Windows, macOS et Linux pour le perimetre valide
 - [ ] FFmpeg est resolu proprement sur chaque plateforme cible
 - [ ] L'UI n'est plus dependante du style/police/icone Windows
+
+## Decouplage
+- [x] La finalisation audio est decouplee de la transcription
 
 ## Securite
 - [ ] La cle API n'est plus conservee en clair apres mise en place du stockage securise

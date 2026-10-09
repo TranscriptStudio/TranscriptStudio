@@ -55,6 +55,7 @@ class AudioPreprocessDialog(QDialog):
         self.detected_silences = []
         self.filtered_silences = []
         self.removal_silences = []
+        self._finalize_mode = None  # "finalize_only" ou "transcribe"
         self.setWindowFlag(
             Qt.WindowMinMaxButtonsHint,
             True
@@ -157,6 +158,10 @@ class AudioPreprocessDialog(QDialog):
         self.process_button = QPushButton("✨ Lancer le traitement")
         self.process_button.setToolTip("Lance le traitement des effets sélectionnées")
 
+        self.finalize_button = QPushButton("💾 Finaliser")
+        self.finalize_button.setEnabled(False)
+        self.finalize_button.setToolTip("Finaliser l'audio sans lancer la transcription")
+
         self.transcribe_button = QPushButton("☁ Transcrire")
         self.transcribe_button.setEnabled(
             False
@@ -178,6 +183,7 @@ class AudioPreprocessDialog(QDialog):
             self.zoom_out_button,
             self.fit_button,
             self.process_button,
+            self.finalize_button,
             self.transcribe_button,
         ]:
             btn.setFixedSize(
@@ -922,6 +928,10 @@ class AudioPreprocessDialog(QDialog):
         )
         self.process_button.clicked.connect(
             self.process_audio
+        )
+
+        self.finalize_button.clicked.connect(
+            self.finalize_only
         )
 
         self.transcribe_button.clicked.connect(
@@ -2046,8 +2056,15 @@ class AudioPreprocessDialog(QDialog):
             True
         )
         self.transcribe_button.setToolTip(
-            "Utiliser le fichier audio traité "
-            "pour poursuivre vers la transcription."
+            "Finaliser et lancer la transcription "
+            "avec le fichier audio traité."
+        )
+        self.finalize_button.setEnabled(
+            True
+        )
+        self.finalize_button.setToolTip(
+            "Finaliser uniquement le fichier audio traité "
+            "sans lancer la transcription."
         )
 
         #
@@ -2177,7 +2194,17 @@ class AudioPreprocessDialog(QDialog):
         self.processing_thread = None
         self.processing_worker = None
 
+    def finalize_only(self):
+        """Finaliser l'audio sans lancer la transcription."""
+        self._finalize_mode = "finalize_only"
+        self._start_finalization()
+    
     def process_and_transcribe(self):
+        """Finaliser l'audio puis lancer la transcription."""
+        self._finalize_mode = "transcribe"
+        self._start_finalization()
+    
+    def _start_finalization(self):
         if self.processed_audio_file is None:
             return
 
@@ -2191,12 +2218,9 @@ class AudioPreprocessDialog(QDialog):
         self.result_playback.stop()
 
         #
-        # Désactiver Transcrire pour éviter
-        # un double lancement.
-        #
-        self.transcribe_button.setEnabled(
-            False
-        )
+        # Désactiver les boutons pour éviter un double lancement.
+        self.transcribe_button.setEnabled(False)
+        self.finalize_button.setEnabled(False)
 
         #
         # Popup indéterminé.
@@ -2379,9 +2403,8 @@ class AudioPreprocessDialog(QDialog):
         if self.finalization_progress is not None:
             self.finalization_progress.close()
 
-        self.transcribe_button.setEnabled(
-            True
-        )
+        self.transcribe_button.setEnabled(True)
+        self.finalize_button.setEnabled(True)
 
         QMessageBox.critical(
             self,
@@ -2436,7 +2459,11 @@ class AudioPreprocessDialog(QDialog):
         return str(
             processed_file
         )
-
+    
+    def get_finalize_mode(self) -> str:
+        """Retourne le mode de finalisation : 'finalize_only' ou 'transcribe'."""
+        return self._finalize_mode
+    
     def get_options(self):
 
         return {
