@@ -1,7 +1,7 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-09
-> **Commit actuel** : 5744295
+> **Commit actuel** : 7bfcd17
 > **Branche** : master
 
 ---
@@ -10,10 +10,10 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +22 commits (en avance sur origin/master)
-- **Dernier commit** : `5744295 P6 - Stockage securise des cles API : CredentialStore et migration depuis SettingsManager`
+- **Local vs Origin** : +23 commits (en avance sur origin/master)
+- **Dernier commit** : `7bfcd17 P7 - Tests automatises : structure pytest, fixtures, tests unitaires pour project_io et ffmpeg`
 - **Commits récents** :
-  - `5744295 P6 - Stockage securise des cles API : CredentialStore et migration depuis SettingsManager`
+  - `7bfcd17 P7 - Tests automatises : structure pytest, fixtures, tests unitaires pour project_io et ffmpeg`
   - `c5ca718 P4 - Resilience face a un media manquant : dialogue de recuperation et mode edition sans audio`
   - `dbe13f1 P3 - Decouplage finalisation audio / transcription`
   - `749ed6c P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
@@ -154,18 +154,18 @@
 
 #### ✅ **P7 - TESTS AUTOMATISES** ⭐ **TERMINE**
 - **P7.1 Structure de tests** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : 7bfcd17
   - Structure tests/unit/ et tests/integration/ créée
   - conftest.py avec fixtures créées
   - 18 tests unitaires opérationnels (hors Qt)
   
 - **P7.2 Contenu des tests** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : 7bfcd17
   - Tests pour project_io, ffmpeg_resolver, api_capabilities
   - Pas de vraie clé API incluse
   
 - **P7.3 Matrice CI** ⭐ **PARTIEL**
-  - Commit : (à définir)
+  - Commit : 7bfcd17
   - pytest passe sur les tests non-Qt
   - CI à configurer pour Windows/macOS/Linux
 
@@ -252,7 +252,7 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
-| (à définir) | P7 - Tests automatisés et CI | ✅ VALIDE | P7 |
+| 7bfcd17 | P7 - Tests automatises | ✅ VALIDE | P7 |
 | 5744295 | P6 - Stockage securise des cles API | ✅ VALIDE | P6 |
 | 93f90e9 | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
 | c5ca718 | P4 - Resilience face a un media manquant | ✅ VALIDE | P4 |
