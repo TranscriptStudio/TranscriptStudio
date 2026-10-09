@@ -1,7 +1,7 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-09
-> **Commit actuel** : c5ca718
+> **Commit actuel** : 93f90e9
 > **Branche** : master
 
 ---
@@ -10,9 +10,10 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +15 commits (en avance sur origin/master)
-- **Dernier commit** : `c5ca718 P4 - Resilience face a un media manquant : dialogue de recuperation et mode edition sans audio`
+- **Local vs Origin** : +19 commits (en avance sur origin/master)
+- **Dernier commit** : `93f90e9 P5 - Nettoyage et standardisation : TranscriptAudio->TranscriptStudio, audit pathlib, cleanup imports`
 - **Commits récents** :
+  - `93f90e9 P5 - Nettoyage et standardisation : TranscriptAudio->TranscriptStudio, audit pathlib, cleanup imports`
   - `c5ca718 P4 - Resilience face a un media manquant : dialogue de recuperation et mode edition sans audio`
   - `dbe13f1 P3 - Decouplage finalisation audio / transcription`
   - `749ed6c P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
@@ -127,17 +128,17 @@
 
 #### ✅ **P5 - NETTOYAGE** ⭐ **TERMINE**
 - **P5.1 TranscriptAudio -> TranscriptStudio** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : 93f90e9
   - Dossier temporaire renommé dans `audio_waveform_service.py`
   - Aucune autre occurrence trouvée dans le code source
   
 - **P5.2 Audit pathlib** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : 93f90e9
   - Aucun chemin Windows-only trouvé
   - Utilisation systématique de `pathlib.Path`
   
 - **P5.3 Audit des imports et code mort** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : 93f90e9
   - Import dupliqué de ProgressDialog supprimé dans `home_window.py`
 
 ### Phases Suivantes
@@ -216,7 +217,7 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
-| (à définir) | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
+| 93f90e9 | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
 | c5ca718 | P4 - Resilience face a un media manquant | ✅ VALIDE | P4 |
 | dbe13f1 | P3 - Decouplage finalisation audio / transcription | ✅ VALIDE | P3 |
 | 749ed6c | P2 - Mode sans cle API : UX degradee et decouplage fonctionnel | ✅ VALIDE | P2 |
