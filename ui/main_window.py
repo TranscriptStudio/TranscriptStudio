@@ -72,6 +72,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("ElevenLabs Transcript Editor")
 
         self.resize(1200,800)
+        
+        # P4 : Initialiser l'état de disponibilité audio
+        self.audio_available = True
 
         self.build_ui()
 
@@ -95,8 +98,6 @@ class MainWindow(QMainWindow):
             self
         )
 
-        self.audio_available = True
-        
         if self.project.audio_file:
             audio_path = Path(self.project.audio_file)
             
