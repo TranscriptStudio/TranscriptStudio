@@ -1,7 +1,7 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-09
-> **Commit actuel** : dbe13f1
+> **Commit actuel** : c5ca718
 > **Branche** : master
 
 ---
@@ -10,9 +10,10 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +14 commits (en avance sur origin/master)
-- **Dernier commit** : `dbe13f1 P3 - Decouplage finalisation audio / transcription`
+- **Local vs Origin** : +15 commits (en avance sur origin/master)
+- **Dernier commit** : `c5ca718 P4 - Resilience face a un media manquant : dialogue de recuperation et mode edition sans audio`
 - **Commits récents** :
+  - `c5ca718 P4 - Resilience face a un media manquant : dialogue de recuperation et mode edition sans audio`
   - `dbe13f1 P3 - Decouplage finalisation audio / transcription`
   - `749ed6c P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
   - `4914a6c Mise a jour PROJECT_STATE.md - P1.3 implemente`
@@ -112,14 +113,14 @@
 
 #### ✅ **P4 - RESILIENCE FACE A UN MEDIA MANQUANT** ⭐ **TERMINE**
 - **P4.1 Stratégie de récupération** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : c5ca718
   - Détection du media manquant à l'ouverture
   - Dialogue "Localiser le fichier... / Ouvrir sans audio / Annuler"
   - Mise à jour de la référence en mémoire si relocalisé
   - Conversion en chemin relatif à la sauvegarde
   
 - **P4.2 Mode édition sans media** ⭐ **VALIDE**
-  - Commit : (à définir)
+  - Commit : c5ca718
   - Désactivation des contrôles de lecture
   - Affichage état "Audio indisponible" dans le titre
   - Conservation de l'édition, sauvegarde et exports
@@ -198,6 +199,7 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
+| c5ca718 | P4 - Resilience face a un media manquant | ✅ VALIDE | P4 |
 | dbe13f1 | P3 - Decouplage finalisation audio / transcription | ✅ VALIDE | P3 |
 | 749ed6c | P2 - Mode sans cle API : UX degradee et decouplage fonctionnel | ✅ VALIDE | P2 |
 | a52e208 | P1.4 - Sauvegarde et autosave : deja implemente via P1.2 | ✅ VALIDE | P1 |
