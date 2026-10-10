@@ -136,7 +136,7 @@ Le fonctionnement de cette version précise du projet a été validé avec Pytho
 #### 1. Cloner le dépôt
 
 ```powershell
-git clone https://github.com/davidfrechet/TranscriptStudio.git
+git clone https://github.com/TranscriptStudio/TranscriptStudio.git
 cd TranscriptStudio
 ```
 
@@ -399,8 +399,8 @@ La version 1.0 est distribuée sous deux formes, produites depuis les sources du
 
 | Artefact | Contenu | Taille | SHA-256 | Téléchargement |
 | --- | --- | --- | --- | --- |
-| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 77 Mo | `f3ad4a090c766d885a3c32b142ebf06a4dd1424bc93e416aa0e71d453337399` | [Release v1.0](https://github.com/davidfrechet/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
-| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 110 Mo | `a1fe5fe51920febb6ba1f8cde717f2ebf0c91e1de952c3157f5ab9417c0b0dd8` | [Release v1.0](https://github.com/davidfrechet/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
+| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 77 Mo | `f3ad4a090c766d885a3c32b142ebf06a4dd1424bc93e416aa0e71d453337399` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
+| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 110 Mo | `a1fe5fe51920febb6ba1f8cde717f2ebf0c91e1de952c3157f5ab9417c0b0dd8` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
 
 Les liens de téléchargement pointent vers la release GitHub `v1.0` et deviennent actifs à la publication de celle-ci.
 
