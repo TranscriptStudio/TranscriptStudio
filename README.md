@@ -2,7 +2,7 @@
 
 Transcript Studio est une application de bureau Windows dédiée au prétraitement audio, à la transcription via l’API ElevenLabs Speech-to-Text et à la relecture/correction des transcriptions obtenues.
 
-Le projet est actuellement diffusé sous forme de **code source**. Aucun exécutable Windows n’est fourni dans le dépôt.
+Le projet est diffusé sous forme de **code source**. Aucun exécutable Windows n’est fourni dans le dépôt, mais les scripts de build de la version 1.0 (installateur et archive portable) sont inclus (voir la section « Build Windows »).
 
 ## Fonctionnalités principales
 
@@ -358,6 +358,44 @@ python -m pip install -r requirements-dev.txt
 
 Le fichier inclut `requirements.txt`, il n’est donc pas nécessaire d’installer les deux séparément dans un environnement de développement neuf.
 
+## Build Windows
+
+La version 1.0 est distribuée sous deux formes, produites depuis les sources du dépôt :
+
+| Artefact | Contenu | Taille | SHA-256 |
+| --- | --- | --- | --- |
+| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 77 Mo | `f3ad4a090c766d885a3c32b142ebf06a4dd1424bc93e416aa0e71d453337399` |
+| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 110 Mo | `a1fe5fe51920febb6ba1f8cde717f2ebf0c91e1de952c3157f5ab9417c0b0dd8` |
+
+Les deux artefacts embarquent l’application complète : binaire Nuitka standalone, FFmpeg (`tools/ffmpeg/windows/ffmpeg.exe`), icônes et manuel utilisateur PDF.
+
+### Reproduire le build
+
+Le build nécessite un **CPython 3.11 standard** (une distribution Anaconda/conda ne fonctionne pas : `import ctypes` y provoque un arrêt fatal dans le binaire standalone). Procédure :
+
+```powershell
+# 1. Environnement de build propre
+uv venv --python 3.11 TranscriptStudio_buildenv
+uv pip install --python TranscriptStudio_buildenv/Scripts/python.exe -r requirements.txt nuitka ordered-set zstandard
+
+# 2. Binaire standalone Nuitka (MSVC requis) -> build\TranscriptStudio.dist\
+tools\build_windows.bat TranscriptStudio_buildenv\Scripts\python.exe
+
+# 3. Installateur Inno Setup (Inno Setup 6 requis) -> dist\TranscriptStudio-1.0-setup.exe
+ISCC.exe tools\installer_windows.iss
+```
+
+### Analyse VirusTotal
+
+Analyse du 10/10/2026 sur `TranscriptStudio-1.0-setup.exe` :
+
+- **2 moteurs sur 66** signalent le fichier : Arctic Wolf (`Unsafe`) et Trapmine (`Suspicious.low.ml.score`) ;
+- il s’agit de scores heuristiques de machine learning, typiques des faux positifs sur binaires non signés ;
+- tous les moteurs majeurs (Microsoft, Kaspersky, ESET, Bitdefender, Avast…) sont **non détectés** ;
+- l’analyse complète : `https://www.virustotal.com/gui/file/f3ad4a090c766d885a3c32b142ebf06a4dd1424bc93e416aa0e71d453337399`
+
+L’exécutable n’étant pas signé (pas de certificat de signature de code), Windows SmartScreen peut afficher « Windows a protégé votre PC » au premier lancement d’une nouvelle version. Le contournement (« Informations complémentaires → Exécuter quand même ») est documenté dans le manuel utilisateur (section « Installation »).
+
 ## Composants et services tiers
 
 Transcript Studio repose sur plusieurs projets et services tiers qui conservent leurs licences, marques et conditions d’utilisation respectives.
@@ -425,11 +463,18 @@ Les composants tiers utilisés par Transcript Studio restent soumis à leurs pro
 Version affichée actuellement dans l’application :
 
 ```text
-1.1
-Septembre 2026
+1.0
+Octobre 2026
 ```
 
-Le dépôt est actuellement préparé en priorité pour une diffusion **des sources**. La création et la distribution éventuelles de builds Windows ne sont pas couvertes par les présentes instructions et feront l’objet d’une étude séparée si nécessaire.
+Le dépôt est préparé pour la diffusion des **sources** et du **build Windows 1.0** (installateur et archive portable, voir la section « Build Windows »). La version 1.0 a été validée par :
+
+- build Nuitka standalone reproductible depuis un environnement propre ;
+- installation/désinstallation silencieuses de l’installateur (Program Files, raccourcis, registre) ;
+- test de fumée du binaire installé ;
+- analyse VirusTotal de l’installateur (2/66, faux positifs heuristiques, voir « Build Windows »).
+
+Restent à valider avant diffusion large : analyse VirusTotal de l’archive portable, test sur une machine Windows vierge sans environnement de développement.
 
 ## Auteur
 
