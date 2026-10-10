@@ -11,7 +11,7 @@ class ElevenLabsTranscriber:
 
     def __init__(self):
 
-        # P6 : Utiliser CredentialStore pour la clé API
+        # P6 : Utiliser CredentialStore pour la clÃ© API
         credential_store = CredentialStore(APP_DATA_DIR / "settings.json")
         self.api_key = credential_store.get_api_key()
 
