@@ -1,9 +1,9 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-10
-> **Commit actuel** : 13f4f38
+> **Commit actuel** : 91dd073
 > **Branche** : master
-> **Modifications locales** : OUI (a commiter - finalisation P9)
+> **Modifications locales** : OUI (a commiter - P10)
 
 ---
 
@@ -11,13 +11,13 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +28 commits (en avance sur origin/master)
-- **Dernier commit** : `13f4f38 E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues (ponctuation, guillemets, espaces), contraste theme sombre`
-- **Modifications locales** : finalisation P9 (polices systeme, icones media SVG, repli icone, raccourci standard) + docs
+- **Local vs Origin** : +30 commits (en avance sur origin/master)
+- **Dernier commit** : `91dd073 P9 finalisation - Icones SVG pretraitement (lecteurs original + resultat) et hauteur globale des boutons pilotee par ICON_BUTTON_* (CSS, stylesheet theme incluse)`
+- **Modifications locales** : P10 (app_paths, temporaires par session, tests)
 - **Commits récents** :
+  - `91dd073 P9 finalisation - Icones SVG pretraitement + hauteur globale des boutons (P9.5)`
+  - `7487e24 P9.2-P9.4 - UI multiplateforme finalisee : police systeme, icones media SVG, repli icone, raccourci StandardKey.Save`
   - `13f4f38 E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues`
-  - `0e8a35a E1.1/E1.2 - Icône user.svg teintée couleur intervenant + suppression du bold sur le mot lu`
-  - `b9429dd P9 - UI Multiplateforme : integration qdarktheme + correction bug _credential_store`
   - `f327448 P8 - FFmpeg multiplateforme avance : resolveur hierarchique embarque/config/PATH`
   - `629a21e Mise a jour PROJECT_STATE.md - P7 implemente avec commit 7bfcd17`
   - `7bfcd17 P7 - Tests automatises : structure pytest, fixtures, tests unitaires pour project_io et ffmpeg`
@@ -37,11 +37,10 @@
 - `architecture/PROJECT_STATE.md` (ce fichier)
 
 ### Modifications non commitées
-- `ui/main_window.py`, `ui/audio_preprocess_dialog.py` (P9.5 : styles par-bouton à hauteur CSS)
-- `services/icons.py` (P9.5 : `ICON_BUTTON_*`, `make_button_height_css`)
-- `services/theme_manager.py` (P9.5 : stylesheet boutons pilotée par `ICON_BUTTON_HEIGHT`)
-- `icons/player-stop.svg` (P9.3 : nouveau, stop du prétraitement)
-- `architecture/PROJECT_STATE.md`, roadmap (correctifs P9)
+- `services/app_paths.py` (P10 : `TEMP_DIR`, `SESSION_TEMP_DIR` unique par session, nettoyage `atexit`)
+- `services/audio_waveform_service.py` (P10 : extraction dans le dossier de session)
+- `tests/unit/test_app_paths.py` (P10 : nouveau, 5 tests)
+- `architecture/PROJECT_STATE.md`, roadmap (P10 terminée, hash P9.5)
 
 ---
 
@@ -204,7 +203,7 @@
   - Emojis critiques des contrôles média remplacés par des SVG
 
 - **P9.3 Icones** ⭐ **VALIDE**
-  - Commit : 7487e24 (correctifs : a realiser)
+  - Commit : 7487e24 (correctifs : 91dd073)
   - `services/icons.py` : `make_tinted_icon(color, svg, size, dpr)` — icône SVG teintée, ancre `fill="#2942ff"`
   - Boutons lecture/pause/précédent/suivant de l'éditeur : `icons/player-*.svg` teintés avec la couleur de texte du thème (le rendu des emojis varie fortement selon l'OS)
   - Correctif : mêmes SVG dans la fenêtre de prétraitement (lecteurs original **et** résultat, bascules play/pause en `setIcon`, `player-stop.svg`)
@@ -217,7 +216,7 @@
   - `QKeySequence("Ctrl+S")` remplacé par `QKeySequence.StandardKey.Save` (`main_window.py`) — mapping automatique `Cmd+S` sous macOS
 
 - **P9.5 Hauteur des boutons** ⭐ **VALIDE**
-  - Commit : (a realiser)
+  - Commit : 91dd073
   - Constantes `ICON_BUTTON_WIDTH` / `ICON_BUTTON_HEIGHT` dans `services/icons.py` : taille de **tous** les boutons de l'application
   - `make_button_height_css()` : hauteur fixée en CSS (`min-height`/`max-height` hors padding/bordure) — le modèle de taille de la stylesheet du thème dépasse `setFixedSize`
   - Styles par-bouton (éditeur, prétraitement, lecteur de résultat) + stylesheet globale des boutons (`theme_manager.py`, `padding: 2px 12px`, `min-height` calculé) : accueil, paramètres et dialogues inclus
@@ -247,9 +246,21 @@
   - Ancres, clics souris, double-clic et menus contextuels inchangés
   - Validation : script fonctionnel offscreen `.vibe/test_highlight_fade.py` (9 contrôles verts, dont régions avec ponctuation/guillemets et transitions rapides)
 
+#### ✅ **P10 - CONFIGURATION MULTIPLATEFORME** ⭐ **TERMINE**
+- **P10.1 `app_paths.py`** ⭐ **VALIDE**
+  - Commit : (a realiser)
+  - `platformdirs` réservé aux données applicatives (`APP_DATA_DIR`), `QStandardPaths` pour les dossiers utilisateur (déjà en place depuis P0)
+  - Pas de création automatique du répertoire projets à l'import (déjà en place)
+  - Chemins centralisés : `APP_DATA_DIR`, `TEMP_DIR`, `SESSION_TEMP_DIR`, `LEGACY_PROJECTS_DIR` ; `settings.py` et `audio_waveform_service.py` consomment le module
+- **P10.2 Temporaires** ⭐ **VALIDE**
+  - Commit : (a realiser)
+  - `SESSION_TEMP_DIR` : sous-dossier unique par session (uuid) — deux instances simultanées ou deux médias de même nom ne se marchent plus dessus
+  - `ensure_session_temp_dir()` (création à la demande) + `cleanup_session_temp_dir()` via `atexit`
+  - Renommage `TranscriptAudio` -> `TranscriptStudio` déjà fait en P5.1
+  - Nettoyages existants du dialogue de prétraitement inchangés (fichiers par chemin) ; volume différent / lecture seule à valider au packaging (P11)
+
 ### Phases Suivantes
-1. **P10 - CONFIGURATION MULTIPLATEFORME** (centralisation `app_paths.py`, temporaires)
-2. **P11 - PACKAGING**
+1. **P11 - PACKAGING** (builds Windows/macOS/Linux, `.icns`, validation visuelle multi-OS)
 
 ---
 
@@ -304,7 +315,7 @@
 - **Statut** : Non pertinent pour la validation fonctionnelle
 
 ### Tests automatisés
-- **État** : 22 tests pytest verts (`tests/unit` : project_io, ffmpeg_resolver, api_capabilities), exécution confirmée le 2026-10-10
+- **État** : 27 tests pytest verts (`tests/unit` : project_io, ffmpeg_resolver, api_capabilities, app_paths), exécution confirmée le 2026-10-10
 - **Script fonctionnel** : `.vibe/test_highlight_fade.py` (surlignage ExtraSelections + fondus, offscreen, 7 contrôles)
 - **À faire** : P7.3 CI multi-OS ; intégrer les tests Qt/PySide6 (marqueur `qt`)
 
@@ -312,24 +323,24 @@
 
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
-### Priorité immédiate : **P10 - CONFIGURATION MULTIPLATEFORME**
+### Priorité immédiate : **P11 - PACKAGING MULTIPLATEFORME**
 
-**Objectif** : Éliminer les hypothèses Windows du code métier
+**Objectif** : Distribuer l'application sur Windows, macOS et Linux
 
 #### Actions principales :
-- [ ] Créer/centraliser `app_paths.py` : chemins applicatifs, `QStandardPaths` pour les dossiers utilisateur
-- [ ] Ne plus créer automatiquement le répertoire de projets à l'import
-- [ ] Temporaires : sous-répertoires uniques par session/projet, nettoyage vérifié
-- [ ] Puis P11 - PACKAGING (générer `.icns`, valider emojis restants sur macOS/Linux)
+- [ ] Valider le code source sur macOS/Linux (VM ou environnements cloud) AVANT tout build
+- [ ] Windows : build Nuitka reproductible, inclusion icônes/FFmpeg, installateur
+- [ ] macOS : bundle `.app`, génération `.icns`, permissions/quarantaine
+- [ ] Linux : format de distribution (AppImage/Flatpak), dépendances Qt Multimedia
+- [ ] Validation visuelle par OS : emojis restants, hauteurs de boutons, `Cmd+S`, nettoyage temporaires
 
 #### Fichiers concernés :
-- `services/settings.py`, `services/app_paths.py` (à créer)
-- `services/audio_waveform_service.py` (temporaires)
+- Packaging scripts (à créer), `requirements.txt`, `tools/ffmpeg/{platform}/`
 
 #### Prérequis :
-- ✅ P0 à P8 terminés
-- ✅ P9 terminé (P9.1 : b9429dd ; P9.2-P9.4)
+- ✅ P0 à P9 terminés (P9.1 : b9429dd ; P9.2-P9.4 : 7487e24 ; P9.5 : 91dd073)
 - ✅ E1 terminé (0e8a35a, 13f4f38)
+- ✅ P10 terminé (temporaires isolés par session)
 
 ---
 
@@ -338,7 +349,8 @@
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
 | 7487e24 | P9.2-P9.4 - Polices systeme, icones media SVG teintees, repli icone demarrage, raccourci standard | ✅ VALIDE | P9 |
-| (a realiser) | P9.5 - Icones SVG pretraitement + hauteur globale des boutons (ICON_BUTTON_*, CSS) | ⏳ A COMMIT | P9 |
+| 91dd073 | P9.5 - Icones SVG pretraitement + hauteur globale des boutons (ICON_BUTTON_*, CSS) | ✅ VALIDE | P9 |
+| (a realiser) | P10 - Configuration multiplateforme : app_paths centralise, temporaires uniques par session, 5 tests | ⏳ A COMMIT | P10 |
 | 13f4f38 | E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues | ✅ VALIDE | E1 |
 | 0e8a35a | E1.1/E1.2 - Icône user.svg teintée + suppression bold mot lu | ✅ VALIDE | E1 |
 | b9429dd | P9 - UI Multiplateforme : integration qdarktheme + correction bug _credential_store | ✅ VALIDE | P9 |
@@ -385,9 +397,10 @@
 - **P6** : ✅ **TERMINE**
 - **P7** : ✅ **TERMINE**
 - **P8** : ✅ **TERMINE**
-- **P9** : ✅ **TERMINE** (P9.1 Themes b9429dd ; P9.2-P9.4 : polices système, icônes SVG teintées, repli icône, raccourci standard)
+- **P9** : ✅ **TERMINE** (P9.1 : b9429dd ; P9.2-P9.4 : 7487e24 ; P9.5 : 91dd073)
 - **E1** : ✅ **TERMINE** (E1.1/E1.2 : 0e8a35a ; E1.3 : 13f4f38)
-- **Prochaine** : **P10 - Configuration multiplateforme**, puis **P11 - Packaging**
+- **P10** : ✅ **TERMINE** (chemins centralises, temporaires isoles par session, 27 tests verts)
+- **Prochaine** : **P11 - Packaging multiplateforme**
 
 ---
 

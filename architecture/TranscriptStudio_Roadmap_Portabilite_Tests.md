@@ -662,35 +662,37 @@ tools/ffmpeg/
 
 ---
 
-# PHASE P10 - CONFIGURATION MULTIPLATEFORME (⭐ Originalement Phase 6)
+# PHASE P10 - CONFIGURATION MULTIPLATEFORME (⭐ Originalement Phase 6) (🟢 VALIDE)
 
 > **Objectif** : Eliminer les hypotheses Windows du code metier.
 > **Duree estimee** : 2 jours
 > **Pre-requis** : P0 + P9 terminent
+> **Statut** : **TERMINE** - Chemins centralises et temporaires isoles par session
 
-## P10.1 `app_paths.py`
+## P10.1 `app_paths.py` ⭐ **VALIDE**
 
-- [ ] Reserver `platformdirs` aux donnees/cache/configuration applicatives
-- [ ] Utiliser `QStandardPaths` pour les dossiers utilisateur proposes dans l'UI
-- [ ] **Ne plus creer automatiquement le repertoire de projets** lors de l'import de `app_paths.py`
-- [ ] Centraliser les chemins applicatifs dans `app_paths.py`
+- [x] Reserver `platformdirs` aux donnees/cache/configuration applicatives - `user_data_dir` uniquement, dossier cree a l'import (deja en place)
+- [x] Utiliser `QStandardPaths` pour les dossiers utilisateur proposes dans l'UI - `settings.py` (Documents par defaut) et `settings_dialog.py` (dialogue Parcourir), deja en place
+- [x] **Ne plus creer automatiquement le repertoire de projets** lors de l'import de `app_paths.py` - deja en place (note explicite dans le fichier)
+- [x] Centraliser les chemins applicatifs dans `app_paths.py` - `APP_DATA_DIR`, `TEMP_DIR`, `SESSION_TEMP_DIR`, `LEGACY_PROJECTS_DIR` ; `settings.py` et `audio_waveform_service.py` consomment le module
 
-## P10.2 Temporaire et cache
+## P10.2 Temporaire et cache ⭐ **VALIDE**
 
-- [ ] Renommer le dossier temporaire `TranscriptAudio` -> `TranscriptStudio`
-- [ ] Eviter les collisions de fichiers temporaires entre deux medias de meme nom
-- [ ] Prevoir a terme des sous-repertoires temporaires uniques par session/projet
-- [ ] Verifier nettoyage au succes et a l'abandon sur les trois OS
+- [x] Renommer le dossier temporaire `TranscriptAudio` -> `TranscriptStudio` - fait en P5.1
+- [x] Eviter les collisions de fichiers temporaires entre deux medias de meme nom - sous-repertoire `SESSION_TEMP_DIR` unique par session (uuid), deux instances simultanees ne se marchent plus dessus
+- [x] Prevoir a terme des sous-repertoires temporaires uniques par session/projet - implemente : `ensure_session_temp_dir()`, nettoyage au mieux a la fermeture via `atexit` (`cleanup_session_temp_dir`)
+- [x] Verifier nettoyage au succes et a l'abandon - les nettoyages existants du dialogue de pretraitement (fichiers par chemin) restent valides ; le dossier de session est supprime en sortie d'application (nettoyage multi-OS a confirmer sur macOS/Linux au packaging)
 
 ## Tests P10
 
-- [ ] Chemins avec espaces
-- [ ] Chemins avec accents
-- [ ] Chemins Unicode
-- [ ] Projet sur volume/disque different
-- [ ] Dossier projet en lecture seule
-- [ ] Deux fichiers source portant le meme nom depuis deux repertoires differents
-- [ ] Aucun chemin Windows code en dur dans les `.sttproj` neufs
+- [x] Chemins avec espaces - `test_same_named_media_no_cross_session_collision` (dossier "dossier a")
+- [x] Chemins avec accents et Unicode - media `café été.wav` extrait par FFmpeg dans le dossier de session
+- [ ] Projet sur volume/disque different - a valider au packaging (P11)
+- [ ] Dossier projet en lecture seule - a valider au packaging (P11)
+- [x] Deux fichiers source portant le meme nom depuis deux repertoires differents - extraction successive, fichiers sous `SESSION_TEMP_DIR`, nettoyage verifie
+- [x] Aucun chemin Windows code en dur dans les `.sttproj` neufs - couvert par les tests `project_io` (chemins relatifs)
+
+**Validation** : `tests/unit/test_app_paths.py` (5 tests, extraction FFmpeg reelle incluse) - 27 tests pytest verts au total
 
 ---
 
@@ -843,8 +845,8 @@ tools/ffmpeg/
 - [x] **Commit P8-1 — Advanced FFmpeg resolver** : f327448 - Strategie hierarchique
 - [x] **Commit P9-1 — Cross-platform UI** : b9429dd - Themes qdarktheme (P9.1)
 - [x] **Commit P9-2 — Polices systeme, icones media SVG, repli icone, raccourci standard** : 7487e24 - P9.2-P9.4
-- [x] **Commit P9-3 — Icones SVG pretraitement + hauteur globale des boutons** : P9.5 (a commiter)
-- [ ] **Commit P10-1 — Path configuration** : `app_paths.py` clean, temporaires
+- [x] **Commit P9-3 — Icones SVG pretraitement + hauteur globale des boutons** : 91dd073 - P9.5
+- [x] **Commit P10-1 — Path configuration** : app_paths centralise, temporaires uniques par session (a commiter)
 
 ## Hors sprint - Ameliorations editeur
 - [x] **Commit E1-1 — Icone speaker teintee + mot lu sans decalage** : 0e8a35a
@@ -891,15 +893,15 @@ tools/ffmpeg/
 - [x] **P6 - STOCKAGE SECURISE DES CLES API** ⭐ **TERMINE** (5744295)
 - [x] **P7 - TESTS AUTOMATISES** ⭐ **TERMINE** (7bfcd17 - 22 tests pytest verts ; CI restant a configurer)
 - [x] **P8 - FFMPEG MULTIPLATEFORME AVANCE** ⭐ **TERMINE** (f327448)
-- [x] **P9 - UI MULTIPLATEFORME** ⭐ **TERMINE** (P9.1 : b9429dd ; P9.2-P9.4 : a commiter)
+- [x] **P9 - UI MULTIPLATEFORME** ⭐ **TERMINE** (P9.1 : b9429dd ; P9.2-P9.4 : 7487e24 ; P9.5 : 91dd073)
 - [x] **E1 - AMELIORATIONS UX EDITEUR** ⭐ **TERMINE** (E1.1/E1.2 : 0e8a35a ; E1.3 : 13f4f38)
+- [x] **P10 - CONFIGURATION MULTIPLATEFORME** ⭐ **TERMINE** (app_paths centralise, temporaires isoles par session, 5 nouveaux tests)
 
 ## Phases en Cours
 - Aucune
 
 ## Prochaine Phase
-**P10 - CONFIGURATION MULTIPLATEFORME** : centralisation des chemins applicatifs (`app_paths.py`), temporaires
-Puis **P11 - PACKAGING**
+**P11 - PACKAGING** : builds Windows/macOS/Linux, generation `.icns`, validation visuelle des emojis restants et des hauteurs de boutons sur chaque OS
 
 ---
 

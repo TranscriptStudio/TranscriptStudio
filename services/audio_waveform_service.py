@@ -1,9 +1,11 @@
 from pathlib import Path
 import subprocess
-import tempfile
 
 import numpy as np
 
+from services.app_paths import (
+    ensure_session_temp_dir,
+)
 from services.ffmpeg_paths import (
     FFMPEG_PATH,
 )
@@ -21,15 +23,10 @@ class AudioWaveformService:
         audio_file
     ):
 
-        temp_dir = (
-            Path(tempfile.gettempdir())
-            / "TranscriptStudio"
-        )
-
-        temp_dir.mkdir(
-            parents=True,
-            exist_ok=True
-        )
+        # Sous-repertoire temporaire unique par
+        # session : evite les collisions entre
+        # medias de meme nom (voir app_paths.py).
+        temp_dir = ensure_session_temp_dir()
         display_wav = (
             temp_dir
             / f"{Path(audio_file).stem}_display.wav"
