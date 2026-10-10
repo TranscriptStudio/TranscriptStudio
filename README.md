@@ -90,7 +90,38 @@ Selon le format, les intervenants et les horodatages peuvent être inclus.
 
 Les fichiers vidéo passent obligatoirement par le prétraitement afin d’en extraire une piste audio avant transcription.
 
-## Prérequis
+## Installation
+
+Transcript Studio peut être installé de deux manières : à partir des **exécutables Windows 1.0** (installateur ou version portable), ou **depuis les sources** (à réserver au développement ou aux environnements spécifiques).
+
+### Option 1 : installation Windows (exécutables 1.0)
+
+Les deux variantes embarquent l’application complète : binaire Nuitka standalone, FFmpeg, icônes et manuel utilisateur PDF. Les sommes SHA-256 et l’analyse VirusTotal des artefacts sont détaillées dans la section « Build Windows ».
+
+#### Installateur (recommandé)
+
+1. Télécharger `TranscriptStudio-1.0-setup.exe` depuis la release GitHub `v1.0`.
+2. Exécuter le fichier. L’installation étant « per machine » (répertoire Program Files), Windows demande une élévation de privilèges (UAC) : valider par « Oui ».
+3. Suivre l’assistant d’installation en français : répertoire d’installation, raccourci bureau (facultatif).
+4. Lancer Transcript Studio depuis le menu Démarrer.
+5. La désinstallation s’effectue depuis « Applications et fonctionnalités » ou le groupe « Transcript Studio » du menu Démarrer. Elle ne supprime ni les projets ni les paramètres de l’utilisateur.
+
+#### Version portable
+
+1. Télécharger `TranscriptStudio-1.0-portable.zip` depuis la release GitHub `v1.0`.
+2. Extraire l’archive dans un répertoire de votre choix.
+3. Lancer directement `TranscriptStudio.exe` : aucune installation, aucune élévation de privilèges, aucune écriture dans le registre.
+4. Pour supprimer l’application, supprimer le répertoire extrait.
+
+Remarque : même en version portable, les paramètres et projets sont conservés dans les données utilisateur Windows (`AppData\Local\DFrechet\TranscriptStudio`) ; ils ne sont pas supprimés avec le répertoire de l’application.
+
+#### Avertissement Windows SmartScreen
+
+L’exécutable n’est pas signé (pas de certificat de signature de code). Au premier lancement, Windows peut afficher « Windows a protégé votre PC ». Il s’agit d’un avertissement de réputation, pas d’une détection d’antivirus. Contournement : « Informations complémentaires » puis « Exécuter quand même ». Ce message disparaît à mesure que la réputation du fichier se construit. Le sujet est détaillé dans le manuel utilisateur (section « Installation »).
+
+### Option 2 : installation depuis les sources
+
+#### Prérequis
 
 Transcript Studio a été validé dans l’environnement suivant :
 
@@ -102,9 +133,7 @@ Transcript Studio a été validé dans l’environnement suivant :
 
 Le fonctionnement de cette version précise du projet a été validé avec Python 3.11.15. Cela ne signifie pas que les autres versions de Python sont nécessairement incompatibles, mais elles n’ont pas été validées dans le cadre de la préparation actuelle du dépôt.
 
-## Installation depuis les sources
-
-### 1. Cloner le dépôt
+#### 1. Cloner le dépôt
 
 ```powershell
 git clone https://github.com/davidfrechet/TranscriptStudio.git
@@ -113,7 +142,7 @@ cd TranscriptStudio
 
 Si le dépôt est encore privé, le compte GitHub utilisé doit disposer des droits d’accès nécessaires.
 
-### 2. Créer un environnement Python isolé
+#### 2. Créer un environnement Python isolé
 
 Avec Conda :
 
@@ -124,7 +153,7 @@ conda activate transcript-studio
 
 Une autre méthode de création d’environnement virtuel peut être utilisée à condition de disposer d’un environnement Python compatible.
 
-### 3. Installer les dépendances
+#### 3. Installer les dépendances
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -154,9 +183,9 @@ Pour les installer :
 python -m pip install -r requirements-dev.txt
 ```
 
-## Installation de FFmpeg
+#### Installation de FFmpeg (sources uniquement)
 
-FFmpeg est nécessaire au prétraitement et à la conversion des fichiers audio/vidéo.
+FFmpeg est nécessaire au prétraitement et à la conversion des fichiers audio/vidéo. Cette étape ne concerne que l’installation depuis les sources : les exécutables Windows 1.0 embarquent déjà FFmpeg.
 
 **L'exécutable FFmpeg n'est pas fournis dans ce dépôt.**
 
@@ -233,13 +262,19 @@ https://elevenlabs.io/docs/overview/capabilities/speech-to-text
 
 ## Lancement
 
+### Installation Windows
+
+Lancer `TranscriptStudio.exe` depuis le menu Démarrer (installateur) ou depuis le répertoire extrait de l’archive (version portable).
+
+### Depuis les sources
+
 Depuis la racine du projet et après activation de l’environnement :
 
 ```powershell
 python TranscriptStudio.py
 ```
 
-Au premier lancement, Transcript Studio crée son répertoire de données utilisateur et un répertoire de projets par défaut.
+Au premier lancement, Transcript Studio demande de choisir le répertoire racine des projets ; la clé API ElevenLabs est facultative à ce stade. L’application crée ensuite son répertoire de données utilisateur.
 
 ## Organisation des projets
 
