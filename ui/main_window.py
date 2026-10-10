@@ -45,9 +45,11 @@ from services.help import open_user_manual
 from services.icons import (
     make_tinted_icon,
     make_button_height_css,
+    make_theme_text_color,
     ICON_BUTTON_WIDTH,
     ICON_BUTTON_HEIGHT,
 )
+from services.settings import SettingsManager
 
 
 class MainWindow(QMainWindow):
@@ -364,12 +366,12 @@ class MainWindow(QMainWindow):
         # Controles de lecture : icones SVG teintees
         # avec la couleur de texte du theme (le rendu
         # des emojis varies fortement selon l'OS).
+        # Teinte derivee du theme configure : la
+        # palette Qt ne reflete pas la stylesheet
+        # du theme.
         #
-        text_color = (
-            self.palette()
-            .text()
-            .color()
-            .name()
+        text_color = make_theme_text_color(
+            SettingsManager().get_theme()
         )
 
         self.btn_prev = QPushButton()
@@ -835,11 +837,8 @@ class MainWindow(QMainWindow):
 
     def update_play_button(self, playing):
 
-        text_color = (
-            self.palette()
-            .text()
-            .color()
-            .name()
+        text_color = make_theme_text_color(
+            SettingsManager().get_theme()
         )
 
         if playing:
@@ -1702,10 +1701,10 @@ class MainWindow(QMainWindow):
         # Lettre A dans la couleur normale
         # du texte de l'interface.
         #
-        text_color = (
-            self.palette()
-            .text()
-            .color()
+        text_color = QColor(
+            make_theme_text_color(
+                SettingsManager().get_theme()
+            )
         )
 
         painter.setPen(

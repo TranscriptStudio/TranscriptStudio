@@ -5,10 +5,56 @@ from PySide6.QtGui import (
     QIcon,
     QPainter,
     QPixmap,
+    QGuiApplication,
 )
 from PySide6.QtSvg import QSvgRenderer
 
 from services.resources import resource_path
+
+
+# Couleur de teinte des icones selon le theme
+# configure ('light' -> noir, 'dark' -> clair).
+TEXT_COLOR_LIGHT_THEME = "#191919"
+
+TEXT_COLOR_DARK_THEME = "#F0F0F0"
+
+
+def make_theme_text_color(theme, app=None):
+    """
+    Couleur de teinte adaptee au theme configure.
+    'system' suit le schema de couleurs du systeme.
+
+    La palette Qt ne reflete pas la stylesheet du
+    theme (elle reste la palette par defaut du
+    systeme) : elle ne doit pas etre utilisee pour
+    teinter les icones.
+    """
+
+    if theme == "dark":
+
+        return TEXT_COLOR_DARK_THEME
+
+    if theme == "light":
+
+        return TEXT_COLOR_LIGHT_THEME
+
+    app = (
+        app
+        or QGuiApplication.instance()
+    )
+
+    if (
+
+        app is not None
+
+        and app.styleHints().colorScheme()
+        == Qt.ColorScheme.Dark
+
+    ):
+
+        return TEXT_COLOR_DARK_THEME
+
+    return TEXT_COLOR_LIGHT_THEME
 
 
 # Dimensions des boutons d'icones (barre d'outils

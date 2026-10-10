@@ -36,9 +36,11 @@ from services.project_manager import ProjectManager
 from services.icons import (
     make_tinted_icon,
     make_button_height_css,
+    make_theme_text_color,
     ICON_BUTTON_WIDTH,
     ICON_BUTTON_HEIGHT,
 )
+from services.settings import SettingsManager
 
 from ui.waveform_widget import WaveformWidget
 
@@ -143,12 +145,11 @@ class AudioPreprocessDialog(QDialog):
         toolbar = QHBoxLayout()
 
         # Icones SVG teintees theme : le rendu des
-        # emojis varies fortement selon l'OS.
-        text_color = (
-            self.palette()
-            .text()
-            .color()
-            .name()
+        # emojis varies fortement selon l'OS. La
+        # teinte derive du theme configure (la
+        # palette Qt ne reflete pas la stylesheet).
+        text_color = make_theme_text_color(
+            SettingsManager().get_theme()
         )
 
         self.play_button = QPushButton()
@@ -817,11 +818,8 @@ class AudioPreprocessDialog(QDialog):
         #
         result_controls_layout = QHBoxLayout()
 
-        result_text_color = (
-            self.palette()
-            .text()
-            .color()
-            .name()
+        result_text_color = make_theme_text_color(
+            SettingsManager().get_theme()
         )
 
         self.result_play_button = QPushButton()
@@ -1105,11 +1103,8 @@ class AudioPreprocessDialog(QDialog):
         self,
         playing
     ):
-        text_color = (
-            self.palette()
-            .text()
-            .color()
-            .name()
+        text_color = make_theme_text_color(
+            SettingsManager().get_theme()
         )
 
         if playing:
@@ -1989,10 +1984,9 @@ class AudioPreprocessDialog(QDialog):
         )
         self.result_play_button.setIcon(
             make_tinted_icon(
-                self.palette()
-                .text()
-                .color()
-                .name(),
+                make_theme_text_color(
+                    SettingsManager().get_theme()
+                ),
                 "icons/player-play.svg",
                 18,
                 self.result_play_button.devicePixelRatioF()
@@ -2810,11 +2804,8 @@ class AudioPreprocessDialog(QDialog):
         self,
         playing
     ):
-        text_color = (
-            self.palette()
-            .text()
-            .color()
-            .name()
+        text_color = make_theme_text_color(
+            SettingsManager().get_theme()
         )
 
         if playing:
