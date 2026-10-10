@@ -9,11 +9,13 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMessageBox,
     QProgressDialog,
+    QMenu,
 )
 from PySide6.QtCore import (
     QThread,
     Qt,
     QSize,
+    QUrl,
 )
 from PySide6.QtGui import (
     QPixmap,
@@ -22,6 +24,7 @@ from PySide6.QtGui import (
     QIcon,
     QPalette,
     QColor,
+    QDesktopServices,
 )
 
 from pathlib import Path
@@ -190,6 +193,16 @@ class HomeWindow(QWidget):
 
         self.recent_projects.itemDoubleClicked.connect(
             self.open_recent_project
+        )
+
+        # Menu contextuel : ouvrir, ouvrir le
+        # repertoire, retirer de la liste.
+        self.recent_projects.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+
+        self.recent_projects.customContextMenuRequested.connect(
+            self.show_recent_project_menu
         )
 
         layout.addWidget(
@@ -518,6 +531,120 @@ class HomeWindow(QWidget):
         self.editor.show()
 
         self.close()
+
+    def show_recent_project_menu(
+        self,
+        pos
+    ):
+        item = (
+            self.recent_projects
+            .itemAt(pos)
+        )
+
+        if item is None:
+            return
+
+        menu = self.build_recent_project_menu(
+            item
+        )
+
+        menu.exec(
+            self.recent_projects.mapToGlobal(
+                pos
+            )
+        )
+
+    def build_recent_project_menu(
+        self,
+        item
+    ):
+        menu = QMenu(
+            self
+        )
+
+        open_action = menu.addAction(
+            "Ouvrir le projet"
+        )
+
+        open_action.triggered.connect(
+            lambda: self.open_recent_project(
+                item
+            )
+        )
+
+        folder_action = menu.addAction(
+            "Ouvrir le répertoire du projet"
+        )
+
+        folder_action.triggered.connect(
+            lambda: self.open_recent_project_folder(
+                item
+            )
+        )
+
+        menu.addSeparator()
+
+        remove_action = menu.addAction(
+            "Retirer de la liste des projets récents"
+        )
+
+        remove_action.triggered.connect(
+            lambda: self.remove_recent_project_from_list(
+                item
+            )
+        )
+
+        return menu
+
+    def open_recent_project_folder(
+        self,
+        item
+    ):
+        filename = item.data(
+            Qt.ItemDataRole.UserRole
+        )
+
+        if not filename:
+            return
+
+        folder = Path(
+            filename
+        ).parent
+
+        if not folder.is_dir():
+            QMessageBox.warning(
+                self,
+                "Répertoire introuvable",
+                (
+                    "Le répertoire\n\n"
+                    f"{folder}\n\n"
+                    "n'existe plus."
+                )
+            )
+            return
+
+        QDesktopServices.openUrl(
+            QUrl.fromLocalFile(
+                str(folder)
+            )
+        )
+
+    def remove_recent_project_from_list(
+        self,
+        item
+    ):
+        filename = item.data(
+            Qt.ItemDataRole.UserRole
+        )
+
+        if not filename:
+            return
+
+        self.settings.remove_recent_project(
+            filename
+        )
+
+        self.refresh_recent_projects()
 
     def transcription_finished(
         self,

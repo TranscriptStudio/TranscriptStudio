@@ -8,11 +8,19 @@ from services.app_paths import (
 
 class SettingsManager:
 
-    def __init__(self):
+    def __init__(self, app_folder=None):
 
-        self.app_folder = APP_DATA_DIR
+        # Dossier de parametrage injectable
+        # (utilise par les tests pour isoler
+        # la configuration reelle de l'utilisateur).
+        self.app_folder = (
+            Path(app_folder)
+            if app_folder is not None
+            else APP_DATA_DIR
+        )
 
         self.app_folder.mkdir(
+            parents=True,
             exist_ok=True
         )
 
@@ -184,6 +192,41 @@ class SettingsManager:
         ] = projects[:20]
 
         self.save()
+
+    def remove_recent_project(
+        self,
+        project_path
+    ):
+        """
+        Retire un projet de la liste des projets
+        recents. Le projet lui-meme n'est pas
+        touche sur le disque.
+        """
+
+        projects = (
+            self.get_recent_projects()
+        )
+
+        project_path = str(
+            Path(project_path)
+        )
+
+        remaining_projects = [
+            project
+            for project in projects
+            if project != project_path
+        ]
+
+        self.settings[
+            "recent_projects"
+        ] = remaining_projects
+
+        self.save()
+
+        return (
+            len(remaining_projects)
+            != len(projects)
+        )
 
     def get_transcription_defaults(self):
 
