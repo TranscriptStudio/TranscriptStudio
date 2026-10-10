@@ -11,6 +11,57 @@ from PySide6.QtSvg import QSvgRenderer
 from services.resources import resource_path
 
 
+# Dimensions des boutons d'icones (barre d'outils
+# de l'editeur et fenetre de pretraitement audio).
+# Ajuster ici pour retailler tous les boutons.
+ICON_BUTTON_WIDTH = 40
+
+ICON_BUTTON_HEIGHT = 25
+
+
+def make_button_height_css(
+    height,
+    border_px=0,
+    padding_css="0px"
+):
+    """Retourne les regles CSS (padding, min-height,
+    max-height) fixant la hauteur totale d'un bouton.
+
+    La stylesheet du theme impose son propre modele de
+    taille (min-height + padding + bordure) qui depasse
+    setFixedSize : la hauteur doit donc etre fixee en
+    CSS pour s'appliquer reellement. En CSS, min-height
+    et max-height s'entendent hors padding et bordure,
+    d'ou la soustraction.
+    """
+
+    vertical_padding = 0
+
+    first_value = (
+        padding_css
+        .split()[0]
+        .replace("px", "")
+    )
+
+    if first_value:
+
+        vertical_padding = int(
+            first_value
+        )
+
+    content_height = (
+        height
+        - 2 * border_px
+        - 2 * vertical_padding
+    )
+
+    return (
+        f"padding: {padding_css};\n"
+        f"min-height: {content_height}px;\n"
+        f"max-height: {content_height}px;\n"
+    )
+
+
 def make_tinted_icon(
     color,
     svg_relative_path,

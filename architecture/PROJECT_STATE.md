@@ -37,14 +37,11 @@
 - `architecture/PROJECT_STATE.md` (ce fichier)
 
 ### Modifications non commitées
-- `ui/main_window.py` (P9.2/P9.4 : boutons média SVG teintés thème, raccourci `StandardKey.Save`)
-- `ui/home_window.py` (P9.2 : police système, suppression `Segoe UI Light`)
-- `ui/block_widget.py` (P9.3 : `make_speaker_icon` délègue à `services/icons.py`)
-- `TranscriptStudio.py` (P9.3 : repli d'icône au démarrage)
-- `services/icons.py` (P9.3 : nouveau, `make_tinted_icon`)
-- `icons/player-*.svg` (P9.3 : nouveaux, icônes média)
-- `architecture/TranscriptStudio_Roadmap_Portabilite_Tests.md` (P9 terminée, hash E1.3)
-- `architecture/PROJECT_STATE.md` (ce fichier)
+- `ui/main_window.py`, `ui/audio_preprocess_dialog.py` (P9.5 : styles par-bouton à hauteur CSS)
+- `services/icons.py` (P9.5 : `ICON_BUTTON_*`, `make_button_height_css`)
+- `services/theme_manager.py` (P9.5 : stylesheet boutons pilotée par `ICON_BUTTON_HEIGHT`)
+- `icons/player-stop.svg` (P9.3 : nouveau, stop du prétraitement)
+- `architecture/PROJECT_STATE.md`, roadmap (correctifs P9)
 
 ---
 
@@ -201,22 +198,30 @@
   - Personnalisation des boutons (texte lisible, fond coherents)
   
 - **P9.2 Polices** ⭐ **VALIDE**
-  - Commit : (a realiser)
+  - Commit : 7487e24
   - Suppression de `QFont("Segoe UI Light", 28)` (Windows-only) dans `home_window.py`
   - Police système via `QFontDatabase.systemFont(GeneralFont)` + graisse Light
   - Emojis critiques des contrôles média remplacés par des SVG
 
 - **P9.3 Icones** ⭐ **VALIDE**
-  - Commit : (a realiser)
+  - Commit : 7487e24 (correctifs : a realiser)
   - `services/icons.py` : `make_tinted_icon(color, svg, size, dpr)` — icône SVG teintée, ancre `fill="#2942ff"`
   - Boutons lecture/pause/précédent/suivant de l'éditeur : `icons/player-*.svg` teintés avec la couleur de texte du thème (le rendu des emojis varie fortement selon l'OS)
+  - Correctif : mêmes SVG dans la fenêtre de prétraitement (lecteurs original **et** résultat, bascules play/pause en `setIcon`, `player-stop.svg`)
   - `make_speaker_icon` refactoré en délégation à `services/icons.py`
   - Démarrage indépendant de `icon.ico` : repli `logo.png`, puis démarrage sans icône (`TranscriptStudio.py`)
   - `.icns` macOS et validation visuelle des icônes restantes (emojis non critiques, libellés texte) : reportés au packaging (P11)
 
 - **P9.4 Raccourcis** ⭐ **VALIDE**
-  - Commit : (a realiser)
+  - Commit : 7487e24
   - `QKeySequence("Ctrl+S")` remplacé par `QKeySequence.StandardKey.Save` (`main_window.py`) — mapping automatique `Cmd+S` sous macOS
+
+- **P9.5 Hauteur des boutons** ⭐ **VALIDE**
+  - Commit : (a realiser)
+  - Constantes `ICON_BUTTON_WIDTH` / `ICON_BUTTON_HEIGHT` dans `services/icons.py` : taille de **tous** les boutons de l'application
+  - `make_button_height_css()` : hauteur fixée en CSS (`min-height`/`max-height` hors padding/bordure) — le modèle de taille de la stylesheet du thème dépasse `setFixedSize`
+  - Styles par-bouton (éditeur, prétraitement, lecteur de résultat) + stylesheet globale des boutons (`theme_manager.py`, `padding: 2px 12px`, `min-height` calculé) : accueil, paramètres et dialogues inclus
+  - Vérifié offscreen sous le vrai thème : 13 boutons éditeur + 10 boutons prétraitement à 40x25, boutons texte ≤ hauteur cible
 
 #### ✅ **E1 - AMELIORATIONS UX EDITEUR** ⭐ **TERMINE**
 - **E1.1 Puce speaker** ⭐ **VALIDE**
@@ -332,7 +337,8 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
-| (a realiser) | P9.2-P9.4 - Polices systeme, icones media SVG teintees, repli icone demarrage, raccourci standard | ⏳ A COMMIT | P9 |
+| 7487e24 | P9.2-P9.4 - Polices systeme, icones media SVG teintees, repli icone demarrage, raccourci standard | ✅ VALIDE | P9 |
+| (a realiser) | P9.5 - Icones SVG pretraitement + hauteur globale des boutons (ICON_BUTTON_*, CSS) | ⏳ A COMMIT | P9 |
 | 13f4f38 | E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues | ✅ VALIDE | E1 |
 | 0e8a35a | E1.1/E1.2 - Icône user.svg teintée + suppression bold mot lu | ✅ VALIDE | E1 |
 | b9429dd | P9 - UI Multiplateforme : integration qdarktheme + correction bug _credential_store | ✅ VALIDE | P9 |

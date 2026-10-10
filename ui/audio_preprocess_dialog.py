@@ -33,6 +33,12 @@ from services.audio_processing_worker import AudioProcessingWorker
 from services.ffmpeg_paths import FFMPEG_PATH
 from services.audio_finalization_worker import AudioFinalizationWorker
 from services.project_manager import ProjectManager
+from services.icons import (
+    make_tinted_icon,
+    make_button_height_css,
+    ICON_BUTTON_WIDTH,
+    ICON_BUTTON_HEIGHT,
+)
 
 from ui.waveform_widget import WaveformWidget
 
@@ -136,12 +142,37 @@ class AudioPreprocessDialog(QDialog):
 
         toolbar = QHBoxLayout()
 
-        self.play_button = QPushButton("▶️")
+        # Icones SVG teintees theme : le rendu des
+        # emojis varies fortement selon l'OS.
+        text_color = (
+            self.palette()
+            .text()
+            .color()
+            .name()
+        )
+
+        self.play_button = QPushButton()
+        self.play_button.setIcon(
+            make_tinted_icon(
+                text_color,
+                "icons/player-play.svg",
+                20,
+                self.play_button.devicePixelRatioF()
+            )
+        )
         self.play_button.setToolTip(
             "Lire / mettre en pause le fichier original"
         )
 
-        self.stop_button = QPushButton("⏹️")
+        self.stop_button = QPushButton()
+        self.stop_button.setIcon(
+            make_tinted_icon(
+                text_color,
+                "icons/player-stop.svg",
+                20,
+                self.stop_button.devicePixelRatioF()
+            )
+        )
         self.stop_button.setToolTip(
             "Arrêter la lecture"
         )
@@ -171,11 +202,25 @@ class AudioPreprocessDialog(QDialog):
             "pour pouvoir utiliser le fichier traité "
             "pour la transcription."
         )
-        icon_button_style = """
-            QPushButton {
+        # La hauteur est fixee en CSS : le modele de
+        # taille de la stylesheet du theme depasse
+        # setFixedSize (voir services/icons.py). La
+        # bordure des boutons du theme fait 1px.
+        icon_button_style = f"""
+            QPushButton {{
                 font-size: 18px;
-            }
+                {make_button_height_css(ICON_BUTTON_HEIGHT, border_px=1)}
+            }}
         """
+
+        labeled_button_style = f"""
+            QPushButton {{
+                {make_button_height_css(ICON_BUTTON_HEIGHT, border_px=1, padding_css="2px 10px")}
+            }}
+        """
+        # Taille commune des boutons d'icones :
+        # voir ICON_BUTTON_WIDTH / ICON_BUTTON_HEIGHT
+        # dans services/icons.py.
         for btn in [
             self.play_button,
             self.stop_button,
@@ -187,8 +232,8 @@ class AudioPreprocessDialog(QDialog):
             self.transcribe_button,
         ]:
             btn.setFixedSize(
-                40,
-                40
+                ICON_BUTTON_WIDTH,
+                ICON_BUTTON_HEIGHT
             )
 
             if btn in [
@@ -205,18 +250,31 @@ class AudioPreprocessDialog(QDialog):
             if btn == self.process_button:
                 btn.setFixedSize(
                     150,
-                    40
+                    ICON_BUTTON_HEIGHT
+                )
+
+                btn.setStyleSheet(
+                    labeled_button_style
                 )
 
             if btn == self.finalize_button:
                 btn.setFixedSize(
                     100,
-                    40
+                    ICON_BUTTON_HEIGHT
                 )
+
+                btn.setStyleSheet(
+                    labeled_button_style
+                )
+
             if btn == self.transcribe_button:
                 btn.setFixedSize(
                     100,
-                    40
+                    ICON_BUTTON_HEIGHT
+                )
+
+                btn.setStyleSheet(
+                    labeled_button_style
                 )
 
             toolbar.addWidget(
@@ -759,12 +817,31 @@ class AudioPreprocessDialog(QDialog):
         #
         result_controls_layout = QHBoxLayout()
 
-        self.result_play_button = QPushButton(
-            "▶"
+        result_text_color = (
+            self.palette()
+            .text()
+            .color()
+            .name()
         )
 
-        self.result_stop_button = QPushButton(
-            "⏹"
+        self.result_play_button = QPushButton()
+        self.result_play_button.setIcon(
+            make_tinted_icon(
+                result_text_color,
+                "icons/player-play.svg",
+                18,
+                self.result_play_button.devicePixelRatioF()
+            )
+        )
+
+        self.result_stop_button = QPushButton()
+        self.result_stop_button.setIcon(
+            make_tinted_icon(
+                result_text_color,
+                "icons/player-stop.svg",
+                18,
+                self.result_stop_button.devicePixelRatioF()
+            )
         )
 
         self.result_position_slider = QSlider(
@@ -775,14 +852,25 @@ class AudioPreprocessDialog(QDialog):
             "00:00 / 00:00"
         )
 
+        # Taille commune des boutons d'icones :
+        # voir ICON_BUTTON_WIDTH / ICON_BUTTON_HEIGHT
+        # dans services/icons.py. La hauteur est fixee
+        # en CSS (le modele de taille de la stylesheet
+        # du theme depasse setFixedSize).
         self.result_play_button.setFixedSize(
-            36,
-            30
+            ICON_BUTTON_WIDTH,
+            ICON_BUTTON_HEIGHT
+        )
+        self.result_play_button.setStyleSheet(
+            icon_button_style
         )
 
         self.result_stop_button.setFixedSize(
-            36,
-            30
+            ICON_BUTTON_WIDTH,
+            ICON_BUTTON_HEIGHT
+        )
+        self.result_stop_button.setStyleSheet(
+            icon_button_style
         )
 
         self.result_position_label.setFixedWidth(
@@ -1017,16 +1105,33 @@ class AudioPreprocessDialog(QDialog):
         self,
         playing
     ):
+        text_color = (
+            self.palette()
+            .text()
+            .color()
+            .name()
+        )
+
         if playing:
-            self.play_button.setText(
-                "⏸️"
+            self.play_button.setIcon(
+                make_tinted_icon(
+                    text_color,
+                    "icons/player-pause.svg",
+                    20,
+                    self.play_button.devicePixelRatioF()
+                )
             )
             self.play_button.setToolTip(
                 "Mettre en pause le fichier original"
             )
         else:
-            self.play_button.setText(
-                "▶️"
+            self.play_button.setIcon(
+                make_tinted_icon(
+                    text_color,
+                    "icons/player-play.svg",
+                    20,
+                    self.play_button.devicePixelRatioF()
+                )
             )
             self.play_button.setToolTip(
                 "Lire le fichier original"
@@ -1882,8 +1987,16 @@ class AudioPreprocessDialog(QDialog):
         self.result_playback.set_position(
             0.0
         )
-        self.result_play_button.setText(
-            "▶️"
+        self.result_play_button.setIcon(
+            make_tinted_icon(
+                self.palette()
+                .text()
+                .color()
+                .name(),
+                "icons/player-play.svg",
+                18,
+                self.result_play_button.devicePixelRatioF()
+            )
         )
 
         self.result_position_slider.blockSignals(
@@ -2697,13 +2810,30 @@ class AudioPreprocessDialog(QDialog):
         self,
         playing
     ):
+        text_color = (
+            self.palette()
+            .text()
+            .color()
+            .name()
+        )
+
         if playing:
-            self.result_play_button.setText(
-                "⏸️"
+            self.result_play_button.setIcon(
+                make_tinted_icon(
+                    text_color,
+                    "icons/player-pause.svg",
+                    18,
+                    self.result_play_button.devicePixelRatioF()
+                )
             )
         else:
-            self.result_play_button.setText(
-                "▶️"
+            self.result_play_button.setIcon(
+                make_tinted_icon(
+                    text_color,
+                    "icons/player-play.svg",
+                    18,
+                    self.result_play_button.devicePixelRatioF()
+                )
             )
 
     def on_duration_changed(

@@ -631,6 +631,14 @@ tools/ffmpeg/
 - [x] Prevoir `.icns` pour macOS - generation au packaging (P11)
 - [x] Prevoir PNG/SVG adapte pour Linux - `icons/logo.png` en repli
 - [x] Ne pas faire dependre le demarrage Qt de `icons/icon.ico` uniquement - Repli `logo.png` puis demarrage sans icone (`TranscriptStudio.py`)
+- [x] Correctif : icones SVG teintees theme dans la fenetre de pretraitement (lecteurs original et resultat, `player-stop.svg`, bascules play/pause en `setIcon`)
+
+## P9.5 Hauteur des boutons ⭐ **VALIDE**
+
+- [x] Constantes `ICON_BUTTON_WIDTH` / `ICON_BUTTON_HEIGHT` dans `services/icons.py` : taille unique de tous les boutons
+- [x] `make_button_height_css()` : hauteur fixee en CSS (min-height/max-height hors padding/bordure) - le modele de taille de la stylesheet du theme depasse `setFixedSize`
+- [x] Boutons a icone de l'editeur et du pretraitement styles via le generateur, hauteurs verifiees sous le theme reel
+- [x] Stylesheet globale des boutons (`theme_manager.py`) pilotee par `ICON_BUTTON_HEIGHT` : accueil, parametres et dialogues inclus
 
 ## P9.4 Raccourcis ⭐ **VALIDE**
 
@@ -650,6 +658,7 @@ tools/ffmpeg/
 - [x] Raccourci sauvegarde natif sur chaque OS (StandardKey.Save)
 - [ ] Redimensionnement et plein ecran/maximisation corrects
 - [x] Test de fumee offscreen : instanciation `MainWindow` avec projet reel, icones media posees, bascule play/pause, raccourci resolu en `Ctrl+S`
+- [x] Hauteur des boutons sous le theme reel : editeur (13 boutons) et pretraitement (10 boutons) a `ICON_BUTTON_WIDTH`x`ICON_BUTTON_HEIGHT` ; boutons texte (accueil, parametres) sous la hauteur cible
 
 ---
 
@@ -833,7 +842,8 @@ tools/ffmpeg/
 ## Sprint 7 - Finalisation
 - [x] **Commit P8-1 — Advanced FFmpeg resolver** : f327448 - Strategie hierarchique
 - [x] **Commit P9-1 — Cross-platform UI** : b9429dd - Themes qdarktheme (P9.1)
-- [x] **Commit P9-2 — Polices systeme, icones media SVG, repli icone, raccourci standard** : P9.2-P9.4 (a commiter)
+- [x] **Commit P9-2 — Polices systeme, icones media SVG, repli icone, raccourci standard** : 7487e24 - P9.2-P9.4
+- [x] **Commit P9-3 — Icones SVG pretraitement + hauteur globale des boutons** : P9.5 (a commiter)
 - [ ] **Commit P10-1 — Path configuration** : `app_paths.py` clean, temporaires
 
 ## Hors sprint - Ameliorations editeur

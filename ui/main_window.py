@@ -42,7 +42,12 @@ from services.playback import PlaybackManager
 from services.project_io import (save_project)
 from services.exporter import (TranscriptExporter)
 from services.help import open_user_manual
-from services.icons import make_tinted_icon
+from services.icons import (
+    make_tinted_icon,
+    make_button_height_css,
+    ICON_BUTTON_WIDTH,
+    ICON_BUTTON_HEIGHT,
+)
 
 
 class MainWindow(QMainWindow):
@@ -401,9 +406,6 @@ class MainWindow(QMainWindow):
         self.btn_prev.setToolTip("Reculer l'audio de 5s")
         self.btn_next.setToolTip("Avance l'audio de 5s")
         self.btn_play.setToolTip("Lecture audio")
-        self.btn_prev.setFixedSize(40, 30)
-        self.btn_play.setFixedSize(50, 30)
-        self.btn_next.setFixedSize(40, 30)
 
         action_layout.addWidget(
             self.btn_prev
@@ -441,22 +443,30 @@ class MainWindow(QMainWindow):
             self.btn_next,
         ]
 
+        # Taille commune des boutons d'icones :
+        # voir ICON_BUTTON_WIDTH / ICON_BUTTON_HEIGHT
+        # dans services/icons.py.
         for btn in icon_buttons:
             btn.setFixedSize(
-                40,
-                40
+                ICON_BUTTON_WIDTH,
+                ICON_BUTTON_HEIGHT
             )
 
-            btn.setStyleSheet("""
-                QPushButton {
+            # La hauteur est fixee en CSS : le modele
+            # de taille de la stylesheet du theme
+            # depasse setFixedSize (voir services/
+            # icons.py).
+            btn.setStyleSheet(f"""
+                QPushButton {{
                     border: none;
                     font-size: 20px;
-                }
+                    {make_button_height_css(ICON_BUTTON_HEIGHT)}
+                }}
 
-                QPushButton:hover {
+                QPushButton:hover {{
                     background-color: rgba(128, 128, 128, 45);
                     border-radius: 5px;
-                }
+                }}
             """)
 
 

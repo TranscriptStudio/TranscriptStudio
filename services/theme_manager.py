@@ -12,6 +12,20 @@ try:
 except ImportError:
     QDARKTHEME_AVAILABLE = False
 
+from services.icons import ICON_BUTTON_HEIGHT
+
+
+# Padding vertical et min-height (boite de contenu)
+# des boutons texte, pour une hauteur totale egale
+# a ICON_BUTTON_HEIGHT (bordure de 1px de chaque cote).
+BUTTON_PADDING_VERTICAL = 2
+
+BUTTON_MIN_HEIGHT = (
+    ICON_BUTTON_HEIGHT
+    - 2 * BUTTON_PADDING_VERTICAL
+    - 2
+)
+
 
 class ThemeManager:
     SYSTEM = "system"
@@ -84,50 +98,52 @@ class ThemeManager:
         Corrige :
         - Texte des boutons en blanc (sombre) ou noir (clair) selon le theme
         - Fond des boutons en gris clair au lieu de blanc pour le theme light
+        - Hauteur des boutons pilotee par ICON_BUTTON_HEIGHT
+        (services/icons.py)
         """
         if theme_type == "dark":
             # Theme sombre : texte blanc, fond gris foncé
-            return """
-                QPushButton {
+            return f"""
+                QPushButton {{
                     color: #f0f0f0;
                     background-color: #373737;
                     border: 1px solid #5f5f5f;
                     border-radius: 4px;
-                    padding: 6px 12px;
-                    min-height: 28px;
-                }
-                QPushButton:hover {
+                    padding: {BUTTON_PADDING_VERTICAL}px 12px;
+                    min-height: {BUTTON_MIN_HEIGHT}px;
+                }}
+                QPushButton:hover {{
                     background-color: #4a4a4a;
-                }
-                QPushButton:pressed {
+                }}
+                QPushButton:pressed {{
                     background-color: #2a2a2a;
-                }
-                QPushButton:disabled {
+                }}
+                QPushButton:disabled {{
                     color: #828282;
                     background-color: #323232;
-                }
+                }}
             """
         else:
             # Theme clair : texte noir, fond gris clair élégant
-            return """
-                QPushButton {
+            return f"""
+                QPushButton {{
                     color: #191919;
                     background-color: #f5f5f5;
                     border: 1px solid #a0a0a0;
                     border-radius: 4px;
-                    padding: 6px 12px;
-                    min-height: 28px;
-                }
-                QPushButton:hover {
+                    padding: {BUTTON_PADDING_VERTICAL}px 12px;
+                    min-height: {BUTTON_MIN_HEIGHT}px;
+                }}
+                QPushButton:hover {{
                     background-color: #e5e5e5;
-                }
-                QPushButton:pressed {
+                }}
+                QPushButton:pressed {{
                     background-color: #d5d5d5;
-                }
-                QPushButton:disabled {
+                }}
+                QPushButton:disabled {{
                     color: #828282;
                     background-color: #e8e8e8;
-                }
+                }}
             """
 
     @staticmethod
