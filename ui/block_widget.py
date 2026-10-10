@@ -14,8 +14,64 @@ from PySide6.QtWidgets import (
     QSizePolicy,
 )
 
-from PySide6.QtGui import QCursor
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import (
+    QCursor,
+    QIcon,
+    QPainter,
+    QPixmap,
+)
+from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtCore import Qt, QSize, Signal
+
+from services.resources import resource_path
+
+def make_speaker_icon(
+    color,
+    size,
+    device_pixel_ratio=2.0
+):
+    """Retourne l'icône user.svg teintée avec la couleur du speaker."""
+
+    svg = (
+        resource_path("icons/user.svg")
+        .read_text(encoding="utf-8")
+    )
+
+    svg = svg.replace(
+        'fill="#2942ff"',
+        f'fill="{color}"'
+    )
+
+    renderer = QSvgRenderer(
+        svg.encode("utf-8")
+    )
+
+    pixmap = QPixmap(
+        int(size * device_pixel_ratio),
+        int(size * device_pixel_ratio)
+    )
+
+    pixmap.fill(
+        Qt.GlobalColor.transparent
+    )
+
+    painter = QPainter(pixmap)
+
+    painter.setRenderHint(
+        QPainter.RenderHint.Antialiasing,
+        True
+    )
+
+    renderer.render(painter)
+
+    painter.end()
+
+    pixmap.setDevicePixelRatio(
+        device_pixel_ratio
+    )
+
+    return QIcon(pixmap)
+
 
 def make_word_html(word_index, text, active=False):
 
@@ -28,7 +84,6 @@ def make_word_html(word_index, text, active=False):
     span_start = (
         '<span style="'
         'background-color:#FFD54F;'
-        'font-weight:bold;'
         'color:black;'
         'border-radius:3px;'
         'padding:1px;'
@@ -128,14 +183,22 @@ class BlockWidget(QWidget):
 
         self.color_button.setFixedSize(18, 18)
 
-        self.color_button.setStyleSheet(
-            f"""
-            QPushButton {{
-                background-color:{speaker.color};
-                border-radius:9px;
-                border:none;
-            }}
-            """
+        self.color_button.setFlat(True)
+
+        self.color_button.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+
+        self.color_button.setIcon(
+            make_speaker_icon(
+                speaker.color,
+                18,
+                self.color_button.devicePixelRatioF()
+            )
+        )
+
+        self.color_button.setIconSize(
+            QSize(18, 18)
         )
 
         # Nom affiché
