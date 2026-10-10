@@ -467,7 +467,15 @@ Transcript Studio n’est ni affilié à, ni sponsorisé, ni approuvé par Eleve
 
 FFmpeg est un projet tiers indépendant de Transcript Studio.
 
-Les binaires FFmpeg et FFprobe ne sont pas redistribués dans le dépôt source. L’utilisateur les télécharge séparément pour son environnement local.
+Les binaires FFmpeg et FFprobe ne sont pas stockés dans le dépôt source : l’installateur et l’archive portable Windows 1.0, en revanche, **redistribuent** `ffmpeg.exe` (build `9.0.2-essentials` de gyan.dev, compilée avec `--enable-gpl --enable-version3`, donc soumise à la GPL version 3 ou ultérieure). Cette redistribution est compatible avec la licence GPL-3.0 du projet.
+
+Sources FFmpeg officielles :
+
+https://ffmpeg.org/download.html
+
+Builds Windows redistribués :
+
+https://www.gyan.dev/ffmpeg/builds/
 
 Informations officielles :
 
@@ -487,7 +495,7 @@ Transcript Studio est destiné à être distribué sous la **GNU General Public 
 
 Cette licence autorise notamment l’utilisation, l’étude, la modification et la redistribution du logiciel sous les conditions de la GPLv3. Lorsqu’une version couverte par la GPL est redistribuée, les obligations prévues par cette licence doivent être respectées.
 
-Le texte officiel complet de la GNU GPL version 3 doit être placé dans le fichier `LICENSE` à la racine du dépôt avant une publication publique du projet.
+Le texte officiel complet de la GNU GPL version 3 est fourni dans le fichier `LICENSE` à la racine du dépôt.
 
 Référence officielle :
 
