@@ -362,10 +362,12 @@ Le fichier inclut `requirements.txt`, il n’est donc pas nécessaire d’instal
 
 La version 1.0 est distribuée sous deux formes, produites depuis les sources du dépôt :
 
-| Artefact | Contenu | Taille | SHA-256 |
-| --- | --- | --- | --- |
-| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 77 Mo | `f3ad4a090c766d885a3c32b142ebf06a4dd1424bc93e416aa0e71d453337399` |
-| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 110 Mo | `a1fe5fe51920febb6ba1f8cde717f2ebf0c91e1de952c3157f5ab9417c0b0dd8` |
+| Artefact | Contenu | Taille | SHA-256 | Téléchargement |
+| --- | --- | --- | --- | --- |
+| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 77 Mo | `f3ad4a090c766d885a3c32b142ebf06a4dd1424bc93e416aa0e71d453337399` | [Release v1.0](https://github.com/davidfrechet/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
+| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 110 Mo | `a1fe5fe51920febb6ba1f8cde717f2ebf0c91e1de952c3157f5ab9417c0b0dd8` | [Release v1.0](https://github.com/davidfrechet/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
+
+Les liens de téléchargement pointent vers la release GitHub `v1.0` et deviennent actifs à la publication de celle-ci.
 
 Les deux artefacts embarquent l’application complète : binaire Nuitka standalone, FFmpeg (`tools/ffmpeg/windows/ffmpeg.exe`), icônes et manuel utilisateur PDF.
 
