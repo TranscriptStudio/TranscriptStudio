@@ -732,8 +732,8 @@ tools/ffmpeg/
 - [x] Inclusion des ressources : `icons/`, `docs/Manuel utilisateur.pdf`
 - [x] FFmpeg embarqué : `tools/ffmpeg/windows/ffmpeg.exe` (résolveur hiérarchique P8)
 - [x] Icone application `icons/icon.ico`
-- [ ] Script Inno Setup : installateur per-machine, raccourcis, désinstallation propre
-- [ ] Archive ZIP portable en variante
+- [x] Script Inno Setup : installateur per-machine, raccourcis, désinstallation propre
+- [x] Archive ZIP portable en variante
 - [ ] Vérifier le binaire sur VirusTotal ; soumettre tout faux positif détecté
 - [ ] Test sur machine Windows sans environnement Python de dev
 - [x] Numéroter la version diffusée : 1.0
@@ -745,6 +745,13 @@ tools/ffmpeg/
 - Test de fumée : binaire lancé, fenêtre principale active 15 s (184 Mo en mémoire), arrêt propre ; 30 tests pytest verts après correctifs.
 - Piège 1 (résolu) : le build doit partir d'un CPython standard 3.11, pas d'une distribution Anaconda/conda. Avec le Python Anaconda de l'environnement de dev, import ctypes (utilisé au démarrage par platformdirs) déclenche un arrêt fatal 0x40000015 sans trace Python dans le binaire standalone. Environnement propre : uv venv --python 3.11 + pip install -r requirements.txt nuitka ordered-set zstandard.
 - Piège 2 (résolu) : services/elevenlabs_api.py et services/elevenlabs_transcriber.py contenaient un « é » encodé en Latin-1 dans un commentaire (fichiers mixtes UTF-8/Latin-1). Python ne pouvait les parser que grâce au cache .pyc local : tout checkout frais plantait au démarrage. Les deux fichiers ont été re-encodés intégralement en UTF-8 (une ligne corrigée par fichier).
+
+### Distribution (2026-10-10)
+
+- Installateur : tools/installer_windows.iss (Inno Setup 6.7.3, per-machine, UAC, raccourcis bureau + menu Demarrer, entree desinstallation HKLM). Compile via ISCC.exe. Sortie : dist/TranscriptStudio-1.0-setup.exe (77 Mo).
+- ZIP portable : dist/TranscriptStudio-1.0-portable.zip (110 Mo), contenu integral du dossier standalone.
+- Validation installateur sur cette machine : installation silencieuse OK (Program Files, FFmpeg embarque, manuel PDF, raccourcis tous utilisateurs), lancement de l'exe installe OK, desinstallation silencieuse OK (dossier, raccourcis et entree registre supprimes ; donnees utilisateur AppData conservees).
+- Restent des actions utilisateur : verification VirusTotal des deux artefacts, test sur une machine Windows vierge sans Python de dev.
 
 ## Documentation utilisateur (préalable au build)
 
