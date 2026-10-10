@@ -2,7 +2,7 @@
 
 Transcript Studio est une application de bureau Windows dédiée au prétraitement audio, à la transcription via l’API ElevenLabs Speech-to-Text et à la relecture/correction des transcriptions obtenues.
 
-Le projet est diffusé sous forme de **code source**. Aucun exécutable Windows n’est fourni dans le dépôt, mais les scripts de build de la version 1.0 (installateur et archive portable) sont inclus (voir la section « Build Windows »).
+Le dépôt contient les **sources** du projet et les scripts permettant de produire les **exécutables Windows 1.0** (installateur et archive portable). Les exécutables compilés ne sont pas stockés dans le dépôt : ils sont construits depuis les sources (voir la section « Build Windows ») et diffusés via les releases GitHub (voir la section « Installation »).
 
 ## Fonctionnalités principales
 
