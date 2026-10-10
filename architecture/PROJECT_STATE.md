@@ -1,7 +1,7 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-09
-> **Commit actuel** : f327448
+> **Dernière mise à jour** : 2026-10-10
+> **Commit actuel** : 0e8a35a
 > **Branche** : master
 > **Modifications locales** : OUI (a commiter)
 
@@ -11,11 +11,15 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +25 commits (en avance sur origin/master)
-- **Dernier commit** : `f327448 P8 - FFmpeg multiplateforme avance : resolveur hierarchique embarque/config/PATH`
-- **Modifications locales** : Fichiers modifies pour P9 (UI Multiplateforme - Themes)
+- **Local vs Origin** : +27 commits (en avance sur origin/master)
+- **Dernier commit** : `0e8a35a changement icone user dans block_widget et suppresion du bold à la lecture pour éviter décalage`
+- **Modifications locales** : `ui/block_widget.py` pour E1.3 (surlignage ExtraSelections + fondus)
 - **Commits récents** :
+  - `0e8a35a E1.1/E1.2 - Icône user.svg teintée couleur intervenant + suppression du bold sur le mot lu`
+  - `b9429dd P9 - UI Multiplateforme : integration qdarktheme + correction bug _credential_store`
   - `f327448 P8 - FFmpeg multiplateforme avance : resolveur hierarchique embarque/config/PATH`
+  - `629a21e Mise a jour PROJECT_STATE.md - P7 implemente avec commit 7bfcd17`
+  - `7bfcd17 P7 - Tests automatises : structure pytest, fixtures, tests unitaires pour project_io et ffmpeg`
   - `c5ca718 P4 - Resilience face a un media manquant : dialogue de recuperation et mode edition sans audio`
   - `dbe13f1 P3 - Decouplage finalisation audio / transcription`
   - `749ed6c P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
@@ -35,7 +39,10 @@
 - `architecture/PROJECT_STATE.md` (ce fichier)
 
 ### Modifications non commitées
-- `architecture/TranscriptStudio_Roadmap_Portabilite_Tests.md` (mises à jour des statuts P0 et P1)
+- `ui/block_widget.py` (E1.3 : surlignage du mot actif via ExtraSelections + fondus QVariantAnimation)
+- `architecture/TranscriptStudio_Roadmap_Portabilite_Tests.md` (phase E1 ajoutée, statuts rafraîchis)
+- `architecture/PROJECT_STATE.md` (ce fichier)
+- `.vibe/test_highlight_fade.py` (script de validation fonctionnelle du surlignage, non suivi)
 
 ---
 
@@ -185,7 +192,7 @@
 
 #### ✅ **P9 - UI MULTIPLATEFORME** ⭐ **TERMINE**
 - **P9.1 Themes** ⭐ **VALIDE**
-  - Commit : (a realiser)
+  - Commit : b9429dd
   - Remplacement de `app.setStyle("Windows11")` par `Fusion` + qdarktheme
   - Integration de pyqtdarktheme (qdarktheme) pour les themes modernes
   - Personnalisation du fond general (remplace blanc pur par #fafafa/#f8f8f8)
@@ -195,9 +202,34 @@
 - **P9.3 Icones** ⭐ **A FAIRE**
 - **P9.4 Raccourcis** ⭐ **A FAIRE**
 
+#### ✅ **E1 - AMELIORATIONS UX EDITEUR** ⭐ **TERMINE**
+- **E1.1 Puce speaker** ⭐ **VALIDE**
+  - Commit : 0e8a35a
+  - `icons/user.svg` teinté à la couleur de l'intervenant (`QSvgRenderer`, pixmap haute densité)
+  - Remplace le disque CSS dont le `border-radius` était écrasé par la stylesheet qdarktheme (P9.1)
+  - Bouton plat, cliquable, insensible aux stylesheets globales
+
+- **E1.2 Mot lu sans décalage** ⭐ **VALIDE**
+  - Commit : 0e8a35a
+  - Suppression du `font-weight:bold` sur le mot actif : la mise en gras provoquait un reflow de tous les mots suivants
+
+- **E1.3 Surlignage animé du mot lu** ⭐ **VALIDE**
+  - Commit : (a realiser)
+  - Surlignage via `ExtraSelections` avec cartographie des ancres `word_N` -> positions document
+  - Fin du re-render HTML complet à chaque changement de mot (gain performance + zéro reflow)
+  - Fondu d'apparition ~70 ms (`QVariantAnimation`, OutQuad) ; fondu de retrait ~180 ms, **une animation par mot** : en lecture rapide, plusieurs mots s'effacent simultanément sur toute leur durée au lieu de disparaître instantanément
+  - Gestion du scrubbing arrière (interruption du fondu sortant du mot réactivé, reprise depuis l'alpha courant) et réapplication sans animation après re-render
+  - Régions continues : chaque mot réel possède une région couvrant l'espace qui le précède, son texte et sa ponctuation ; ponctuation isolée (`:`, `?`, `»,`) groupée avec le mot précédent ; guillemets ouvrants (`«`) groupés avec le mot suivant — chaque espace d'inter-mots est coloré avec le mot qui le suit, la bande de surlignage est continue pendant la lecture
+  - Items purs (ponctuation/guillemets autonomes) : région vide, aucun surlignage individuel ni fondu fantôme
+  - Correction rémanence : `stop()` n'émet pas `finished` sur `QVariantAnimation`, un fondu sortant interrompu (mot plus court que le fondu) laissait le mot surligné à alpha partiel de façon permanente ; retrait explicite dans `start_fade_out`
+  - Thème sombre : variante assombrie du jaune (`HIGHLIGHT_COLOR_DARK`, détection via la couleur de texte du thème) ; la couleur du texte n'est **jamais** modifiée — la sélection ne peint que le fond, le texte garde sa couleur du thème (blanc en sombre, noir en clair) à tout instant ; les constantes de couleur acceptent un tuple `(r, g, b)` ou un hex `"#rrggbb"` (`make_highlight_color`)
+  - Ancres, clics souris, double-clic et menus contextuels inchangés
+  - Validation : script fonctionnel offscreen `.vibe/test_highlight_fade.py` (9 contrôles verts, dont régions avec ponctuation/guillemets et transitions rapides)
+
 ### Phases Suivantes
-1. **P9.2-P9.4 - UI MULTIPLATEFORME** (polices, icones, raccourcis)
-2. **P10 - CONFIGURATION MULTIPLATEFORME**
+1. **Commit E1.3** (`ui/block_widget.py`)
+2. **P9.2-P9.4 - UI MULTIPLATEFORME** (polices, icones, raccourcis)
+3. **P10 - CONFIGURATION MULTIPLATEFORME**
 
 ---
 
@@ -222,6 +254,8 @@
 - [x] `services/elevenlabs_api.py` utilise CredentialStore
 - [x] `services/elevenlabs_transcriber.py` utilise CredentialStore
 - [x] `ui/settings_dialog.py` utilise CredentialStore
+- [x] `ui/block_widget.py` : icône speaker teintée via `make_speaker_icon` (user.svg + couleur intervenant)
+- [x] `ui/block_widget.py` : surlignage du mot actif par ExtraSelections, plus aucun re-render HTML à chaque mot
 
 ### Tests manuels réalisés (selon commits) :
 - [x] P0.1 : Tous les tests validés
@@ -233,7 +267,8 @@
 - [x] P4 : Tests validés (media manquant, relocalisation, ouverture sans audio)
 - [x] P5 : Tests validés (nettoyage des noms historiques)
 - [x] P6 : Tests à valider (stockage sécurisé des clés)
-- [ ] P7 : Tests à valider (exécution complète de la suite)
+- [x] P7 : Suite pytest exécutée le 2026-10-10 (22 tests verts)
+- [x] E1 : Script fonctionnel surlignage validé (cartographie, fondus, transition, scrubbing, transitions rapides sans rémanence, re-render, ancres)
 
 ---
 
@@ -245,32 +280,32 @@
 - **Statut** : Non pertinent pour la validation fonctionnelle
 
 ### Tests automatisés
-- **État** : Aucun test automatisé (pytest) n'existe actuellement
-- **À faire** : Phase P7 (Tests automatisés)
+- **État** : 22 tests pytest verts (`tests/unit` : project_io, ffmpeg_resolver, api_capabilities), exécution confirmée le 2026-10-10
+- **Script fonctionnel** : `.vibe/test_highlight_fade.py` (surlignage ExtraSelections + fondus, offscreen, 7 contrôles)
+- **À faire** : P7.3 CI multi-OS ; intégrer les tests Qt/PySide6 (marqueur `qt`)
 
 ---
 
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
-### Priorité immédiate : **P4 - RESILIENCE FACE A UN MEDIA MANQUANT**
+### Priorité immédiate : **commit E1.3 + P9.2-P9.4 - UI MULTIPLATEFORME**
 
-**Objectif** : Un media manquant ne doit jamais empecher l'acces a une transcription existante
+**Objectif** : Commiter le surlignage animé, puis finaliser l'UI multiplateforme
 
 #### Actions principales :
-- [ ] Implémenter dialogue "Localiser le fichier... / Ouvrir sans audio / Annuler"
-- [ ] Désactiver lecture/seek si audio manquant
-- [ ] Conserver édition, sauvegarde et exports
-- [ ] Afficher état "Audio indisponible" sans erreurs Qt
+- [ ] Commiter `ui/block_widget.py` (E1.3 : surlignage ExtraSelections + fondus), avec roadmap et PROJECT_STATE
+- [ ] P9.2 : Polices système (`QFontDatabase.systemFont()`), suppression de la dépendance `Segoe UI Light`
+- [ ] P9.3 : Icônes multi-OS (`.ico` Windows, `.icns` macOS, PNG/SVG Linux)
+- [ ] P9.4 : Raccourcis natifs (`QKeySequence.StandardKey.Save`, vérifier `Cmd+S`)
 
 #### Fichiers concernés :
-- `ui/main_window.py` (gestion media manquant)
-- `services/project_io.py` (vérification audio)
+- `ui/main_window.py`, `ui/home_window.py`, `TranscriptStudio.py` (polices, raccourcis)
+- `services/theme_manager.py` (icônes)
 
 #### Prérequis :
-- ✅ P0 terminé (first-run + découplage API + FFmpeg)
-- ✅ P1 terminé (portabilité des projets)
-- ✅ P2 terminé (mode sans clé API)
-- ✅ P3 terminé (découplage finalisation/transcription)
+- ✅ P0 à P8 terminés
+- ✅ P9.1 terminé (b9429dd)
+- ✅ E1 terminé (0e8a35a + E1.3 en attente de commit)
 
 ---
 
@@ -278,7 +313,9 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
-| (a realiser) | P9 - UI Multiplateforme : themes qdarktheme, correction bug _credential_store | ⏳ A COMMIT | P9 |
+| (a realiser) | E1.3 - Surlignage anime du mot lu : ExtraSelections + fondus | ⏳ A COMMIT | E1 |
+| 0e8a35a | E1.1/E1.2 - Icône user.svg teintée + suppression bold mot lu | ✅ VALIDE | E1 |
+| b9429dd | P9 - UI Multiplateforme : integration qdarktheme + correction bug _credential_store | ✅ VALIDE | P9 |
 | 7bfcd17 | P7 - Tests automatises | ✅ VALIDE | P7 |
 | 5744295 | P6 - Stockage securise des cles API | ✅ VALIDE | P6 |
 | 93f90e9 | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
@@ -322,8 +359,9 @@
 - **P6** : ✅ **TERMINE**
 - **P7** : ✅ **TERMINE**
 - **P8** : ✅ **TERMINE**
-- **P9** : ✅ **TERMINE** (P9.1 Themes realise, P9.2-P9.4 a faire)
-- **Prochaine** : **P9.2-P9.4 - Polices, icones, raccourcis**
+- **P9** : ✅ **TERMINE** (P9.1 Themes b9429dd ; P9.2-P9.4 a faire)
+- **E1** : ✅ **TERMINE** (E1.1/E1.2 commit 0e8a35a ; E1.3 valide, a commiter)
+- **Prochaine** : **Commit E1.3 puis P9.2-P9.4 - Polices, icones, raccourcis**
 
 ---
 

@@ -715,6 +715,50 @@ tools/ffmpeg/
 
 ---
 
+# PHASE E1 - AMELIORATIONS UX EDITEUR (hors portabilite)
+
+> **Objectif** : Ameliorer le confort de lecture/correction dans l'editeur de transcription.
+> **Statut** : ⭐ **TERMINE** (E1.3 a commiter)
+
+## E1.1 Puce speaker ⭐ **VALIDE**
+
+- [x] Remplacer le disque CSS (ecrase par la stylesheet qdarktheme depuis P9.1) par `icons/user.svg` teinte a la couleur de l'intervenant
+- [x] Rendu via `QSvgRenderer` en pixmap haute densite (devicePixelRatio)
+- [x] Icône insensible aux stylesheets globales, bouton toujours cliquable (menu changement de speaker)
+- **Commit** : 0e8a35a
+
+## E1.2 Mot lu sans decalage ⭐ **VALIDE**
+
+- [x] Supprimer le `font-weight:bold` sur le mot actif : la mise en gras provoquait un decalage (reflow) de tous les mots suivants
+- **Commit** : 0e8a35a
+
+## E1.3 Surlignage anime du mot lu ⭐ **VALIDE**
+
+- [x] Remplacer le re-render HTML complet a chaque changement de mot par des `ExtraSelections` (cartographie des ancres `word_N` -> positions dans le document)
+- [x] Fondu d'apparition ~70 ms et de retrait ~180 ms (`QVariantAnimation`, courbe OutQuad), un fondu de retrait par mot : plusieurs mots s'effacent simultanement en lecture rapide au lieu de disparaitre instantanement
+- [x] Reapplication immediate sans animation apres re-render (taille de police, edition)
+- [x] Correction remanence : retrait explicite du mot en fondu interrompu dans `start_fade_out` (`stop()` n'emets pas `finished` sur `QVariantAnimation`)
+- [x] Theme sombre : variante assombrie du jaune (`HIGHLIGHT_COLOR_DARK`) ; la couleur du texte n'est jamais modifiee (la selection ne peint que le fond), detection du theme par la couleur de texte
+- [x] Regions continues : chaque mot reel possede l'espace qui le precede + son texte + sa ponctuation ; ponctuation isolee avec le mot precedent, guillemets ouvrants avec le mot suivant (espace d'inter-mots colore avec le mot qui le suit)
+- [x] Ancres, clics souris, double-clic et menus contextuels inchanges
+- [x] Gain : plus aucun reflow ni reconstruction de document pendant la lecture
+- **Commit** : (a realiser)
+- **Validation** : script fonctionnel offscreen `.vibe/test_highlight_fade.py` (8 controles : cartographie, fondus, transition, scrubbing arriere, desactivation, transitions rapides sans remanence, re-render, ancres)
+
+## Tests E1
+
+- [x] Cartographie mot -> position correcte apres rendu
+- [x] Fondu entrant jusqu'a alpha 255, selection unique sur le bon mot
+- [x] Transition entre deux mots (fondu croise)
+- [x] Scrubbing arriere (interruption d'un fondu sortant)
+- [x] Desactivation complete apres fondu sortant
+- [x] Transitions rapides (mots plus courts que le fondu) sans remanence accumulee
+- [x] Regions avec ponctuation isolee (`, . ; : ! ?`) et guillemets (« ouvrant au mot suivant, » fermant au mot precedent)
+- [x] Re-render avec mot actif reaplique sans animation
+- [x] Ancres de clic intactes
+
+---
+
 # 📅 PLANNING RECOMMANDE
 
 ## SPRINT 1 (Semaine 1) : Deblocage & Portabilite ⭐ **TERMINE**
@@ -771,23 +815,27 @@ tools/ffmpeg/
 - [x] **Commit P3-2 — Project lifecycle states** : Etats provisoire/finalise/transcrit via _finalize_mode
 
 ## Sprint 4 - Resilience
-- [ ] **Commit P4-1 — Missing media recovery** : Strategie de relocalisation
-- [ ] **Commit P4-2 — Audio-less editing mode** : Edition sans media
+- [x] **Commit P4-1 — Missing media recovery** : c5ca718 - Strategie de relocalisation
+- [x] **Commit P4-2 — Audio-less editing mode** : c5ca718 - Edition sans media
 
 ## Sprint 5 - Qualite
-- [ ] **Commit P5-1 — Historical naming cleanup** : `TranscriptAudio` -> `TranscriptStudio`
-- [ ] **Commit P5-2 — Pathlib audit** : Elimination des chemins Windows-only
-- [ ] **Commit P6-1 — Secure credential storage** : `CredentialStore`, migration
+- [x] **Commit P5-1 — Historical naming cleanup** : 93f90e9 - `TranscriptAudio` -> `TranscriptStudio`
+- [x] **Commit P5-2 — Pathlib audit** : 93f90e9 - Elimination des chemins Windows-only
+- [x] **Commit P6-1 — Secure credential storage** : 5744295 - `CredentialStore`, migration
 
 ## Sprint 6 - Tests
-- [ ] **Commit P7-1 — Unit tests foundation** : Structure tests, fixtures
-- [ ] **Commit P7-2 — Portability test suite** : Tests P1-P4 automatises
+- [x] **Commit P7-1 — Unit tests foundation** : 7bfcd17 - Structure tests, fixtures
+- [x] **Commit P7-2 — Portability test suite** : 7bfcd17 - Tests project_io/ffmpeg_resolver/api_capabilities (22 verts)
 - [ ] **Commit P7-3 — CI matrix setup** : GitHub Actions/other CI
 
 ## Sprint 7 - Finalisation
-- [ ] **Commit P8-1 — Advanced FFmpeg resolver** : Strategie hierarchique
-- [ ] **Commit P9-1 — Cross-platform UI** : Themes, polices, icones
+- [x] **Commit P8-1 — Advanced FFmpeg resolver** : f327448 - Strategie hierarchique
+- [x] **Commit P9-1 — Cross-platform UI** : b9429dd - Themes qdarktheme (P9.1) ; P9.2-P9.4 restants
 - [ ] **Commit P10-1 — Path configuration** : `app_paths.py` clean, temporaires
+
+## Hors sprint - Ameliorations editeur
+- [x] **Commit E1-1 — Icone speaker teintee + mot lu sans decalage** : 0e8a35a
+- [ ] **Commit E1-2 — Surlignage anime du mot lu (ExtraSelections + fondus)** : a commiter
 
 ## Sprint 8 - Packaging
 - [ ] **Commit P11-1 — Windows packaging** : Nuitka + MSI
@@ -823,11 +871,22 @@ tools/ffmpeg/
   - [x] P1.3 Migration non destructive des anciens projets ⭐ **VALIDE**
   - [x] P1.4 Sauvegarde et autosave apres deplacement ⭐ **VALIDE**
 
+- [x] **P2 - MODE SANS CLE API** ⭐ **TERMINE** (749ed6c)
+- [x] **P3 - DECOUPLAGE FINALISATION / TRANSCRIPTION** ⭐ **TERMINE** (dbe13f1)
+- [x] **P4 - RESILIENCE FACE A UN MEDIA MANQUANT** ⭐ **TERMINE** (c5ca718)
+- [x] **P5 - NETTOYAGE** ⭐ **TERMINE** (93f90e9)
+- [x] **P6 - STOCKAGE SECURISE DES CLES API** ⭐ **TERMINE** (5744295)
+- [x] **P7 - TESTS AUTOMATISES** ⭐ **TERMINE** (7bfcd17 - 22 tests pytest verts ; CI restant a configurer)
+- [x] **P8 - FFMPEG MULTIPLATEFORME AVANCE** ⭐ **TERMINE** (f327448)
+- [x] **P9 - UI MULTIPLATEFORME** ⭐ **TERMINE** (b9429dd - P9.1 themes qdarktheme ; P9.2-P9.4 a faire)
+- [x] **E1 - AMELIORATIONS UX EDITEUR** ⭐ **TERMINE** (0e8a35a pour E1.1/E1.2 ; E1.3 a commiter)
+
 ## Phases en Cours
-- Aucune
+- Aucune (E1.3 implemente et valide, en attente de commit)
 
 ## Prochaine Phase
-**P2 - MODE SANS CLE API** : Centraliser la notion de capacite et implementer le mode degrade
+**P9.2-P9.4 - UI MULTIPLATEFORME** : polices systeme, icones multi-OS, raccourcis natifs
+Puis **P10 - CONFIGURATION MULTIPLATEFORME**, puis **P11 - PACKAGING**
 
 ---
 

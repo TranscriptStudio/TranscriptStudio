@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QTextBrowser,
+    QTextEdit,
     QComboBox,
     QLabel,
     QInputDialog,
@@ -15,13 +16,21 @@ from PySide6.QtWidgets import (
 )
 
 from PySide6.QtGui import (
+    QColor,
     QCursor,
     QIcon,
     QPainter,
     QPixmap,
+    QTextCursor,
 )
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtCore import (
+    Qt,
+    QSize,
+    QEasingCurve,
+    QVariantAnimation,
+    Signal,
+)
 
 from services.resources import resource_path
 
@@ -73,39 +82,53 @@ def make_speaker_icon(
     return QIcon(pixmap)
 
 
-def make_word_html(word_index, text, active=False):
+# Couleurs de surlignage : chaque constante
+# accepte un tuple (r, g, b) ou une couleur
+# hex "#rrggbb".
+HIGHLIGHT_COLOR = "#FFE06E"
 
-    link_start = (
-        f'<a href="word_{word_index}">'
+# Variante assombrie du jaune pour le theme
+# sombre : meme teinte, assez foncee pour que
+# le texte clair du theme reste lisible
+# dessus. Le texte ne change jamais de
+# couleur : la selection ne peint que le fond.
+HIGHLIGHT_COLOR_DARK = "#007812"
+
+
+def make_highlight_color(color_spec):
+    """Construit une QColor depuis un tuple
+    (r, g, b) ou une couleur hex "#rrggbb"."""
+
+    if isinstance(color_spec, str):
+
+        return QColor(color_spec)
+
+    return QColor(
+        color_spec[0],
+        color_spec[1],
+        color_spec[2]
     )
 
-    link_end = '</a>'
+HIGHLIGHT_FADE_IN_MS = 10
 
-    span_start = (
-        '<span style="'
-        'background-color:#FFD54F;'
-        'color:black;'
-        'border-radius:3px;'
-        'padding:1px;'
-        '">'
-    )
+HIGHLIGHT_FADE_OUT_MS = 1000
 
-    span_end = '</span>'
+# Caracteres regroupes avec le mot suivant
+# (guillemets ouvrants, parentheses ouvrantes).
+HIGHLIGHT_OPENING_CHARS = "«([“"
 
-    if active:
+# Caracteres regroupes avec le mot precedent
+# (guillemets fermants, parentheses fermantes
+# et ponctuation isolee : . , ; : ! ? ...).
+HIGHLIGHT_CLOSING_CHARS = "»)]”\',.;:!?…"
 
-        return (
-            link_start
-            + span_start
-            + text
-            + span_end
-            + link_end
-        )
+
+def make_word_html(word_index, text):
 
     return (
-        link_start
-        + text
-        + link_end
+        f'<a href="word_{word_index}">'
+        f'{text}'
+        '</a>'
     )
 
 class BlockWidget(QWidget):
@@ -151,6 +174,18 @@ class BlockWidget(QWidget):
 
         self.active_word = None
         self.last_clicked_word = None
+
+        # Surlignage du mot actif : positions
+        # des ancres dans le document, alphas
+        # courants des fonds en cours de fondu
+        # et animations de fondu sortant (une
+        # par mot, pour laisser chaque mot
+        # s'effacer sur toute sa durée).
+        self.word_positions = {}
+        self.highlight_alphas = {}
+        self.fade_in_word = None
+        self.fade_out_anims = {}
+
         self.text_font_size = (
             text_font_size
         )
@@ -317,6 +352,20 @@ class BlockWidget(QWidget):
         #     self.rename_speaker
         # )
 
+        # Animation de fondu entrant du mot actif.
+        # Les fondus sortants sont créés à la
+        # demande, un par mot, dans start_fade_out.
+        self.fade_in_anim = QVariantAnimation(self)
+        self.fade_in_anim.setDuration(
+            HIGHLIGHT_FADE_IN_MS
+        )
+        self.fade_in_anim.setEasingCurve(
+            QEasingCurve.Type.OutQuad
+        )
+        self.fade_in_anim.valueChanged.connect(
+            self.on_fade_in_value
+        )
+
         # Rendu initial
         self.render_words()
        
@@ -366,8 +415,8 @@ class BlockWidget(QWidget):
             else:
                 html += make_word_html(
                     global_index,
-                    item.text,
-                    global_index == self.active_word)
+                    item.text
+                )
 
         html = f"""
         <html>
@@ -394,6 +443,10 @@ class BlockWidget(QWidget):
 
         self.text_edit.setHtml(html)
 
+        self.map_word_positions()
+
+        self.reset_highlights()
+
     def set_text_font_size(
         self,
         size
@@ -416,14 +469,475 @@ class BlockWidget(QWidget):
         self,
         global_word_index
     ):
-        
+
         if self.active_word == global_word_index:
             return
 
-        self.active_word = global_word_index
-        
+        previous_word = self.active_word
 
-        self.render_words()
+        self.active_word = global_word_index
+
+        if previous_word is not None:
+            self.start_fade_out(previous_word)
+
+        if global_word_index is None:
+            return
+
+        if global_word_index in self.word_positions:
+            self.start_fade_in(global_word_index)
+
+    def start_fade_in(
+        self,
+        word_index
+    ):
+
+        self.fade_in_word = word_index
+
+        self.fade_in_anim.stop()
+
+        current_alpha = (
+            self.highlight_alphas.get(word_index, 0)
+        )
+
+        # Si le mot etait en cours de fondu
+        # sortant, celui-ci est interrompu :
+        # le fondu entrant reprend depuis
+        # l'alpha courant.
+        old_anim = (
+            self.fade_out_anims.pop(
+                word_index,
+                None
+            )
+        )
+
+        if old_anim is not None:
+
+            old_anim.stop()
+
+            old_anim.deleteLater()
+
+        self.highlight_alphas[word_index] = current_alpha
+
+        self.fade_in_anim.setStartValue(current_alpha)
+
+        self.fade_in_anim.setEndValue(255)
+
+        self.fade_in_anim.start()
+
+        self.apply_highlights()
+
+    def start_fade_out(
+        self,
+        word_index
+    ):
+
+        if self.fade_in_word == word_index:
+
+            self.fade_in_anim.stop()
+
+            self.fade_in_word = None
+
+        # Rien a effacer si le mot n'a jamais ete
+        # surligne (ponctuation isolee sans region,
+        # mot d'un autre bloc) : sans ce retour,
+        # un fondu fantome partirait de l'alpha
+        # par defaut.
+        if (
+
+            word_index not in self.highlight_alphas
+
+            or self.highlight_alphas[word_index] <= 0
+
+        ):
+
+            return
+
+        # Un mot actif ne peut pas avoir de fondu
+        # sortant en cours, mais par precaution,
+        # toute animation restante pour ce mot
+        # est remplacee.
+        old_anim = (
+            self.fade_out_anims.get(
+                word_index
+            )
+        )
+
+        if old_anim is not None:
+
+            old_anim.stop()
+
+            old_anim.deleteLater()
+
+        current_alpha = (
+            self.highlight_alphas.get(word_index, 255)
+        )
+
+        # Chaque mot quitte le surlignage avec sa
+        # propre animation : en lecture rapide,
+        # plusieurs mots s'effacent simultanement
+        # plutôt que de disparaitre brutalement.
+        anim = QVariantAnimation(self)
+
+        anim.setDuration(
+            HIGHLIGHT_FADE_OUT_MS
+        )
+
+        anim.setEasingCurve(
+            QEasingCurve.Type.OutQuad
+        )
+
+        anim.setStartValue(current_alpha)
+
+        anim.setEndValue(0)
+
+        anim.valueChanged.connect(
+            lambda value, word=word_index:
+                self.on_fade_out_value(
+                    word,
+                    value
+                )
+        )
+
+        anim.finished.connect(
+            lambda word=word_index:
+                self.on_fade_out_finished(word)
+        )
+
+        self.fade_out_anims[word_index] = anim
+
+        anim.start()
+
+        self.apply_highlights()
+
+    def on_fade_in_value(self, value):
+
+        if self.fade_in_word is None:
+            return
+
+        self.highlight_alphas[self.fade_in_word] = value
+
+        self.apply_highlights()
+
+    def on_fade_out_value(
+        self,
+        word_index,
+        value
+    ):
+
+        self.highlight_alphas[word_index] = value
+
+        self.apply_highlights()
+
+    def on_fade_out_finished(
+        self,
+        word_index
+    ):
+
+        anim = self.fade_out_anims.pop(
+            word_index,
+            None
+        )
+
+        if anim is not None:
+
+            anim.deleteLater()
+
+        self.highlight_alphas.pop(
+            word_index,
+            None
+        )
+
+        self.apply_highlights()
+
+    def map_word_positions(self):
+
+        self.word_positions = {}
+
+        document = self.text_edit.document()
+
+        items = []
+
+        block = document.firstBlock()
+
+        while block.isValid():
+
+            iterator = block.begin()
+
+            while not iterator.atEnd():
+
+                fragment = iterator.fragment()
+
+                href = (
+                    fragment
+                    .charFormat()
+                    .anchorHref()
+                )
+
+                if href.startswith("word_"):
+
+                    items.append(
+                        {
+                            'index': int(href[5:]),
+                            'start': fragment.position(),
+                            'end': (
+                                fragment.position()
+                                + fragment.length()
+                            ),
+                            'text': fragment.text()
+                        }
+                    )
+
+                iterator += 1
+
+            block = block.next()
+
+        # Classification de chaque item :
+        # - caracteres fermants/ponctuation en
+        #   tete -> regroupes avec le mot precedent ;
+        # - caracteres ouvrants en fin -> regroupes
+        #   avec le mot suivant ;
+        # - un item sans coeur alphanumerique est
+        #   un item "pur" (ponctuation isolee ou
+        #   guillemet autonome), integre a un voisin.
+        for item in items:
+
+            text = item['text']
+
+            length = len(text)
+
+            lead = 0
+
+            while (
+                lead < length
+                and text[lead] in HIGHLIGHT_CLOSING_CHARS
+            ):
+                lead += 1
+
+            trail = 0
+
+            while (
+                trail < length - lead
+                and text[length - 1 - trail] in HIGHLIGHT_OPENING_CHARS
+            ):
+                trail += 1
+
+            item['lead'] = lead
+
+            item['trail'] = trail
+
+            item['has_core'] = (
+                item['end'] - item['start']
+                > lead + trail
+            )
+
+            item['pure_opening'] = (
+                not item['has_core']
+                and length > 0
+                and text[length - 1] in HIGHLIGHT_OPENING_CHARS
+            )
+
+        real_positions = [
+            position
+            for position, item in enumerate(items)
+            if item['has_core']
+        ]
+
+        # Fin du "groupe" d'un mot reel : son texte
+        # (hors guillemets ouvrants finaux, donnes
+        # au mot suivant) etendu sur la ponctuation
+        # isolee fermante qui le suit. L'espace
+        # qui suit le groupe appartient au mot
+        # suivant.
+        group_ends = {}
+
+        for position in real_positions:
+
+            item = items[position]
+
+            group_end = (
+                item['end'] - item['trail']
+            )
+
+            follower = position + 1
+
+            while (
+                follower < len(items)
+
+                and not items[follower]['has_core']
+
+                and not items[follower]['pure_opening']
+            ):
+                group_end = items[follower]['end']
+                follower += 1
+
+            group_ends[position] = group_end
+
+        # Region d'un mot reel : de la fin du
+        # groupe du mot reel precedent (espace
+        # d'entree compris) jusqu'a sa propre fin
+        # de groupe. Les regions sont contigues :
+        # chaque espace d'inter-mots est colore
+        # avec le mot qui le suit. Le premier mot
+        # reel demarre aux guillemets ouvrants
+        # places avant lui, s'il y en a.
+        previous_region_end = None
+
+        for order, position in enumerate(real_positions):
+
+            item = items[position]
+
+            if previous_region_end is not None:
+
+                region_start = previous_region_end
+
+            else:
+
+                region_start = (
+                    item['start'] + item['lead']
+                )
+
+                previous = position - 1
+
+                while (
+                    previous >= 0
+                    and items[previous]['pure_opening']
+                ):
+                    region_start = items[previous]['start']
+                    previous -= 1
+
+            if order + 1 < len(real_positions):
+
+                next_real = (
+                    real_positions[order + 1]
+                )
+
+                next_item = items[next_real]
+
+                # Une ponctuation fermante colle en
+                # tete du mot suivant ("»Le") reste
+                # groupee avec le mot precedent : la
+                # region s'etend jusqu'au bout de
+                # cette ponctuation.
+                if next_item['lead'] > 0:
+
+                    region_end = (
+                        next_item['start']
+                        + next_item['lead']
+                    )
+
+                else:
+
+                    region_end = group_ends[position]
+
+            else:
+
+                region_end = group_ends[position]
+
+            self.word_positions[item['index']] = (
+                region_start,
+                region_end
+            )
+
+            previous_region_end = region_end
+
+    def reset_highlights(self):
+
+        self.fade_in_anim.stop()
+
+        self.fade_in_word = None
+
+        for anim in self.fade_out_anims.values():
+
+            anim.stop()
+
+            anim.deleteLater()
+
+        self.fade_out_anims.clear()
+
+        self.highlight_alphas.clear()
+
+        if self.active_word in self.word_positions:
+            self.highlight_alphas[self.active_word] = 255
+
+        self.apply_highlights()
+
+    def apply_highlights(self):
+
+        selections = []
+
+        document = self.text_edit.document()
+
+        # Detection du theme par la couleur de
+        # texte : le theme sombre affiche un texte
+        # clair. Le role Window du widget n'est pas
+        # utilisable (ecrase par sa stylesheet).
+        # En theme sombre, le jaune du theme clair
+        # laisserait un fond trop clair : on
+        # utilise la variante assombrie de la meme
+        # teinte. Le texte garde en permanence la
+        # couleur du theme.
+        base_text_color = (
+            self.text_edit
+            .palette()
+            .text()
+            .color()
+        )
+
+        text_luminance = (
+            0.299 * base_text_color.red()
+            + 0.587 * base_text_color.green()
+            + 0.114 * base_text_color.blue()
+        )
+
+        if text_luminance > 127:
+
+            highlight = make_highlight_color(
+                HIGHLIGHT_COLOR_DARK
+            )
+
+        else:
+
+            highlight = make_highlight_color(
+                HIGHLIGHT_COLOR
+            )
+
+        for word_index, alpha in self.highlight_alphas.items():
+
+            if alpha <= 0:
+                continue
+
+            span = self.word_positions.get(word_index)
+
+            if span is None:
+                continue
+
+            selection = QTextEdit.ExtraSelection()
+
+            selection.cursor = QTextCursor(document)
+
+            selection.cursor.setPosition(span[0])
+
+            selection.cursor.setPosition(
+                span[1],
+                QTextCursor.MoveMode.KeepAnchor
+            )
+
+            background = QColor(highlight)
+
+            background.setAlpha(int(alpha))
+
+            selection.format.setBackground(
+                background
+            )
+
+            # La couleur du texte n'est jamais
+            # modifiee : la selection ne peint
+            # que le fond, le texte garde la
+            # couleur du theme.
+
+            selections.append(selection)
+
+        self.text_edit.setExtraSelections(selections)
 
     def on_speaker_changed(
         self,
