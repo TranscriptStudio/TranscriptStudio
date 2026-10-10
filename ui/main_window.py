@@ -42,6 +42,7 @@ from services.playback import PlaybackManager
 from services.project_io import (save_project)
 from services.exporter import (TranscriptExporter)
 from services.help import open_user_manual
+from services.icons import make_tinted_icon
 
 
 class MainWindow(QMainWindow):
@@ -93,8 +94,10 @@ class MainWindow(QMainWindow):
             | Qt.WindowState.WindowMaximized
         )
 
+        # Raccourci standard : Ctrl+S sur Windows/Linux,
+        # Cmd+S sur macOS.
         self.save_shortcut = QShortcut(
-            QKeySequence("Ctrl+S"),
+            QKeySequence.StandardKey.Save,
             self
         )
 
@@ -353,9 +356,46 @@ class MainWindow(QMainWindow):
         #
         # Lecteur audio
         #
-        self.btn_prev = QPushButton("⏪")
-        self.btn_play = QPushButton("▶️")
-        self.btn_next = QPushButton("⏩")
+        # Controles de lecture : icones SVG teintees
+        # avec la couleur de texte du theme (le rendu
+        # des emojis varies fortement selon l'OS).
+        #
+        text_color = (
+            self.palette()
+            .text()
+            .color()
+            .name()
+        )
+
+        self.btn_prev = QPushButton()
+        self.btn_prev.setIcon(
+            make_tinted_icon(
+                text_color,
+                "icons/player-skip-back.svg",
+                20,
+                self.btn_prev.devicePixelRatioF()
+            )
+        )
+
+        self.btn_play = QPushButton()
+        self.btn_play.setIcon(
+            make_tinted_icon(
+                text_color,
+                "icons/player-play.svg",
+                22,
+                self.btn_play.devicePixelRatioF()
+            )
+        )
+
+        self.btn_next = QPushButton()
+        self.btn_next.setIcon(
+            make_tinted_icon(
+                text_color,
+                "icons/player-skip-forward.svg",
+                20,
+                self.btn_next.devicePixelRatioF()
+            )
+        )
 
         self.time_label = QLabel("00:00 / 00:00")
         self.btn_prev.setToolTip("Reculer l'audio de 5s")
@@ -785,10 +825,31 @@ class MainWindow(QMainWindow):
 
     def update_play_button(self, playing):
 
+        text_color = (
+            self.palette()
+            .text()
+            .color()
+            .name()
+        )
+
         if playing:
-            self.btn_play.setText("⏸️")
+            self.btn_play.setIcon(
+                make_tinted_icon(
+                    text_color,
+                    "icons/player-pause.svg",
+                    22,
+                    self.btn_play.devicePixelRatioF()
+                )
+            )
         else:
-            self.btn_play.setText("▶️")
+            self.btn_play.setIcon(
+                make_tinted_icon(
+                    text_color,
+                    "icons/player-play.svg",
+                    22,
+                    self.btn_play.devicePixelRatioF()
+                )
+            )
 
     def update_active_block(
         self,

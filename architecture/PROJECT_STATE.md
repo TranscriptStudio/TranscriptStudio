@@ -1,9 +1,9 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-10
-> **Commit actuel** : 0e8a35a
+> **Commit actuel** : 13f4f38
 > **Branche** : master
-> **Modifications locales** : OUI (a commiter)
+> **Modifications locales** : OUI (a commiter - finalisation P9)
 
 ---
 
@@ -11,18 +11,16 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +27 commits (en avance sur origin/master)
-- **Dernier commit** : `0e8a35a changement icone user dans block_widget et suppresion du bold à la lecture pour éviter décalage`
-- **Modifications locales** : `ui/block_widget.py` pour E1.3 (surlignage ExtraSelections + fondus)
+- **Local vs Origin** : +28 commits (en avance sur origin/master)
+- **Dernier commit** : `13f4f38 E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues (ponctuation, guillemets, espaces), contraste theme sombre`
+- **Modifications locales** : finalisation P9 (polices systeme, icones media SVG, repli icone, raccourci standard) + docs
 - **Commits récents** :
+  - `13f4f38 E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues`
   - `0e8a35a E1.1/E1.2 - Icône user.svg teintée couleur intervenant + suppression du bold sur le mot lu`
   - `b9429dd P9 - UI Multiplateforme : integration qdarktheme + correction bug _credential_store`
   - `f327448 P8 - FFmpeg multiplateforme avance : resolveur hierarchique embarque/config/PATH`
   - `629a21e Mise a jour PROJECT_STATE.md - P7 implemente avec commit 7bfcd17`
   - `7bfcd17 P7 - Tests automatises : structure pytest, fixtures, tests unitaires pour project_io et ffmpeg`
-  - `c5ca718 P4 - Resilience face a un media manquant : dialogue de recuperation et mode edition sans audio`
-  - `dbe13f1 P3 - Decouplage finalisation audio / transcription`
-  - `749ed6c P2 - Mode sans cle API : UX degradee et decouplage fonctionnel`
   - `4914a6c Mise a jour PROJECT_STATE.md - P1.3 implemente`
   - `528ce8c P1.3 - Migration non-destructive des anciens projets : deja implmente via P1.1+P1.2`
   - `71ac2cf P1.2 - Resolution a l'ouverture : project_file en memoire, resolution audio_file relatif/absolu avec fallback`
@@ -39,10 +37,14 @@
 - `architecture/PROJECT_STATE.md` (ce fichier)
 
 ### Modifications non commitées
-- `ui/block_widget.py` (E1.3 : surlignage du mot actif via ExtraSelections + fondus QVariantAnimation)
-- `architecture/TranscriptStudio_Roadmap_Portabilite_Tests.md` (phase E1 ajoutée, statuts rafraîchis)
+- `ui/main_window.py` (P9.2/P9.4 : boutons média SVG teintés thème, raccourci `StandardKey.Save`)
+- `ui/home_window.py` (P9.2 : police système, suppression `Segoe UI Light`)
+- `ui/block_widget.py` (P9.3 : `make_speaker_icon` délègue à `services/icons.py`)
+- `TranscriptStudio.py` (P9.3 : repli d'icône au démarrage)
+- `services/icons.py` (P9.3 : nouveau, `make_tinted_icon`)
+- `icons/player-*.svg` (P9.3 : nouveaux, icônes média)
+- `architecture/TranscriptStudio_Roadmap_Portabilite_Tests.md` (P9 terminée, hash E1.3)
 - `architecture/PROJECT_STATE.md` (ce fichier)
-- `.vibe/test_highlight_fade.py` (script de validation fonctionnelle du surlignage, non suivi)
 
 ---
 
@@ -198,9 +200,23 @@
   - Personnalisation du fond general (remplace blanc pur par #fafafa/#f8f8f8)
   - Personnalisation des boutons (texte lisible, fond coherents)
   
-- **P9.2 Polices** ⭐ **A FAIRE**
-- **P9.3 Icones** ⭐ **A FAIRE**
-- **P9.4 Raccourcis** ⭐ **A FAIRE**
+- **P9.2 Polices** ⭐ **VALIDE**
+  - Commit : (a realiser)
+  - Suppression de `QFont("Segoe UI Light", 28)` (Windows-only) dans `home_window.py`
+  - Police système via `QFontDatabase.systemFont(GeneralFont)` + graisse Light
+  - Emojis critiques des contrôles média remplacés par des SVG
+
+- **P9.3 Icones** ⭐ **VALIDE**
+  - Commit : (a realiser)
+  - `services/icons.py` : `make_tinted_icon(color, svg, size, dpr)` — icône SVG teintée, ancre `fill="#2942ff"`
+  - Boutons lecture/pause/précédent/suivant de l'éditeur : `icons/player-*.svg` teintés avec la couleur de texte du thème (le rendu des emojis varie fortement selon l'OS)
+  - `make_speaker_icon` refactoré en délégation à `services/icons.py`
+  - Démarrage indépendant de `icon.ico` : repli `logo.png`, puis démarrage sans icône (`TranscriptStudio.py`)
+  - `.icns` macOS et validation visuelle des icônes restantes (emojis non critiques, libellés texte) : reportés au packaging (P11)
+
+- **P9.4 Raccourcis** ⭐ **VALIDE**
+  - Commit : (a realiser)
+  - `QKeySequence("Ctrl+S")` remplacé par `QKeySequence.StandardKey.Save` (`main_window.py`) — mapping automatique `Cmd+S` sous macOS
 
 #### ✅ **E1 - AMELIORATIONS UX EDITEUR** ⭐ **TERMINE**
 - **E1.1 Puce speaker** ⭐ **VALIDE**
@@ -214,7 +230,7 @@
   - Suppression du `font-weight:bold` sur le mot actif : la mise en gras provoquait un reflow de tous les mots suivants
 
 - **E1.3 Surlignage animé du mot lu** ⭐ **VALIDE**
-  - Commit : (a realiser)
+  - Commit : 13f4f38
   - Surlignage via `ExtraSelections` avec cartographie des ancres `word_N` -> positions document
   - Fin du re-render HTML complet à chaque changement de mot (gain performance + zéro reflow)
   - Fondu d'apparition ~70 ms (`QVariantAnimation`, OutQuad) ; fondu de retrait ~180 ms, **une animation par mot** : en lecture rapide, plusieurs mots s'effacent simultanément sur toute leur durée au lieu de disparaître instantanément
@@ -227,9 +243,8 @@
   - Validation : script fonctionnel offscreen `.vibe/test_highlight_fade.py` (9 contrôles verts, dont régions avec ponctuation/guillemets et transitions rapides)
 
 ### Phases Suivantes
-1. **Commit E1.3** (`ui/block_widget.py`)
-2. **P9.2-P9.4 - UI MULTIPLATEFORME** (polices, icones, raccourcis)
-3. **P10 - CONFIGURATION MULTIPLATEFORME**
+1. **P10 - CONFIGURATION MULTIPLATEFORME** (centralisation `app_paths.py`, temporaires)
+2. **P11 - PACKAGING**
 
 ---
 
@@ -256,6 +271,10 @@
 - [x] `ui/settings_dialog.py` utilise CredentialStore
 - [x] `ui/block_widget.py` : icône speaker teintée via `make_speaker_icon` (user.svg + couleur intervenant)
 - [x] `ui/block_widget.py` : surlignage du mot actif par ExtraSelections, plus aucun re-render HTML à chaque mot
+- [x] `ui/home_window.py` : police système (`QFontDatabase.systemFont`), plus de dépendance `Segoe UI Light`
+- [x] `ui/main_window.py` : boutons média en SVG teinté thème, raccourci `QKeySequence.StandardKey.Save`
+- [x] `services/icons.py` : `make_tinted_icon` (icônes SVG teintées multiplateforme)
+- [x] `TranscriptStudio.py` : icône de démarrage avec repli (`icon.ico` → `logo.png` → aucune), pas de crash si absente
 
 ### Tests manuels réalisés (selon commits) :
 - [x] P0.1 : Tous les tests validés
@@ -288,24 +307,24 @@
 
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
-### Priorité immédiate : **commit E1.3 + P9.2-P9.4 - UI MULTIPLATEFORME**
+### Priorité immédiate : **P10 - CONFIGURATION MULTIPLATEFORME**
 
-**Objectif** : Commiter le surlignage animé, puis finaliser l'UI multiplateforme
+**Objectif** : Éliminer les hypothèses Windows du code métier
 
 #### Actions principales :
-- [ ] Commiter `ui/block_widget.py` (E1.3 : surlignage ExtraSelections + fondus), avec roadmap et PROJECT_STATE
-- [ ] P9.2 : Polices système (`QFontDatabase.systemFont()`), suppression de la dépendance `Segoe UI Light`
-- [ ] P9.3 : Icônes multi-OS (`.ico` Windows, `.icns` macOS, PNG/SVG Linux)
-- [ ] P9.4 : Raccourcis natifs (`QKeySequence.StandardKey.Save`, vérifier `Cmd+S`)
+- [ ] Créer/centraliser `app_paths.py` : chemins applicatifs, `QStandardPaths` pour les dossiers utilisateur
+- [ ] Ne plus créer automatiquement le répertoire de projets à l'import
+- [ ] Temporaires : sous-répertoires uniques par session/projet, nettoyage vérifié
+- [ ] Puis P11 - PACKAGING (générer `.icns`, valider emojis restants sur macOS/Linux)
 
 #### Fichiers concernés :
-- `ui/main_window.py`, `ui/home_window.py`, `TranscriptStudio.py` (polices, raccourcis)
-- `services/theme_manager.py` (icônes)
+- `services/settings.py`, `services/app_paths.py` (à créer)
+- `services/audio_waveform_service.py` (temporaires)
 
 #### Prérequis :
 - ✅ P0 à P8 terminés
-- ✅ P9.1 terminé (b9429dd)
-- ✅ E1 terminé (0e8a35a + E1.3 en attente de commit)
+- ✅ P9 terminé (P9.1 : b9429dd ; P9.2-P9.4)
+- ✅ E1 terminé (0e8a35a, 13f4f38)
 
 ---
 
@@ -313,7 +332,8 @@
 
 | Commit | Message | Statut | Phase |
 |--------|---------|--------|-------|
-| (a realiser) | E1.3 - Surlignage anime du mot lu : ExtraSelections + fondus | ⏳ A COMMIT | E1 |
+| (a realiser) | P9.2-P9.4 - Polices systeme, icones media SVG teintees, repli icone demarrage, raccourci standard | ⏳ A COMMIT | P9 |
+| 13f4f38 | E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues | ✅ VALIDE | E1 |
 | 0e8a35a | E1.1/E1.2 - Icône user.svg teintée + suppression bold mot lu | ✅ VALIDE | E1 |
 | b9429dd | P9 - UI Multiplateforme : integration qdarktheme + correction bug _credential_store | ✅ VALIDE | P9 |
 | 7bfcd17 | P7 - Tests automatises | ✅ VALIDE | P7 |
@@ -359,9 +379,9 @@
 - **P6** : ✅ **TERMINE**
 - **P7** : ✅ **TERMINE**
 - **P8** : ✅ **TERMINE**
-- **P9** : ✅ **TERMINE** (P9.1 Themes b9429dd ; P9.2-P9.4 a faire)
-- **E1** : ✅ **TERMINE** (E1.1/E1.2 commit 0e8a35a ; E1.3 valide, a commiter)
-- **Prochaine** : **Commit E1.3 puis P9.2-P9.4 - Polices, icones, raccourcis**
+- **P9** : ✅ **TERMINE** (P9.1 Themes b9429dd ; P9.2-P9.4 : polices système, icônes SVG teintées, repli icône, raccourci standard)
+- **E1** : ✅ **TERMINE** (E1.1/E1.2 : 0e8a35a ; E1.3 : 13f4f38)
+- **Prochaine** : **P10 - Configuration multiplateforme**, puis **P11 - Packaging**
 
 ---
 

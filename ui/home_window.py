@@ -1,4 +1,4 @@
-﻿from PySide6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -18,6 +18,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QPixmap,
     QFont,
+    QFontDatabase,
     QIcon,
     QPalette,
     QColor,
@@ -93,7 +94,13 @@ class HomeWindow(QWidget):
         title_layout.setSpacing(2)
 
         self.title_label = QLabel("Transcript Studio")
-        title_font = QFont("Segoe UI Light", 28)
+
+        # Police systeme : Segoe UI Light n'existe que
+        # sous Windows.
+        title_font = QFontDatabase.systemFont(
+            QFontDatabase.SystemFont.GeneralFont
+        )
+        title_font.setPointSize(28)
         title_font.setWeight(QFont.Weight.Light)
         self.title_label.setFont(title_font)
 

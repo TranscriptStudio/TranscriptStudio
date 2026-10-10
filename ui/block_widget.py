@@ -18,12 +18,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import (
     QColor,
     QCursor,
-    QIcon,
-    QPainter,
-    QPixmap,
     QTextCursor,
 )
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import (
     Qt,
     QSize,
@@ -32,7 +28,8 @@ from PySide6.QtCore import (
     Signal,
 )
 
-from services.resources import resource_path
+from services.icons import make_tinted_icon
+
 
 def make_speaker_icon(
     color,
@@ -41,45 +38,12 @@ def make_speaker_icon(
 ):
     """Retourne l'icône user.svg teintée avec la couleur du speaker."""
 
-    svg = (
-        resource_path("icons/user.svg")
-        .read_text(encoding="utf-8")
-    )
-
-    svg = svg.replace(
-        'fill="#2942ff"',
-        f'fill="{color}"'
-    )
-
-    renderer = QSvgRenderer(
-        svg.encode("utf-8")
-    )
-
-    pixmap = QPixmap(
-        int(size * device_pixel_ratio),
-        int(size * device_pixel_ratio)
-    )
-
-    pixmap.fill(
-        Qt.GlobalColor.transparent
-    )
-
-    painter = QPainter(pixmap)
-
-    painter.setRenderHint(
-        QPainter.RenderHint.Antialiasing,
-        True
-    )
-
-    renderer.render(painter)
-
-    painter.end()
-
-    pixmap.setDevicePixelRatio(
+    return make_tinted_icon(
+        color,
+        "icons/user.svg",
+        size,
         device_pixel_ratio
     )
-
-    return QIcon(pixmap)
 
 
 # Couleurs de surlignage : chaque constante

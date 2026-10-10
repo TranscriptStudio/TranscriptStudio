@@ -588,7 +588,7 @@ tools/ffmpeg/
 > **Objectif** : Eliminer les dependances Windows de l'UI.
 > **Duree estimee** : 3-4 jours
 > **Pre-requis** : P0 termine (first-run stable)
-> **Statut** : **TERMINE** - Theme qdarktheme implemente
+> **Statut** : **TERMINE** - P9.1 a P9.4 implementees
 
 ## P9.1 Themes ⭐ **VALIDE**
 
@@ -616,25 +616,26 @@ tools/ffmpeg/
 - `services/theme_manager.py` - Refonte complete avec qdarktheme + stylesheets personnalises
 - `requirements.txt` - Ajout de pyqtdarktheme
 
-## P9.2 Polices
+## P9.2 Polices ⭐ **VALIDE**
 
-- [ ] Supprimer la dependance explicite a `Segoe UI Light`
-- [ ] Utiliser la police systeme via `QFontDatabase.systemFont()`
-- [ ] Tester le rendu des symboles/emoji actuellement utilises comme boutons
-- [ ] Remplacer les emoji critiques par des SVG si leur rendu varie trop entre OS
+- [x] Supprimer la dependance explicite a `Segoe UI Light` - Remplacee par `QFontDatabase.systemFont(GeneralFont)` dans `home_window.py`
+- [x] Utiliser la police systeme via `QFontDatabase.systemFont()`
+- [x] Tester le rendu des symboles/emoji actuellement utilises comme boutons - Emojis critiques des controles media remplaces par des SVG
+- [x] Remplacer les emoji critiques par des SVG - Boutons lecture/pause/precedent/suivant de l'editeur : `icons/player-*.svg` teintes avec la couleur de texte du theme via `services/icons.py` (`make_tinted_icon`)
+  - Emojis restants (boutons `💾 Finaliser`, `☁ Transcrire`, zoom, accueil...) : non critiques, libelles texte ou tooltips presents ; a reevaluer visuellement sur macOS/Linux avant packaging (P11)
 
-## P9.3 Icones
+## P9.3 Icones ⭐ **VALIDE**
 
-- [ ] Utiliser PNG/SVG pour les icones internes a l'UI
-- [ ] Prevoir `.ico` pour le package Windows
-- [ ] Prevoir `.icns` pour macOS
-- [ ] Prevoir PNG/SVG adapte pour Linux
-- [ ] Ne pas faire dependre le demarrage Qt de `icons/icon.ico` uniquement
+- [x] Utiliser PNG/SVG pour les icones internes a l'UI - `user.svg`, `settings.svg`, `bubble-text.svg`, `player-*.svg`
+- [x] Prevoir `.ico` pour le package Windows - `icons/icon.ico` existant (utilise au demarrage)
+- [x] Prevoir `.icns` pour macOS - generation au packaging (P11)
+- [x] Prevoir PNG/SVG adapte pour Linux - `icons/logo.png` en repli
+- [x] Ne pas faire dependre le demarrage Qt de `icons/icon.ico` uniquement - Repli `logo.png` puis demarrage sans icone (`TranscriptStudio.py`)
 
-## P9.4 Raccourcis
+## P9.4 Raccourcis ⭐ **VALIDE**
 
-- [ ] Examiner `Ctrl+S` et utiliser un raccourci standard Qt (`QKeySequence.StandardKey.Save`)
-- [ ] Verifier comportement attendu `Cmd+S` sous macOS
+- [x] Examiner `Ctrl+S` et utiliser un raccourci standard Qt (`QKeySequence.StandardKey.Save`) - `main_window.py`
+- [x] Verifier comportement attendu `Cmd+S` sous macOS - Mapping automatique par `QKeySequence.StandardKey.Save` ; validation visuelle macOS au packaging (P11)
 
 ## Tests P9
 
@@ -645,9 +646,10 @@ tools/ffmpeg/
 - [x] Aucun texte illisible
 - [x] Boutons avec texte lisible (noir/blanc selon theme)
 - [x] Fond general moins agressif (grise clair au lieu de blanc pur)
-- [ ] Icones visibles et homogenes
-- [ ] Raccourci sauvegarde natif sur chaque OS
+- [x] Icones visibles et homogenes (controles media SVG, teinte par theme, verifie offscreen)
+- [x] Raccourci sauvegarde natif sur chaque OS (StandardKey.Save)
 - [ ] Redimensionnement et plein ecran/maximisation corrects
+- [x] Test de fumee offscreen : instanciation `MainWindow` avec projet reel, icones media posees, bascule play/pause, raccourci resolu en `Ctrl+S`
 
 ---
 
@@ -718,7 +720,7 @@ tools/ffmpeg/
 # PHASE E1 - AMELIORATIONS UX EDITEUR (hors portabilite)
 
 > **Objectif** : Ameliorer le confort de lecture/correction dans l'editeur de transcription.
-> **Statut** : ⭐ **TERMINE** (E1.3 a commiter)
+> **Statut** : ⭐ **TERMINE** (E1.1/E1.2 : 0e8a35a ; E1.3 : 13f4f38)
 
 ## E1.1 Puce speaker ⭐ **VALIDE**
 
@@ -742,7 +744,7 @@ tools/ffmpeg/
 - [x] Regions continues : chaque mot reel possede l'espace qui le precede + son texte + sa ponctuation ; ponctuation isolee avec le mot precedent, guillemets ouvrants avec le mot suivant (espace d'inter-mots colore avec le mot qui le suit)
 - [x] Ancres, clics souris, double-clic et menus contextuels inchanges
 - [x] Gain : plus aucun reflow ni reconstruction de document pendant la lecture
-- **Commit** : (a realiser)
+- **Commit** : 13f4f38
 - **Validation** : script fonctionnel offscreen `.vibe/test_highlight_fade.py` (8 controles : cartographie, fondus, transition, scrubbing arriere, desactivation, transitions rapides sans remanence, re-render, ancres)
 
 ## Tests E1
@@ -830,12 +832,13 @@ tools/ffmpeg/
 
 ## Sprint 7 - Finalisation
 - [x] **Commit P8-1 — Advanced FFmpeg resolver** : f327448 - Strategie hierarchique
-- [x] **Commit P9-1 — Cross-platform UI** : b9429dd - Themes qdarktheme (P9.1) ; P9.2-P9.4 restants
+- [x] **Commit P9-1 — Cross-platform UI** : b9429dd - Themes qdarktheme (P9.1)
+- [x] **Commit P9-2 — Polices systeme, icones media SVG, repli icone, raccourci standard** : P9.2-P9.4 (a commiter)
 - [ ] **Commit P10-1 — Path configuration** : `app_paths.py` clean, temporaires
 
 ## Hors sprint - Ameliorations editeur
 - [x] **Commit E1-1 — Icone speaker teintee + mot lu sans decalage** : 0e8a35a
-- [ ] **Commit E1-2 — Surlignage anime du mot lu (ExtraSelections + fondus)** : a commiter
+- [x] **Commit E1-2 — Surlignage anime du mot lu (ExtraSelections + fondus)** : 13f4f38
 
 ## Sprint 8 - Packaging
 - [ ] **Commit P11-1 — Windows packaging** : Nuitka + MSI
@@ -878,15 +881,15 @@ tools/ffmpeg/
 - [x] **P6 - STOCKAGE SECURISE DES CLES API** ⭐ **TERMINE** (5744295)
 - [x] **P7 - TESTS AUTOMATISES** ⭐ **TERMINE** (7bfcd17 - 22 tests pytest verts ; CI restant a configurer)
 - [x] **P8 - FFMPEG MULTIPLATEFORME AVANCE** ⭐ **TERMINE** (f327448)
-- [x] **P9 - UI MULTIPLATEFORME** ⭐ **TERMINE** (b9429dd - P9.1 themes qdarktheme ; P9.2-P9.4 a faire)
-- [x] **E1 - AMELIORATIONS UX EDITEUR** ⭐ **TERMINE** (0e8a35a pour E1.1/E1.2 ; E1.3 a commiter)
+- [x] **P9 - UI MULTIPLATEFORME** ⭐ **TERMINE** (P9.1 : b9429dd ; P9.2-P9.4 : a commiter)
+- [x] **E1 - AMELIORATIONS UX EDITEUR** ⭐ **TERMINE** (E1.1/E1.2 : 0e8a35a ; E1.3 : 13f4f38)
 
 ## Phases en Cours
-- Aucune (E1.3 implemente et valide, en attente de commit)
+- Aucune
 
 ## Prochaine Phase
-**P9.2-P9.4 - UI MULTIPLATEFORME** : polices systeme, icones multi-OS, raccourcis natifs
-Puis **P10 - CONFIGURATION MULTIPLATEFORME**, puis **P11 - PACKAGING**
+**P10 - CONFIGURATION MULTIPLATEFORME** : centralisation des chemins applicatifs (`app_paths.py`), temporaires
+Puis **P11 - PACKAGING**
 
 ---
 

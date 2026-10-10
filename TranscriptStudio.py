@@ -16,13 +16,20 @@ ThemeManager.apply_theme(
     app,
     settings.get_theme()
 )
-app.setWindowIcon(
-    QIcon(
-        str(resource_path(
-            "icons/icon.ico"
-        ))
+# Icone de l'application : icon.ico pour Windows,
+# repli sur logo.png (lisible sur tous les OS),
+# demarrage sans icone si aucun des deux.
+app_icon_path = resource_path("icons/icon.ico")
+
+if not app_icon_path.is_file():
+    app_icon_path = resource_path("icons/logo.png")
+
+if app_icon_path.is_file():
+    app.setWindowIcon(
+        QIcon(
+            str(app_icon_path)
+        )
     )
-)
 
 # Verifier si la configuration initiale est terminee
 if not settings.is_initial_setup_completed():
