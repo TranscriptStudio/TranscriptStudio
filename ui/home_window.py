@@ -110,7 +110,7 @@ class HomeWindow(QWidget):
         self.subtitle_label = QLabel(
             "Prétraitement audio et transcription assistée par ElevenLabs"
         )
-        self.version_label = QLabel("Version 1.1\nSeptembre 2026")
+        self.version_label = QLabel("Version 1.0\nOctobre 2026")
         self.api_status_label = QLabel("")
         self.api_status_label.setStyleSheet("font-size: 12px; color: #666666;")
 

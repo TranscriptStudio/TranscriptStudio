@@ -645,6 +645,13 @@ tools/ffmpeg/
 - [x] Examiner `Ctrl+S` et utiliser un raccourci standard Qt (`QKeySequence.StandardKey.Save`) - `main_window.py`
 - [x] Verifier comportement attendu `Cmd+S` sous macOS - Mapping automatique par `QKeySequence.StandardKey.Save` ; validation visuelle macOS au packaging (P11)
 
+## P9.6 Teinte des icones par theme ⭐ **VALIDE**
+
+- [x] `make_theme_text_color(theme)` dans `services/icons.py` : teinte derivee du theme configure (`light` -> noir, `dark` -> clair, `system` -> schema de couleurs OS)
+- [x] Cause : la palette Qt ne reflete pas la stylesheet du theme (palette par defaut du systeme) - icones claires invisibles en theme clair sur Windows sombre
+- [x] Corrigé aux 8 points de teinte (editeur : barre d'outils, bascule play/pause, icones A+/A- ; pretraitement : barre d'outils, lecteur de resultat, bascules, reset)
+- [x] Verifie pixel par pixel offscreen : clair -> icones noires, sombre -> icones claires
+
 ## Tests P9
 
 - [x] Demarrage en theme systeme clair
@@ -696,35 +703,54 @@ tools/ffmpeg/
 
 ---
 
-# PHASE P11 - PACKAGING MULTIPLATEFORME (⭐ Originalement Phase 12)
+# PHASE P11 - PACKAGING (⭐ Originalement Phase 12)
 
-> **A lancer seulement apres validation du code source sur les trois OS.**
+> **Périmètre actuel : Windows uniquement** (macOS/Linux reportés).
+> **Version diffusée : 1.0** (première distribution en exécutable).
+
+## Stratégie Windows retenue (2026-10-10)
+
+**Build : Nuitka, mode standalone (pas onefile), compilateur MSVC.**
+- Nuitka compile le Python en C puis en binaire natif : taux de faux positifs antivirus « radicalement plus faible » que PyInstaller (archive auto-extractive = motif des packers de malware). Qt recommande officiellement Nuitka pour PySide6.
+- Onefile exclu : réintroduit un bootstrap d'extraction (démarrage plus lent, profil antivirus dégradé).
+- Sortie : un dossier standalone que l'on met indifféremment en ZIP, Inno Setup ou WiX plus tard.
+
+**Distribution : installateur Inno Setup + archive ZIP portable.**
+- Inno Setup : gratuit, simple, install/désinstall propres, raccourcis, per-machine.
+- ZIP portable : variante sans installation ni modification du système.
+- **MSI (WiX) : option différée** - aucun gain de sécurité vs Inno sans certificat (même SmartScreen, même réputation) ; pertinent uniquement pour un déploiement en entreprise (GPO, install silencieuse `msiexec /qn`). À produire sur demande, sans rien changer au build Nuitka.
+- **MSIX exclu** : signature obligatoire, même pour du sideloading - incompatible avec la diffusion sans certificat.
+
+**Réalités sécurité sans certificat (documentées pour les utilisateurs) :**
+- SmartScreen affichera « Windows a protégé votre PC » au premier lancement d'une nouvelle version (réputation par hash, éditeur inconnu). Contournement utilisateur : « Informations complémentaires → Exécuter quand même ». La réputation se construit avec les téléchargements d'un même hash (publier des versions stables, ne pas régénérer l'exe pour rien).
+- Faux positifs antivirus éventuels : soumettre le fichier à l'éditeur (Microsoft : formulaire d'analyse de fichier), vérifier VirusTotal.
+- Étape ultérieure low-cost si besoin : certificat open-source Certum (~25-70 €/an) ou SignPath Foundation (gratuit pour projets OSS) - supprime l'avertissement et accélère la réputation.
 
 ## Windows
 
-- [ ] Build Nuitka reproductible
-- [ ] Inclusion des ressources (icones, FFmpeg)
-- [ ] Inclusion/resolution FFmpeg conforme a la strategie retenue
-- [ ] Icone application `.ico`
-- [ ] Installateur a definir/tester (MSI via WiX)
+- [ ] Build Nuitka reproductible (MSVC, standalone, plugin PySide6) depuis un environnement propre
+- [ ] Inclusion des ressources : `icons/`, `docs/Manuel utilisateur.pdf`
+- [ ] FFmpeg embarqué : `tools/ffmpeg/windows/ffmpeg.exe` (résolveur hiérarchique P8)
+- [ ] Icone application `icons/icon.ico`
+- [ ] Script Inno Setup : installateur per-machine, raccourcis, désinstallation propre
+- [ ] Archive ZIP portable en variante
+- [ ] Vérifier le binaire sur VirusTotal ; soumettre tout faux positif détecté
 - [ ] Test sur machine Windows sans environnement Python de dev
+- [ ] Numéroter la version diffusée : 1.0
 
-## macOS
+## Documentation utilisateur (préalable au build)
 
-- [ ] Build natif sur macOS
-- [ ] Bundle `.app`
-- [ ] Icone `.icns`
-- [ ] FFmpeg disponible dans le bundle ou detecte selon strategie
-- [ ] Verifier permissions/quarantaine/signature selon mode de distribution retenu
-- [ ] Tester `Cmd+S`, dialogues natifs et lecture multimedia
+- [x] Copie du manuel utilisateur : `docs/Manuel_utilisateur_Transcript_Studio_v1.0.docx`
+- [x] Section « Installation » (installateur, version portable, avertissement SmartScreen et contournement, mise à jour)
+- [x] Ligne de dépannage : avertissement « Windows a protégé votre PC »
+- [x] Version 1.0 / Octobre 2026 (couverture et fin de document)
+- [x] Régénérer `docs/Manuel utilisateur.pdf` depuis le Word v1.0 (export manuel depuis Word) - PDF régénéré, v1.1.docx retiré
 
-## Linux
+## macOS / Linux (reportés)
 
-- [ ] Build natif Linux
-- [ ] Format de distribution a selectionner apres essais (AppImage/Flatpak/autre)
-- [ ] Verifier dependances Qt Multimedia et audio
-- [ ] FFmpeg disponible selon strategie
-- [ ] Tester au minimum une distribution cible definie (Ubuntu 22.04+)
+- [ ] macOS : bundle `.app`, icone `.icns`, validation sur machine (VM)
+- [ ] Linux : AppImage/Flatpak, dépendances Qt Multimedia, validation distribution cible (Ubuntu 22.04+)
+- [ ] Validation visuelle multi-OS : emojis restants, hauteurs de boutons, `Cmd+S`, nettoyage des temporaires
 
 ---
 
@@ -769,6 +795,28 @@ tools/ffmpeg/
 - [x] Regions avec ponctuation isolee (`, . ; : ! ?`) et guillemets (« ouvrant au mot suivant, » fermant au mot precedent)
 - [x] Re-render avec mot actif reaplique sans animation
 - [x] Ancres de clic intactes
+
+---
+
+# PHASE E2 - MENU CONTEXTUEL DES PROJETS RECENTS (hors portabilite)
+
+> **Objectif** : Gérer une entrée de la liste des projets récents sans quitter l'accueil.
+> **Statut** : ⭐ **TERMINE** (59f7241)
+
+## E2.1 Clic droit sur un projet récent ⭐ **VALIDE**
+
+- [x] Menu contextuel sur la liste `Projets récents` de l'accueil (CustomContextMenu)
+- [x] « Ouvrir le projet » : même action que le double-clic (`open_recent_project`)
+- [x] « Ouvrir le répertoire du projet » : ouvre le dossier du `.sttproj` dans l'explorateur (`QDesktopServices`), avertissement si le répertoire n'existe plus
+- [x] « Retirer de la liste des projets récents » : supprime la référence (le fichier projet n'est pas touché sur le disque), liste rafraîchie
+- [x] `SettingsManager.remove_recent_project()` : retrait de la référence + sauvegarde, retourne True si l'entrée existait
+- [x] `SettingsManager` : dossier de paramétrage injectable (`app_folder`), utilisé par les tests pour isoler la configuration réelle
+
+## Tests E2
+
+- [x] `tests/unit/test_recent_projects.py` (3 tests) : retrait d'une entrée, entrée absente, fichier conservé sur disque
+- [x] Fumée offscreen : politique de menu contextuel activee, menu a 3 actions + separateur, retrait visible dans la liste affichee
+- [x] 30 tests pytest verts au total
 
 ---
 
@@ -846,16 +894,19 @@ tools/ffmpeg/
 - [x] **Commit P9-1 — Cross-platform UI** : b9429dd - Themes qdarktheme (P9.1)
 - [x] **Commit P9-2 — Polices systeme, icones media SVG, repli icone, raccourci standard** : 7487e24 - P9.2-P9.4
 - [x] **Commit P9-3 — Icones SVG pretraitement + hauteur globale des boutons** : 91dd073 - P9.5
-- [x] **Commit P10-1 — Path configuration** : app_paths centralise, temporaires uniques par session (a commiter)
+- [x] **Commit P9-4 — Teinte des icones par theme configure** : 91dee65 - P9.6 (fin de la teinte par palette Qt)
+- [x] **Commit P10-1 — Path configuration** : 55b7c3b - app_paths centralise, temporaires uniques par session
 
 ## Hors sprint - Ameliorations editeur
 - [x] **Commit E1-1 — Icone speaker teintee + mot lu sans decalage** : 0e8a35a
 - [x] **Commit E1-2 — Surlignage anime du mot lu (ExtraSelections + fondus)** : 13f4f38
+- [x] **Commit E2-1 — Menu contextuel projets recents** : 59f7241 - ouvrir, ouvrir repertoire, retirer de la liste
 
 ## Sprint 8 - Packaging
-- [ ] **Commit P11-1 — Windows packaging** : Nuitka + MSI
-- [ ] **Commit P11-2 — macOS packaging** : Bundle .app
-- [ ] **Commit P11-3 — Linux packaging** : AppImage/Flatpak
+- [x] **Commit P11-1 — Documentation v1.0** : manuel utilisateur 1.0 (docx + PDF regenere, v1.1 retire), version 1.0 affichee (a commiter)
+- [ ] **Commit P11-2 — Windows packaging** : build Nuitka + Inno Setup + ZIP portable (v1.0)
+- [ ] **Commit P11-3 — macOS packaging** : Bundle .app (différé)
+- [ ] **Commit P11-4 — Linux packaging** : AppImage/Flatpak (différé)
 
 ---
 
@@ -901,7 +952,7 @@ tools/ffmpeg/
 - Aucune
 
 ## Prochaine Phase
-**P11 - PACKAGING** : builds Windows/macOS/Linux, generation `.icns`, validation visuelle des emojis restants et des hauteurs de boutons sur chaque OS
+**P11 - PACKAGING (Windows d'abord)** : build Nuitka standalone, installateur Inno Setup + ZIP portable, version 1.0 ; documentation utilisateur v1.0 réalisée en préalable
 
 ---
 

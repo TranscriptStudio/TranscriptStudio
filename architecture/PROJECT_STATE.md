@@ -1,9 +1,9 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-10
-> **Commit actuel** : 91dd073
+> **Commit actuel** : 59f7241
 > **Branche** : master
-> **Modifications locales** : OUI (a commiter - P10)
+> **Modifications locales** : OUI (a commiter - P11 préparation : manuel v1.0)
 
 ---
 
@@ -11,16 +11,16 @@
 
 ### Position actuelle
 - **Branche** : master
-- **Local vs Origin** : +30 commits (en avance sur origin/master)
-- **Dernier commit** : `91dd073 P9 finalisation - Icones SVG pretraitement (lecteurs original + resultat) et hauteur globale des boutons pilotee par ICON_BUTTON_* (CSS, stylesheet theme incluse)`
-- **Modifications locales** : P10 (app_paths, temporaires par session, tests)
+- **Local vs Origin** : +33 commits (en avance sur origin/master)
+- **Dernier commit** : `59f7241 E2 - Menu contextuel des projets recents : ouvrir le projet, ouvrir le repertoire, retirer de la liste (reference seule) + SettingsManager testable`
+- **Modifications locales** : P11 préparation (manuel v1.0, PDF régénéré, version 1.0 affichée)
 - **Commits récents** :
+  - `59f7241 E2 - Menu contextuel des projets récents`
+  - `91dee65 Correctif icones theme - Teinte derivee du theme configure`
+  - `55b7c3b P10 - Configuration multiplateforme : app_paths, temporaires par session`
   - `91dd073 P9 finalisation - Icones SVG pretraitement + hauteur globale des boutons (P9.5)`
   - `7487e24 P9.2-P9.4 - UI multiplateforme finalisee : police systeme, icones media SVG, repli icone, raccourci StandardKey.Save`
   - `13f4f38 E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues`
-  - `f327448 P8 - FFmpeg multiplateforme avance : resolveur hierarchique embarque/config/PATH`
-  - `629a21e Mise a jour PROJECT_STATE.md - P7 implemente avec commit 7bfcd17`
-  - `7bfcd17 P7 - Tests automatises : structure pytest, fixtures, tests unitaires pour project_io et ffmpeg`
   - `4914a6c Mise a jour PROJECT_STATE.md - P1.3 implemente`
   - `528ce8c P1.3 - Migration non-destructive des anciens projets : deja implmente via P1.1+P1.2`
   - `71ac2cf P1.2 - Resolution a l'ouverture : project_file en memoire, resolution audio_file relatif/absolu avec fallback`
@@ -37,10 +37,21 @@
 - `architecture/PROJECT_STATE.md` (ce fichier)
 
 ### Modifications non commitées
-- `services/app_paths.py` (P10 : `TEMP_DIR`, `SESSION_TEMP_DIR` unique par session, nettoyage `atexit`)
-- `services/audio_waveform_service.py` (P10 : extraction dans le dossier de session)
-- `tests/unit/test_app_paths.py` (P10 : nouveau, 5 tests)
-- `architecture/PROJECT_STATE.md`, roadmap (P10 terminée, hash P9.5)
+- `docs/Manuel_utilisateur_Transcript_Studio_v1.0.docx` (P11 préparation : manuel v1.0 review/ajusté — section Installation, avertissement SmartScreen, ligne de dépannage)
+- `docs/Manuel utilisateur.pdf` (régénéré depuis le Word v1.0)
+- `docs/Manuel_utilisateur_Transcript_Studio_v1.1.docx` (supprimé, remplacé par v1.0)
+- `ui/home_window.py` (version affichée : 1.0 / Octobre 2026)
+- `architecture/TranscriptStudio_Roadmap_Portabilite_Tests.md` (P11 stratégie Windows, phases E2/P9.6, statuts)
+- `architecture/PROJECT_STATE.md` (ce fichier)
+
+**PDF v1.0 régénéré** depuis le Word v1.0 (v1.1.docx retiré) — `services/help.py` ouvre le PDF à jour.
+
+#### ✅ **E2 - MENU CONTEXTUEL DES PROJETS RECENTS** ⭐ **TERMINE**
+- **E2.1 Clic droit sur un projet récent** ⭐ **VALIDE**
+  - Commit : 59f7241
+  - Menu contextuel sur `Projets récents` (accueil) : « Ouvrir le projet » (double-clic), « Ouvrir le répertoire du projet » (explorateur, garde-fou si absent), « Retirer de la liste des projets récents » (référence seule, fichier conservé)
+  - `SettingsManager.remove_recent_project()` ; dossier de paramétrage injectable pour les tests
+  - Validation : `tests/unit/test_recent_projects.py` (3 tests) + fumée offscreen ; 30 tests pytest verts
 
 ---
 
@@ -222,6 +233,12 @@
   - Styles par-bouton (éditeur, prétraitement, lecteur de résultat) + stylesheet globale des boutons (`theme_manager.py`, `padding: 2px 12px`, `min-height` calculé) : accueil, paramètres et dialogues inclus
   - Vérifié offscreen sous le vrai thème : 13 boutons éditeur + 10 boutons prétraitement à 40x25, boutons texte ≤ hauteur cible
 
+- **P9.6 Teinte des icônes par thème** ⭐ **VALIDE**
+  - Commit : 91dee65
+  - `make_theme_text_color(theme)` dans `services/icons.py` : teinte dérivée du **thème configuré** (`light` → noir `#191919`, `dark` → clair `#F0F0F0`, `system` → schéma de couleurs OS) — la palette Qt ne reflète pas la stylesheet du thème (restait la palette par défaut du système : icônes claires invisibles en thème clair sur Windows sombre)
+  - Corrigé aux 8 points de teinte : barre d'outils éditeur, bascule play/pause, icônes A+/A-, barre d'outils prétraitement, lecteur de résultat, bascules des deux lecteurs, reset après stop
+  - Vérifié pixel par pixel offscreen : thème clair → icônes noires (luminance ≤ 26), thème sombre → claires (≥ 240)
+
 #### ✅ **E1 - AMELIORATIONS UX EDITEUR** ⭐ **TERMINE**
 - **E1.1 Puce speaker** ⭐ **VALIDE**
   - Commit : 0e8a35a
@@ -248,12 +265,12 @@
 
 #### ✅ **P10 - CONFIGURATION MULTIPLATEFORME** ⭐ **TERMINE**
 - **P10.1 `app_paths.py`** ⭐ **VALIDE**
-  - Commit : (a realiser)
+  - Commit : 55b7c3b
   - `platformdirs` réservé aux données applicatives (`APP_DATA_DIR`), `QStandardPaths` pour les dossiers utilisateur (déjà en place depuis P0)
   - Pas de création automatique du répertoire projets à l'import (déjà en place)
   - Chemins centralisés : `APP_DATA_DIR`, `TEMP_DIR`, `SESSION_TEMP_DIR`, `LEGACY_PROJECTS_DIR` ; `settings.py` et `audio_waveform_service.py` consomment le module
 - **P10.2 Temporaires** ⭐ **VALIDE**
-  - Commit : (a realiser)
+  - Commit : 55b7c3b
   - `SESSION_TEMP_DIR` : sous-dossier unique par session (uuid) — deux instances simultanées ou deux médias de même nom ne se marchent plus dessus
   - `ensure_session_temp_dir()` (création à la demande) + `cleanup_session_temp_dir()` via `atexit`
   - Renommage `TranscriptAudio` -> `TranscriptStudio` déjà fait en P5.1
@@ -323,24 +340,28 @@
 
 ## 🚀 PROCHAINE ETAPE RECOMMANDEE
 
-### Priorité immédiate : **P11 - PACKAGING MULTIPLATEFORME**
+### Priorité immédiate : **P11 - PACKAGING WINDOWS (version 1.0)**
 
-**Objectif** : Distribuer l'application sur Windows, macOS et Linux
+**Objectif** : Diffuser la première version exécutable de Transcript Studio pour Windows
+**Stratégie retenue** : Nuitka standalone (MSVC) + installateur Inno Setup + ZIP portable ; MSI différé, MSIX exclu (signature obligatoire) ; réalités SmartScreen documentées dans le manuel v1.0
 
 #### Actions principales :
-- [ ] Valider le code source sur macOS/Linux (VM ou environnements cloud) AVANT tout build
-- [ ] Windows : build Nuitka reproductible, inclusion icônes/FFmpeg, installateur
-- [ ] macOS : bundle `.app`, génération `.icns`, permissions/quarantaine
-- [ ] Linux : format de distribution (AppImage/Flatpak), dépendances Qt Multimedia
-- [ ] Validation visuelle par OS : emojis restants, hauteurs de boutons, `Cmd+S`, nettoyage temporaires
+- [x] Documentation utilisateur v1.0 (copie du manuel Word : section Installation, SmartScreen, mise à jour, dépannage)
+- [ ] Review visuelle du manuel v1.0 dans Word, puis régénération du PDF (`docs/Manuel utilisateur.pdf`)
+- [ ] Build Nuitka reproductible (MSVC, standalone, plugin PySide6) depuis un environnement propre
+- [ ] Inclusion : `icons/`, `docs/Manuel utilisateur.pdf`, `tools/ffmpeg/windows/ffmpeg.exe`
+- [ ] Script Inno Setup (per-machine, raccourcis, désinstallation) + ZIP portable
+- [ ] Vérification VirusTotal, test sur machine sans Python
+- [ ] macOS/Linux : reportés (VM à créer)
 
 #### Fichiers concernés :
-- Packaging scripts (à créer), `requirements.txt`, `tools/ffmpeg/{platform}/`
+- Packaging scripts (à créer : `packaging/build_windows.py`, `packaging/transcriptstudio.iss`)
+- `requirements.txt` (ajout nuitka), `tools/ffmpeg/windows/`
 
 #### Prérequis :
-- ✅ P0 à P9 terminés (P9.1 : b9429dd ; P9.2-P9.4 : 7487e24 ; P9.5 : 91dd073)
+- ✅ P0 à P10 terminés (P10 : 55b7c3b)
 - ✅ E1 terminé (0e8a35a, 13f4f38)
-- ✅ P10 terminé (temporaires isolés par session)
+- ✅ Documentation utilisateur v1.0 réalisée
 
 ---
 
@@ -350,7 +371,10 @@
 |--------|---------|--------|-------|
 | 7487e24 | P9.2-P9.4 - Polices systeme, icones media SVG teintees, repli icone demarrage, raccourci standard | ✅ VALIDE | P9 |
 | 91dd073 | P9.5 - Icones SVG pretraitement + hauteur globale des boutons (ICON_BUTTON_*, CSS) | ✅ VALIDE | P9 |
-| (a realiser) | P10 - Configuration multiplateforme : app_paths centralise, temporaires uniques par session, 5 tests | ⏳ A COMMIT | P10 |
+| 55b7c3b | P10 - Configuration multiplateforme : app_paths centralise, temporaires uniques par session, 5 tests | ✅ VALIDE | P10 |
+| 91dee65 | Correctif icones theme - Teinte derivee du theme configure (noir en clair) | ✅ VALIDE | P9 |
+| 59f7241 | E2 - Menu contextuel projets recents : ouvrir, ouvrir repertoire, retirer de la liste | ✅ VALIDE | E2 |
+| (a realiser) | P11 preparation - Manuel utilisateur v1.0 (docx + PDF regenere, v1.1 retire), version 1.0 affichee, roadmap P11 | ⏳ A COMMIT | P11 |
 | 13f4f38 | E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues | ✅ VALIDE | E1 |
 | 0e8a35a | E1.1/E1.2 - Icône user.svg teintée + suppression bold mot lu | ✅ VALIDE | E1 |
 | b9429dd | P9 - UI Multiplateforme : integration qdarktheme + correction bug _credential_store | ✅ VALIDE | P9 |
@@ -399,8 +423,9 @@
 - **P8** : ✅ **TERMINE**
 - **P9** : ✅ **TERMINE** (P9.1 : b9429dd ; P9.2-P9.4 : 7487e24 ; P9.5 : 91dd073)
 - **E1** : ✅ **TERMINE** (E1.1/E1.2 : 0e8a35a ; E1.3 : 13f4f38)
-- **P10** : ✅ **TERMINE** (chemins centralises, temporaires isoles par session, 27 tests verts)
-- **Prochaine** : **P11 - Packaging multiplateforme**
+- **P10** : ✅ **TERMINE** (chemins centralises, temporaires isoles par session)
+- **E2** : ✅ **TERMINE** (menu contextuel projets recents, 30 tests verts)
+- **Prochaine** : **P11 - Packaging Windows (version 1.0)** - documentation v1.0 réalisée
 
 ---
 
