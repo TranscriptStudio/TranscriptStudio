@@ -30,7 +30,6 @@ from services.audio_waveform_service import AudioWaveformService
 from services.audio_processing_pipeline import  AudioProcessingPipeline
 from services.silence_detection_service import SilenceDetectionService
 from services.audio_processing_worker import AudioProcessingWorker
-from services.ffmpeg_paths import FFMPEG_PATH
 from services.audio_finalization_worker import AudioFinalizationWorker
 from services.project_manager import ProjectManager
 from services.icons import (

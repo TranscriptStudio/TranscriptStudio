@@ -1,4 +1,6 @@
 # ui/main_window.py
+import functools
+
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -676,12 +678,10 @@ class MainWindow(QMainWindow):
                     merge_button.setFixedWidth(40)
 
                     merge_button.clicked.connect(
-                        lambda checked=False,
-                        b1=block.id,
-                        b2=next_block.id:
-                        self.merge_blocks(
-                            b1,
-                            b2
+                        functools.partial(
+                            self.merge_blocks,
+                            block.id,
+                            next_block.id
                         )
                     )
 
@@ -706,11 +706,11 @@ class MainWindow(QMainWindow):
         )
 
         self.btn_prev.clicked.connect(
-            lambda: self.playback.jump_backward(5)
+            self.reculer_audio_5s
         )
 
         self.btn_next.clicked.connect(
-            lambda: self.playback.jump_forward(5)
+            self.avancer_audio_5s
         )
         self.playback.position_changed.connect(
             self.update_position
@@ -779,6 +779,12 @@ class MainWindow(QMainWindow):
         self.text_smaller_button.clicked.connect(
             self.decrease_text_size
         )
+
+    def reculer_audio_5s(self):
+        self.playback.jump_backward(5)
+
+    def avancer_audio_5s(self):
+        self.playback.jump_forward(5)
 
     def increase_text_size(self):
         if (

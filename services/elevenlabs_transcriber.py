@@ -93,9 +93,6 @@ class ElevenLabsTranscriber:
             raise ValueError("Clé API manquante. Veuillez renseigner une clé API ElevenLabs valide pour lancer la transcription.")
         
         try:
-            with open(audio_file, "rb") as f:
-                files = {"file": f}
-            
             data = {
                 "model_id": options["model_id"],
                 "tag_audio_events": str(False).lower(),
@@ -109,13 +106,20 @@ class ElevenLabsTranscriber:
             if options["keyterms"]:
                 data["keyterms"] = options["keyterms"]
             
-            response = requests.post(
-                "https://api.elevenlabs.io/v1/speech-to-text",
-                headers={"xi-api-key": self.api_key},
-                files=files,
-                data=data,
-                timeout=3600
-            )
+            # Le fichier doit rester ouvert pendant l'envoi :
+            # requests lit son contenu a la construction de la
+            # requete multipart. Fermer le fichier avant
+            # requests.post leve "ValueError: read of closed file".
+            with open(audio_file, "rb") as f:
+                files = {"file": f}
+            
+                response = requests.post(
+                    "https://api.elevenlabs.io/v1/speech-to-text",
+                    headers={"xi-api-key": self.api_key},
+                    files=files,
+                    data=data,
+                    timeout=3600
+                )
             
             response.raise_for_status()
             return response.json()
@@ -133,7 +137,7 @@ class ElevenLabsTranscriber:
             elif isinstance(e, requests.exceptions.ConnectionError):
                 error_msg = "Impossible de se connecter au serveur ElevenLabs. Vérifiez votre connexion Internet."
             else:
-                error_msg = f"Erreur lors de la transcription: {type(e).__name__}"
+                error_msg = f"Erreur lors de la transcription: {type(e).__name__}: {e}"
             
             raise RuntimeError(error_msg)
     

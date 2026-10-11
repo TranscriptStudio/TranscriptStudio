@@ -96,7 +96,7 @@ Transcript Studio peut être installé de deux manières : à partir des **exéc
 
 ### Option 1 : installation Windows (exécutables 1.0)
 
-Les deux variantes embarquent l’application complète : binaire Nuitka standalone, FFmpeg, icônes et manuel utilisateur PDF. Les sommes SHA-256 et l’analyse VirusTotal des artefacts sont détaillées dans la section « Build Windows ».
+Les deux variantes embarquent l’application complète : binaire Nuitka standalone, FFmpeg, icônes et manuel utilisateur PDF. Les sommes SHA-256 des artefacts sont détaillées dans la section « Build Windows ».
 
 #### Installateur (recommandé)
 
@@ -399,8 +399,8 @@ La version 1.0 est distribuée sous deux formes, produites depuis les sources du
 
 | Artefact | Contenu | Taille | SHA-256 | Téléchargement |
 | --- | --- | --- | --- | --- |
-| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 77 Mo | `f3ad4a090c766d885a3c32b142ebf06a4dd1424bc93e416aa0e71d453337399` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
-| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 110 Mo | `a1fe5fe51920febb6ba1f8cde717f2ebf0c91e1de952c3157f5ab9417c0b0dd8` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
+| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 115 Mo | `3ab19ac7b55a7f2a1c8ffc780af6058e3066a91689cfead51170db5c2063ed91` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
+| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 172 Mo | `d918055282868ecde1287c697f06c06765021d207f404b1ddf292c802206fe09` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
 
 Les liens de téléchargement pointent vers la release GitHub `v1.0` et deviennent actifs à la publication de celle-ci.
 
@@ -424,12 +424,7 @@ ISCC.exe tools\installer_windows.iss
 
 ### Analyse VirusTotal
 
-Analyse du 10/10/2026 sur `TranscriptStudio-1.0-setup.exe` :
-
-- **2 moteurs sur 66** signalent le fichier : Arctic Wolf (`Unsafe`) et Trapmine (`Suspicious.low.ml.score`) ;
-- il s’agit de scores heuristiques de machine learning, typiques des faux positifs sur binaires non signés ;
-- tous les moteurs majeurs (Microsoft, Kaspersky, ESET, Bitdefender, Avast…) sont **non détectés** ;
-- l’analyse complète : `https://www.virustotal.com/gui/file/f3ad4a090c766d885a3c32b142ebf06a4dd1424bc93e416aa0e71d453337399`
+Les artefacts 1.0 ne sont pas signés (pas de certificat de signature de code). Une analyse VirusTotal du fichier `TranscriptStudio-1.0-setup.exe` avant diffusion est recommandée ; lors de la préparation initiale (10/10/2026), seuls 2 moteurs sur 66 signalaient le binaire d’origine, sur des heuristiques de machine learning typiques des faux positifs sur binaires non signés, tous les moteurs majeurs étant non détectés.
 
 L’exécutable n’étant pas signé (pas de certificat de signature de code), Windows SmartScreen peut afficher « Windows a protégé votre PC » au premier lancement d’une nouvelle version. Le contournement (« Informations complémentaires → Exécuter quand même ») est documenté dans le manuel utilisateur (section « Installation »).
 

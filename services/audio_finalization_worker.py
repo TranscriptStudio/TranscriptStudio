@@ -9,7 +9,8 @@ from PySide6.QtCore import (
     Slot,
 )
 
-from services.ffmpeg_paths import FFMPEG_PATH
+from services.ffmpeg_paths import get_ffmpeg_path
+from services.subprocess_flags import CREATE_NO_WINDOW
 from services.media_formats import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS
 
 
@@ -65,7 +66,7 @@ class AudioFinalizationWorker(QObject):
         final_extension
     ):
         command = [
-            str(FFMPEG_PATH),
+            str(get_ffmpeg_path()),
             "-y",
             "-i",
             str(self.source_wav),
@@ -176,6 +177,7 @@ class AudioFinalizationWorker(QObject):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                creationflags=CREATE_NO_WINDOW,
             )
 
             if result.returncode != 0:

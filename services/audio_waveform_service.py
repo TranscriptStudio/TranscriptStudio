@@ -7,8 +7,9 @@ from services.app_paths import (
     ensure_session_temp_dir,
 )
 from services.ffmpeg_paths import (
-    FFMPEG_PATH,
+    get_ffmpeg_path,
 )
+from services.subprocess_flags import CREATE_NO_WINDOW
 from models.audio_document import AudioDocument
 
 
@@ -16,7 +17,7 @@ class AudioWaveformService:
 
     def __init__(self):
 
-        self.ffmpeg = FFMPEG_PATH
+        self.ffmpeg = get_ffmpeg_path()
 
     def extract_waveform(
         self,
@@ -59,7 +60,8 @@ class AudioWaveformService:
             display_command,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            check=True
+            check=True,
+            creationflags=CREATE_NO_WINDOW
         )
         processing_command = [
             str(self.ffmpeg),
@@ -77,7 +79,8 @@ class AudioWaveformService:
             processing_command,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            check=True
+            check=True,
+            creationflags=CREATE_NO_WINDOW
         )
 
         import wave

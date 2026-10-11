@@ -7,6 +7,29 @@ from ui.home_window import HomeWindow
 from ui.settings_dialog import SettingsDialog
 from services.settings import SettingsManager
 from services.theme_manager import ThemeManager
+from services.diagnostics import install_excepthook
+from services.diagnostics import install_qt_message_handler
+
+install_excepthook()
+install_qt_message_handler()
+
+# Capturer les crashs natifs (SIGABRT, acces memoire
+# invalides) avec la pile Python de tous les threads
+# au moment du crash : sans console, ils seraient
+# sinon totalement silencieux pour le support.
+import faulthandler
+
+from services.app_paths import APP_DATA_DIR
+
+_FAULTHANDLER_LOG = open(
+    APP_DATA_DIR / "faulthandler.log",
+    "a",
+    encoding="utf-8",
+)
+faulthandler.enable(
+    file=_FAULTHANDLER_LOG,
+    all_threads=True,
+)
 
 app = QApplication([])
 

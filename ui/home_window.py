@@ -1,3 +1,5 @@
+import functools
+
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -567,7 +569,8 @@ class HomeWindow(QWidget):
         )
 
         open_action.triggered.connect(
-            lambda: self.open_recent_project(
+            functools.partial(
+                self.open_recent_project,
                 item
             )
         )
@@ -577,7 +580,8 @@ class HomeWindow(QWidget):
         )
 
         folder_action.triggered.connect(
-            lambda: self.open_recent_project_folder(
+            functools.partial(
+                self.open_recent_project_folder,
                 item
             )
         )
@@ -589,7 +593,8 @@ class HomeWindow(QWidget):
         )
 
         remove_action.triggered.connect(
-            lambda: self.remove_recent_project_from_list(
+            functools.partial(
+                self.remove_recent_project_from_list,
                 item
             )
         )

@@ -32,6 +32,8 @@ if "%PY%"=="" set PY=python
   --assume-yes-for-downloads ^
   --enable-plugin=pyside6 ^
   --windows-console-mode=disable ^
+  --force-stderr-spec="{PROGRAM_BASE}.err.txt" ^
+  --unstripped ^
   --windows-icon-from-ico=icons/icon.ico ^
   --company-name="Transcript Studio" ^
   --product-name="Transcript Studio" ^
@@ -48,6 +50,41 @@ if "%PY%"=="" set PY=python
 if errorlevel 1 (
   echo.
   echo ECHEC du build.
+  exit /b 1
+)
+
+REM ============================================================
+REM P11.1 : plugins multimedia Qt (backend QMediaPlayer)
+REM
+REM Nuitka n'embarque pas automatiquement le repertoire
+REM plugins/multimedia de PySide6 ni les DLL FFmpeg (avcodec,
+REM avformat, avutil, swresample, swscale) dont depend le
+REM backend ffmpegmediaplugin.dll. Sans eux, QMediaPlayer ne
+REM peut lire aucun fichier audio dans le binaire standalone.
+REM ============================================================
+REM NB : pas de "for /f ... usebackq" ici : les guillemets autour de %PY%
+REM dans la commande backquotee sont supprimes par cmd /c, ce qui laisse
+REM SITEPKGS vide et fait echouer les copies suivantes.
+set "SITEPKGS_FILE=%TEMP%\transcriptstudio_sitepkgs.txt"
+"%PY%" -c "import sysconfig; print(sysconfig.get_paths()['purelib'])" > "%SITEPKGS_FILE%"
+set /p SITEPKGS=<"%SITEPKGS_FILE%"
+del "%SITEPKGS_FILE%" >nul 2>&1
+if "%SITEPKGS%"=="" (
+  echo ECHEC : impossible de localiser site-packages.
+  exit /b 1
+)
+set "DIST=build\TranscriptStudio.dist"
+
+xcopy "%SITEPKGS%\PySide6\plugins\multimedia" "%DIST%\PySide6\qt-plugins\multimedia\" /e /i /y >nul
+if errorlevel 1 (
+  echo ECHEC : copie des plugins multimedia Qt.
+  exit /b 1
+)
+
+copy /y "%SITEPKGS%\PySide6\av*.dll" "%DIST%\" >nul
+copy /y "%SITEPKGS%\PySide6\sw*.dll" "%DIST%\" >nul
+if errorlevel 1 (
+  echo ECHEC : copie des DLL FFmpeg de Qt Multimedia.
   exit /b 1
 )
 

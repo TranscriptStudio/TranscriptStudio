@@ -4,7 +4,8 @@ from pathlib import Path
 import subprocess
 from services.silence_detection_service import SilenceDetectionService
 from services.silence_removal_service import SilenceRemovalService
-from services.ffmpeg_paths import FFMPEG_PATH
+from services.ffmpeg_paths import get_ffmpeg_path
+from services.subprocess_flags import CREATE_NO_WINDOW
 
 
 class AudioProcessingPipeline:
@@ -128,7 +129,7 @@ class AudioProcessingPipeline:
         )
 
         command = [
-            str(FFMPEG_PATH),
+            str(get_ffmpeg_path()),
             "-y",
             "-i",
             str(audio_file),
@@ -156,7 +157,8 @@ class AudioProcessingPipeline:
             command,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            check=True
+            check=True,
+            creationflags=CREATE_NO_WINDOW
         )
 
         self.working_file = output_file
@@ -268,7 +270,7 @@ class AudioProcessingPipeline:
         )
 
         command = [
-            str(FFMPEG_PATH),
+            str(get_ffmpeg_path()),
             "-y",
             "-i",
             str(audio_file),
@@ -281,7 +283,8 @@ class AudioProcessingPipeline:
             command,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            check=True
+            check=True,
+            creationflags=CREATE_NO_WINDOW
         )
 
         self.working_file = output_file

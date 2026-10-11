@@ -1,4 +1,6 @@
 # ui/block_widget.py
+import functools
+
 
 from PySide6.QtWidgets import (
     QMenu,
@@ -555,16 +557,17 @@ class BlockWidget(QWidget):
         anim.setEndValue(0)
 
         anim.valueChanged.connect(
-            lambda value, word=word_index:
-                self.on_fade_out_value(
-                    word,
-                    value
-                )
+            functools.partial(
+                self.on_fade_out_value,
+                word_index
+            )
         )
 
         anim.finished.connect(
-            lambda word=word_index:
-                self.on_fade_out_finished(word)
+            functools.partial(
+                self.on_fade_out_finished,
+                word_index
+            )
         )
 
         self.fade_out_anims[word_index] = anim
