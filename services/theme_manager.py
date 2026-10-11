@@ -27,6 +27,30 @@ BUTTON_MIN_HEIGHT = (
 )
 
 
+# Feuilles de style qdarktheme mises en cache. En binaire
+# compile (Nuitka), l'import paresseux des ressources
+# d'icones d'un theme, declenche par load_stylesheet au
+# moment du changement de theme, provoque un crash natif.
+# Charger les deux themes une fois au demarrage (contexte
+# calme) et memoriser les feuilles de style evite tout
+# import qdarktheme ulterieur : le changement de theme
+# n'applique plus qu'un setStyleSheet deja construit.
+_STYLESHEET_CACHE = {}
+
+
+def _qdarktheme_stylesheet(theme):
+    if theme not in _STYLESHEET_CACHE:
+        from qdarktheme import load_stylesheet
+
+        _STYLESHEET_CACHE[theme] = (
+            load_stylesheet(
+                theme=theme
+            )
+        )
+
+    return _STYLESHEET_CACHE[theme]
+
+
 class ThemeManager:
     SYSTEM = "system"
     LIGHT = "light"
@@ -47,6 +71,17 @@ class ThemeManager:
             ThemeManager.apply_dark(app)
         elif theme == ThemeManager.LIGHT:
             ThemeManager.apply_light(app)
+
+    @staticmethod
+    def preload_style_sheets():
+        """
+        Charge les feuilles de style des deux themes
+        (qdarktheme). A appeler une fois au demarrage de
+        l'application, apres creation du QApplication.
+        """
+        if QDARKTHEME_AVAILABLE:
+            _qdarktheme_stylesheet("dark")
+            _qdarktheme_stylesheet("light")
 
     @staticmethod
     def apply_system(app):
@@ -154,7 +189,7 @@ class ThemeManager:
         if QDARKTHEME_AVAILABLE:
             # Utiliser qdarktheme pour un theme sombre moderne
             app.setStyle("Fusion")
-            dark_stylesheet = load_stylesheet(theme="dark")
+            dark_stylesheet = _qdarktheme_stylesheet("dark")
             # Ajouter des ajustements pour les boutons et le fond
             dark_stylesheet += ThemeManager._get_global_stylesheet("dark")
             dark_stylesheet += ThemeManager._get_button_stylesheet("dark")
@@ -171,7 +206,7 @@ class ThemeManager:
         if QDARKTHEME_AVAILABLE:
             # Utiliser qdarktheme pour un theme clair moderne
             app.setStyle("Fusion")
-            light_stylesheet = load_stylesheet(theme="light")
+            light_stylesheet = _qdarktheme_stylesheet("light")
             # Ajouter des ajustements pour le fond et les boutons
             light_stylesheet += ThemeManager._get_global_stylesheet("light")
             light_stylesheet += ThemeManager._get_button_stylesheet("light")

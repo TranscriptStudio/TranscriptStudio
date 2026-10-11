@@ -143,6 +143,9 @@ def log_message(message):
         pass
 
 
+_IN_MESSAGE_HANDLER = False
+
+
 def _qt_message_handler(
     mode,
     context,
@@ -151,65 +154,55 @@ def _qt_message_handler(
     """Capte les messages Qt (warnings et fatals)
     et les journalise : dans le binaire sans console,
     le texte d'un qFatal est sinon perdu avant l'abort.
+
+    Le handler reste minimal (message seul, sans pile
+    Python) et se protege contre la re-entree : il peut
+    etre appele depuis du code natif pendant un import
+    de module, ou reentrer pendant l'ecriture du journal.
     """
-    import traceback
+    global _IN_MESSAGE_HANDLER
 
-    # Ordre de l'enum QtMsgType (Qt5/Qt6) :
-    # Debug=0, Warning=1, Critical=2, Fatal=3,
-    # Info=4.
-    levels = {
-        0: "QtDebug",
-        1: "QtWarning",
-        2: "QtCritical",
-        3: "QtFatal",
-        4: "QtInfo",
-    }
+    if _IN_MESSAGE_HANDLER:
+        return
 
-    level = (
-        levels.get(
-            mode,
-            f"QtMsgType({mode})"
-        )
-    )
+    _IN_MESSAGE_HANDLER = True
 
-    origin = (
-        f"{context.file}:{context.line}"
-        if context.file
-        else "(origine inconnue)"
-    )
-
-    log_message(
-        f"{level} {origin} : {message}"
-    )
-
-    #
-    # Une trace Python accompagne le message :
-    # le contexte d'appel est precieux pour un
-    # diagnostic.
-    #
-    lines = (
-        traceback
-        .format_stack()
-    )
     try:
-        with open(
-            LOG_FILE,
-            "a",
-            encoding="utf-8"
-        ) as f:
-            f.write(
-                "  pile Python au moment du message :"
-                + "\n"
-                + "".join(lines)
-            )
-    except OSError:
-        pass
+        # Ordre de l'enum QtMsgType (Qt5/Qt6) :
+        # Debug=0, Warning=1, Critical=2, Fatal=3,
+        # Info=4.
+        levels = {
+            0: "QtDebug",
+            1: "QtWarning",
+            2: "QtCritical",
+            3: "QtFatal",
+            4: "QtInfo",
+        }
 
-    if mode == 3:
-        # QtFatal : laisser Qt aborter ensuite.
-        # Ne rien faire d'autre pour ne pas masquer
-        # le comportement reel.
-        pass
+        level = (
+            levels.get(
+                mode,
+                f"QtMsgType({mode})"
+            )
+        )
+
+        origin = (
+            f"{context.file}:{context.line}"
+            if context.file
+            else "(origine inconnue)"
+        )
+
+        log_message(
+            f"{level} {origin} : {message}"
+        )
+
+        if mode == 3:
+            # QtFatal : laisser Qt aborter ensuite.
+            # Ne rien faire d'autre pour ne pas masquer
+            # le comportement reel.
+            pass
+    finally:
+        _IN_MESSAGE_HANDLER = False
 
 
 def install_qt_message_handler():

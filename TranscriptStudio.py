@@ -39,6 +39,13 @@ ThemeManager.apply_theme(
     app,
     settings.get_theme()
 )
+
+# Charger les feuilles de style des deux themes
+# maintenant, dans un contexte de demarrage calme.
+# En binaire compile, l'import paresseux des
+# ressources qdarktheme au moment du changement
+# de theme fait crasher l'application.
+ThemeManager.preload_style_sheets()
 # Icone de l'application : icon.ico pour Windows,
 # repli sur logo.png (lisible sur tous les OS),
 # demarrage sans icone si aucun des deux.
