@@ -520,7 +520,7 @@ La version 1.0 (Windows) a été validée par :
 - build Nuitka standalone reproductible depuis un environnement propre ;
 - installation/désinstallation de l’installateur (Program Files, raccourcis, registre) ;
 - test fonctionnel du binaire installé et de la version portable (lecture audio, édition, réouverture de projet) ;
-- analyse VirusTotal de l’installateur (1/68, faux positif heuristique, voir « Build Windows »).
+- analyse VirusTotal de l’installateur (2/68, faux positifs heuristiques, voir « Build Windows »).
 
 Reste à valider avant diffusion large : test sur une machine Windows vierge sans environnement de développement.
 
