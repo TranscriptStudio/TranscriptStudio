@@ -6,7 +6,8 @@ Le dépôt contient les **sources** du projet et les scripts permettant de produ
 
 ## Captures d’écran
 
-![Fenêtre d’accueil de Transcript Studio](docs/screenshots/accueil.png)
+<img src="docs/screenshots/accueil.png" alt="Fenêtre d’accueil de Transcript Studio" width="400">
+
 
 ![Boîte de dialogue de prétraitement audio](docs/screenshots/pretraitement.png)
 
@@ -426,7 +427,12 @@ ISCC.exe tools\installer_windows.iss
 
 ### Analyse VirusTotal
 
-À titre indicatif, l’analyse du 11/10/2026 d’un `TranscriptStudio-1.0-setup.exe` non signé de cette même version donnait **1 moteur sur 68** : Trapmine (`Suspicious.low.ml.score`), un score heuristique de machine learning typique des faux positifs sur binaires non signés ; tous les moteurs majeurs (Microsoft, Kaspersky, ESET, Bitdefender, Avast…) étaient non détectés. Une analyse du fichier effectivement diffusé est recommandée avant publication.
+Analyse du 11/10/2026 sur `TranscriptStudio-1.0-setup.exe` (SHA-256 `2e0de8c2cf626869a0d600c3e4c41ad975bef6dca36c2ce9ec8a7679f9aceb94`) :
+
+- **2 moteurs sur 68** signalent le fichier : Arctic Wolf (`Unsafe`) et Trapmine (`Suspicious.low.ml.score`) ;
+- il s’agit de scores heuristiques de machine learning, typiques des faux positifs sur binaires non signés ;
+- tous les moteurs majeurs (Microsoft, Kaspersky, ESET, Bitdefender, Avast…) sont **non détectés** ;
+- l’analyse complète : `https://www.virustotal.com/gui/file/2e0de8c2cf626869a0d600c3e4c41ad975bef6dca36c2ce9ec8a7679f9aceb94`
 
 L’exécutable n’étant pas signé (pas de certificat de signature de code), Windows SmartScreen peut afficher « Windows a protégé votre PC » au premier lancement d’une nouvelle version. Le contournement (« Informations complémentaires → Exécuter quand même ») est documenté dans le manuel utilisateur (section « Installation »).
 
