@@ -4,6 +4,14 @@ Transcript Studio est une application de bureau Windows dédiée au prétraiteme
 
 Le dépôt contient les **sources** du projet et les scripts permettant de produire les **exécutables Windows 1.0** (installateur et archive portable). Les exécutables compilés ne sont pas stockés dans le dépôt : ils sont construits depuis les sources (voir la section « Build Windows ») et diffusés via les releases GitHub (voir la section « Installation »).
 
+## Captures d’écran
+
+![Fenêtre d’accueil de Transcript Studio](docs/screenshots/accueil.png)
+
+![Boîte de dialogue de prétraitement audio](docs/screenshots/pretraitement.png)
+
+![Éditeur de transcription avec timeline](docs/screenshots/editeur.png)
+
 ## Fonctionnalités principales
 
 ### Prétraitement audio
@@ -123,15 +131,11 @@ L’exécutable n’est pas signé (pas de certificat de signature de code). Au 
 
 #### Prérequis
 
-Transcript Studio a été validé dans l’environnement suivant :
-
 - Windows ;
-- Python 3.11.15 ;
+- Python 3.11.15 (les autres versions de Python 3.11 ne sont pas nécessairement incompatibles, mais elles n’ont pas été validées) ;
 - dépendances Python listées dans `requirements.txt` ;
-- FFmpeg installé dans l’arborescence du projet ;
+- FFmpeg installé dans l’arborescence du projet (étape suivante) ;
 - connexion Internet et clé API ElevenLabs pour les fonctions de transcription.
-
-Le fonctionnement de cette version précise du projet a été validé avec Python 3.11.15. Cela ne signifie pas que les autres versions de Python sont nécessairement incompatibles, mais elles n’ont pas été validées dans le cadre de la préparation actuelle du dépôt.
 
 #### 1. Cloner le dépôt
 
@@ -139,8 +143,6 @@ Le fonctionnement de cette version précise du projet a été validé avec Pytho
 git clone https://github.com/TranscriptStudio/TranscriptStudio.git
 cd TranscriptStudio
 ```
-
-Si le dépôt est encore privé, le compte GitHub utilisé doit disposer des droits d’accès nécessaires.
 
 #### 2. Créer un environnement Python isolé
 
@@ -187,7 +189,7 @@ python -m pip install -r requirements-dev.txt
 
 FFmpeg est nécessaire au prétraitement et à la conversion des fichiers audio/vidéo. Cette étape ne concerne que l’installation depuis les sources : les exécutables Windows 1.0 embarquent déjà FFmpeg.
 
-**L'exécutable FFmpeg n'est pas fournis dans ce dépôt.**
+L’exécutable FFmpeg n’est pas fourni dans ce dépôt.
 
 Sous Windows, télécharger le package **release essentials** depuis :
 
@@ -199,7 +201,7 @@ Dans la section `release builds`, télécharger :
 ffmpeg-release-essentials.zip
 ```
 
-À la date de préparation de ce README, la page Gyan propose FFmpeg 9.0.2 comme dernière release et fournit également une somme SHA-256 pour l’archive. Il est recommandé de vérifier les informations affichées sur la page de téléchargement avant installation.
+La page affiche la version la plus récente ainsi qu’une somme SHA-256 de l’archive : vérifier ces informations avant le téléchargement.
 
 Après extraction de l’archive, récupérer :
 
@@ -234,7 +236,7 @@ Vérifier ensuite depuis PowerShell :
 .\tools\ffmpeg\ffmpeg.exe -version
 ```
 
-Le code de Transcript Studio recherche explicitement cet exécutable à cet emplacement.
+Le code de Transcript Studio recherche l’exécutable d’abord dans `tools/ffmpeg/windows/`, puis à cet emplacement, avant de se replier sur le chemin configuré dans les paramètres et enfin sur le `PATH` système.
 
 ## Configuration ElevenLabs
 
@@ -424,7 +426,12 @@ ISCC.exe tools\installer_windows.iss
 
 ### Analyse VirusTotal
 
-Les artefacts 1.0 ne sont pas signés (pas de certificat de signature de code). Une analyse VirusTotal du fichier `TranscriptStudio-1.0-setup.exe` avant diffusion est recommandée ; lors de la préparation initiale (10/10/2026), seuls 2 moteurs sur 66 signalaient le binaire d’origine, sur des heuristiques de machine learning typiques des faux positifs sur binaires non signés, tous les moteurs majeurs étant non détectés.
+Analyse du 11/10/2026 sur `TranscriptStudio-1.0-setup.exe` :
+
+- **1 moteur sur 68** signale le fichier : Trapmine (`Suspicious.low.ml.score`) ;
+- il s’agit d’un score heuristique de machine learning, typique des faux positifs sur binaires non signés ;
+- tous les moteurs majeurs (Microsoft, Kaspersky, ESET, Bitdefender, Avast…) sont **non détectés** ;
+- l’analyse complète : `https://www.virustotal.com/gui/file/408db9bb1bd6108cbab606d50fb347251e52412984f16321d9544679ccf34f4a`
 
 L’exécutable n’étant pas signé (pas de certificat de signature de code), Windows SmartScreen peut afficher « Windows a protégé votre PC » au premier lancement d’une nouvelle version. Le contournement (« Informations complémentaires → Exécuter quand même ») est documenté dans le manuel utilisateur (section « Installation »).
 
@@ -507,14 +514,14 @@ Version affichée actuellement dans l’application :
 Octobre 2026
 ```
 
-Le dépôt est préparé pour la diffusion des **sources** et du **build Windows 1.0** (installateur et archive portable, voir la section « Build Windows »). La version 1.0 a été validée par :
+La version 1.0 (Windows) a été validée par :
 
 - build Nuitka standalone reproductible depuis un environnement propre ;
-- installation/désinstallation silencieuses de l’installateur (Program Files, raccourcis, registre) ;
-- test de fumée du binaire installé ;
-- analyse VirusTotal de l’installateur (2/66, faux positifs heuristiques, voir « Build Windows »).
+- installation/désinstallation de l’installateur (Program Files, raccourcis, registre) ;
+- test fonctionnel du binaire installé et de la version portable (lecture audio, édition, réouverture de projet) ;
+- analyse VirusTotal de l’installateur (1/68, faux positif heuristique, voir « Build Windows »).
 
-Restent à valider avant diffusion large : analyse VirusTotal de l’archive portable, test sur une machine Windows vierge sans environnement de développement.
+Reste à valider avant diffusion large : test sur une machine Windows vierge sans environnement de développement.
 
 ## Auteur
 
