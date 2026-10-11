@@ -401,8 +401,8 @@ La version 1.0 est distribuée sous deux formes, produites depuis les sources du
 
 | Artefact | Contenu | Taille | SHA-256 | Téléchargement |
 | --- | --- | --- | --- | --- |
-| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 81 Mo | `408db9bb1bd6108cbab606d50fb347251e52412984f16321d9544679ccf34f4a` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
-| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 114 Mo | `0221ae8562ab9a908b6419b00d822c6b63e2a14257d1916d9ba05e0ebe744c9b` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
+| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 81 Mo | `2e0de8c2cf626869a0d600c3e4c41ad975bef6dca36c2ce9ec8a7679f9aceb94` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
+| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 114 Mo | `3ea7cb59ca2b8a189bab5a52db9edc4e27d44ffb9039caa9c9ab70c99f134b3c` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
 
 Les liens de téléchargement pointent vers la release GitHub `v1.0` et deviennent actifs à la publication de celle-ci.
 
@@ -426,12 +426,7 @@ ISCC.exe tools\installer_windows.iss
 
 ### Analyse VirusTotal
 
-Analyse du 11/10/2026 sur `TranscriptStudio-1.0-setup.exe` :
-
-- **1 moteur sur 68** signale le fichier : Trapmine (`Suspicious.low.ml.score`) ;
-- il s’agit d’un score heuristique de machine learning, typique des faux positifs sur binaires non signés ;
-- tous les moteurs majeurs (Microsoft, Kaspersky, ESET, Bitdefender, Avast…) sont **non détectés** ;
-- l’analyse complète : `https://www.virustotal.com/gui/file/408db9bb1bd6108cbab606d50fb347251e52412984f16321d9544679ccf34f4a`
+À titre indicatif, l’analyse du 11/10/2026 d’un `TranscriptStudio-1.0-setup.exe` non signé de cette même version donnait **1 moteur sur 68** : Trapmine (`Suspicious.low.ml.score`), un score heuristique de machine learning typique des faux positifs sur binaires non signés ; tous les moteurs majeurs (Microsoft, Kaspersky, ESET, Bitdefender, Avast…) étaient non détectés. Une analyse du fichier effectivement diffusé est recommandée avant publication.
 
 L’exécutable n’étant pas signé (pas de certificat de signature de code), Windows SmartScreen peut afficher « Windows a protégé votre PC » au premier lancement d’une nouvelle version. Le contournement (« Informations complémentaires → Exécuter quand même ») est documenté dans le manuel utilisateur (section « Installation »).
 
