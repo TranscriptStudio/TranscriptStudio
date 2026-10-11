@@ -32,8 +32,6 @@ if "%PY%"=="" set PY=python
   --assume-yes-for-downloads ^
   --enable-plugin=pyside6 ^
   --windows-console-mode=disable ^
-  --force-stderr-spec="{PROGRAM_BASE}.err.txt" ^
-  --unstripped ^
   --windows-icon-from-ico=icons/icon.ico ^
   --company-name="Transcript Studio" ^
   --product-name="Transcript Studio" ^

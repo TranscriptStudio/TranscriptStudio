@@ -399,8 +399,8 @@ La version 1.0 est distribuée sous deux formes, produites depuis les sources du
 
 | Artefact | Contenu | Taille | SHA-256 | Téléchargement |
 | --- | --- | --- | --- | --- |
-| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 115 Mo | `3ab19ac7b55a7f2a1c8ffc780af6058e3066a91689cfead51170db5c2063ed91` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
-| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 172 Mo | `d918055282868ecde1287c697f06c06765021d207f404b1ddf292c802206fe09` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
+| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 81 Mo | `408db9bb1bd6108cbab606d50fb347251e52412984f16321d9544679ccf34f4a` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
+| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 114 Mo | `0221ae8562ab9a908b6419b00d822c6b63e2a14257d1916d9ba05e0ebe744c9b` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
 
 Les liens de téléchargement pointent vers la release GitHub `v1.0` et deviennent actifs à la publication de celle-ci.
 
