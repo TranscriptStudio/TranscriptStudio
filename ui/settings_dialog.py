@@ -97,7 +97,10 @@ class SettingsDialog(QDialog):
             QApplication.instance().quit()
             event.accept()
         else:
-            # Comportement normal : accepter la fermeture
+            # Comportement normal : accepter la fermeture,
+            # apres restauration du theme enregistre si
+            # l'apercu immediat l'a change.
+            self.restore_saved_theme()
             event.accept()
     
     def quit_application(self):
@@ -413,6 +416,14 @@ class SettingsDialog(QDialog):
             self.save_settings
         )
 
+        # Apercu immediat : appliquer le theme des la
+        # selection dans la liste deroulante, sans
+        # attendre Enregistrer. Annuler (bouton ou
+        # croix) restaure le theme enregistre.
+        self.theme_combo.currentIndexChanged.connect(
+            self.on_theme_selected
+        )
+
         # En mode first-run, le bouton Quitter doit quitter l'application
         # Sinon, le bouton Annuler ferme juste le dialogue
         if self._is_first_run:
@@ -468,6 +479,47 @@ class SettingsDialog(QDialog):
                 theme
             )
         self.accept()
+
+    def on_theme_selected(self):
+        """
+        Apercu immediat du theme choisi dans la
+        liste deroulante.
+        """
+        theme = (
+            self.theme_combo.currentData()
+        )
+
+        app = QApplication.instance()
+
+        if app is None:
+            return
+
+        ThemeManager.apply_theme(
+            app,
+            theme
+        )
+
+    def restore_saved_theme(self):
+        """
+        Reapplique le theme enregistre : appele a
+        l'annulation, l'apercu immediat ayant pu
+        changer le theme affiche.
+        """
+        app = QApplication.instance()
+
+        if app is None:
+            return
+
+        ThemeManager.apply_theme(
+            app,
+            self.settings.get_theme()
+        )
+
+    def reject(self):
+        # Annulation : restaurer le theme enregistre
+        # si l'apercu immediat l'a change.
+        self.restore_saved_theme()
+        super().reject()
 
     def test_connection(self):
 
