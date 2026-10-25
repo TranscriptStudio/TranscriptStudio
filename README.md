@@ -73,6 +73,8 @@ Les formats d’export actuellement proposés sont :
 
 Selon le format, les intervenants et les horodatages peuvent être inclus.
 
+La fin de l’export est signalée à l’utilisateur, avec possibilité d’ouvrir directement le fichier créé ou son dossier.
+
 ## Formats multimédias pris en charge
 
 ### Audio
@@ -402,8 +404,8 @@ La version 1.0 est distribuée sous deux formes, produites depuis les sources du
 
 | Artefact | Contenu | Taille | SHA-256 | Téléchargement |
 | --- | --- | --- | --- | --- |
-| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 81 Mo | `2e0de8c2cf626869a0d600c3e4c41ad975bef6dca36c2ce9ec8a7679f9aceb94` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
-| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 114 Mo | `3ea7cb59ca2b8a189bab5a52db9edc4e27d44ffb9039caa9c9ab70c99f134b3c` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
+| `TranscriptStudio-1.0-setup.exe` | Installateur Inno Setup, per-machine (Program Files, raccourcis, désinstallation propre) | 81 Mo | `00a78687c4487732cb51960a47ecd0cec6b2613daababdf987cb83b9f7399a93` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-setup.exe) |
+| `TranscriptStudio-1.0-portable.zip` | Archive portable sans installation ni modification du système | 114 Mo | `fd07304883c4b01073b02a8e0a8079ac3be67ede81ff93914ab323b333587ef7` | [Release v1.0](https://github.com/TranscriptStudio/TranscriptStudio/releases/download/v1.0/TranscriptStudio-1.0-portable.zip) |
 
 Les liens de téléchargement pointent vers la release GitHub `v1.0` et deviennent actifs à la publication de celle-ci.
 
@@ -411,7 +413,7 @@ Les deux artefacts embarquent l’application complète : binaire Nuitka standal
 
 ### Reproduire le build
 
-Le build nécessite un **CPython 3.11 standard** (une distribution Anaconda/conda ne fonctionne pas : `import ctypes` y provoque un arrêt fatal dans le binaire standalone). Procédure :
+Le build nécessite un **CPython 3.11 standard** (une distribution Anaconda/conda ne fonctionne pas : `import ctypes` y provoque un arrêt fatal dans le binaire standalone) et **Nuitka 4.3.1 ou plus récent** (la version 4.3 provoque un crash natif de l’application à l’export Word et PDF). Procédure :
 
 ```powershell
 # 1. Environnement de build propre
@@ -427,12 +429,14 @@ ISCC.exe tools\installer_windows.iss
 
 ### Analyse VirusTotal
 
-Analyse du 11/10/2026 sur `TranscriptStudio-1.0-setup.exe` (SHA-256 `2e0de8c2cf626869a0d600c3e4c41ad975bef6dca36c2ce9ec8a7679f9aceb94`) :
+Les exécutables 1.0 ne sont pas signés et obtiennent de façon récurrente des scores heuristiques de machine learning. Analyse du 11/10/2026 sur le `TranscriptStudio-1.0-setup.exe` de cette même version (SHA-256 `2e0de8c2cf626869a0d600c3e4c41ad975bef6dca36c2ce9ec8a7679f9aceb94`) :
 
-- **2 moteurs sur 68** signalent le fichier : Arctic Wolf (`Unsafe`) et Trapmine (`Suspicious.low.ml.score`) ;
+- **2 moteurs sur 68** signalaient le fichier : Arctic Wolf (`Unsafe`) et Trapmine (`Suspicious.low.ml.score`) ;
 - il s’agit de scores heuristiques de machine learning, typiques des faux positifs sur binaires non signés ;
-- tous les moteurs majeurs (Microsoft, Kaspersky, ESET, Bitdefender, Avast…) sont **non détectés** ;
+- tous les moteurs majeurs (Microsoft, Kaspersky, ESET, Bitdefender, Avast…) étaient **non détectés** ;
 - l’analyse complète : `https://www.virustotal.com/gui/file/2e0de8c2cf626869a0d600c3e4c41ad975bef6dca36c2ce9ec8a7679f9aceb94`
+
+Une analyse du fichier effectivement téléchargé reste recommandée.
 
 L’exécutable n’étant pas signé (pas de certificat de signature de code), Windows SmartScreen peut afficher « Windows a protégé votre PC » au premier lancement d’une nouvelle version. Le contournement (« Informations complémentaires → Exécuter quand même ») est documenté dans le manuel utilisateur (section « Installation »).
 
@@ -519,7 +523,8 @@ La version 1.0 (Windows) a été validée par :
 
 - build Nuitka standalone reproductible depuis un environnement propre ;
 - installation/désinstallation de l’installateur (Program Files, raccourcis, registre) ;
-- test fonctionnel du binaire installé et de la version portable (lecture audio, édition, réouverture de projet) ;
+- test fonctionnel du binaire installé et de la version portable (lecture audio, édition, réouverture de projet, changement de thème) ;
+- export des quatre formats testé dans le binaire compilé (TXT, JSON, DOCX, PDF) ;
 - analyse VirusTotal de l’installateur (2/68, faux positifs heuristiques, voir « Build Windows »).
 
 Reste à valider avant diffusion large : test sur une machine Windows vierge sans environnement de développement.
