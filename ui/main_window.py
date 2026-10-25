@@ -20,8 +20,10 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     QSize,
+    QUrl,
 )
 from PySide6.QtGui import (
+    QDesktopServices,
     QShortcut,
     QKeySequence,
     QPixmap,
@@ -1395,6 +1397,69 @@ class MainWindow(QMainWindow):
                 filename,
                 options["include_speakers"],
                 options["include_timestamps"]
+            )
+
+        self.confirm_export(filename)
+
+    def confirm_export(self, filename):
+        """
+        Signale la fin de l'export : affiche le fichier
+        cree et propose de l'ouvrir, ou d'ouvrir son
+        dossier.
+        """
+        path = Path(filename)
+
+        if not path.is_file():
+            QMessageBox.warning(
+                self,
+                "Export",
+                (
+                    "Le fichier n'a pas été créé :\n\n"
+                    + str(path)
+                )
+            )
+            return
+
+        message = QMessageBox(self)
+
+        message.setIcon(
+            QMessageBox.Icon.Information
+        )
+
+        message.setWindowTitle("Export terminé")
+
+        message.setText(
+            "La transcription a été exportée :\n\n"
+            + str(path)
+        )
+
+        open_file_button = message.addButton(
+            "Ouvrir le fichier",
+            QMessageBox.ButtonRole.AcceptRole
+        )
+
+        open_folder_button = message.addButton(
+            "Ouvrir le dossier",
+            QMessageBox.ButtonRole.AcceptRole
+        )
+
+        message.addButton(
+            "Fermer",
+            QMessageBox.ButtonRole.RejectRole
+        )
+
+        message.exec()
+
+        clicked = message.clickedButton()
+
+        if clicked is open_file_button:
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(str(path))
+            )
+
+        elif clicked is open_folder_button:
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(str(path.parent))
             )
 
     def return_to_home(self):
