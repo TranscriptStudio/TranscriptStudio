@@ -939,9 +939,25 @@ class SettingsDialog(QDialog):
                 "font-size: 12px; color: #D32F2F;"
             )
 
-            self.llm_test_statut.setText(
-                f"Clé invalide : {e.message}"
-            )
+            #
+            # Seule une erreur d'authentification condamne
+            # la clé ; une erreur réseau, serveur (5xx) ou
+            # quota est transitoire : la clé n'est pas en
+            # cause et le test peut être relancé.
+            #
+            if e.type == "cle_invalide":
+                texte = f"Clé invalide : {e.message}"
+            elif e.type in ("reseau", "timeout"):
+                texte = (
+                    "Test impossible pour le moment "
+                    f"(erreur réseau ou serveur) : {e.message}"
+                )
+            elif e.type == "quota":
+                texte = f"Limite d'appels atteinte : {e.message}"
+            else:
+                texte = f"Échec du test : {e.message}"
+
+            self.llm_test_statut.setText(texte)
 
             return
 

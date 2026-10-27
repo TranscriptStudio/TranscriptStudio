@@ -592,7 +592,11 @@ class ClientOpenAICompatible(LLMClient):
 
     def tester_connexion(self):
         """
-        Validation légère de la clé : GET /models.
+        Validation légère de la clé : GET /models,
+        avec relance sur erreur transitoire (5xx,
+        quota) — une clé valide ne doit pas être
+        signalée invalide pour une panne passagère
+        du fournisseur.
         """
 
         url = (
@@ -600,31 +604,43 @@ class ClientOpenAICompatible(LLMClient):
             "/models"
         )
 
-        try:
+        for tentative in range(self.tentatives):
 
-            reponse = self.session.get(
-                url,
-                headers=self._entetes(),
-                timeout=30,
-            )
+            try:
 
-        except requests.exceptions.RequestException as e:
-            raise ErreurLLM(
-                "reseau",
-                _sanitiser(
-                    f"Impossible de joindre "
-                    f"{self.fournisseur.nom}. Vérifiez "
-                    "votre connexion internet et la base "
-                    "URL du fournisseur.",
-                    self.cle_api,
+                reponse = self.session.get(
+                    url,
+                    headers=self._entetes(),
+                    timeout=30,
                 )
-            ) from e
 
-        if reponse.status_code != 200:
-            raise self._erreur_http(
+            except requests.exceptions.RequestException as e:
+                raise ErreurLLM(
+                    "reseau",
+                    _sanitiser(
+                        f"Impossible de joindre "
+                        f"{self.fournisseur.nom}. Vérifiez "
+                        "votre connexion internet et la base "
+                        "URL du fournisseur.",
+                        self.cle_api,
+                    )
+                ) from e
+
+            if reponse.status_code == 200:
+                break
+
+            erreur = self._erreur_http(
                 reponse.status_code,
                 reponse.text
             )
+
+            if (
+                not self._est_transitoire(erreur.type)
+                or tentative == self.tentatives - 1
+            ):
+                raise erreur
+
+            self.attente(self.delai_retry)
 
         modeles = []
 
@@ -852,7 +868,11 @@ class ClientAnthropic(LLMClient):
 
     def tester_connexion(self):
         """
-        Validation légère de la clé : GET /v1/models.
+        Validation légère de la clé : GET /v1/models,
+        avec relance sur erreur transitoire (5xx,
+        quota) — une clé valide ne doit pas être
+        signalée invalide pour une panne passagère
+        du fournisseur.
         """
 
         url = (
@@ -860,29 +880,41 @@ class ClientAnthropic(LLMClient):
             "/v1/models"
         )
 
-        try:
+        for tentative in range(self.tentatives):
 
-            reponse = self.session.get(
-                url,
-                headers=self._entetes(),
-                timeout=30,
-            )
+            try:
 
-        except requests.exceptions.RequestException as e:
-            raise ErreurLLM(
-                "reseau",
-                _sanitiser(
-                    f"Impossible de joindre "
-                    f"{self.fournisseur.nom}.",
-                    self.cle_api,
+                reponse = self.session.get(
+                    url,
+                    headers=self._entetes(),
+                    timeout=30,
                 )
-            ) from e
 
-        if reponse.status_code != 200:
-            raise self._erreur_http(
+            except requests.exceptions.RequestException as e:
+                raise ErreurLLM(
+                    "reseau",
+                    _sanitiser(
+                        f"Impossible de joindre "
+                        f"{self.fournisseur.nom}.",
+                        self.cle_api,
+                    )
+                ) from e
+
+            if reponse.status_code == 200:
+                break
+
+            erreur = self._erreur_http(
                 reponse.status_code,
                 reponse.text
             )
+
+            if (
+                not self._est_transitoire(erreur.type)
+                or tentative == self.tentatives - 1
+            ):
+                raise erreur
+
+            self.attente(self.delai_retry)
 
         modeles = []
 

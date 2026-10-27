@@ -1,7 +1,8 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (session P16 — **P16 LIVRÉ** : P16.1,
-> P16.2/P16.2b, P16.3 couvert par le moteur P15.3, P16.4)
+> **Dernière mise à jour** : 2026-10-27 (session P16 —
+> **P16 LIVRÉ** + correctifs post-livraison : test de clé
+> LLM, catalogue v2 GPT-5.6/6.x, purge études parasites)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -451,6 +452,87 @@ Les invariants UI spec §7 sont couverts par `tests/unit/test_reformulation_ui.p
 - **Contrôle qualité §5.2/§5.4 (références, citations)** : P18 (JND).
 - **Manuel utilisateur / README section Études** : report validé à la
   première livraison visible.
+
+---
+
+## SESSION 2026-10-27 (P16, correctifs post-livraison)
+
+Retours utilisateur après livraison P16 ; 4 correctifs, 192 tests verts.
+
+### 1. « Tester la clé » : erreur 504 affichée comme « Clé invalide »
+
+- `ui/settings_dialog.py` : le libellé distingue désormais les types
+  d'erreur — seul `cle_invalide` (401/403) affiche « Clé invalide » ;
+  réseau/serveur (5xx) → « Test impossible pour le moment (erreur réseau
+  ou serveur) » ; quota → « Limite d'appels atteinte ».
+- `services/llm/client.py` : `tester_connexion` relance les erreurs
+  transitoires (5xx, quota) comme les complétions (3 tentatives, backoff)
+  — les deux familles (openai_compatible et anthropic). Le message
+  « La tentative sera relancée automatiquement » devient exact aussi
+  pour le bouton de test.
+
+### 2. Études parasites sur l'accueil (9 entrées « Etude »)
+
+- Origine : fumées UI de développement — `EtudeWindow` écrivait les
+  études récentes dans le `SettingsManager` **réel** (les dossiers
+  pointaient vers des temporaires pytest `Temp\tmp...`).
+- Purge effectuée dans la config réelle de l'utilisateur : 9 entrées
+  supprimées + dossiers temporaires effacés ; liste des études vides.
+- Prévention : `EtudeWindow(dossier_etude, settings=None)` accepte un
+  `SettingsManager` injectable (tests/fumées = config isolée).
+  `HomeWindow` non modifié (lecture + nettoyage seulement).
+
+### 3. Catalogue LLM v2 : familles GPT-5.6 / GPT-6.x (retour utilisateur)
+
+- `resources/llm/catalogue_defaut.json`, `catalogue_version` 2 :
+  - OpenAI : **gpt-6-astra** (10/50 $), **gpt-6.1-sol** (2/10),
+    **gpt-6.1-terra** (1/5), **gpt-5.6-sol** (4/20, promo jusqu'au
+    2026-11-21), **gpt-5.6-terra** (2/12), **gpt-5.6-luna** (0,20/1,20),
+    gpt-4.1 conservé (2/8) ;
+  - Anthropic : **claude-opus-5-5** (4/20), **claude-sonnet-5-5** (2/10),
+    claude-sonnet-4 conservé ;
+  - Mistral : mistral-large-latest (alias Large 4), prix actualisés
+    1,36/4,18 $ (au lieu de 2/6).
+- **Capacités** : les modèles de raisonnement GPT-5.6/6.x déclarent
+  `temperature: false` + `effort_raisonnement: true` (l'API OpenAI
+  rejette la température en 400 sur ces modèles) — le moteur n'envoie
+  jamais la température à un modèle qui ne la déclare pas (déjà couvert
+  par P15.3, règle vérifiée par test).
+- **Mise à jour automatique** : `charger_catalogue` fusionne les
+  nouveaux défauts quand la version stockée est plus ancienne que
+  l'embarquée (fournisseurs « defaut » remplacés, ajouts « utilisateur »
+  conservés, fichier réécrit) — l'utilisateur voit les nouveaux
+  modèles sans « Réinitialiser ». « Réinitialiser » garde son
+  comportement.
+- 4 tests : retry 504 (openai_compatible : succès après relance +
+  épuisement), retry 503 (anthropic), fusion de version du catalogue ;
+  test des prix/capacités du catalogue v2 mis à jour.
+
+### 4. Question d'architecture — étude conteneur des transcriptions
+
+L'utilisateur demande si le dossier projet ne pourrait pas être le
+conteneur étude (« toutes les transcriptions dedans »). Analyse CLI :
+
+- **Rien ne bloque techniquement** : les réunions sont référencées par
+  chemin relatif — un `etude.json` posé dans le dossier parent des
+  projets (« Evangile de Luc/ ») référencerait les sous-dossiers
+  projets tels quels, sans copie ni duplication.
+- **Bloquant actuel** : `creer_etude` exige un dossier vide ou
+  inexistant ; l'UX de création crée toujours un dossier dédié.
+- **Avantages** : un seul dossier à déplacer/sauvegarder, aucun lien
+  cassé, cohérent avec le croquis initial de la feuille de route §3.1
+  (« reunions/ … copié ou lié »).
+- **Risque à arbitrer** : copier les projets dans l'étude (option
+  « conteneur autonome » du contrat) duplique les projets — divergence
+  possible entre la copie et l'original ouverts indépendamment. La
+  variante « référencer en place dans le dossier parent » n'a pas ce
+  défaut et respecte « projet v1 inchangé ».
+
+**→ Arbitrage atelier souhaité** : (a) étude dans un dossier dédié
+(actuel), (b) étude créée dans le dossier existant des transcriptions
+(références en place, `creer_etude` à assouplir), (c) copie des projets
+dans `reunions/` (dossier autonome, gestion de la divergence à prévoir).
+Recommandation CLI : (b) — petit changement, gros gain de portabilité.
 
 ---
 

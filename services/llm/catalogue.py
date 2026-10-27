@@ -380,11 +380,46 @@ def valider_catalogue(catalogue: CatalogueLLM) -> None:
                     )
 
 
+def _fusionner_avec_defauts(
+    catalogue: CatalogueLLM,
+    defaut: CatalogueLLM
+) -> CatalogueLLM:
+    """
+    Reconstruit le catalogue sur la base des
+    défauts embarqués, en conservant les
+    fournisseurs ajoutés par l'utilisateur
+    (origine « utilisateur »).
+    """
+
+    conservees = [
+        fournisseur
+        for fournisseur in catalogue.fournisseurs
+        if fournisseur.origine
+        == ORIGINE_UTILISATEUR
+    ]
+
+    return CatalogueLLM(
+        catalogue_version=defaut.catalogue_version,
+        fournisseurs=(
+            list(defaut.fournisseurs)
+            + conservees
+        ),
+    )
+
+
 def charger_catalogue(chemin=None) -> CatalogueLLM:
     """
     Charge le catalogue utilisateur (dossier de
     paramétrage de l'app) ; à défaut, le catalogue
     embarqué.
+
+    Si la version du catalogue embarqué est plus
+    récente que celle stockée, les fournisseurs
+    d'origine « defaut » sont remplacés par les
+    nouveaux défauts (les ajouts utilisateur sont
+    conservés) et le fichier est mis à jour —
+    l'utilisateur voit les nouveaux modèles sans
+    action de sa part.
     """
 
     if chemin is None:
@@ -415,6 +450,16 @@ def charger_catalogue(chemin=None) -> CatalogueLLM:
         )
 
     valider_catalogue(catalogue)
+
+    defaut = catalogue_par_defaut()
+
+    if catalogue.catalogue_version < defaut.catalogue_version:
+        catalogue = _fusionner_avec_defauts(
+            catalogue,
+            defaut
+        )
+
+        enregistrer_catalogue(catalogue, chemin)
 
     return catalogue
 

@@ -134,7 +134,26 @@ class TestCatalogueDefaut:
             "mistral-large-latest"
         )
 
-        assert mistral.prix["out_par_million"] == 6.0
+        assert mistral.prix["out_par_million"] == 4.18
+
+        #
+        # Familles GPT-5.6 / GPT-6.x (2026-10) :
+        # modèles de raisonnement — pas de
+        # température, effort de raisonnement
+        # déclaré, fenêtre de 1,05 M de tokens.
+        #
+        terra = catalogue.chercher_modele(
+            "openai",
+            "gpt-6.1-terra"
+        )
+
+        assert terra.capacite_temperature is False
+        assert terra.capacite_effort_raisonnement is True
+        assert terra.max_contexte_tokens == 1050000
+        assert terra.prix == {
+            "in_par_million": 1.0,
+            "out_par_million": 5.0,
+        }
 
     def test_introuvables(self):
         catalogue = catalogue_par_defaut()
@@ -245,6 +264,85 @@ class TestPersistance:
         )
 
         assert gpt.prix["in_par_million"] == 2.0
+
+    def test_mise_a_jour_version_defauts(self, tmp_path):
+        """
+        Un catalogue stocké plus ancien que l'embarqué
+        est mis à jour au chargement : fournisseurs
+        par défaut remplacés par les nouveaux défauts,
+        ajouts utilisateur conservés, fichier réécrit
+        (l'utilisateur voit les nouveaux modèles sans
+        action de sa part).
+        """
+
+        chemin = tmp_path / "catalogue_llm.json"
+
+        ancien = catalogue_par_defaut()
+        ancien.catalogue_version = 1
+
+        #
+        # Simule l'ancien défaut : un seul modèle
+        # OpenAI, avant l'ajout des familles GPT-5.6
+        # et GPT-6.x.
+        #
+        openai = ancien.chercher_fournisseur("openai")
+        openai.modeles = [
+            modele
+            for modele in openai.modeles
+            if modele.id == "gpt-4.1"
+        ]
+
+        ancien.ajouter_fournisseur(
+            FournisseurCatalogue(
+                id="ollama-local",
+                nom="Ollama (local)",
+                famille_api="openai_compatible",
+                base_url="http://localhost:11434/v1",
+                endpoint_infos_compte="none",
+                modeles=[
+                    ModeleCatalogue(
+                        id="llama3",
+                        nom_affiche="Llama 3",
+                        capacites={"temperature": True},
+                        prix={
+                            "in_par_million": 0.0,
+                            "out_par_million": 0.0,
+                        },
+                        origine=ORIGINE_UTILISATEUR,
+                    )
+                ],
+                origine=ORIGINE_UTILISATEUR,
+            )
+        )
+
+        enregistrer_catalogue(ancien, chemin)
+
+        relu = charger_catalogue(chemin)
+
+        assert relu.catalogue_version == (
+            catalogue_par_defaut().catalogue_version
+        )
+
+        # Nouveaux modèles par défaut visibles.
+        assert relu.chercher_modele(
+            "openai",
+            "gpt-6.1-terra"
+        )
+
+        # Ajout utilisateur conservé.
+        ollama = relu.chercher_fournisseur(
+            "ollama-local"
+        )
+
+        assert ollama.origine == ORIGINE_UTILISATEUR
+        assert ollama.chercher_modele("llama3")
+
+        # Fichier mis à jour sur le disque.
+        reliture = json.loads(
+            chemin.read_text(encoding="utf-8")
+        )
+
+        assert reliture["catalogue_version"] == 2
 
 
 class TestValidation:

@@ -45,10 +45,17 @@ from services.settings import SettingsManager
 
 class EtudeWindow(QWidget):
 
-    def __init__(self, dossier_etude):
+    def __init__(self, dossier_etude, settings=None):
         super().__init__()
 
-        self.settings = SettingsManager()
+        # SettingsManager injectable : les tests et
+        # fumées isolent la configuration réelle de
+        # l'utilisateur (jamais d'écriture dedans).
+        self.settings = (
+            settings
+            if settings is not None
+            else SettingsManager()
+        )
 
         self.etude = None
 

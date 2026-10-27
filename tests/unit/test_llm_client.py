@@ -539,6 +539,65 @@ class TestClientOpenAICompatible:
 
         assert infos.value.type == "cle_invalide"
 
+    def test_tester_connexion_reessaie_erreur_serveur(self):
+        """
+        Un 504 transitoire est relancé : une clé
+        valide n'est pas signalée invalide pour
+        une panne passagère du fournisseur.
+        """
+        session = FausseSession([
+            FausseReponse(statut=504, texte="{}"),
+            FausseReponse(
+                statut=200,
+                donnees_json={
+                    "data": [
+                        {"id": "gpt-6.1-terra"}
+                    ]
+                },
+            ),
+        ])
+
+        attentes = []
+
+        client = creer_client(
+            _fournisseur_openai(),
+            CLE,
+            session=session,
+            attente=attentes.append,
+        )
+
+        resultat = client.tester_connexion()
+
+        assert resultat["ok"] is True
+        assert len(session.appels) == 2
+        assert len(attentes) == 1
+
+    def test_tester_connexion_erreur_serveur_epuisee(self):
+        """
+        Le 504 persistant remonte une erreur
+        réseau, pas « clé invalide » — le message
+        final reste celui du dernier statut.
+        """
+        session = FausseSession([
+            FausseReponse(statut=504, texte="{}"),
+            FausseReponse(statut=504, texte="{}"),
+            FausseReponse(statut=504, texte="{}"),
+        ])
+
+        client = creer_client(
+            _fournisseur_openai(),
+            CLE,
+            session=session,
+            attente=lambda _s: None,
+        )
+
+        with pytest.raises(ErreurLLM) as infos:
+            client.tester_connexion()
+
+        assert infos.value.type == "reseau"
+        assert "504" in infos.value.message
+        assert len(session.appels) == 3
+
 
 class TestClientAnthropic:
 
@@ -574,6 +633,36 @@ class TestClientAnthropic:
         ]
 
         return lignes
+
+    def test_tester_connexion_reessaie_erreur_serveur(self):
+        """
+        Un 503 transitoire est relancé chez
+        anthropic aussi : la clé n'est pas
+        signalée invalide.
+        """
+        session = FausseSession([
+            FausseReponse(statut=503, texte="{}"),
+            FausseReponse(
+                statut=200,
+                donnees_json={
+                    "data": [
+                        {"id": "claude-sonnet-5-5"}
+                    ]
+                },
+            ),
+        ])
+
+        client = creer_client(
+            self._fournisseur(),
+            CLE,
+            session=session,
+            attente=lambda _s: None,
+        )
+
+        resultat = client.tester_connexion()
+
+        assert resultat["ok"] is True
+        assert len(session.appels) == 2
 
     def test_completion_streaming(self):
         session = FausseSession([

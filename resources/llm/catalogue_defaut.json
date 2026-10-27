@@ -1,5 +1,5 @@
 {
-  "catalogue_version": 1,
+  "catalogue_version": 2,
   "fournisseurs": [
     {
       "id": "openai",
@@ -9,6 +9,84 @@
       "endpoint_infos_compte": "available",
       "origine": "defaut",
       "modeles": [
+        {
+          "id": "gpt-6-astra",
+          "nom_affiche": "GPT-6 Astra",
+          "capacites": {
+            "temperature": false,
+            "effort_raisonnement": true,
+            "max_contexte_tokens": 1050000
+          },
+          "prix": {
+            "in_par_million": 10.0,
+            "out_par_million": 50.0
+          }
+        },
+        {
+          "id": "gpt-6.1-sol",
+          "nom_affiche": "GPT-6.1 Sol",
+          "capacites": {
+            "temperature": false,
+            "effort_raisonnement": true,
+            "max_contexte_tokens": 1050000
+          },
+          "prix": {
+            "in_par_million": 2.0,
+            "out_par_million": 10.0
+          }
+        },
+        {
+          "id": "gpt-6.1-terra",
+          "nom_affiche": "GPT-6.1 Terra",
+          "capacites": {
+            "temperature": false,
+            "effort_raisonnement": true,
+            "max_contexte_tokens": 1050000
+          },
+          "prix": {
+            "in_par_million": 1.0,
+            "out_par_million": 5.0
+          }
+        },
+        {
+          "id": "gpt-5.6-sol",
+          "nom_affiche": "GPT-5.6 Sol",
+          "capacites": {
+            "temperature": false,
+            "effort_raisonnement": true,
+            "max_contexte_tokens": 1050000
+          },
+          "prix": {
+            "in_par_million": 4.0,
+            "out_par_million": 20.0
+          }
+        },
+        {
+          "id": "gpt-5.6-terra",
+          "nom_affiche": "GPT-5.6 Terra",
+          "capacites": {
+            "temperature": false,
+            "effort_raisonnement": true,
+            "max_contexte_tokens": 1050000
+          },
+          "prix": {
+            "in_par_million": 2.0,
+            "out_par_million": 12.0
+          }
+        },
+        {
+          "id": "gpt-5.6-luna",
+          "nom_affiche": "GPT-5.6 Luna",
+          "capacites": {
+            "temperature": false,
+            "effort_raisonnement": true,
+            "max_contexte_tokens": 1050000
+          },
+          "prix": {
+            "in_par_million": 0.2,
+            "out_par_million": 1.2
+          }
+        },
         {
           "id": "gpt-4.1",
           "nom_affiche": "GPT-4.1",
@@ -33,14 +111,14 @@
       "modeles": [
         {
           "id": "mistral-large-latest",
-          "nom_affiche": "Mistral Large",
+          "nom_affiche": "Mistral Large (dernier)",
           "capacites": {
             "temperature": true,
-            "max_contexte_tokens": 128000
+            "max_contexte_tokens": 256000
           },
           "prix": {
-            "in_par_million": 2.0,
-            "out_par_million": 6.0
+            "in_par_million": 1.36,
+            "out_par_million": 4.18
           }
         }
       ]
@@ -53,6 +131,30 @@
       "endpoint_infos_compte": "none",
       "origine": "defaut",
       "modeles": [
+        {
+          "id": "claude-opus-5-5",
+          "nom_affiche": "Claude Opus 5.5",
+          "capacites": {
+            "temperature": true,
+            "max_contexte_tokens": 200000
+          },
+          "prix": {
+            "in_par_million": 4.0,
+            "out_par_million": 20.0
+          }
+        },
+        {
+          "id": "claude-sonnet-5-5",
+          "nom_affiche": "Claude Sonnet 5.5",
+          "capacites": {
+            "temperature": true,
+            "max_contexte_tokens": 200000
+          },
+          "prix": {
+            "in_par_million": 2.0,
+            "out_par_million": 10.0
+          }
+        },
         {
           "id": "claude-sonnet-4",
           "nom_affiche": "Claude Sonnet 4",
