@@ -224,8 +224,8 @@ Convention de commit existante : `Pnn - <sujet> : <détail>`. Les phases v2 comm
 
 - P15.1 `LLMClient` abstrait + implémentations par famille d'API (catalogue), streaming, usage/coût, retry/annulation.
 - P15.2 Réglages : fournisseur, clé, modèle, température, effort de raisonnement, « Tester la connexion » (même UX que la clé ElevenLabs).
-- P15.3 Moteur de traitement : assemblage de contexte (fenêtre glissante, budget), exécution séquentielle par unité, stockage des résultats et métadonnées (§3.3).
-- P15.4 Journal de passe : par intervention, tokens in/out, coût, durée (comme `reformuler_gpt.py`).
+- P15.3 Moteur de traitement : assemblage de contexte (fenêtre glissante, budget), exécution séquentielle par unité, stockage des résultats et métadonnées (§3.3). **Spécification complète définie dans « Spécification du moteur de traitement » (asset spec/SPEC_MOTEUR_P15_V2.md du skill transcriptstudio-spec) — fait autorité pour l'implémentation.** Résumé des arbitrages : troncation de contexte par le haut (blocs les plus anciens de la fenêtre d'abord ; jamais synthèse ni unité courante), températures par défaut réglées dans l'app (reformulation 0.3, résumé 0.2) avec aide et surcharge par étude, confirmation/affichage du coût pour la première passe totale uniquement (pas de confirmation par bloc), annulation à mi-passe = conservation de tout ce qui est fait, reprise qui saute les blocs déjà traités, défaillance API = arrêt propre + reprise, aucune relance en cascade (décisions David du 2026-10-27).
+- P15.4 Log des opérations (remplace le « journal de passe ») : fichier dédié `traitements/journal_operations.json` de l'étude, append-only, toute opération du process (passes, reformulations, relances, éditions, validations, fusions, erreurs API, annulations) avec horodatage, modèle, tokens, durée, coût ; page in-app « 📋 Log » en lecture seule depuis la barre supérieure (décision David du 2026-10-27) — contrat de stockage dans le format étude (§11), comportement dans SPEC_MOTEUR_P15_V2.md.
 - Critères : une réunion traitée de bout en bout via un script de test ou un prototype de page ; coût estimé affiché ; annulation propre à mi-passe ; reprise possible.
 
 ### P16 — Bloc Reformulation (niveau 1) & UI Traitement
@@ -235,7 +235,7 @@ Convention de commit existante : `Pnn - <sujet> : <détail>`. Les phases v2 comm
 - P16.1 Intégration du Prompt v2 comme valeur par défaut éditable (paramètres de l'étude).
 - P16.2 Page Traitement : volets source/résultat, navigation, traitement de toute la réunion, régénération d'une intervention avec consigne libre, édition manuelle, validation/refus.
 - P16.2b Outil d'édition du bloc (§3.4) : édition au paragraphe, relance ciblée sur sélection (contexte identique + versions antérieures du bloc), historique de versions avec retour arrière, normalisation des retours à la ligne (un seul `\n` par saut de paragraphe), validation du bloc.
-- P16.3 Fenêtre glissante : résultats produits en passe complète, résultats validés lors des reprises ; après édition/régénération d'une intervention, proposer de relancer les suivantes.
+- P16.3 Fenêtre glissante : résultats produits en passe complète, résultats validés lors des reprises ; **aucune relance automatique en cascade** (décision David 2026-10-27 : si les blocs suivants sont bons, on ne les touche pas — l'utilisateur relance individuellement ce qu'il veut).
 - P16.4 Contrôle qualité local (§5.1 et §5.3) affiché dans la page.
 - Critères : réunion Luc 1b de test reformulée intégralement ; chaque résultat relisible face à sa source ; une intervention modifiée n'affecte que les suivantes après revalidation ; une méditation monologue est traitée en sous-blocs successifs sans rupture stylistique perceptible entre les jonctions.
 

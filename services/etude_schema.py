@@ -921,6 +921,24 @@ def valider_parametres(
             "tokens : entier attendu"
         )
 
+    #
+    # Température de reformulation (optionnelle,
+    # contrat §10 v13) : surcharge étude du réglage
+    # app.
+    #
+    if "temperature" in reformulation and (
+        reformulation["temperature"] is not None
+    ):
+        if not isinstance(
+            reformulation["temperature"],
+            (int, float)
+        ):
+            _erreur(
+                fichier,
+                "reformulation.temperature : "
+                "nombre attendu"
+            )
+
     resume = _exiger_cle(
         data,
         "resume",
@@ -958,6 +976,23 @@ def valider_parametres(
         "resume.source_defaut",
         fichier
     )
+
+    #
+    # Température du résumé (optionnelle, contrat
+    # §10 v13) : surcharge étude du réglage app.
+    #
+    if "temperature" in resume and (
+        resume["temperature"] is not None
+    ):
+        if not isinstance(
+            resume["temperature"],
+            (int, float)
+        ):
+            _erreur(
+                fichier,
+                "resume.temperature : "
+                "nombre attendu"
+            )
 
     synthese = _exiger_cle(
         data,

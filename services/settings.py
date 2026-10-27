@@ -99,6 +99,15 @@ class SettingsManager:
                 "temperature": 0.3,
                 "max_tokens": None,
                 "effort_raisonnement": None,
+                # Températures par défaut par bloc
+                # (décision C2 du 2026-10-27) :
+                # reformulation 0.3 (sobre et fidèle),
+                # résumé 0.2 ; surchargeables par étude
+                # dans parametres.json.
+                "temperatures": {
+                    "reformulation": 0.3,
+                    "resume": 0.2,
+                },
             },
             
             "transcription_defaults": {

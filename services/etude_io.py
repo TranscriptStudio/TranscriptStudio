@@ -66,6 +66,17 @@ from services.etude_schema import (
 )
 from services.resources import resource_path
 from services.timecodes import horodatage_iso
+from services.traitements.journal import (
+    FICHIER_JOURNAL,
+    JournalEtude,
+    RESULTAT_SUCCES,
+    TYPE_DEVALIDATION,
+    TYPE_EDITION_MANUELLE,
+    TYPE_REFORMULATION_BLOC,
+    TYPE_RESUME,
+    TYPE_SYNTHESE,
+    TYPE_VALIDATION,
+)
 
 
 FICHIER_ETUDE = "etude.json"
@@ -204,11 +215,17 @@ def _lire_prompt_par_defaut(nom_fichier: str) -> str:
         return fichier.read().strip()
 
 
-def parametres_par_defaut() -> ParametresEtude:
+def parametres_par_defaut(
+    temperature_reformulation: float = 0.3,
+    temperature_resume: float = 0.2
+) -> ParametresEtude:
     """
     Paramètres initiaux d'une étude (contrat §10) :
     prompts v2 de référence intégrés comme valeurs
-    actives, aucun secret (CredentialStore v1).
+    actives, températures par défaut venant des
+    réglages de l'app (décision C2 : reformulation
+    0.3, résumé 0.2 — surchargeables par étude),
+    aucun secret (CredentialStore v1).
     """
 
     return ParametresEtude(
@@ -217,6 +234,7 @@ def parametres_par_defaut() -> ParametresEtude:
                 "prompt_reformulation_v2.md"
             ),
             "modele": "mistral-large-latest",
+            "temperature": temperature_reformulation,
             "fenetre_glissante_tokens": 2000,
         },
         resume={
@@ -224,6 +242,7 @@ def parametres_par_defaut() -> ParametresEtude:
                 "prompt_resume_v2.md"
             ),
             "modele": "mistral-large-latest",
+            "temperature": temperature_resume,
             "longueur_cible_mots": [650, 700],
             "source_defaut": "reformulations_valides",
         },
@@ -272,6 +291,11 @@ class EtudeOuverte:
         self.decoupages: dict = {}
         self.reformulations: dict = {}
         self.resumes: dict = {}
+
+        # Log des opérations de l'étude (P15.4) :
+        # append-only, écrit à chaque opération ;
+        # document d'audit, jamais consommé ici.
+        self.journal = None
 
         self.reunions_introuvables: list = []
 
@@ -361,6 +385,17 @@ def creer_etude(
     etude_ouverte.registre = RegistreFID()
     etude_ouverte.parametres = parametres_par_defaut()
     etude_ouverte.synthese = SyntheseEtude()
+
+    #
+    # Log des opérations : fichier créé vide à
+    # l'ouverture de l'étude (append-only ensuite).
+    #
+    etude_ouverte.journal = JournalEtude(
+        dossier / DOSSIER_TRAITEMENTS
+        / FICHIER_JOURNAL
+    )
+
+    etude_ouverte.journal.initialiser()
 
     sauvegarder_etude(etude_ouverte)
 
@@ -648,6 +683,21 @@ def ouvrir_etude(dossier) -> EtudeOuverte:
 
     else:
         etude_ouverte.parametres = parametres_par_defaut()
+
+    #
+    # Log des opérations de l'étude (P15.4) :
+    # chargé en lecture-écriture ; absent, il
+    # démarre vide (études créées avant P15.4) et
+    # se créera à la première opération.
+    #
+    chemin_journal = (
+        dossier / DOSSIER_TRAITEMENTS
+        / FICHIER_JOURNAL
+    )
+
+    etude_ouverte.journal = JournalEtude(
+        chemin_journal
+    )
 
     #
     # Résolution des réunions : relatif, puis absolu,
@@ -1114,12 +1164,18 @@ def ajouter_version_reformulation(
     consigne: str = None,
     selection: dict = None,
     stats: dict = None,
-    contexte: list = None
+    contexte: list = None,
+    modele: str = None
 ) -> VersionReformulation:
     """
     Ajoute une version au résultat de reformulation d'un
     bloc. L'historique est complet : jamais d'écrasement
     (règle d'invariance 2).
+
+    Règle d'invariance 4 de la spec moteur : l'opération
+    produit exactement une entrée de log, horodatée,
+    avant retour à l'UI (reformulation_bloc, ou
+    edition_manuelle pour une correction à la main).
     """
 
     if fid not in etude_ouverte.registre.entrees:
@@ -1149,6 +1205,29 @@ def ajouter_version_reformulation(
     )
 
     resultat.versions.append(version)
+
+    etude_ouverte.journal.ajouter(
+        TYPE_EDITION_MANUELLE
+        if type_version == "edition_manuelle"
+        else TYPE_REFORMULATION_BLOC,
+        fid=fid,
+        reunion=(
+            etude_ouverte
+            .registre.entrees[fid]
+            .reunion
+        ),
+        modele=modele,
+        version=version.numero,
+        resultat=RESULTAT_SUCCES,
+        message=(
+            f"Version {version.numero} "
+            f"({type_version})"
+        ),
+        stats=stats,
+        extras={
+            "type_version": type_version,
+        }
+    )
 
     return version
 
@@ -1181,6 +1260,70 @@ def valider_version_reformulation(
                 statut="valide",
                 horodatage=horodatage_courant(),
                 validateur=validateur,
+            )
+
+            etude_ouverte.journal.ajouter(
+                TYPE_VALIDATION,
+                fid=fid,
+                reunion=(
+                    etude_ouverte
+                    .registre.entrees[fid]
+                    .reunion
+                ),
+                version=numero,
+                resultat=RESULTAT_SUCCES,
+                message=(
+                    f"Version {numero} validée "
+                    f"par {validateur}."
+                )
+            )
+
+            return
+
+    raise EtudeError(
+        f"Version {numero} introuvable "
+        f"pour le FID {fid}"
+    )
+
+
+def devalider_version_reformulation(
+    etude_ouverte: EtudeOuverte,
+    fid: int,
+    numero: int
+) -> None:
+    """
+    Dévalide une version (le bloc redevient
+    modifiable) : une entrée de log devalidation
+    est consignée.
+    """
+
+    resultat = etude_ouverte.reformulations.get(fid)
+
+    if resultat is None:
+        raise EtudeError(
+            f"Aucun résultat de reformulation "
+            f"pour le FID {fid}"
+        )
+
+    for version in resultat.versions:
+
+        if version.numero == numero:
+
+            version.validation = None
+
+            etude_ouverte.journal.ajouter(
+                TYPE_DEVALIDATION,
+                fid=fid,
+                reunion=(
+                    etude_ouverte
+                    .registre.entrees[fid]
+                    .reunion
+                ),
+                version=numero,
+                resultat=RESULTAT_SUCCES,
+                message=(
+                    f"Version {numero} dévalidée."
+                )
             )
 
             return
@@ -1226,6 +1369,21 @@ def ajouter_version_resume(
 
     resultat.versions.append(version)
 
+    etude_ouverte.journal.ajouter(
+        TYPE_RESUME,
+        fid=None,
+        reunion=reunion,
+        version=version.numero,
+        resultat=RESULTAT_SUCCES,
+        message=(
+            f"Résumé version {version.numero} "
+            f"(source : {source})"
+        ),
+        extras={
+            "source": source,
+        }
+    )
+
     return version
 
 
@@ -1261,6 +1419,18 @@ def valider_version_resume(
                 reunion
             ].resume_valide = True
 
+            etude_ouverte.journal.ajouter(
+                TYPE_VALIDATION,
+                fid=None,
+                reunion=reunion,
+                version=numero,
+                resultat=RESULTAT_SUCCES,
+                message=(
+                    f"Résumé version {numero} validé "
+                    f"par {validateur}."
+                )
+            )
+
             return
 
     raise EtudeError(
@@ -1293,5 +1463,20 @@ def ajouter_version_synthese(
     )
 
     etude_ouverte.synthese.versions.append(version)
+
+    etude_ouverte.journal.ajouter(
+        TYPE_SYNTHESE,
+        fid=None,
+        reunion=None,
+        version=version.numero,
+        resultat=RESULTAT_SUCCES,
+        message=(
+            f"Synthèse d'étude version "
+            f"{version.numero} ({declencheur})"
+        ),
+        extras={
+            "declencheur": declencheur,
+        }
+    )
 
     return version

@@ -1148,9 +1148,28 @@ La campagne est terminee lorsque :
 - [x] P15.2 Réglages : onglet LLM (fournisseur, clé masquée + « Tester la
       clé », modèle, température/max_tokens selon capacités, éditeur de
       catalogue).
-- [ ] P15.3 Moteur de traitement : assemblage de contexte (fenêtre glissante,
-      budget), exécution séquentielle par unité, stockage des résultats.
-- [ ] P15.4 Journal de passe : par intervention, tokens in/out, coût, durée.
+- [x] P15.3 Moteur de traitement (services/traitements/moteur.py, spec
+      SPEC_MOTEUR_P15_V2.md) : assemblage de contexte (prompt système, synthèse
+      d'étude, fenêtre glissante, unité courante, consigne ; budget explicite
+      contre le contexte du modèle), troncation par le haut (jamais la synthèse
+      ni l'unité courante ; erreur propre si l'unité seule ne tient pas),
+      températures app 0.3 (reformulation) / 0.2 (résumé) surchargeables par
+      étude (contrat §10), exécution séquentielle chronologique, estimation de
+      coût avant la première passe totale (B1, fait office de confirmation,
+      aucune confirmation par bloc), annulation propre avec conservation des
+      résultats et reprise en sautant les blocs traités (B2), défaillance API =
+      arrêt propre après retry avec erreur consignée, aucune cascade (B3),
+      relance ciblée avec formulation courante et versions antérieures du bloc.
+- [x] P15.4 Log des opérations (services/traitements/journal.py, remplace le
+      « journal de passe ») : fichier dédié traitements/journal_operations.json
+      de l'étude (contrat §11), append-only, écrit à chaque opération (passe
+      complète, reformulation de bloc, édition manuelle, validation,
+      dévalidation, fusion/dé-fusion, erreur API, annulation, résumé,
+      synthèse), toutes les opérations des services d'étude journalisées
+      (règle d'invariance 4 de la spec moteur) ; 17 tests unitaires dont les
+      6 règles d'invariance SPEC_MOTEUR §6 et la règle 6 du contrat §13 ;
+      page Log en lecture seule (spec UI §8) : reportée en P16 selon le
+      périmètre fixé par l'atelier.
 
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 

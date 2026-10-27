@@ -26,8 +26,9 @@ Etude_Luc\                                    ← dossier étude (nom libre)
 ├── traitements\
 │   ├── reformulation\
 │   │   └── <FID>.json                        ← résultat versionné par bloc (§7)
-│   └── resume\
-│       └── 2026-10-13_Luc1b.json             ← résumé versionné par réunion (§8)
+│   ├── resume\
+│   │   └── 2026-10-13_Luc1b.json             ← résumé versionné par réunion (§8)
+│   └── journal_operations.json                ← log des opérations de l'étude, append-only (§11)
 ├── synthese\
 │   └── synthese.json                         ← synthèse d'étude versionnée (§9)
 └── parametres\
@@ -102,7 +103,7 @@ Règles de résolution : à l'ouverture, résoudre `chemin_projet` relatif au do
 ```
 
 - `source` est le texte de la transcription corrigée, **immuable après enregistrement du bloc** ;
-- `positions` réfèrent à l'audio traité ; la conversion vers l'audio original se fait via le journal des opérations (§11) ;
+- `positions` réfèrent à l'audio traité ; la conversion vers l'audio original se fait via le journal des opérations de prétraitement (§12) ;
 - pour un bloc fusionné : `locuteurs` porte plusieurs noms, `fusion_de` liste les FID d'origine ;
 - ré-attribution des FID : toute re-segmentation attribue de nouveaux FID aux nouveaux blocs ; les blocs inchangés (mêmes bornes) conservent leur FID.
 
@@ -176,11 +177,13 @@ Mise à jour à chaque validation de bloc (niveau 2 du contexte) ; versionnée ;
   "reformulation": {
     "prompt": "…prompt v2 complet, éditable…",
     "modele": "mistral-large-latest",
+    "temperature": 0.3,                        // défaut venant des réglages de l'app, surchargeable par étude (décision 2026-10-27)
     "fenetre_glissante_tokens": 2000
   },
   "resume": {
     "prompt": "…prompt résumé v2 complet, éditable…",
     "modele": "mistral-large-latest",
+    "temperature": 0.2,
     "longueur_cible_mots": [650, 700],
     "source_defaut": "reformulations_valides"
   },
@@ -192,7 +195,33 @@ Mise à jour à chaque validation de bloc (niveau 2 du contexte) ; versionnée ;
 
 Les prompts stockés sont **les valeurs actives** de l'étude (initialisés depuis les v2 de référence) ; aucune clé API en clair — référence au CredentialStore v1.
 
-## 11. Journal des opérations de prétraitement (fichier additionnel du projet v1)
+## 11. `traitements\journal_operations.json` — log des opérations de l'étude
+
+Décision David du 2026-10-27 : fichier dédié associé à l'étude, journalisant **toutes les opérations du process** (passes complètes, reformulations par bloc, éditions manuelles, validations/dévalidations, fusions, erreurs API, annulations). Le comportement du moteur (P15.3/P15.4) est spécifié dans « Spécification du moteur de traitement » (asset `spec/SPEC_MOTEUR_P15_V2.md`) ; le contrat ci-dessous fixe le stockage.
+
+```json
+{
+  "journal_version": 1,
+  "entrees": [
+    {
+      "horodatage": "2026-10-28T09:12:00",
+      "type": "reformulation_bloc",       // passe_complete | reformulation_bloc | edition_manuelle | validation | devalidation | fusion_blocs | erreur_api | annulation_passe | resume | synthese
+      "fid": 42,                          // null si périmètre réunion/passe
+      "reunion": "2026-10-13_Luc1b",
+      "modele": "mistral-large-latest",
+      "version": 3,                       // version produite le cas échéant
+      "resultat": "succes",               // "succes" | "erreur" (+ "message")
+      "stats": { "duree_ms": 8400, "tokens_in": 3120, "tokens_out": 1180, "cout_estime": 0.012 }   // null hors appel LLM
+    }
+  ]
+}
+```
+
+- **append-only** : aucune entrée n'est jamais effacée ni réécrite ; fichier unique pour toute l'étude ;
+- écrit à chaque opération (pas seulement en fin de passe) — survit à un crash ;
+- document d'audit et d'affichage uniquement : jamais consommé par le moteur ni par les traitements ; l'affichage in-app (icône 📋 Log, spec UI §8) le lit en lecture seule.
+
+## 12. Journal des opérations de prétraitement (fichier additionnel du projet v1)
 
 Décision d'atelier du 2026-10-27 : stocké **dans le dossier projet v1** sous le nom `journal_operations.json` (additif, non destructif — le format v1 n'est pas modifié).
 
@@ -212,10 +241,11 @@ Décision d'atelier du 2026-10-27 : stocké **dans le dossier projet v1** sous l
 - sert aux conversions position traité ↔ original (P14.4, tests unitaires obligatoires) et au sous-découpage aux pauses réelles ;
 - jamais supprimé par l'étude ; sa présence est optionnelle (projets v1 antérieurs).
 
-## 12. Règles d'invariance (à tester unitairement)
+## 13. Règles d'invariance (à tester unitairement)
 
 1. Ouvrir une étude ne modifie jamais aucun projet v1 référencé (hors journal des opérations créé par un prétraitement).
 2. Un FID, une fois attribué, désigne pour toujours le même discours ; les versions ne s'écrasent pas.
 3. La suppression d'une réunion de l'étude retire sa référence et ses résultats d'étude, mais ne touche ni le projet v1 ni le registre FID.
 4. Déplacer le dossier étude reste sûr : les chemins se résolvent par ordre relatif → absolu → relocalisation.
 5. Un projet v1 peut être référencé par plusieurs études simultanément.
+6. Le log des opérations ne perd jamais une entrée : toute opération aboutie ou échouée y laisse exactement une trace horodatée, même en cas de crash ultérieur.

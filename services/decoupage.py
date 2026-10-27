@@ -32,6 +32,10 @@ from services.etude_io import (
     marquer_fid_inactif,
     reactiver_fid,
 )
+from services.traitements.journal import (
+    RESULTAT_SUCCES,
+    TYPE_FUSION_BLOCS,
+)
 from services.timecodes import (
     formater_timecode,
     lire_timecode,
@@ -951,6 +955,21 @@ def fusionner_blocs(
 
         decoupage.ordre_ouvrage = nouvel_ordre
 
+    etude_ouverte.journal.ajouter(
+        TYPE_FUSION_BLOCS,
+        fid=nouveau_fid,
+        reunion=nom_reunion,
+        resultat=RESULTAT_SUCCES,
+        message=(
+            "Fusion des FID "
+            + ", ".join(str(fid) for fid in fids_chronologiques)
+            + f" en un bloc de traitement (FID {nouveau_fid})."
+        ),
+        extras={
+            "fids_sources": fids_chronologiques,
+        }
+    )
+
     return nouveau_fid
 
 
@@ -1092,6 +1111,23 @@ def defusionner_bloc(
         ] = fids_sources
 
         decoupage.ordre_ouvrage = nouvel_ordre
+
+    etude_ouverte.journal.ajouter(
+        TYPE_FUSION_BLOCS,
+        fid=fid_fusionne,
+        reunion=nom_reunion,
+        resultat=RESULTAT_SUCCES,
+        message=(
+            "Dé-fusion du bloc "
+            f"{fid_fusionne} : réactivation des FID "
+            + ", ".join(str(fid) for fid in fids_sources)
+            + "."
+        ),
+        extras={
+            "fids_sources": fids_sources,
+            "defusion": True,
+        }
+    )
 
     return fids_sources
 

@@ -32,7 +32,7 @@ La page est une **table de relecture en lecture parallèle** : chaque bloc de pa
 - **Colonne de gauche** : liste des locuteurs, comme dans l'éditeur v1 (sélection/filtrage par locuteur, surbrillance des blocs du locuteur survolé ou sélectionné). Un bloc fusionné multi-locuteurs apparaît chez chacun de ses locuteurs.
 - **Zone centrale, deux colonnes** : une par paire « bloc brut ↔ bloc reformulé », FID identique, une **ligne par bloc** (hauteur de ligne = max des deux cellules ; l'alignement est par bloc, pas par paragraphe — les deux textes peuvent différer en longueur).
 - **Colonne des pastilles** (fine, à droite) : une pastille par bloc, cliquable — état du bloc + menu contextuel (§5).
-- **Barre supérieure** : boutons globaux — sauvegarde du projet, aide (manuel v1.0), retour à l'accueil, lancement du traitement (blocs non validés), coûts estimés avant lancement, **taille du texte A+/A−** (reprise de la v1 : agit simultanément sur les deux colonnes, mémorisée comme en v1).
+- **Barre supérieure** : boutons globaux — sauvegarde du projet, aide (manuel v1.0), retour à l'accueil, lancement du traitement (blocs non validés), coûts estimés avant lancement, **taille du texte A+/A−** (reprise de la v1 : agit simultanément sur les deux colonnes, mémorisée comme en v1), **📋 Log** (page Log des opérations, §8).
 - **Barre d'état** : étude courante, réunion courante, compte des blocs (validés / total), progression d'un traitement en cours.
 
 ## 3. Colonne « texte brut corrigé » (gauche, par bloc)
@@ -88,7 +88,7 @@ Chaque bloc porte, à droite, **une pastille d'état** (clic = menu des opérati
 4. **Reformuler le bloc…** — reformulation complète avec **boîte de dialogue de consigne complémentaire** (optionnelle) ; crée une version `relance` ;
 5. **Reformuler le texte sélectionné…** — actif quand une sélection existe dans la cellule ; consigne optionnelle ; le passage reformé est intégré au bloc complet ; crée une version `relance_ciblee` ;
 6. ---
-7. **Valider le bloc** — fige l'état (pastille verte) ; met à jour la synthèse d'étude et propose la reprise des blocs suivants si un bloc antérieur a changé ;
+7. **Valider le bloc** — fige l'état (pastille verte) et met à jour la synthèse d'étude ; **aucune relance en cascade proposée** : l'utilisateur relance individuellement les blocs qu'il estime devoir retoucher (décision 2026-10-27) ;
 8. **Dévalider le bloc** — rebascule en modifiable (pastille bleue) ; les modifications redeviennent possibles.
 
 Les items indisponibles dans le contexte (ex. « Reformuler le texte sélectionné » sans sélection, tout item sur un bloc validé sauf « Dévalider ») ne sont pas affichés ou grisés selon le contexte.
@@ -110,3 +110,18 @@ Les items indisponibles dans le contexte (ex. « Reformuler le texte sélectionn
 4. Un bloc validé est figé : aucune édition ni relance n'est possible tant qu'il n'est pas dévalidé ; les versions consultées d'un bloc validé ne peuvent pas être éditées.
 5. Une validation n'est possible que sur une version sauvegardée (l'édition non sauvegardée est signalée ; la validation propose de sauvegarder d'abord).
 6. Le filtrage par locuteur ne masque jamais le traitement en cours ni les indicateurs d'état de la barre d'état.
+
+## 8. Log des opérations
+
+### Principe
+
+- **Fichier dédié associé à l'étude** (dossier de l'étude), journalisant **toutes les opérations** du process — pas seulement la reformulation : passes complètes, reformulations par bloc (relances, ciblées), éditions manuelles, validations/dévalidations, erreurs API, fusions de blocs, etc.
+- Chaque entrée : horodatage, type d'opération, identifiant du bloc (FID), modèle utilisé, version produite, tokens entrée/sortie, durée, coût, résultat (succès/erreur).
+
+### Page « Log » (icône 📋 de la barre supérieure)
+
+- Nouvelle page in-app ouverte depuis l'icône **📋 Log** de la barre supérieure ;
+- **lecture seule** : texte déroulant avec barre de défilement, pas d'édition ;
+- **copie possible** (bouton « Copier tout » et copie d'une sélection) ;
+- retour à la page précédente (reformulation) via le bouton retour habituel ;
+- le contenu affiché est celui du fichier log de l'étude courante, rafraîchi à l'ouverture de la page.
