@@ -34,6 +34,53 @@ from services.llm.catalogue import (
 )
 
 
+class TestConfigLLMReglages:
+    """
+    Sélection LLM mémorisée app-wide (P15.2) :
+    chaque étude peut la surcharger, les clés ne
+    passent jamais par là (CredentialStore).
+    """
+
+    def test_defaults_et_persistance(self, tmp_path):
+        from services.settings import SettingsManager
+
+        manager = SettingsManager(
+            app_folder=tmp_path
+        )
+
+        config = manager.get_llm_config()
+
+        assert config["fournisseur"] == "openai"
+        assert config["modele"] == "gpt-4.1"
+        assert config["temperature"] == 0.3
+        assert config["max_tokens"] is None
+
+        manager.set_llm_config({
+            "fournisseur": "mistral",
+            "modele": "mistral-large-latest",
+            "temperature": 0.1,
+            "max_tokens": 2048,
+            "effort_raisonnement": None,
+        })
+
+        # Une nouvelle instance relit la sélection.
+        relue = SettingsManager(app_folder=tmp_path)
+
+        config = relue.get_llm_config()
+
+        assert config["fournisseur"] == "mistral"
+        assert config["modele"] == "mistral-large-latest"
+        assert config["max_tokens"] == 2048
+
+        # Aucune clé en clair dans les réglages :
+        # elles vivent dans le CredentialStore
+        # (règle d'invariance 1).
+        contenu = json.dumps(relue.settings)
+
+        assert "sk-" not in contenu
+        assert "llm_cle_" not in contenu
+
+
 class TestCatalogueDefaut:
 
     def test_trois_fournisseurs_de_la_spec(self):

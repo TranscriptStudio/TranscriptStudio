@@ -1142,8 +1142,10 @@ La campagne est terminee lorsque :
       SSE, usage réel et coût estimé au catalogue, relance automatique avec
       backoff sur erreurs transitoires, annulation propre, messages d'erreur
       clairs sans jamais exposer la clé, fournisseur local sans clé) ; 31
-      tests unitaires dont invariants 1/3/5 du paramétrage LLM.
-- [ ] P15.2 Réglages : onglet LLM (fournisseur, clé masquée + « Tester la
+      tests unitaires dont invariants 1/3/5 du paramétrage LLM ; onglet LLM (fournisseur, clé masquée
+      + « Tester la clé », modèle, température/max_tokens selon capacités déclarées, éditeur
+      de catalogue avec réinitialisation conservant les ajouts).
+- [x] P15.2 Réglages : onglet LLM (fournisseur, clé masquée + « Tester la
       clé », modèle, température/max_tokens selon capacités, éditeur de
       catalogue).
 - [ ] P15.3 Moteur de traitement : assemblage de contexte (fenêtre glissante,

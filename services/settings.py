@@ -88,6 +88,18 @@ class SettingsManager:
             "recent_etudes": [],
 
             "theme": "system",
+
+            "llm": {
+                # Paramétrage LLM v2 (P15) :
+                # sélection mémorisée app-wide ; chaque
+                # étude peut surcharger (contrat format
+                # étude §10).
+                "fournisseur": "openai",
+                "modele": "gpt-4.1",
+                "temperature": 0.3,
+                "max_tokens": None,
+                "effort_raisonnement": None,
+            },
             
             "transcription_defaults": {
 
@@ -341,6 +353,38 @@ class SettingsManager:
             self.save()
 
         return existing_etudes
+
+    def get_llm_config(self):
+        """
+        Paramétrage LLM mémorisé (P15) :
+        fournisseur, modèle, température, max_tokens,
+        effort de raisonnement. Chaque étude peut
+        surcharger cette sélection.
+        """
+
+        llm = self.settings.get("llm", {})
+
+        defaults = (
+            self.default_settings()["llm"]
+        )
+
+        for cle, valeur in defaults.items():
+
+            if cle not in llm:
+                llm[cle] = valeur
+
+        return llm
+
+    def set_llm_config(self, config: dict) -> None:
+        """
+        Mémorise le paramétrage LLM (sélection
+        app-wide ; les clés API ne passent jamais
+        ici : elles vivent dans le CredentialStore).
+        """
+
+        self.settings["llm"] = dict(config)
+
+        self.save()
 
     def get_transcription_defaults(self):
 

@@ -9,6 +9,11 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QComboBox,
     QApplication,
+    QTabWidget,
+    QWidget,
+    QDoubleSpinBox,
+    QSpinBox,
+    QFormLayout,
 )
 from PySide6.QtCore import (
     QSize,
@@ -24,6 +29,17 @@ from services.credential_store import CredentialStore
 from services.elevenlabs_transcriber import ElevenLabsTranscriber
 from services.help import open_user_manual
 from services.theme_manager import ThemeManager
+from services.llm.catalogue import (
+    CatalogueError,
+    catalogue_par_defaut,
+    charger_catalogue,
+    reglages_affichables,
+)
+from services.llm.client import (
+    ErreurLLM,
+    creer_client,
+)
+from ui.catalogue_llm_dialog import CatalogueLLMDialog
 
 
 class SettingsDialog(QDialog):
@@ -35,13 +51,20 @@ class SettingsDialog(QDialog):
         self._credential_store = CredentialStore(self.settings.app_folder / "settings.json")
         self._is_first_run = first_run
 
+        # Catalogue LLM (P15) : embarqué ou édité par
+        # l'utilisateur dans le dossier de paramétrage.
+        self._catalogue_llm = None
+        self._ancien_fournisseur_id = None
+
+        self._charger_catalogue_llm()
+
         # En mode first-run, le titre est different et le comportement aussi
         if self._is_first_run:
             self.setWindowTitle("Bienvenue dans Transcript Studio - Configuration initiale")
         else:
             self.setWindowTitle("Paramètres")
 
-        self.resize(500, 250)
+        self.resize(540, 480)
 
         self.build_ui()
         
@@ -51,68 +74,48 @@ class SettingsDialog(QDialog):
             self.cancel_button.setToolTip("Quitter Transcript Studio")
     
     def validate_projects_root(self) -> tuple[bool, str]:
-        """
-        Valide le repertoire projets.
-        Retourne (valide, message_erreur) ou (True, "") si OK.
-        """
+        import os
         from pathlib import Path
-        
-        projects_root = self.projects_root_edit.text().strip()
-        
-        # Verifier non vide
-        if not projects_root:
-            return False, "Le répertoire projets est obligatoire. Veuillez sélectionner un répertoire."
-        
-        # Verifier que c'est un repertoire (ou creable)
-        path = Path(projects_root)
-        
-        # Si le chemin existe, verifier que c'est un repertoire
-        if path.exists():
-            if not path.is_dir():
-                return False, f"Le chemin '{projects_root}' existe mais n'est pas un repertoire."
-        else:
-            # Le repertoire n'existe pas, essayer de le creer
+
+        folder = self.projects_root_edit.text().strip()
+
+        if not folder:
+            return False, "Veuillez sélectionner un répertoire pour vos projets."
+
+        folder_path = Path(folder)
+
+        # Créer le répertoire s'il n'existe pas
+        if not folder_path.exists():
             try:
-                path.mkdir(parents=True, exist_ok=True)
-            except OSError as e:
-                return False, f"Impossible de creer le repertoire '{projects_root}': {e}"
-        
-        # Verifier les droits d'ecriture
-        test_file = path / ".transcript_studio_test"
-        try:
-            test_file.write_text("test")
-            test_file.unlink()  # Supprimer le fichier de test
-        except OSError as e:
-            return False, f"Pas de droits d'ecriture dans '{projects_root}': {e}"
-        
+                folder_path.mkdir(parents=True, exist_ok=True)
+            except (OSError, PermissionError) as e:
+                return False, f"Impossible de créer le répertoire :\n{e}"
+
+        # Tester les droits d'écriture
+        if not os.access(folder_path, os.W_OK):
+            return False, f"Le répertoire {folder} n'est pas accessible en écriture."
+
         return True, ""
     
     def closeEvent(self, event: QCloseEvent) -> None:
-        """
-        Intercepter la fermeture de la fenetre.
-        En mode first-run, on quitte l'application si l'utilisateur ferme.
-        """
+        # En mode first-run, la croix doit fermer l'application
         if self._is_first_run:
-            # En mode first-run, fermer la fenetre = quitter l'application
             QApplication.instance().quit()
             event.accept()
         else:
-            # Comportement normal : accepter la fermeture,
-            # apres restauration du theme enregistre si
-            # l'apercu immediat l'a change.
-            self.restore_saved_theme()
+            # En mode normal, se comporter comme Annuler
+            # (restaurer le theme de l'apercu immediat).
+            self.reject()
             event.accept()
     
     def quit_application(self):
-        """
-        Quitte l'application entiere.
-        Utilise en mode first-run quand l'utilisateur clique sur Quitter.
-        """
-        QApplication.instance().quit()
+        """En mode first-run, quitter l'application."""
+        import sys
+        sys.exit(0)
 
     def build_ui(self):
         #
-        # Layout principal
+        # Layout principal : onglets + actions.
         #
         layout = QVBoxLayout(
             self
@@ -129,6 +132,141 @@ class SettingsDialog(QDialog):
             12
         )
 
+        self.tabs = QTabWidget()
+
+        self.tabs.addTab(
+            self._construire_onglet_general(),
+            "Général"
+        )
+
+        self.tabs.addTab(
+            self._construire_onglet_llm(),
+            "LLM (reformulation)"
+        )
+
+        layout.addWidget(
+            self.tabs,
+            stretch=1
+        )
+
+        #
+        # ==================================================
+        # Actions
+        # ==================================================
+        #
+        layout.addSpacing(4)
+
+        self.cancel_button = QPushButton(
+            "Annuler"
+        )
+
+        self.save_button = QPushButton(
+            "Enregistrer"
+        )
+
+        self.cancel_button.setFixedSize(
+            90,
+            32
+        )
+
+        self.save_button.setFixedSize(
+            90,
+            32
+        )
+
+        buttons_layout = QHBoxLayout()
+
+        buttons_layout.setContentsMargins(
+            0,
+            0,
+            0,
+            0
+        )
+
+        buttons_layout.setSpacing(8)
+
+        #
+        # Actions alignées à droite.
+        #
+        buttons_layout.addStretch()
+
+        buttons_layout.addWidget(
+            self.cancel_button
+        )
+
+        buttons_layout.addWidget(
+            self.save_button
+        )
+
+        layout.addLayout(
+            buttons_layout
+        )
+
+        #
+        # ==================================================
+        # Connexions
+        # ==================================================
+        #
+        self.save_button.clicked.connect(
+            self.save_settings
+        )
+
+        # Apercu immediat : appliquer le theme des la
+        # selection dans la liste deroulante, sans
+        # attendre Enregistrer. Annuler (bouton ou
+        # croix) restaure le theme enregistre.
+        self.theme_combo.currentIndexChanged.connect(
+            self.on_theme_selected
+        )
+
+        # En mode first-run, le bouton Quitter doit quitter l'application
+        # Sinon, le bouton Annuler ferme juste le dialogue
+        if self._is_first_run:
+            self.cancel_button.clicked.connect(self.quit_application)
+        else:
+            self.cancel_button.clicked.connect(self.reject)
+
+        self.test_button.clicked.connect(
+            self.test_connection
+        )
+
+        self.projects_root_button.clicked.connect(
+            self.select_projects_folder
+        )
+
+        #
+        # Connexions LLM.
+        #
+        self.llm_fournisseur_combo.currentIndexChanged.connect(
+            self.on_llm_fournisseur_change
+        )
+
+        self.llm_modele_combo.currentIndexChanged.connect(
+            self.on_llm_modele_change
+        )
+
+        self.llm_tester_button.clicked.connect(
+            self.tester_cle_llm
+        )
+
+        self.llm_catalogue_button.clicked.connect(
+            self.ouvrir_editeur_catalogue
+        )
+
+    def _construire_onglet_general(self) -> QWidget:
+        """
+        Onglet Général : clé ElevenLabs, répertoire
+        des projets, thème.
+        """
+
+        onglet = QWidget()
+
+        layout = QVBoxLayout(onglet)
+
+        layout.setContentsMargins(0, 10, 0, 10)
+
+        layout.setSpacing(12)
+
         # Message d'introduction en mode first-run
         if self._is_first_run:
             intro_label = QLabel(
@@ -140,7 +278,7 @@ class SettingsDialog(QDialog):
             intro_label.setWordWrap(True)
             intro_label.setStyleSheet("color: #555;")
             layout.addWidget(intro_label)
-            layout.addSpacing(20)
+            layout.addSpacing(10)
         
         #
         # ==================================================
@@ -164,9 +302,7 @@ class SettingsDialog(QDialog):
             0
         )
 
-        api_layout.setSpacing(
-            8
-        )
+        api_layout.setSpacing(8)
 
         self.api_key_edit = QLineEdit()
 
@@ -227,9 +363,7 @@ class SettingsDialog(QDialog):
             0
         )
 
-        projects_layout.setSpacing(
-            8
-        )
+        projects_layout.setSpacing(8)
 
         # En mode first-run, on part d'un champ vide pour forcer la selection
         if self._is_first_run:
@@ -291,9 +425,7 @@ class SettingsDialog(QDialog):
             0
         )
 
-        theme_layout.setSpacing(
-            8
-        )
+        theme_layout.setSpacing(8)
 
         theme_label = QLabel(
             "Thème de l'application"
@@ -336,108 +468,514 @@ class SettingsDialog(QDialog):
             115
         )
 
-        theme_layout.addWidget(
-            theme_label
-        )
+        theme_layout.addWidget(theme_label)
 
         theme_layout.addStretch()
 
-        theme_layout.addWidget(
-            self.theme_combo
-        )
+        theme_layout.addWidget(self.theme_combo)
 
-        layout.addLayout(
-            theme_layout
+        layout.addLayout(theme_layout)
+
+        layout.addStretch()
+
+        return onglet
+
+    def _construire_onglet_llm(self) -> QWidget:
+        """
+        Onglet LLM (P15.2) : fournisseur du
+        catalogue, clé masquée avec « Tester la clé »,
+        modèle et réglages adaptés aux capacités
+        déclarées (l'UI n'affiche jamais un réglage
+        non déclaré — règle d'invariance 2).
+        """
+
+        onglet = QWidget()
+
+        layout = QVBoxLayout(onglet)
+
+        layout.setContentsMargins(0, 10, 0, 10)
+
+        layout.setSpacing(8)
+
+        formulaire = QFormLayout()
+        formulaire.setSpacing(8)
+
+        #
+        # Fournisseur.
+        #
+        self.llm_fournisseur_combo = QComboBox()
+
+        formulaire.addRow(
+            "Fournisseur",
+            self.llm_fournisseur_combo
         )
 
         #
-        # ==================================================
-        # Actions
-        # ==================================================
+        # Clé API du fournisseur (masquée, une par
+        # fournisseur, jamais en clair ailleurs que
+        # dans le CredentialStore).
         #
-        layout.addSpacing(
-            4
+        cle_layout = QHBoxLayout()
+        cle_layout.setContentsMargins(0, 0, 0, 0)
+        cle_layout.setSpacing(8)
+
+        self.llm_cle_edit = QLineEdit()
+        self.llm_cle_edit.setEchoMode(
+            QLineEdit.EchoMode.Password
         )
 
-        self.cancel_button = QPushButton(
-            "Annuler"
+        self.llm_tester_button = QPushButton(
+            "Tester la clé"
+        )
+        self.llm_tester_button.setFixedWidth(110)
+
+        cle_layout.addWidget(
+            self.llm_cle_edit,
+            1
         )
 
-        self.save_button = QPushButton(
-            "Enregistrer"
+        cle_layout.addWidget(self.llm_tester_button)
+
+        formulaire.addRow(
+            "Clé API",
+            cle_layout
         )
 
-        self.cancel_button.setFixedSize(
-            90,
-            32
+        self.llm_test_statut = QLabel("Non testée.")
+
+        self.llm_test_statut.setStyleSheet(
+            "font-size: 12px; color: #666666;"
         )
 
-        self.save_button.setFixedSize(
-            90,
-            32
-        )
+        self.llm_test_statut.setWordWrap(True)
 
-        buttons_layout = QHBoxLayout()
-
-        buttons_layout.setContentsMargins(
-            0,
-            0,
-            0,
-            0
-        )
-
-        buttons_layout.setSpacing(
-            8
-        )
-
-        #
-        # Actions alignées à droite.
-        #
-        buttons_layout.addStretch()
-
-        buttons_layout.addWidget(
-            self.cancel_button
-        )
-
-        buttons_layout.addWidget(
-            self.save_button
-        )
-
-        layout.addLayout(
-            buttons_layout
+        formulaire.addRow(
+            "",
+            self.llm_test_statut
         )
 
         #
-        # ==================================================
-        # Connexions
-        # ==================================================
+        # Modèle du fournisseur.
         #
-        self.save_button.clicked.connect(
-            self.save_settings
+        self.llm_modele_combo = QComboBox()
+
+        formulaire.addRow(
+            "Modèle",
+            self.llm_modele_combo
         )
 
-        # Apercu immediat : appliquer le theme des la
-        # selection dans la liste deroulante, sans
-        # attendre Enregistrer. Annuler (bouton ou
-        # croix) restaure le theme enregistre.
-        self.theme_combo.currentIndexChanged.connect(
-            self.on_theme_selected
+        #
+        # Température : affichée uniquement si le
+        # modèle la déclare (capacités).
+        #
+        self.llm_temperature_spin = QDoubleSpinBox()
+        self.llm_temperature_spin.setRange(0.0, 2.0)
+        self.llm_temperature_spin.setSingleStep(0.1)
+        self.llm_temperature_spin.setDecimals(2)
+
+        self.llm_temperature_ligne = QWidget()
+        ligne_layout = QHBoxLayout(self.llm_temperature_ligne)
+        ligne_layout.setContentsMargins(0, 0, 0, 0)
+        ligne_layout.addWidget(self.llm_temperature_spin)
+        ligne_layout.addStretch()
+
+        formulaire.addRow(
+            "Température",
+            self.llm_temperature_ligne
         )
 
-        # En mode first-run, le bouton Quitter doit quitter l'application
-        # Sinon, le bouton Annuler ferme juste le dialogue
-        if self._is_first_run:
-            self.cancel_button.clicked.connect(self.quit_application)
+        #
+        # max_tokens : plafonné au contexte du
+        # modèle déclaré.
+        #
+        self.llm_max_tokens_spin = QSpinBox()
+        self.llm_max_tokens_spin.setRange(0, 1_000_000)
+        self.llm_max_tokens_spin.setSingleStep(256)
+        self.llm_max_tokens_spin.setSpecialValueText(
+            "Automatique"
+        )
+
+        self.llm_max_tokens_ligne = QWidget()
+        ligne_layout = QHBoxLayout(self.llm_max_tokens_ligne)
+        ligne_layout.setContentsMargins(0, 0, 0, 0)
+        ligne_layout.addWidget(self.llm_max_tokens_spin)
+        ligne_layout.addStretch()
+
+        formulaire.addRow(
+            "Tokens max par réponse",
+            self.llm_max_tokens_ligne
+        )
+
+        #
+        # Effort de raisonnement : affiché
+        # uniquement si le modèle le déclare.
+        #
+        self.llm_effort_combo = QComboBox()
+        self.llm_effort_combo.addItem("Faible", "low")
+        self.llm_effort_combo.addItem("Moyen", "medium")
+        self.llm_effort_combo.addItem("Élevé", "high")
+
+        self.llm_effort_ligne = QWidget()
+        ligne_layout = QHBoxLayout(self.llm_effort_ligne)
+        ligne_layout.setContentsMargins(0, 0, 0, 0)
+        ligne_layout.addWidget(self.llm_effort_combo)
+        ligne_layout.addStretch()
+
+        formulaire.addRow(
+            "Effort de raisonnement",
+            self.llm_effort_ligne
+        )
+
+        layout.addLayout(formulaire)
+
+        #
+        # Catalogue.
+        #
+        self.llm_catalogue_button = QPushButton(
+            "Modifier le catalogue..."
+        )
+
+        self.llm_catalogue_button.setToolTip(
+            "Ajouter un fournisseur (Ollama, LM Studio, "
+            "OpenRouter...), un modèle, ou mettre les "
+            "prix à jour"
+        )
+
+        catalogue_layout = QHBoxLayout()
+        catalogue_layout.addStretch()
+        catalogue_layout.addWidget(self.llm_catalogue_button)
+
+        layout.addLayout(catalogue_layout)
+
+        layout.addStretch()
+
+        #
+        # Tous les champs existent : chargement
+        # initial (fournisseurs, modèles, clé,
+        # capacités).
+        #
+        self._remplir_fournisseurs()
+
+        return onglet
+
+    #
+    # ==================================================
+    # LLM : catalogue, fournisseur, modèle
+    # ==================================================
+    #
+
+    def _charger_catalogue_llm(self):
+
+        try:
+            self._catalogue_llm = charger_catalogue()
+
+        except CatalogueError:
+
+            #
+            # Catalogue utilisateur illisible : repli
+            # sur l'embarqué, sans l'écraser (il sera
+            # revalidé à l'enregistrement).
+            #
+            self._catalogue_llm = catalogue_par_defaut()
+
+    def _remplir_fournisseurs(self):
+        """
+        Remplit la liste des fournisseurs du
+        catalogue et sélectionne celui mémorisé
+        (à défaut, le premier).
+        """
+
+        self.llm_fournisseur_combo.blockSignals(True)
+        self.llm_fournisseur_combo.clear()
+
+        for fournisseur in (
+            self._catalogue_llm.fournisseurs
+        ):
+            self.llm_fournisseur_combo.addItem(
+                fournisseur.nom,
+                fournisseur.id
+            )
+
+        self.llm_fournisseur_combo.blockSignals(False)
+
+        config = self.settings.get_llm_config()
+
+        index = self.llm_fournisseur_combo.findData(
+            config.get("fournisseur")
+        )
+
+        if index < 0:
+            index = 0
+
+        self.llm_fournisseur_combo.setCurrentIndex(index)
+
+        # Déclenche le chargement initial (modèles,
+        # clé, capacités).
+        self.on_llm_fournisseur_change()
+
+    def _fournisseur_courant(self):
+
+        fournisseur_id = (
+            self.llm_fournisseur_combo.currentData()
+        )
+
+        if fournisseur_id is None:
+            return None
+
+        return (
+            self._catalogue_llm.chercher_fournisseur(
+                fournisseur_id
+            )
+        )
+
+    def on_llm_fournisseur_change(self, *args):
+        """
+        Changement de fournisseur : mémoriser la clé
+        saisie du fournisseur précédent (elle ne se
+        perd pas), charger la clé du fournisseur
+        courant, ses modèles et ses réglages.
+        """
+
+        #
+        # Persister la clé saisie du fournisseur
+        # précédent dans le CredentialStore.
+        #
+        if (
+            self._ancien_fournisseur_id is not None
+            and hasattr(self, "llm_cle_edit")
+        ):
+            self._credential_store.set_cle_llm(
+                self._ancien_fournisseur_id,
+                self.llm_cle_edit.text().strip()
+            )
+
+        fournisseur = self._fournisseur_courant()
+
+        self._ancien_fournisseur_id = (
+            fournisseur.id if fournisseur else None
+        )
+
+        if fournisseur is None:
+
+            self.llm_cle_edit.setText("")
+            self.llm_test_statut.setText("Non testée.")
+
+            self.llm_modele_combo.blockSignals(True)
+            self.llm_modele_combo.clear()
+            self.llm_modele_combo.blockSignals(False)
+
+            return
+
+        #
+        # Clé du fournisseur courant (fournisseur
+        # local : champ vide, aucune clé requise).
+        #
+        self.llm_cle_edit.setText(
+            self._credential_store.get_cle_llm(
+                fournisseur.id
+            )
+        )
+
+        if not fournisseur.necessite_cle:
+            self.llm_test_statut.setText(
+                "Fournisseur local : aucune clé requise."
+            )
         else:
-            self.cancel_button.clicked.connect(self.reject)
+            self.llm_test_statut.setText("Non testée.")
 
-        self.test_button.clicked.connect(
-            self.test_connection
+        self._remplir_modeles()
+
+    def _remplir_modeles(self):
+        """
+        Modèles du fournisseur courant ; sélectionne
+        celui mémorisé (à défaut, le premier).
+        """
+
+        fournisseur = self._fournisseur_courant()
+
+        self.llm_modele_combo.blockSignals(True)
+        self.llm_modele_combo.clear()
+
+        if fournisseur is not None:
+
+            for modele in fournisseur.modeles:
+                self.llm_modele_combo.addItem(
+                    modele.nom_affiche,
+                    modele.id
+                )
+
+        self.llm_modele_combo.blockSignals(False)
+
+        if (
+            fournisseur is None
+            or not fournisseur.modeles
+        ):
+            return
+
+        config = self.settings.get_llm_config()
+
+        index = self.llm_modele_combo.findData(
+            config.get("modele")
         )
 
-        self.projects_root_button.clicked.connect(
-            self.select_projects_folder
-        )        
+        if index < 0:
+            index = 0
+
+        self.llm_modele_combo.setCurrentIndex(index)
+
+        # Applique les capacités du modèle courant.
+        self.on_llm_modele_change()
+
+    def _modele_courant(self):
+
+        fournisseur = self._fournisseur_courant()
+
+        if fournisseur is None:
+            return None
+
+        modele_id = self.llm_modele_combo.currentData()
+
+        if modele_id is None:
+            return None
+
+        return fournisseur.chercher_modele(modele_id)
+
+    def on_llm_modele_change(self, *args):
+        """
+        Règle d'invariance 2 : n'afficher que les
+        réglages déclarés dans les capacités du
+        modèle courant, max_tokens plafonné au
+        contexte déclaré.
+        """
+
+        modele = self._modele_courant()
+
+        config = self.settings.get_llm_config()
+
+        if modele is None:
+
+            self.llm_temperature_ligne.setVisible(False)
+            self.llm_effort_ligne.setVisible(False)
+
+            self.llm_max_tokens_spin.setRange(
+                0,
+                1_000_000
+            )
+
+            self.llm_max_tokens_spin.setValue(0)
+
+            return
+
+        reglages = reglages_affichables(modele)
+
+        #
+        # Température : uniquement si supportée.
+        #
+        temperature_visible = (
+            "temperature" in reglages
+        )
+
+        self.llm_temperature_ligne.setVisible(
+            temperature_visible
+        )
+
+        if temperature_visible:
+
+            self.llm_temperature_spin.setValue(
+                float(config.get("temperature") or 0.3)
+            )
+
+        #
+        # Effort de raisonnement : uniquement si
+        # déclaré.
+        #
+        self.llm_effort_ligne.setVisible(
+            "effort_raisonnement" in reglages
+        )
+
+        #
+        # max_tokens : plafond au contexte du modèle.
+        #
+        maximum = reglages["max_tokens"]["maximum"]
+
+        if maximum is None:
+            maximum = 1_000_000
+
+        self.llm_max_tokens_spin.setRange(
+            0,
+            maximum
+        )
+
+        self.llm_max_tokens_spin.setValue(
+            int(config.get("max_tokens") or 0)
+        )
+
+    def tester_cle_llm(self):
+        """
+        « Tester la clé » : appel léger de validation
+        (liste des modèles) ; état valide / invalide,
+        sans jamais afficher la clé.
+        """
+
+        fournisseur = self._fournisseur_courant()
+
+        if fournisseur is None:
+            return
+
+        cle = self.llm_cle_edit.text().strip()
+
+        try:
+
+            client = creer_client(
+                fournisseur,
+                cle
+            )
+
+            resultat = client.tester_connexion()
+
+        except ErreurLLM as e:
+
+            self.llm_test_statut.setStyleSheet(
+                "font-size: 12px; color: #D32F2F;"
+            )
+
+            self.llm_test_statut.setText(
+                f"Clé invalide : {e.message}"
+            )
+
+            return
+
+        self.llm_test_statut.setStyleSheet(
+            "font-size: 12px; color: #2E7D32;"
+        )
+
+        if not fournisseur.necessite_cle and not cle:
+            self.llm_test_statut.setText(
+                f"Connexion validée ({resultat['message']})"
+            )
+        else:
+            self.llm_test_statut.setText(
+                f"Clé valide. {resultat['message']}"
+            )
+
+    def ouvrir_editeur_catalogue(self):
+        """
+        Ouvre l'éditeur du catalogue ; à la
+        sauvegarde, recharge fournisseurs et modèles.
+        """
+
+        dialogue = CatalogueLLMDialog(
+            parent=self,
+            catalogue=self._catalogue_llm
+        )
+
+        if dialogue.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        self._charger_catalogue_llm()
+
+        self._remplir_fournisseurs()
+
     def save_settings(self):
 
         # En mode first-run, on valide que le repertoire projets est valide
@@ -466,6 +1004,47 @@ class SettingsDialog(QDialog):
         self.settings.set_theme(
             theme
         )
+
+        #
+        # Paramétrage LLM (P15) : sélection
+        # mémorisée + clé par fournisseur dans le
+        # CredentialStore (jamais dans les
+        # réglages en clair).
+        #
+        fournisseur = self._fournisseur_courant()
+
+        if fournisseur is not None:
+
+            self._credential_store.set_cle_llm(
+                fournisseur.id,
+                self.llm_cle_edit.text().strip()
+            )
+
+        config = self.settings.get_llm_config()
+
+        config["fournisseur"] = (
+            self.llm_fournisseur_combo.currentData()
+        )
+
+        config["modele"] = (
+            self.llm_modele_combo.currentData()
+        )
+
+        if self.llm_temperature_ligne.isVisible():
+            config["temperature"] = (
+                self.llm_temperature_spin.value()
+            )
+
+        config["max_tokens"] = (
+            self.llm_max_tokens_spin.value() or None
+        )
+
+        if self.llm_effort_ligne.isVisible():
+            config["effort_raisonnement"] = (
+                self.llm_effort_combo.currentData()
+            )
+
+        self.settings.set_llm_config(config)
 
         # En mode first-run, marquer la configuration comme terminee
         if self._is_first_run:
@@ -569,12 +1148,3 @@ class SettingsDialog(QDialog):
             self.projects_root_edit.setText(
                 folder
             )
-
-
-
-
-
-
-
-
-
