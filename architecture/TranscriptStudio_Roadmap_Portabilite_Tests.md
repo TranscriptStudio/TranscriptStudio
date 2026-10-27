@@ -1117,7 +1117,7 @@ La campagne est terminee lorsque :
 - [x] P14.3 UI : section Etudes sur l'accueil, page Etude (creation, ajout de
       reunions = projets v1 inchanges, ordre, mode degrade si projet introuvable,
       navigation accueil -> etude -> reunion).
-- [ ] P14.4 Decoupage en interventions depuis la diarisation validee ;
+- [x] P14.4 Decoupage en interventions depuis la diarisation validee ;
       sous-decoupage automatique des monologues longs aux pauses reelles
       (journal des operations), jamais dans une citation biblique, re-attribution
       des FID (bornes inchangees = FID conserve).
