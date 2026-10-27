@@ -738,6 +738,37 @@ def _est_projet_v1(chemin: Path) -> bool:
     return any(dossier.glob("*.sttproj"))
 
 
+def fichier_projet_v1(
+    etude_ouverte: EtudeOuverte,
+    nom: str
+):
+    """
+    Chemin du fichier project.sttproj d'une réunion
+    joignable ; None si la réunion est introuvable.
+    """
+
+    dossier = etude_ouverte.chemins_resolus.get(nom)
+
+    if dossier is None:
+        return None
+
+    dossier = Path(dossier)
+
+    chemin = dossier / "project.sttproj"
+
+    if chemin.exists():
+        return chemin
+
+    correspondances = sorted(
+        dossier.glob("*.sttproj")
+    )
+
+    if correspondances:
+        return correspondances[0]
+
+    return None
+
+
 def relocaliser_reunion(
     etude_ouverte: EtudeOuverte,
     nom: str,

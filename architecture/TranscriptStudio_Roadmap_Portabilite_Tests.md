@@ -1114,7 +1114,7 @@ La campagne est terminee lorsque :
       silences supprimes avec positions et durees originales, acceleration ;
       un nouveau journal remplace l'ancien) + conversions position traitee <->
       original, tests unitaires obligatoires.
-- [ ] P14.3 UI : section Etudes sur l'accueil, page Etude (creation, ajout de
+- [x] P14.3 UI : section Etudes sur l'accueil, page Etude (creation, ajout de
       reunions = projets v1 inchanges, ordre, mode degrade si projet introuvable,
       navigation accueil -> etude -> reunion).
 - [ ] P14.4 Decoupage en interventions depuis la diarisation validee ;

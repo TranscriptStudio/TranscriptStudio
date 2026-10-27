@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressDialog,
     QMenu,
+    QInputDialog,
 )
 from PySide6.QtCore import (
     QThread,
@@ -50,6 +51,12 @@ from services.resources import resource_path
 from services.transcription_worker import TranscriptionWorker
 from services.project_io import save_project
 from services.audio_loading_worker import AudioLoadingWorker
+from services.etude_io import (
+    EtudeError,
+    creer_etude,
+)
+from services.etude_schema import EtudeFormatError
+from ui.etude_window import EtudeWindow
 
 class HomeWindow(QWidget):
 
@@ -211,6 +218,60 @@ class HomeWindow(QWidget):
             self.recent_projects,
             stretch=1,
         )
+        layout.addSpacing(10)
+
+        # Etudes recentes (v2)
+        etudes_label = QLabel("Études")
+        layout.addWidget(etudes_label)
+
+        self.recent_etudes = QListWidget()
+        self.recent_etudes.setMinimumHeight(80)
+
+        for etude_folder in self.settings.cleanup_recent_etudes():
+            dossier = Path(etude_folder)
+            item = QListWidgetItem(dossier.name)
+            item.setData(
+                Qt.ItemDataRole.UserRole,
+                str(dossier),
+            )
+            item.setToolTip(str(dossier))
+            self.recent_etudes.addItem(item)
+
+        self.recent_etudes.itemDoubleClicked.connect(
+            self.ouvrir_etude_recente
+        )
+
+        layout.addWidget(
+            self.recent_etudes,
+            stretch=1,
+        )
+
+        etudes_actions_layout = QHBoxLayout()
+        etudes_actions_layout.setContentsMargins(0, 0, 0, 0)
+        etudes_actions_layout.setSpacing(10)
+
+        self.new_etude_button = QPushButton("Nouvelle étude")
+        self.open_etude_button = QPushButton("Ouvrir une étude")
+
+        self.new_etude_button.setToolTip(
+            "Créer une étude regroupant des réunions"
+        )
+        self.open_etude_button.setToolTip(
+            "Ouvrir un dossier étude existant"
+        )
+
+        self.new_etude_button.clicked.connect(
+            self.creer_etude_ui
+        )
+        self.open_etude_button.clicked.connect(
+            self.ouvrir_etude_dialogue
+        )
+
+        etudes_actions_layout.addStretch()
+        etudes_actions_layout.addWidget(self.new_etude_button)
+        etudes_actions_layout.addWidget(self.open_etude_button)
+        etudes_actions_layout.addStretch()
+        layout.addLayout(etudes_actions_layout)
         layout.addSpacing(10)
 
         # Actions secondaires
@@ -650,6 +711,141 @@ class HomeWindow(QWidget):
         )
 
         self.refresh_recent_projects()
+
+    #
+    # Etudes (v2 - P14.3)
+    #
+
+    def creer_etude_ui(self):
+        """
+        Crée une étude : choix du dossier, titre,
+        structure complète du format étude.
+        """
+
+        dossier = QFileDialog.getExistingDirectory(
+            self,
+            "Dossier de la nouvelle étude",
+            self.settings.get_projects_root()
+        )
+
+        if not dossier:
+            return
+
+        titre, ok = QInputDialog.getText(
+            self,
+            "Nouvelle étude",
+            (
+                "Titre de l'étude\n"
+                "(un livre biblique par défaut, "
+                "ou un thème libre) :"
+            )
+        )
+
+        if not ok:
+            return
+
+        titre = titre.strip()
+
+        if not titre:
+            QMessageBox.warning(
+                self,
+                "Titre requis",
+                "Une étude porte obligatoirement un titre."
+            )
+            return
+
+        try:
+            creer_etude(dossier, titre)
+        except EtudeError as e:
+            QMessageBox.warning(
+                self,
+                "Étude non créée",
+                str(e)
+            )
+            return
+
+        self.ouvrir_etude(dossier)
+
+    def ouvrir_etude_dialogue(self):
+        """
+        Ouvre un dossier étude existant.
+        """
+
+        dossier = QFileDialog.getExistingDirectory(
+            self,
+            "Ouvrir une étude",
+            self.settings.get_projects_root()
+        )
+
+        if not dossier:
+            return
+
+        self.ouvrir_etude(dossier)
+
+    def ouvrir_etude_recente(
+        self,
+        item
+    ):
+        """
+        Ouvre l'étude double-cliquée dans la liste.
+        """
+
+        dossier = item.data(
+            Qt.ItemDataRole.UserRole
+        )
+
+        if not dossier:
+            return
+
+        if not Path(dossier).is_dir():
+            QMessageBox.warning(
+                self,
+                "Étude introuvable",
+                (
+                    "Le dossier\n\n"
+                    f"{dossier}\n\n"
+                    "n'existe plus."
+                )
+            )
+            self.settings.remove_recent_etude(dossier)
+            self.refresh_recent_etudes()
+            return
+
+        self.ouvrir_etude(dossier)
+
+    def ouvrir_etude(self, dossier):
+        """
+        Ouvre la page Étude ; en cas de projet v1
+        introuvable, la page s'affiche en mode
+        dégradé sans bloquer.
+        """
+
+        try:
+            self.etude_window = EtudeWindow(dossier)
+        except EtudeFormatError:
+            return
+
+        self.etude_window.show()
+        self.refresh_recent_etudes()
+
+        self.close()
+
+    def refresh_recent_etudes(self):
+        """
+        Recharge la liste des études récentes.
+        """
+
+        self.recent_etudes.clear()
+
+        for etude_folder in self.settings.cleanup_recent_etudes():
+            dossier = Path(etude_folder)
+            item = QListWidgetItem(dossier.name)
+            item.setData(
+                Qt.ItemDataRole.UserRole,
+                str(dossier),
+            )
+            item.setToolTip(str(dossier))
+            self.recent_etudes.addItem(item)
 
     def transcription_finished(
         self,

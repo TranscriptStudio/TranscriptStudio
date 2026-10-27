@@ -85,6 +85,8 @@ class SettingsManager:
 
             "recent_projects": [],
 
+            "recent_etudes": [],
+
             "theme": "system",
             
             "transcription_defaults": {
@@ -227,6 +229,118 @@ class SettingsManager:
             len(remaining_projects)
             != len(projects)
         )
+
+    def get_recent_etudes(self):
+        """
+        Liste des dossiers d'étude récents.
+        """
+
+        return self.settings.get(
+            "recent_etudes",
+            []
+        )
+
+    def add_recent_etude(
+        self,
+        etude_folder
+    ):
+        """
+        Ajoute un dossier d'étude en tête des
+        études récentes. L'étude elle-même n'est
+        pas touchée sur le disque.
+        """
+
+        etudes = (
+            self.settings.setdefault(
+                "recent_etudes",
+                []
+            )
+        )
+
+        etude_folder = str(
+            Path(etude_folder)
+        )
+
+        if etude_folder in etudes:
+
+            etudes.remove(
+                etude_folder
+            )
+
+        etudes.insert(
+            0,
+            etude_folder
+        )
+
+        self.settings[
+            "recent_etudes"
+        ] = etudes[:20]
+
+        self.save()
+
+    def remove_recent_etude(
+        self,
+        etude_folder
+    ):
+        """
+        Retire une étude de la liste des études
+        récentes. Le dossier étude n'est pas
+        touché sur le disque.
+        """
+
+        etudes = (
+            self.get_recent_etudes()
+        )
+
+        etude_folder = str(
+            Path(etude_folder)
+        )
+
+        remaining_etudes = [
+            etude
+            for etude in etudes
+            if etude != etude_folder
+        ]
+
+        self.settings[
+            "recent_etudes"
+        ] = remaining_etudes
+
+        self.save()
+
+        return (
+            len(remaining_etudes)
+            != len(etudes)
+        )
+
+    def cleanup_recent_etudes(self):
+        """
+        Supprime de la liste des études récentes
+        les dossiers qui n'existent plus ou ne
+        sont plus des études (etude.json absent).
+        """
+
+        etudes = (
+            self.get_recent_etudes()
+        )
+
+        existing_etudes = [
+            etude
+            for etude in etudes
+            if (
+                Path(etude).is_dir()
+                and (Path(etude) / "etude.json").is_file()
+            )
+        ]
+
+        if existing_etudes != etudes:
+            self.settings[
+                "recent_etudes"
+            ] = existing_etudes
+
+            self.save()
+
+        return existing_etudes
 
     def get_transcription_defaults(self):
 
