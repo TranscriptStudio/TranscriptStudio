@@ -12,6 +12,8 @@ Aucune clé API : elles vivent dans le CredentialStore.
 """
 
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QDialog,
     QDoubleSpinBox,
     QFormLayout,
@@ -171,6 +173,26 @@ class ParametresEtudeDialog(QDialog):
             self.fenetre_spin
         )
 
+        #
+        # Cases de contexte du bloc (P17.2) : la
+        # synthèse d'étude sert aux blocs qui le
+        # cochent.
+        #
+        self.contexte_fenetre_check = QCheckBox(
+            "Envoyer les reformulations précédentes "
+            "en contexte (fenêtre glissante)"
+        )
+        formulaire.addRow(self.contexte_fenetre_check)
+
+        self.contexte_synthese_check = QCheckBox(
+            "Envoyer la synthèse d'étude en contexte"
+        )
+        self.contexte_synthese_check.setToolTip(
+            "Générée à la validation complète d'une "
+            "réunion, régénérable depuis la page Étude."
+        )
+        formulaire.addRow(self.contexte_synthese_check)
+
         return bloc
 
     def _onglet_resume(self) -> QWidget:
@@ -217,6 +239,43 @@ class ParametresEtudeDialog(QDialog):
             self.temperature_resume_spin
         )
 
+        longueur_widget = QWidget()
+        longueur_layout = QHBoxLayout(longueur_widget)
+        longueur_layout.setContentsMargins(0, 0, 0, 0)
+        longueur_layout.setSpacing(6)
+
+        self.longueur_min_spin = QSpinBox()
+        self.longueur_min_spin.setRange(100, 5000)
+        self.longueur_min_spin.setSingleStep(50)
+
+        self.longueur_max_spin = QSpinBox()
+        self.longueur_max_spin.setRange(100, 5000)
+        self.longueur_max_spin.setSingleStep(50)
+
+        longueur_layout.addWidget(self.longueur_min_spin)
+        longueur_layout.addWidget(QLabel("à"))
+        longueur_layout.addWidget(self.longueur_max_spin)
+        longueur_layout.addWidget(QLabel("mots"))
+
+        formulaire.addRow(
+            "Longueur cible",
+            longueur_widget
+        )
+
+        self.source_defaut_combo = QComboBox()
+        self.source_defaut_combo.addItem(
+            "Reformulations validées (recommandé)",
+            "reformulations_valides"
+        )
+        self.source_defaut_combo.addItem(
+            "Transcription brute corrigée",
+            "brute_corrigee"
+        )
+        formulaire.addRow(
+            "Source par défaut",
+            self.source_defaut_combo
+        )
+
         return bloc
 
     def charger_valeurs(self):
@@ -249,6 +308,16 @@ class ParametresEtudeDialog(QDialog):
             )
         )
 
+        contexte = reformulation.get("contexte") or {}
+
+        self.contexte_fenetre_check.setChecked(
+            bool(contexte.get("fenetre_glissante", True))
+        )
+
+        self.contexte_synthese_check.setChecked(
+            bool(contexte.get("synthese_etude", True))
+        )
+
         self.prompt_resume_edit.setPlainText(
             resume.get("prompt", "")
         )
@@ -259,6 +328,24 @@ class ParametresEtudeDialog(QDialog):
 
         self.temperature_resume_spin.setValue(
             float(resume.get("temperature") or 0.2)
+        )
+
+        longueur = resume.get("longueur_cible_mots") or [
+            650, 700
+        ]
+
+        self.longueur_min_spin.setValue(int(longueur[0]))
+        self.longueur_max_spin.setValue(int(longueur[1]))
+
+        index = self.source_defaut_combo.findData(
+            resume.get(
+                "source_defaut",
+                "reformulations_valides"
+            )
+        )
+
+        self.source_defaut_combo.setCurrentIndex(
+            max(0, index)
         )
 
         interdits = (
@@ -301,6 +388,16 @@ class ParametresEtudeDialog(QDialog):
             "fenetre_glissante_tokens"
         ] = self.fenetre_spin.value()
 
+        reformulation.setdefault("contexte", {})
+
+        reformulation["contexte"][
+            "fenetre_glissante"
+        ] = self.contexte_fenetre_check.isChecked()
+
+        reformulation["contexte"][
+            "synthese_etude"
+        ] = self.contexte_synthese_check.isChecked()
+
         resume = self.etude.parametres.resume
 
         resume["prompt"] = self.prompt_resume_edit.toPlainText()
@@ -311,6 +408,15 @@ class ParametresEtudeDialog(QDialog):
 
         resume["temperature"] = (
             self.temperature_resume_spin.value()
+        )
+
+        resume["longueur_cible_mots"] = [
+            self.longueur_min_spin.value(),
+            self.longueur_max_spin.value()
+        ]
+
+        resume["source_defaut"] = (
+            self.source_defaut_combo.currentData()
         )
 
         interdits = [

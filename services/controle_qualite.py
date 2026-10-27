@@ -220,3 +220,192 @@ def controles_bloc(
             + len(interdits)
         ),
     }
+
+
+#
+# P17.3 — expressions récurrentes entre réunions
+# (contrôle qualité étendu : comparaison des
+# formules les plus fréquentes de l'étude, à titre
+# indicatif — signalement seulement, jamais de
+# suggestion de remplacement, jamais de réécriture).
+#
+
+RECURRENTES_TAILLE_MIN = 3
+RECURRENTES_TAILLE_MAX = 6
+RECURRENTES_OCCURRENCES_MIN = 3
+RECURRENTES_REUNIONS_MIN = 2
+RECURRENTES_LIMITE = 30
+
+
+def _normaliser_expression(texte: str) -> str:
+    """
+    Normalisation pour la comparaison : minuscules,
+    ponctuation retirée, espaces resserrées.
+    """
+
+    if not texte:
+        return ""
+
+    nettoye = re.sub(
+        r"[^\w\sÀ-ÿ']",
+        " ",
+        texte.lower()
+    )
+
+    return re.sub(r"\s+", " ", nettoye).strip()
+
+
+def _n_grammes(texte: str, taille_min: int, taille_max: int):
+    """
+    Itère les n-grammes de ``taille_min`` à
+    ``taille_max`` mots du texte normalisé.
+    """
+
+    mots = _normaliser_expression(texte).split(" ")
+
+    for taille in range(taille_min, taille_max + 1):
+
+        if len(mots) < taille:
+            continue
+
+        for debut in range(0, len(mots) - taille + 1):
+            yield " ".join(mots[debut:debut + taille])
+
+
+def _textes_valides_etude(etude_ouverte):
+    """
+    Textes validés par réunion (reformulations
+    validées + résumé validé), dans l'ordre des
+    réunions de l'étude.
+
+    Retour : liste (réunion, liste de textes).
+    """
+
+    from services.decoupage import blocs_actifs
+
+    par_reunion = []
+
+    for reunion in etude_ouverte.etude.ordre_reunions:
+
+        textes = []
+
+        for bloc in blocs_actifs(etude_ouverte, reunion):
+
+            resultat = etude_ouverte.reformulations.get(
+                bloc.fid
+            )
+
+            if not resultat or not resultat.versions:
+                continue
+
+            for version in reversed(resultat.versions):
+
+                if (
+                    version.validation
+                    and version.validation.statut
+                    == "valide"
+                ):
+                    textes.append(version.texte)
+                    break
+
+        resume = etude_ouverte.resumes.get(reunion)
+
+        if resume:
+
+            for version in reversed(resume.versions):
+
+                if (
+                    version.validation
+                    and version.validation.statut
+                    == "valide"
+                ):
+                    textes.append(version.texte)
+                    break
+
+        if textes:
+            par_reunion.append((reunion, textes))
+
+    return par_reunion
+
+
+def expressions_recurrentes(
+    etude_ouverte,
+    taille_min: int = RECURRENTES_TAILLE_MIN,
+    taille_max: int = RECURRENTES_TAILLE_MAX,
+    occurrences_min: int = RECURRENTES_OCCURRENCES_MIN,
+    reunions_min: int = RECURRENTES_REUNIONS_MIN,
+    limite: int = RECURRENTES_LIMITE
+) -> list:
+    """
+    P17.3 : formules les plus fréquentes de l'étude,
+    comparées entre réunions — gratuit, sans LLM,
+    signalement indicatif seulement.
+
+    Une expression est signalée quand elle apparaît
+    au moins ``occurrences_min`` fois dans au moins
+    ``reunions_min`` réunions (le vocabulaire du
+    thème de l'étude ressort inévitablement : le
+    filtre sur les réunions concentre le rapport sur
+    les tics de reformulation).
+
+    Retour : liste triée
+    ``{"expression", "occurrences", "reunions"}``,
+    limitée à ``limite`` entrées.
+    """
+
+    occurrences = {}
+    reunions_par_expression = {}
+
+    for reunion, textes in _textes_valides_etude(
+        etude_ouverte
+    ):
+
+        compte_reunion = {}
+
+        for texte in textes:
+
+            for gram in _n_grammes(
+                texte,
+                taille_min,
+                taille_max
+            ):
+
+                compte_reunion[gram] = (
+                    compte_reunion.get(gram, 0) + 1
+                )
+
+        for gram, total in compte_reunion.items():
+
+            occurrences[gram] = (
+                occurrences.get(gram, 0) + total
+            )
+
+            reunions_par_expression.setdefault(
+                gram,
+                set()
+            ).add(reunion)
+
+    candidates = []
+
+    for expression, total in occurrences.items():
+
+        reunions = reunions_par_expression[expression]
+
+        if (
+            total >= occurrences_min
+            and len(reunions) >= reunions_min
+        ):
+            candidates.append({
+                "expression": expression,
+                "occurrences": total,
+                "reunions": sorted(reunions),
+            })
+
+    candidates.sort(
+        key=lambda item: (
+            -item["occurrences"],
+            item["expression"]
+        )
+    )
+
+    return candidates[:limite]

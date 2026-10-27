@@ -239,6 +239,13 @@ def parametres_par_defaut(
             "modele": "mistral-large-latest",
             "temperature": temperature_reformulation,
             "fenetre_glissante_tokens": 2000,
+            # Cases de contexte du bloc (feuille de
+            # route §3.1 : la synthèse d'étude sert
+            # aux blocs qui le cochent) — P17.2.
+            "contexte": {
+                "fenetre_glissante": True,
+                "synthese_etude": True,
+            },
         },
         resume={
             "prompt": _lire_prompt_par_defaut(
@@ -1386,11 +1393,17 @@ def ajouter_version_resume(
     etude_ouverte: EtudeOuverte,
     reunion: str,
     texte: str,
-    source: str
+    source: str,
+    stats: dict = None,
+    origine: str = "generation",
+    consigne: str = None
 ) -> VersionResume:
     """
     Ajoute une version au résumé d'une réunion. La
-    source utilisée est stockée avec le résultat.
+    source utilisée est stockée avec le résultat ;
+    ``origine`` : generation | relance |
+    relance_ciblee | edition_manuelle (stats None
+    pour une édition manuelle).
     """
 
     if reunion not in etude_ouverte.reunions:
@@ -1412,6 +1425,9 @@ def ajouter_version_resume(
         texte=normaliser_sauts_paragraphe(texte),
         source=source,
         horodatage=horodatage_courant(),
+        stats=stats,
+        origine=origine,
+        consigne=consigne,
         validation=None,
     )
 
@@ -1425,10 +1441,12 @@ def ajouter_version_resume(
         resultat=RESULTAT_SUCCES,
         message=(
             f"Résumé version {version.numero} "
-            f"(source : {source})"
+            f"({origine}, source : {source})"
         ),
+        stats=stats,
         extras={
             "source": source,
+            "origine": origine,
         }
     )
 
@@ -1487,15 +1505,65 @@ def valider_version_resume(
     )
 
 
+def devalider_version_resume(
+    etude_ouverte: EtudeOuverte,
+    reunion: str,
+    numero: int
+) -> None:
+    """
+    Dévalide une version du résumé d'une réunion
+    (resume_valide redevient False ; le résumé est
+    de nouveau modifiable). Une entrée de log
+    devalidation est consignée.
+    """
+
+    resultat = etude_ouverte.resumes.get(reunion)
+
+    if resultat is None:
+        raise EtudeError(
+            f"Aucun résumé pour la réunion {reunion}"
+        )
+
+    for version in resultat.versions:
+
+        if version.numero == numero:
+
+            version.validation = None
+
+            etude_ouverte.reunions[
+                reunion
+            ].resume_valide = False
+
+            etude_ouverte.journal.ajouter(
+                TYPE_DEVALIDATION,
+                fid=None,
+                reunion=reunion,
+                version=numero,
+                resultat=RESULTAT_SUCCES,
+                message=(
+                    f"Résumé version {numero} dévalidé."
+                )
+            )
+
+            return
+
+    raise EtudeError(
+        f"Version {numero} introuvable "
+        f"pour le résumé de {reunion}"
+    )
+
+
 def ajouter_version_synthese(
     etude_ouverte: EtudeOuverte,
     texte: str,
-    declencheur: str = "manuel"
+    declencheur: str = "manuel",
+    stats: dict = None
 ) -> VersionSynthese:
     """
     Ajoute une version à la synthèse d'étude
     (déclencheur : validation de bloc, manuel, ou
-    création de l'étude).
+    création de l'étude) ; ``stats`` pour l'appel
+    LLM ayant produit la version (None sinon).
     """
 
     numeros = [
@@ -1522,6 +1590,7 @@ def ajouter_version_synthese(
             f"Synthèse d'étude version "
             f"{version.numero} ({declencheur})"
         ),
+        stats=stats,
         extras={
             "declencheur": declencheur,
         }

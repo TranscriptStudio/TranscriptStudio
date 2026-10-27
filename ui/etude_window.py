@@ -21,11 +21,12 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
+    QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QObject, QThread, Signal, Slot
 
 from services.etude_io import (
     EtudeError,
@@ -41,6 +42,36 @@ from services.etude_io import (
 from services.etude_schema import EtudeFormatError
 from services.project_io import load_project
 from services.settings import SettingsManager
+
+
+class SyntheseWorker(QObject):
+    """
+    Génère la synthèse d'étude en arrière-plan
+    (P17.2) : la page reste réactive.
+    """
+
+    terminee = Signal(object)
+    erreur = Signal(str)
+
+    def __init__(self, service, declencheur: str):
+        super().__init__()
+
+        self.service = service
+        self.declencheur = declencheur
+
+    @Slot()
+    def run(self):
+
+        try:
+
+            resultat = self.service.generer(
+                declencheur=self.declencheur
+            )
+
+            self.terminee.emit(resultat)
+
+        except Exception as e:
+            self.erreur.emit(str(e))
 
 
 class EtudeWindow(QWidget):
@@ -83,7 +114,11 @@ class EtudeWindow(QWidget):
             self.etude.dossier
         )
 
+        self.synthese_thread = None
+        self.synthese_worker = None
+
         self.refresh_reunions()
+        self.maj_synthese()
 
     def build_ui(self):
 
@@ -184,6 +219,16 @@ class EtudeWindow(QWidget):
             self.ouvrir_reunion_reformulation
         )
 
+        self.resume_button = QPushButton("Résumé…")
+        self.resume_button.setToolTip(
+            "Ouvrir le résumé de cette réunion "
+            "(P17 : source au choix, éditable, "
+            "validable)"
+        )
+        self.resume_button.clicked.connect(
+            self.ouvrir_reunion_resume
+        )
+
         self.relocaliser_button = QPushButton(
             "Relocaliser..."
         )
@@ -198,6 +243,7 @@ class EtudeWindow(QWidget):
             self.retirer_button,
             self.ouvrir_button,
             self.reformulation_button,
+            self.resume_button,
             self.relocaliser_button,
         ):
             boutons_reunions.addWidget(bouton)
@@ -205,6 +251,64 @@ class EtudeWindow(QWidget):
         boutons_reunions.addStretch()
 
         layout.addLayout(boutons_reunions)
+
+        #
+        # Synthèse d'étude (P17.2) : contexte de
+        # niveau 2 des réunions suivantes.
+        #
+        layout.addWidget(QLabel("Synthèse d'étude"))
+
+        self.synthese_edit = QPlainTextEdit()
+        self.synthese_edit.setReadOnly(True)
+        self.synthese_edit.setPlaceholderText(
+            "Aucune synthèse : elle est générée quand "
+            "une réunion devient entièrement validée, "
+            "ou via « Régénérer… »."
+        )
+        self.synthese_edit.setMaximumHeight(140)
+        layout.addWidget(self.synthese_edit)
+
+        boutons_synthese = QHBoxLayout()
+
+        self.synthese_regenerer_button = QPushButton(
+            "Régénérer…"
+        )
+        self.synthese_regenerer_button.setToolTip(
+            "Régénérer la synthèse d'étude à partir "
+            "des textes validés (coût marginal)"
+        )
+        self.synthese_regenerer_button.clicked.connect(
+            self.regenerer_synthese
+        )
+
+        self.recurrences_button = QPushButton(
+            "Récurrences…"
+        )
+        self.recurrences_button.setToolTip(
+            "Expressions récurrentes entre réunions "
+            "(gratuit, indicatif)"
+        )
+        self.recurrences_button.clicked.connect(
+            self.afficher_recurrences
+        )
+
+        self.synthese_statut_label = QLabel("")
+        self.synthese_statut_label.setStyleSheet(
+            "font-size: 12px; color: #666666;"
+        )
+
+        boutons_synthese.addWidget(
+            self.synthese_regenerer_button
+        )
+        boutons_synthese.addWidget(
+            self.recurrences_button
+        )
+        boutons_synthese.addWidget(
+            self.synthese_statut_label
+        )
+        boutons_synthese.addStretch()
+
+        layout.addLayout(boutons_synthese)
 
         #
         # Navigation.
@@ -513,6 +617,234 @@ class EtudeWindow(QWidget):
         )
 
         self.reformulation_window.show()
+
+    def ouvrir_reunion_resume(self):
+        """
+        Ouvre la fenêtre Résumé de la réunion
+        sélectionnée (P17.1) — dialogue modal, la
+        synthèse se rafraîchit à la fermeture.
+        """
+
+        nom = self.reunion_selectionnee()
+
+        if nom is None:
+            return
+
+        from ui.resume_window import ResumeWindow
+
+        fenetre = ResumeWindow(
+            self.etude,
+            nom,
+            parent=self
+        )
+
+        fenetre.exec()
+
+        self.maj_synthese()
+
+    #
+    # Synthèse d'étude (P17.2).
+    #
+
+    def maj_synthese(self):
+
+        versions = self.etude.synthese.versions
+
+        if versions:
+
+            derniere = versions[-1]
+
+            self.synthese_edit.setPlainText(
+                derniere.texte
+            )
+
+            self.synthese_statut_label.setText(
+                f"v{derniere.numero} · "
+                f"{derniere.horodatage} · "
+                f"{derniere.declencheur}"
+            )
+
+        else:
+            self.synthese_edit.clear()
+            self.synthese_statut_label.setText(
+                "aucune version"
+            )
+
+    def regenerer_synthese(self):
+        """
+        Régénération manuelle (déclencheur « manuel »)
+        avec estimation du coût avant lancement.
+        """
+
+        from services.traitements.synthese import (
+            ServiceSynthese
+        )
+
+        service = ServiceSynthese(self.etude)
+
+        try:
+            estimation = service.estimer()
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Synthèse impossible",
+                str(e)
+            )
+            return
+
+        reponse = QMessageBox.question(
+            self,
+            "Régénérer la synthèse d'étude",
+            (
+                "Régénérer la synthèse d'étude à partir "
+                "des textes validés ?\n\n"
+                f"Réunions sources : "
+                f"{estimation['nb_reunions']}\n"
+                f"Modèle : {estimation['modele']}\n"
+                f"Tokens estimés : "
+                f"{estimation['tokens_in_estimes']} en "
+                f"entrée, "
+                f"{estimation['tokens_out_estimes']} en "
+                "sortie\n"
+                f"Coût estimé : "
+                f"{estimation['cout_estime']:.3f} $"
+            )
+        )
+
+        if reponse != QMessageBox.StandardButton.Yes:
+            return
+
+        self._lancer_synthese(
+            service,
+            declencheur="manuel"
+        )
+
+    def _lancer_synthese(self, service, declencheur):
+        """
+        Génère la synthèse en arrière-plan (thread) :
+        la page reste réactive.
+        """
+
+        if getattr(self, "synthese_thread", None):
+            return
+
+        self.synthese_statut_label.setText(
+            "Génération en cours…"
+        )
+
+        self.synthese_thread = QThread(self)
+
+        self.synthese_worker = SyntheseWorker(
+            service,
+            declencheur
+        )
+
+        self.synthese_worker.moveToThread(
+            self.synthese_thread
+        )
+
+        self.synthese_thread.started.connect(
+            self.synthese_worker.run
+        )
+
+        self.synthese_worker.terminee.connect(
+            self._sur_synthese_terminee
+        )
+        self.synthese_worker.erreur.connect(
+            self._sur_synthese_erreur
+        )
+
+        self.synthese_thread.start()
+
+    def _sur_synthese_terminee(self, resultat):
+
+        version, stats = resultat
+
+        self.synthese_thread.quit()
+        self.synthese_thread = None
+        self.synthese_worker = None
+
+        self.maj_synthese()
+
+        cout = stats.get("cout_estime", 0.0)
+
+        QMessageBox.information(
+            self,
+            "Synthèse mise à jour",
+            (
+                f"Synthèse d'étude version "
+                f"{version.numero} générée "
+                f"(coût réel : {cout:.4f} $)."
+            )
+        )
+
+    def _sur_synthese_erreur(self, message):
+
+        self.synthese_thread.quit()
+        self.synthese_thread = None
+        self.synthese_worker = None
+
+        QMessageBox.warning(
+            self,
+            "Synthèse non générée",
+            message
+        )
+
+        self.maj_synthese()
+
+    #
+    # Récurrences entre réunions (P17.3).
+    #
+
+    def afficher_recurrences(self):
+
+        from services.controle_qualite import (
+            expressions_recurrentes
+        )
+
+        recurrentes = expressions_recurrentes(self.etude)
+
+        if not recurrentes:
+
+            QMessageBox.information(
+                self,
+                "Expressions récurrentes",
+                (
+                    "Aucune expression récurrente "
+                    "signalée entre les réunions "
+                    "(il faut des textes validés dans "
+                    "au moins deux réunions)."
+                )
+            )
+
+            return
+
+        lignes = []
+
+        for item in recurrentes:
+
+            reunions = ", ".join(
+                reunion
+                for reunion in item["reunions"]
+            )
+
+            lignes.append(
+                f"« {item['expression']} » — "
+                f"{item['occurrences']} occurrence(s), "
+                f"réunions : {reunions}"
+            )
+
+        QMessageBox.information(
+            self,
+            "Expressions récurrentes (indicatif)",
+            (
+                "Formules les plus fréquentes de "
+                "l'étude, présentes dans plusieurs "
+                "réunions — signalement indicatif, "
+                "jamais de remplacement suggéré :\n\n"
+                + "\n".join(lignes[:20])
+            )
+        )
 
     def retour_accueil(self):
         """

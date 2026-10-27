@@ -296,6 +296,41 @@ class MoteurTraitements:
             or FENETRE_GLISSANTE_DEFAUT
         )
 
+    def _contexte_active(self, cle: str) -> bool:
+        """
+        Cases de contexte du bloc (feuille de route
+        §3.1 : la synthèse d'étude sert « aux blocs
+        qui le cochent ») ; absentes d'une étude
+        créée avant P17 : activées par défaut.
+        """
+
+        contexte = (
+            self._parametres_bloc().get("contexte")
+            or {}
+        )
+
+        return bool(contexte.get(cle, True))
+
+    def _contexte_fenetre(
+        self,
+        bloc,
+        seulement_validees: bool
+    ) -> list:
+        """
+        Fenêtre glissante — vide si la case de
+        contexte est décochée.
+        """
+
+        if not self._contexte_active(
+            "fenetre_glissante"
+        ):
+            return []
+
+        return self._fenetre_glissante(
+            bloc,
+            seulement_validees
+        )
+
     #
     # Fenêtre glissante et assemblage (spec §2).
     #
@@ -392,6 +427,11 @@ class MoteurTraitements:
         return list(reversed(retenus))
 
     def _texte_synthese(self):
+
+        if not self._contexte_active(
+            "synthese_etude"
+        ):
+            return None
 
         dernieres = self.etude.synthese.versions
 
@@ -508,7 +548,7 @@ class MoteurTraitements:
 
         synthese = self._texte_synthese()
 
-        fenetre = self._fenetre_glissante(
+        fenetre = self._contexte_fenetre(
             bloc,
             seulement_validees
         )
@@ -667,6 +707,10 @@ class MoteurTraitements:
 
         budget_fenetre = self._budget_fenetre()
 
+        fenetre_activee = self._contexte_active(
+            "fenetre_glissante"
+        )
+
         tokens_in = 0
         tokens_out = 0
 
@@ -677,7 +721,7 @@ class MoteurTraitements:
             fenetre = min(
                 budget_fenetre,
                 max(0, tokens_in)
-            )
+            ) if fenetre_activee else 0
 
             tokens_in += (
                 estimer_tokens(prompt_systeme)

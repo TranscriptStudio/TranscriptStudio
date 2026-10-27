@@ -599,12 +599,24 @@ class VersionResume:
 
     La source utilisée est stockée avec le résultat :
     ``brute_corrigee`` ou ``reformulations_valides``.
+
+    ``stats`` (LLM uniquement, None pour une édition
+    manuelle, cumul des appels d'une génération
+    segmentée) : ``duree_ms``, ``tokens_in``,
+    ``tokens_out``, ``cout_estime``.
+
+    ``origine`` : ``generation``, ``relance``,
+    ``relance_ciblee`` ou ``edition_manuelle`` —
+    lisible dans l'historique des versions.
     """
 
     numero: int
     texte: str
     source: str
     horodatage: str
+    stats: Optional[dict] = None
+    origine: str = "generation"
+    consigne: Optional[str] = None
     validation: Optional[Validation] = None
 
     def to_dict(self) -> dict:
@@ -614,6 +626,9 @@ class VersionResume:
             "texte": self.texte,
             "source": self.source,
             "horodatage": self.horodatage,
+            "stats": self.stats,
+            "origine": self.origine,
+            "consigne": self.consigne,
             "validation": (
                 self.validation.to_dict()
                 if self.validation
@@ -629,6 +644,12 @@ class VersionResume:
             texte=data["texte"],
             source=data["source"],
             horodatage=data["horodatage"],
+            stats=data.get("stats"),
+            origine=data.get(
+                "origine",
+                "generation"
+            ),
+            consigne=data.get("consigne"),
             validation=(
                 Validation.from_dict(
                     data["validation"]

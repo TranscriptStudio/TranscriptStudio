@@ -1,8 +1,8 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (correctif
-> création d'étude — ARBITRAGE_CREATION_ETUDE appliqué ;
-> P16 livré ; 194 tests verts)
+> **Dernière mise à jour** : 2026-10-27 (session P17 —
+> **P17 LIVRÉ** : bloc Résumé + synthèse d'étude + récurrences ;
+> P16 livré en attente de recette ; 228 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -35,6 +35,8 @@
 - **P16 : LIVRÉ** (P16.1 paramètres d'étude, P16.2/P16.2b page Traitement
   Reformulation + page Log, P16.3 via moteur P15.3, P16.4 contrôle qualité
   local) — spec UI_REFORMULATION_V2 ; 188 tests verts.
+- **P17 : LIVRÉ** (P17.1 bloc Résumé, P17.2 synthèse d'étude + cases de
+  contexte, P17.3 récurrences entre réunions) — 228 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -580,16 +582,163 @@ prochaine utilisation.
 
 ---
 
+## SESSION 2026-10-27 (P17) — RÉSUMÉ + SYNTHÈSE D'ÉTUDE : LIVRÉ
+
+INDEX_SPECS v3 : « correctif création d'étude, puis validation P16
+(recette) et P17 ». Le correctif est livré (ci-dessus) ; P17 est
+livré ci-dessous ; la **recette P16** nécessite la clé API et le
+jugement humain de David — checklist en fin de session. **228 tests
+verts** (194 + 34 nouveaux : 30 services + 4 UI).
+
+### P17.1 — Bloc Résumé ⭐ TERMINÉ
+
+`services/traitements/resume.py` (ServiceResume) + `ui/resume_window.py`
+(bouton « Résumé… » de la page Étude, QDialog modal) :
+
+- **source au choix à chaque lancement** : reformulations validées
+  (défaut, paramétrable) ou transcription brute corrigée (blocs actifs
+  de la segmentation) ; erreur claire si aucune reformulation
+  validée ; **la source est stockée avec le résultat** (contrat §8) ;
+- **avertissement source évoluée** : reformulation validée
+  postérieure (source reformulée) ou projet v1 modifié (source
+  brute) → signalé dans la fenêtre, jamais de mise à jour
+  automatique ;
+- **longueur cible paramétrable au lancement** (défaut 650-700,
+  éditable dans les paramètres de l'étude) ;
+- **segmentation déterministe** : source > 24 000 tokens → 3 à 5
+  segments coupés aux frontières de paragraphes avec léger
+  chevauchement (2 paragraphes) ; notes de segment (extraction dense)
+  puis **assemblage final par le LLM** (le résumé final n'est jamais
+  un collage de mini-résumés — prompt v2 §« ne pas suivre la
+  structure des interventions ») ; source courte en un seul appel ;
+- estimation de coût avant lancement (affichée puis confirmée) ;
+- outillage commun du moteur : relance complète avec consigne
+  (contexte = source + formulation courante + **toutes** les
+  versions antérieures), relance ciblée sur sélection (contexte
+  identique + versions antérieures, le reste conservé tel quel),
+  édition manuelle = nouvelle version `edition_manuelle`,
+  validation fige le résumé (`resume_valide`), dévalidation,
+  retour arrière avec navigation d'historique ;
+- stats cumulées des appels stockées par version (champ additionnel
+  `stats` + `origine` sur VersionResume, toléré par le schéma —
+  même approche que `chemin_absolu`/`buffer` en P14).
+
+### P17.2 — Synthèse d'étude ⭐ TERMINÉ
+
+`services/traitements/synthese.py` (ServiceSynthese) + page Étude :
+
+- source = textes validés des réunions dans l'ordre de l'étude
+  (**résumé validé prioritaire** — plus compact — sinon
+  reformulations validées) ; troncation par le haut au-delà de
+  80 000 tokens d'entrée (les réunions les plus récentes restent) ;
+- **mise à jour automatique quand une réunion devient entièrement
+  validée** (tous ses blocs actifs validés — hook dans
+  ReformulationWindow.valider_bloc, génération en arrière-plan,
+  barre d'état) + **régénération manuelle** depuis la page Étude
+  avec estimation ; versionnée (contrat §9), exactement une entrée
+  de journal par opération (stats en entrée) ;
+- **cases de contexte** (feuille de route §3.1 « blocs qui le
+  cochent ») : `contexte.fenetre_glissante` et
+  `contexte.synthese_etude` dans les paramètres reformulation de
+  l'étude — cochées par défaut, absentes d'une étude antérieure =
+  actives (rétrocompatible), moteur et estimation respectent le
+  décochage, cases affichées dans Paramètres de l'étude ;
+- prompt synthèse = constante intégrée (`PROMPT_SYNTHESE`,
+  rubriques : thème, pensées développées, versets cités,
+  vocabulaire récurrent — contrat §10 ne prévoit pas de prompt
+  éditable pour la synthèse).
+
+### P17.3 — Contrôle qualité étendu ⭐ TERMINÉ
+
+`services.controle_qualite.expressions_recurrentes` + bouton
+« Récurrences… » de la page Étude : n-grammes de 3 à 6 mots
+normalisés sur les textes validés (reformulations + résumés),
+signalés à partir de 3 occurrences dans au moins 2 réunions (le
+filtre sur les réunions concentre le rapport sur les tics de
+reformulation, pas sur le vocabulaire du thème) — gratuit, sans
+LLM, liste indicative triée, jamais de remplacement suggéré.
+
+### Bilan tests : **228 verts** (194 + 34)
+
+test_resume_synthese.py (30) : sources, segmentation bornée 3-5,
+génération mono et multi-segments avec stats cumulées, persistance
+disque, estimation, relances (versions antérieures + sélection),
+édition/validation/dévalidation, échec appel = aucune version
+écrite, source évoluée, réunion entièrement validée, résumé
+prioritaire dans la synthèse, ordre + troncation, journal une
+entrée, cases de contexte (3), récurrences (3).
+test_resume_ui.py (4) : résumé éditable non validé, édition =
+nouvelle version, validation fige, dévalidation rouvre.
+
+### DÉCISIONS / ÉCARTS DE LA SESSION (P17) — à arbitrer par l'atelier
+
+1. **Synthèse automatique au moment où la réunion devient
+   entièrement validée**, pas « à chaque validation de bloc »
+   (contrat §9) : un appel LLM à chaque clic de validation serait
+   lent et coûteux ; la version « dernier bloc validé » réalise
+   l'intention du contrat (déclencheur `validation_bloc`) sans le
+   bruit. Arbitrage bienvenu si l'atelier voit autrement.
+2. **Assemblage du résumé segmenté par LLM** (notes de segments →
+   passe finale) : la feuille de route dit « segments puis
+   assemblage » sans préciser le mode ; le collage direct
+   dupliquerait les chevauchements, d'où la passe finale.
+3. **Champs additionnels `stats`/`origine` sur les versions de
+   résumé** (contrat §8 ne les montrait pas) : l'indicateur de
+   version de l'UI en a besoin (même logique que §7).
+4. **Avertissement source brute approximatif** : comparaison mtime
+   du `project.sttproj` (les horodatages internes v1 ne changent pas
+   à chaque correction) ; horodatages à la seconde — une correction
+   dans la même seconde que la génération n'est pas détectée.
+5. **Fenêtre Résumé modale** (QDialog) quand la page Reformulation
+   est non modale : un résumé par réunion, pas de table.
+6. **Bouton « Résumé… » disponible même sans reformulation** : la
+   source brute corrigée suffit (vue d'ensemble rapide — feuille de
+   route §4).
+
+### RECETTE P16 (à faire par David — clé API + jugement humain)
+
+Prérequis : réglages LLM (fournisseur + clé « Tester la clé »),
+étude avec Luc 01b référencée, segmentation générée (page Étude).
+
+1. Page Étude → « Reformulation… » → « Traiter les blocs non
+   validés » : le coût estimé s'affiche avant la première passe
+   (B1) ; vérifier le traitement séquentiel et l'affichage du coût
+   réel en fin de passe.
+2. Relire chaque résultat face à sa source (fidélité stricte,
+   références complétées, « nous » de foi conservé — prompt v2).
+3. Régénérer un bloc avec une consigne libre (« plus concis… ») ;
+   retravailler une sélection dans un autre bloc.
+4. Éditer un bloc à la main → sauvegarder (nouvelle version) →
+   valider ; vérifier qu'un bloc validé est figé et que la
+   dévalidation rouvre l'édition.
+5. Dévalider un bloc, le re-traiter : seuls les blocs suivants non
+   validés sont retraités, aucune cascade.
+6. Annuler une passe en cours : tout ce qui est produit est
+   conservé, la reprise saute les blocs traités.
+7. Sur une méditation longue (monologue) : vérifier les jonctions
+   entre sous-blocs (pas de rupture stylistique perceptible).
+8. Valider tous les blocs → la synthèse d'étude se met à jour
+   automatiquement (barre d'état + page Étude).
+9. « Résumé… » : générer depuis les reformulations validées, puis
+   valider ; régénérer la synthèse ; bouton « Récurrences… ».
+10. Jugement humain P17 : résumer une 2ᵉ réunion (Luc 01a) et
+    vérifier qu'elle « sait » ce que la 1ʳᵉ a développé (rappels
+    redondants absents) — critère d'acceptation de la feuille de
+    route.
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 est LIVRÉ** (critères feuille de route : relecture source↔résultat par
-bloc, régénération avec consigne, validation figeant sans cascade ; la
-réunion Luc 1b de test de bout en bout avec vraie clé reste à vérifier à la
-première occasion).
+**P16 et P17 sont LIVRÉS** (228 tests verts). Restent :
 
-1. **P17** — synthèse d'étude et bloc Résumé (source au choix brute/reformulée,
-   longueur cible paramétrable, synthèse versionnée injectée comme contexte,
-   contrôle qualité étendu §17.3).
+1. **Recette P16/P17 par David** (checklist en fin de session P17
+   ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé, jugement
+   humain sur la fidélité, les jonctions de méditation et la
+   « mémoire » de la 2ᵉ réunion (synthèse).
+2. **P18** — JND locale (OSIS XML), validation des références et des
+   citations (§5.2/§5.4), export DOCX de l'ouvrage, éventuelle
+   pré-correction.
 
 ---
 

@@ -1210,8 +1210,48 @@ La campagne est terminee lorsque :
 - 11 tests d'invariance UI (spec UI_REFORMULATION_V2 §7) dans
       tests/unit/test_reformulation_ui.py (marqueur qt, offscreen).
 
+## P17 — Niveau 2 : synthèse d'étude et bloc Résumé
+
+- [x] P17.1 Bloc Résumé (services/traitements/resume.py) : source au
+      choix à chaque lancement (reformulations validées — défaut — ou
+      transcription brute corrigée ; erreur claire si aucune
+      reformulation validée), source stockée avec le résultat
+      (contrat §8), longueur cible paramétrable au lancement (650-700
+      par défaut, éditable dans les paramètres de l'étude),
+      segmentation déterministe de la source longue en 3 à 5 segments
+      aux frontières de paragraphes avec léger chevauchement (notes de
+      segment puis assemblage final ; source courte en un appel),
+      estimation de coût avant lancement, relance complète avec
+      consigne (contexte = source + formulation courante + toutes
+      les versions antérieures), relance ciblée sur sélection
+      (contexte identique, reste conservé tel quel), édition manuelle
+      (nouvelle version, jamais d'écrasement), validation /
+      dévalidation (resume_valide), stats cumulées par version,
+      avertissement si la source a évolué (signalement seulement).
+      UI : ui/resume_window.py (QDialog modal, bouton « Résumé… » de
+      la page Étude).
+- [x] P17.2 Synthèse d'étude (services/traitements/synthese.py) :
+      générée à partir des textes validés (résumé validé prioritaire,
+      sinon reformulations validées) dans l'ordre des réunions,
+      troncation par le haut au-delà du budget d'entrée, mise à jour
+      automatique quand une réunion devient entièrement validée
+      (déclencheur validation_bloc, hook dans la page Reformulation,
+      arrière-plan), régénération manuelle depuis la page Étude avec
+      estimation, versionnée (contrat §9, une entrée de journal par
+      opération), injection comme contexte de niveau 2 via les cases
+      de contexte cochables (fenêtre glissante / synthèse d'étude)
+      dans les paramètres de l'étude — cochées par défaut,
+      rétrocompatibles.
+- [x] P17.3 Contrôle qualité étendu (expressions_recurrentes) :
+      formules les plus fréquentes de l'étude présentes dans
+      plusieurs réunions (n-grammes 3-6 mots, normalisation, comptage
+      par réunion), gratuit sans LLM, signalement indicatif sans
+      suggestion de remplacement ; rapport via « Récurrences… » sur
+      la page Étude.
+- 34 tests (30 services dans test_resume_synthese.py + 4 UI dans
+      test_resume_ui.py) ; 228 tests verts au total.
+
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 
-- P17 Synthese d'etude et bloc Resume.
 - P18 JND locale, validation des references, export ouvrage.
 - P19/P20 (v2.1) Page Ouvrage et edition avancee.
