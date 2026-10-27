@@ -1,6 +1,6 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (session P14)
+> **Dernière mise à jour** : 2026-10-27 (session P14.5 — P14 CLOS)
 > **Branche** : master
 > **Modifications locales** : aucune (tout est commité)
 
@@ -8,8 +8,8 @@
 
 ## ETAT GIT
 
-- Branche `master`, historique propre, tous les commits de la session P14 poussables
-  (origin a 5 commits de retard : les 5 commits P14 de cette session).
+- Branche `master`, historique propre, commits de la session P14 (7) poussables
+  (origin avait 5 commits de retard avant la session P14.5).
 - v1 (P0 à P10, E1, E2) : **terminée et validée** — portabilité, mode sans clé API,
   résilience, tests.
 - **P11 — Packaging Windows v1.0 : CLOS** (décision David, 2026-10-27) :
@@ -20,9 +20,11 @@
   thème (préchargement des feuilles de style), aperçu immédiat du thème, README
   (captures, VirusTotal 2/68).
 - **P13 : CLOS** : message de fin d'export avec ouverture fichier/dossier.
-- **v2 : DÉMARRÉE** — la feuille de route v2 est `architecture/spec_v2/FEUILLE_DE_ROUTE_V2.md`
-  (copie locale de l'atelier, section v2 aussi dans la roadmap locale) ; le contrat du
-  format étude `CONTRAT_FORMAT_ETUDE_V2.md` fait autorité pour P14.
+- **P14 : CLOS** (P14.1 à P14.5 livrés et validés par l'atelier —
+  ARBITRAGE_P14.md) — la feuille de route v2 à jour est
+  `architecture/spec_v2/FEUILLE_DE_ROUTE_V2.md` (version 2026-10-27b) ; le
+  contrat `CONTRAT_FORMAT_ETUDE_V2.md` (chemin_absolu et buffer contractualisés)
+  fait autorité pour le format étude.
 
 ---
 
@@ -122,10 +124,61 @@ Rituel de synchro effectué : assets spec/ recopiés dans `architecture/spec_v2/
 
 ### Bilan tests
 
-- **93 tests pytest verts** (`tests/unit`, exécution confirmée le 2026-10-27,
-  environnement conda `transcript`, Python 3.11.15) : 30 v1 + 63 v2 (34 format
-  étude, 19 journal, 3 études récentes, 7 découpage).
+- **114 tests pytest verts** (`tests/unit`, exécution confirmée le 2026-10-27,
+  environnement conda `transcript`, Python 3.11.15) : 30 v1 + 84 v2 (34 format
+  étude, 19 journal, 3 études récentes, 7 découpage, 21 fusion/ordre d'ouvrage).
 - Les 5 règles d'invariance du contrat sont couvertes par des tests dédiés.
+
+---
+
+## SESSION 2026-10-27 (suite) — P14.5 : FUSION ET ORDRE D'OUVRAGE ⭐ P14 CLOS
+
+Rituel de synchro effectué sur les documents en vigueur (INDEX_SPECS.md) :
+feuille de route 2026-10-27**b**, contrat 2026-10-27 (chemin_absolu et buffer
+contractualisés), consignes 2026-10-27, ARBITRAGE_P14.md — **P14.1 à P14.4
+validés par l'atelier, les 9 points arbitrés tous VALIDÉS**. Recopie locale
+sous noms canoniques dans `architecture/spec_v2/`.
+
+### P14.5a — Fusion de segmentation (commit P14.5)
+
+- `fusionner_blocs(etude, réunion, fids_sources)` dans `services/decoupage.py` :
+  fusion de blocs **adjacents** en un seul bloc de traitement — **nouveau FID**
+  (jamais réutilisé), **locuteurs union** (ordre de première apparition,
+  multi-locuteurs si besoin), **positions = bornes extrêmes**, **source =
+  concaténation dans l'ordre chronologique** (jointure par espace),
+  `origine.fusion_de` = FID sources dans l'ordre chronologique ;
+- FID sources → `actif: false` avec horodatage de fin ; leurs **résultats
+  restent attachés** ; les **blocs sources restent dans le découpage**
+  (inactifs) — condition de la réversibilité : la dé-fusion restaure les
+  **mêmes discours avec les mêmes FID** ;
+- `defusionner_bloc` : le bloc fusionné quitte la segmentation active, son FID
+  passe `actif: false` (jamais réutilisé, résultats conservés), les FID sources
+  sont **réactivés** (`reactiver_fid` : actif=true, fin=null) ;
+- garde-fous : au moins deux FID, sans doublon, présents et actifs, adjacents
+  dans l'ordre chronologique (choix conservateur, cf. décisions) ;
+- la segmentation **active** d'une réunion = blocs dont le FID est actif au
+  registre (`blocs_actifs`).
+
+### P14.5b — Ordre d'ouvrage par réunion
+
+- `DecoupageReunion.ordre_ouvrage` : liste réordonnable de FID, **stockée en
+  parallèle de l'ordre chronologique** (clé `ordre_ouvrage` du
+  `blocs/decoupage/<réunion>.json`, absente = défaut chronologique) ;
+- défaut = ordre chronologique des blocs actifs ;
+  `definir_ordre_ouvrage` exige une **permutation exacte des blocs actifs**
+  (pas de doublon, pas de FID inconnu ou inactif) ; `reinitialiser_ordre_ouvrage`
+  revient au défaut ; `ordre_ouvrage_effectif` pour la lecture (P19 s'en
+  servira pour la génération d'ouvrage) ;
+- **tenu à jour par fusion/dé-fusion** : le FID fusionné prend la place des
+  FID sources dans l'ordre stocké (et réciproquement) ;
+- validation de schéma étendue (`valider_decoupage`) : liste d'entiers, sans
+  doublon, FID présents dans le découpage.
+- **UI (Monter/Descendre, glisser-déposer) : non réalisée** — aucune page
+  n'affiche encore les blocs ; les boutons vivront naturellement dans la page
+  Traitement de P16. La couche de données est complète et testée.
+
+### Fusion de pensées : NON implémentée, conformément à l'arbitrage —
+transférée en P19.4 (composition de l'ouvrage), rien n'a été fait à ce sujet.
 
 ---
 
@@ -164,33 +217,50 @@ Rituel de synchro effectué : assets spec/ recopiés dans `architecture/spec_v2/
    navigation acceptable pour P14, à revoir en P16 si l'atelier le souhaite.
 9. `resources/prompts/` doit être **inclus au prochain build packaging**
    (aux côtés de icons/ et du manuel) — pas de build v2 pour l'instant.
+10. **Fusion limitée aux blocs adjacents** (P14.5) : la feuille de route dit
+    « adjacents de préférence » ; l'adjacence est **imposée** — conservateur,
+    elle garantit un bloc de traitement continu (bornes extrêmes, concaténation
+    chronologique cohérente). À relâcher si besoin réel de fusion non adjacente.
+11. **Blocs sources conservés dans le découpage** après fusion (inactifs) :
+    la réversibilité exige que leurs textes/positions restent présents — le
+    registre ne stocke pas les contenus. La segmentation active se lit via
+    `blocs_actifs` (FID actifs au registre).
+12. **Concaténation des sources par un espace** lors de la fusion ; les textes
+    sources étant normalisés (sans espaces parasites), la jointure est propre.
 
 ## ÉCARTS / POINTS À ARBITRER PAR L'ATELIER
 
-- Les deux clés additionnelles (`chemin_absolu`, `buffer`) sont additives et
-  strictement conformes au texte du contrat ; à confirmer pour qu'elles
-  deviennent contractuelles.
-- La sémantique des frontières de conversion (décision 3) est un choix
-  conservateur documenté ; arbitrage bienvenu.
-- README et manuel utilisateur ne couvrent pas encore la section Études (UI
-  P14.3) : à mettre à jour au moment d'une livraison visible (P16 ou export v2).
+- ~~chemin_absolu, buffer, sémantique des frontières, doublon intra-étude,
+  journal en fin de traitement, signaux de sous-découpage réduits,
+  navigation Étude→éditeur, README/manuel~~ : **tous VALIDÉS par
+  ARBITRAGE_P14.md** et intégrés au contrat v11 — plus en attente.
+- Reste en observation : README et manuel utilisateur ne couvrent pas encore
+  la section Études (report validé à la première livraison visible, P16 ou
+  export v2).
+- P14.5 : adjacence imposée (décision 10) et UI de l'ordre d'ouvrage renvoyée
+  à P16 — les deux paraissent conformes à la feuille de route, arbitrage
+  bienvenu si l'atelier voit autrement.
 
-## NON RÉALISÉ DANS P14 (hors périmètre de la session)
+## NON RÉALISÉ (hors périmètre)
 
-- **P14.5** — fusion de blocs (FID sources, attribution multiple, réversibilité)
-  et ordre d'ouvrage par réunion : non commencé.
-- **P15/P16** — service LLM et page Reformulation : ne démarrent pas avant
-  validation de P14 par l'atelier (specs séparées dans spec_v2/).
+- **Fusion de pensées** : transférée en P19.4 (composition de l'ouvrage) par
+  décision d'atelier — rien d'implémenté, conformément à la consigne.
+- **UI de fusion et d'ordre d'ouvrage** (boutons Monter/Descendre,
+  glisser-déposer) : couche de données complète et testée, l'UI viendra avec
+  la page Traitement (P16).
 
 ---
 
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-1. **Arbitrage atelier** des écarts ci-dessus (retour attendu via le dossier
-   Synchro).
-2. **P14.5** (fusion de blocs + ordre d'ouvrage par réunion) pour clore P14.
-3. **P15** — service LLM multi-fournisseurs (spec : PARAMETRAGE_LLM_V2.md),
-   après validation de P14.
+**P14 est CLOS** (P14.1 à P14.5 livrés, validés par l'atelier).
+
+1. **P15** — service LLM multi-fournisseurs
+   (spec : PARAMETRAGE_LLM_V2.md ; familles openai_compatible/anthropic,
+   catalogue embarqué extensible, CredentialStore, estimation de coût).
+2. Puis **P16** — bloc Reformulation et page Traitement (spec :
+   UI_REFORMULATION_V2.md), qui hébergera aussi l'UI de fusion et l'ordre
+   d'ouvrage.
 
 ---
 
