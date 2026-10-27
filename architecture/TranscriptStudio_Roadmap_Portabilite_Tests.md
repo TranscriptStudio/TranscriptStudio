@@ -1171,10 +1171,47 @@ La campagne est terminee lorsque :
       page Log en lecture seule (spec UI §8) : reportée en P16 selon le
       périmètre fixé par l'atelier.
 
+## P16 — Bloc Reformulation et page Traitement (spec : UI_REFORMULATION_V2.md)
+
+- [x] P16.1 Paramètres de l'étude éditables (ui/parametres_etude_dialog.py) :
+      prompt de reformulation v2 (valeur par défaut intégrée, réinitialisable),
+      prompt de résumé (P17), modèle et températures surchargeables par étude
+      (contrat §10), taille de fenêtre glissante, liste d'interdits
+      stylistiques éditable ; defaults dans services/etude_io.py
+      (parametres_par_defaut).
+- [x] P16.2/P16.2b Page Traitement (ui/reformulation_window.py, spec
+      UI_REFORMULATION_V2) : table de relecture en lecture parallèle (une
+      ligne par bloc : brut corrigé à gauche en lecture seule sans aucun menu
+      v1 actif ni grisé, reformulé éditable à droite), colonne locuteurs à
+      gauche avec filtrage (ne masque jamais barre d'état ni boutons), pastille
+      d'état (grise/bleue/verte, libellé textuel au survol) ouvrant le menu
+      des opérations (éditer, sauvegarder = nouvelle version edition_manuelle,
+      retour arrière avec navigation d'historique figée, reformulation complète
+      avec consigne libre, reformulation de la sélection, valider /
+      dévalider sans aucune cascade), indicateur de version permanent
+      (v numéro + durée + tokens + coût), boutons globaux (sauvegarde projet,
+      aide, retour, traitement des blocs non validés avec estimation puis coût
+      réel B1), barre d'état, passes en thread QThread avec annulation propre
+      (conservation + reprise en sautant les blocs traités, B2), bloc validé
+      figé (édition et relances verrouillées, versions consultables non
+      éditables), validation seulement sur version sauvegardée, contrôle
+      qualité discret (P16.4), timeline v1 ancrée masquable + audio avec clic
+      de positionnement et surlignage du mot lu ; normalisation d'un seul \n
+      par saut de paragraphe à la réception.
+- [x] P16.3 Fenêtre glissante : livrée par le moteur P15.3 (résultats produits
+      en passe complète, résultats validés lors des reprises ; la page
+      traite les blocs non validés via le même chemin).
+- [x] P16.4 Contrôle qualité local (services/controle_qualite.py) : rapport de
+      longueur (seuil 120 %), interdits stylistiques (liste éditable),
+      signalement uniquement, jamais de modification automatique ; indicateur
+      discret par bloc dans la page ; 14 tests unitaires.
+- Page Log (ui/log_window.py, spec UI §8) : QDialog en lecture seule avec
+      copie, alimenté par le journal append-only P15.4.
+- 11 tests d'invariance UI (spec UI_REFORMULATION_V2 §7) dans
+      tests/unit/test_reformulation_ui.py (marqueur qt, offscreen).
+
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 
-- P15 Service LLM multi-fournisseurs (spec separee : PARAMETRAGE_LLM_V2.md).
-- P16 Bloc Reformulation et page Traitement (spec : UI_REFORMULATION_V2.md).
 - P17 Synthese d'etude et bloc Resume.
 - P18 JND locale, validation des references, export ouvrage.
 - P19/P20 (v2.1) Page Ouvrage et edition avancee.

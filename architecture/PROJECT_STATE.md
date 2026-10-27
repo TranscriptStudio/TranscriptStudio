@@ -1,6 +1,7 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (session P15.3/P15.4 — **P15 CLOS**)
+> **Dernière mise à jour** : 2026-10-27 (session P16 — **P16 LIVRÉ** : P16.1,
+> P16.2/P16.2b, P16.3 couvert par le moteur P15.3, P16.4)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -10,9 +11,9 @@
 
 ## ETAT GIT
 
-- Développement v2 sur la branche `v2` (8 commits P14) ; **master est revenu à
-  l'état v1** (dernier commit : P13, 74a6b09) après le push accidentel des
-  commits P14 sur origin/master — à réécrire avec `--force-with-lease`.
+- Développement v2 sur la branche `v2` ; origin/master vérifié resté à l'état
+  v1 (P13, 74a6b09) — le push accidentel des commits P14 a été écrasé avec
+  `--force-with-lease`, rien ne reste à corriger.
 - v1 (P0 à P10, E1, E2) : **terminée et validée** — portabilité, mode sans clé API,
   résilience, tests.
 - **P11 — Packaging Windows v1.0 : CLOS** (décision David, 2026-10-27) :
@@ -28,6 +29,12 @@
   `architecture/spec_v2/FEUILLE_DE_ROUTE_V2.md` (version 2026-10-27b) ; le
   contrat `CONTRAT_FORMAT_ETUDE_V2.md` (chemin_absolu et buffer contractualisés)
   fait autorité pour le format étude.
+- **P15 : CLOS** (P15.1–P15.4, spec PARAMETRAGE_LLM_V2 + SPEC_MOTEUR_P15_V2 +
+  ARBITRAGE_P15 : arbitrages B1/B1bis/B2/B3/C1/C2 appliqués).
+- **P16 : LIVRÉ** (P16.1 paramètres d'étude, P16.2/P16.2b page Traitement
+  Reformulation + page Log, P16.3 via moteur P15.3, P16.4 contrôle qualité
+  local) — spec UI_REFORMULATION_V2 ; 188 tests verts.
+- origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
 
@@ -371,17 +378,92 @@ en bout, coût estimé, annulation, reprise — client LLM factice injecté).
 
 ---
 
+## SESSION 2026-10-27 (P16) — BLOC REFORMULATION + PAGE TRAITEMENT : LIVRÉ
+
+Spec de référence : `architecture/spec_v2/UI_REFORMULATION_V2.md` (fait
+autorité), moteur P15.3 inchangé. Deux commits : cb1e363
+(P16.1 + P16.4), 114bf49 (P16.2/P16.2b).
+
+### P16.1 — Paramètres de l'étude ⭐ TERMINÉ (cb1e363)
+
+`ui/parametres_etude_dialog.py` : prompts v2 (reformulation + résumé,
+valeurs par défaut intégrées, réinitialisables), modèle et températures
+surchargeables (contrat §10), fenêtre glissante, interdits stylistiques
+éditables ; defaults dans `services/etude_io.parametres_par_defaut`.
+
+### P16.2/P16.2b — Page Traitement ⭐ TERMINÉ (114bf49)
+
+- `ui/reformulation_window.py` : table de relecture en lecture parallèle
+  (brut lecture seule **sans aucun menu v1**, reformulé éditable), colonne
+  locuteurs avec filtrage (ne masque jamais barre d'état ni boutons),
+  pastilles d'état avec menu des opérations (édition, sauvegarde = nouvelle
+  version `edition_manuelle`, retour arrière figé, reformulation complète
+  avec consigne, reformulation de sélection, valider/dévalider sans
+  cascade), indicateur de version permanent (v + durée + tokens + coût),
+  passes en QThread avec annulation propre (B2) et coût réel (B1), bloc
+  validé figé, timeline v1 ancrée masquable + audio (clic = positionnement,
+  surlignage du mot lu), normalisation `\n` unique.
+- `ui/log_window.py` : page Log en lecture seule avec copie (spec UI §8).
+- `ui/etude_window.py` : bouton « Reformulation… » par réunion.
+
+### P16.3 — Fenêtre glissante : couverte par le moteur P15.3
+
+La page traite les blocs non validés via le moteur ; les reprises
+n'utilisent que du texte validé.
+
+### P16.4 — Contrôle qualité local ⭐ TERMINÉ (cb1e363)
+
+`services/controle_qualite.py` : rapport de longueur (seuil 120 %),
+interdits stylistiques (liste éditable), signalement uniquement.
+
+### Bilan tests : **188 tests verts** (163 + 14 contrôle qualité + 11 UI)
+
+Les invariants UI spec §7 sont couverts par `tests/unit/test_reformulation_ui.py`
+(offscreen, marqueur qt) ; contrôle qualité par `test_controle_qualite.py`.
+
+### DÉCISIONS / ÉCARTS DE LA SESSION (P16) — à arbitrer par l'atelier
+
+1. **Page Log en QDialog** (fenêtre dédiée) plutôt que page intégrée ;
+   lecture seule + copie.
+2. **Surlignage du mot lu** : projection des mots horodatés v1 sur la cellule
+   brute par jetons non-espaces ; si le nombre de jetons diffère (texte
+   corrigé), repli au bloc sans surlignage mot à mot.
+3. **Clic colonne brute → positionnement audio** au mot près (approximation
+   par jetons, même limite que le surlignage).
+4. **Pas d'affichage streaming dans la table** : pastille « en cours »
+   transitoire seulement (la spec §3 ne l'exigeait pas ; coût/graisse d'UI
+   jugés non justifiés en table).
+5. **Validateur par défaut = utilisateur OS** (`getpass.getuser()`) — la
+   spec ne fixait pas la valeur par défaut du champ validateur.
+6. **Synthèse d'étude non mise à jour à la validation d'un bloc** : la spec
+   §5 du menu pastille mentionne « met à jour la synthèse d'étude » —
+   reporté à P17 (la synthèse n'existe pas encore comme mécanisme UI).
+7. **UI fusion / ordre d'ouvrage** (Monter/Descendre) non ajoutée dans la
+   page Traitement : les services existent (P14.5), l'UI reste à brancher
+   si l'atelier la veut en page Reformulation ou en page Ouvrage (P19).
+8. **Bouton « Paramètres » de la page Étude** : ParametresEtudeDialog est
+   livré en dialogue autonome mais pas encore ouvert depuis la page Étude —
+   à brancher (élément UI mineur).
+
+### NON RÉALISÉ (reporté)
+
+- **Bloc Résumé + synthèse d'étude** : P17 (moteur et log prêts).
+- **Contrôle qualité §5.2/§5.4 (références, citations)** : P18 (JND).
+- **Manuel utilisateur / README section Études** : report validé à la
+  première livraison visible.
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P15 est CLOS** (P15.1 à P15.4 livrés ; critères d'acceptation couverts par
-tests avec client factice — une réunion réelle de bout en bout sera
-vérifiée à la première occasion avec une vraie clé, idéalement avec la page
-Traitement P16).
+**P16 est LIVRÉ** (critères feuille de route : relecture source↔résultat par
+bloc, régénération avec consigne, validation figeant sans cascade ; la
+réunion Luc 1b de test de bout en bout avec vraie clé reste à vérifier à la
+première occasion).
 
-1. **P16** — bloc Reformulation et page Traitement (spec :
-   UI_REFORMULATION_V2.md, à jour en v13) : table de relecture, pastille
-   d'état et menu des opérations, page Log en lecture seule, fusion et ordre
-   d'ouvrage (UI), cases de contexte, contrôle qualité §5.1/§5.3.
+1. **P17** — synthèse d'étude et bloc Résumé (source au choix brute/reformulée,
+   longueur cible paramétrable, synthèse versionnée injectée comme contexte,
+   contrôle qualité étendu §17.3).
 
 ---
 
@@ -449,8 +531,9 @@ Traitement P16).
 - **Fusion de pensées** : transférée en P19.4 (composition de l'ouvrage) par
   décision d'atelier — rien d'implémenté, conformément à la consigne.
 - **UI de fusion et d'ordre d'ouvrage** (boutons Monter/Descendre,
-  glisser-déposer) : couche de données complète et testée, l'UI viendra avec
-  la page Traitement (P16).
+  glisser-déposer) : couche de données complète et testée ; l'UI n'est pas
+  entrée avec la page Traitement P16 (écart 7 de la session P16) — à placer
+  en P19 (page Ouvrage) ou arbitrage atelier.
 
 ---
 
