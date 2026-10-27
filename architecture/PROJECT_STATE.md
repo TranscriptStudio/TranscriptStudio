@@ -1,433 +1,215 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-10
-> **Commit actuel** : 59f7241
+> **Dernière mise à jour** : 2026-10-27 (session P14)
 > **Branche** : master
-> **Modifications locales** : OUI (a commiter - P11 préparation : manuel v1.0)
+> **Modifications locales** : aucune (tout est commité)
 
 ---
 
-## 📊 ETAT GIT
+## ETAT GIT
 
-### Position actuelle
-- **Branche** : master
-- **Local vs Origin** : +33 commits (en avance sur origin/master)
-- **Dernier commit** : `59f7241 E2 - Menu contextuel des projets recents : ouvrir le projet, ouvrir le repertoire, retirer de la liste (reference seule) + SettingsManager testable`
-- **Modifications locales** : P11 préparation (manuel v1.0, PDF régénéré, version 1.0 affichée)
-- **Commits récents** :
-  - `59f7241 E2 - Menu contextuel des projets récents`
-  - `91dee65 Correctif icones theme - Teinte derivee du theme configure`
-  - `55b7c3b P10 - Configuration multiplateforme : app_paths, temporaires par session`
-  - `91dd073 P9 finalisation - Icones SVG pretraitement + hauteur globale des boutons (P9.5)`
-  - `7487e24 P9.2-P9.4 - UI multiplateforme finalisee : police systeme, icones media SVG, repli icone, raccourci StandardKey.Save`
-  - `13f4f38 E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues`
-  - `4914a6c Mise a jour PROJECT_STATE.md - P1.3 implemente`
-  - `528ce8c P1.3 - Migration non-destructive des anciens projets : deja implmente via P1.1+P1.2`
-  - `71ac2cf P1.2 - Resolution a l'ouverture : project_file en memoire, resolution audio_file relatif/absolu avec fallback`
-  - `76dc6cf P1.1 - Portable project format v1 : contrats de format, chemins relatifs, pas de project_file dans JSON`
-  - `4db8e15 Mise a jour AGENTS.md - Instructions améliorées pour les agents IA`
-  - `a02afb3 Mise a jour PROJECT_STATE.md - P0.3 implémenté et validé`
-  - `fd615c9 P0.3 - Minimal cross-platform FFmpeg resolver`
-  - `952a010 Commit P0.2 - API capability decoupling`
-  - `b08698e P0.1 First-run + Decouplage API + FFmpeg minimal`
-
-### Fichiers non suivis (untracked)
-- `.vibe/` (dossier de configuration Vibe)
-- `architecture/AGENTS.md` (instructions agent)
-- `architecture/PROJECT_STATE.md` (ce fichier)
-
-### Modifications non commitées
-- `docs/Manuel_utilisateur_Transcript_Studio_v1.0.docx` (P11 préparation : manuel v1.0 review/ajusté — section Installation, avertissement SmartScreen, ligne de dépannage)
-- `docs/Manuel utilisateur.pdf` (régénéré depuis le Word v1.0)
-- `docs/Manuel_utilisateur_Transcript_Studio_v1.1.docx` (supprimé, remplacé par v1.0)
-- `ui/home_window.py` (version affichée : 1.0 / Octobre 2026)
-- `architecture/TranscriptStudio_Roadmap_Portabilite_Tests.md` (P11 stratégie Windows, phases E2/P9.6, statuts)
-- `architecture/PROJECT_STATE.md` (ce fichier)
-
-**PDF v1.0 régénéré** depuis le Word v1.0 (v1.1.docx retiré) — `services/help.py` ouvre le PDF à jour.
-
-#### ✅ **E2 - MENU CONTEXTUEL DES PROJETS RECENTS** ⭐ **TERMINE**
-- **E2.1 Clic droit sur un projet récent** ⭐ **VALIDE**
-  - Commit : 59f7241
-  - Menu contextuel sur `Projets récents` (accueil) : « Ouvrir le projet » (double-clic), « Ouvrir le répertoire du projet » (explorateur, garde-fou si absent), « Retirer de la liste des projets récents » (référence seule, fichier conservé)
-  - `SettingsManager.remove_recent_project()` ; dossier de paramétrage injectable pour les tests
-  - Validation : `tests/unit/test_recent_projects.py` (3 tests) + fumée offscreen ; 30 tests pytest verts
+- Branche `master`, historique propre, tous les commits de la session P14 poussables
+  (origin a 5 commits de retard : les 5 commits P14 de cette session).
+- v1 (P0 à P10, E1, E2) : **terminée et validée** — portabilité, mode sans clé API,
+  résilience, tests.
+- **P11 — Packaging Windows v1.0 : CLOS** (décision David, 2026-10-27) :
+  Nuitka 4.3 standalone + Inno Setup per-machine + ZIP portable, manuel utilisateur
+  v1.0, README complet (build, SHA-256, VirusTotal), licence GPL-3.0.
+- **P12 : CLOS** : correctifs du binaire 1.0 (segfault Nuitka/PySide6 lambdas →
+  functools.partial, FFmpeg embarqué, plugins Qt Multimedia), crash changement de
+  thème (préchargement des feuilles de style), aperçu immédiat du thème, README
+  (captures, VirusTotal 2/68).
+- **P13 : CLOS** : message de fin d'export avec ouverture fichier/dossier.
+- **v2 : DÉMARRÉE** — la feuille de route v2 est `architecture/spec_v2/FEUILLE_DE_ROUTE_V2.md`
+  (copie locale de l'atelier, section v2 aussi dans la roadmap locale) ; le contrat du
+  format étude `CONTRAT_FORMAT_ETUDE_V2.md` fait autorité pour P14.
 
 ---
 
-## 🎯 ETAT DU DEVELOPPEMENT
+## SESSION 2026-10-27 — P14 : FORMAT ÉTUDE & FONDATIONS DONNÉES
 
-### Phases Complétées et Validées
+Rituel de synchro effectué : assets spec/ recopiés dans `architecture/spec_v2/`
+(lecture seule, jamais modifiés), PROJECT_STATE.md remonté vers
+`G:\Mon Drive\TranscriptStudio\Synchro`.
 
-#### ✅ **P0 - DEBLOCAGE IMMEDIAT** ⭐ **TERMINE**
-- **P0.1 First-Run Minimal** ⭐ **VALIDE**
-  - Commit : b08698e
-  - Tous les tests manuels validés
-  
-- **P0.2 Découplage Clé API / Capacités** ⭐ **VALIDE**
-  - Commit : 952a010
-  - Création de `services/api_capabilities.py`
-  - Mises à jour de `elevenlabs_api.py`, `elevenlabs_account_dialog.py`, `transcription_entry_dialog.py`
-  - Tests manuels : validés
-  
-- **P0.3 FFmpeg Multiplateforme Minimal** ⭐ **VALIDE**
-  - Commit : fd615c9
-  - Validation : a02afb3
-  - Résolveur multiplateforme dans `services/ffmpeg_paths.py`
-  - Messages d'erreur clairs
+### P14.1 — Format étude ⭐ TERMINÉ (commit 6794b64)
 
-#### ✅ **P1 - PORTABILITE DES PROJETS** ⭐ **TERMINE**
-- **P1.1 Définir le contrat du format projet** ⭐ **VALIDE**
-  - Commit : 76dc6cf
-  - `project_format_version: 1`
-  - Chemins relatifs pour audio_file
-  - Suppression de project_file du JSON
-  
-- **P1.2 Résolution à l'ouverture** ⭐ **VALIDE**
-  - Commit : 71ac2cf
-  - Résolution des chemins audio depuis le dossier du projet
-  - Compatibilité avec les anciens projets
-  
-- **P1.3 Migration non-destructive** ⭐ **VALIDE**
-  - Commit : 528ce8c
-  - Conversion des chemins absolus en relatifs à la sauvegarde
-  - Suppression de project_file du JSON des anciens projets
-  
-- **P1.4 Sauvegarde et autosave** ⭐ **VALIDE**
-  - Commit : a52e208
-  - Sauvegarde au bon emplacement après déplacement
-  - Title de l'éditeur mis à jour
+- `models/etude.py` : objets du contrat — `Etude` (etude.json), `ReunionEtude`
+  (référence à un projet v1), `RegistreFID` (registre unique pour toute l'étude,
+  FID séquentiels jamais réutilisés), `DecoupageReunion`/`BlocParole`
+  (positions dans l'audio traité, source immuable, origine fusion/sous-découpage),
+  `VersionReformulation` (validation portée par la version, stats LLM, contexte),
+  `ResultatResume` (source stockée avec le résultat), `SyntheseEtude`
+  (déclencheur), `ParametresEtude`.
+- `services/etude_schema.py` : validation de schéma stricte de chaque fichier JSON
+  (clés requises, types, énumérations, timecodes, cohérence du registre) ;
+  `EtudeFormatError` avec fichier + message.
+- `services/etude_io.py` : création/ouverture/sauvegarde d'une étude, réunions
+  (ajout par référence, retrait, ordre), FID, découpage, résultats versionnés
+  (jamais d'écrasement), résumés, synthèse, paramètres, résolution des chemins
+  **relatif → absolu historique → relocalisation guidée**, **mode dégradé** (projet
+  introuvable : l'étude s'ouvre sans bloquer).
+- `services/timecodes.py` : timecodes `HH:MM:SS.mmm` du contrat + horodatage ISO.
+- `resources/prompts/` : prompts v2 (reformulation, résumé) embarqués comme
+  **valeurs actives par défaut** des paramètres d'étude (contrat §10). Aucune clé
+  API en clair (cle_ref credential_store).
+- `tests/unit/test_etude_format.py` : 34 tests, **dont les 5 règles d'invariance
+  du contrat §12** (projet v1 intact à l'ouverture, FID/versions jamais écrasés,
+  retrait d'une réunion sans toucher au projet v1 ni au registre, déplacement du
+  dossier étude sûr, un projet v1 référencé par plusieurs études).
 
-#### ✅ **P2 - MODE SANS CLE API** ⭐ **TERMINE**
-- **P2.1 Centraliser la notion de capacité** ⭐ **VALIDE**
-  - Commit : e976c57
-  - `services/api_capabilities.py` avec APICapabilityManager
-  - Distinction capacités locales (FFmpeg) et en ligne (API)
-  
-- **P2.2 Fonctions autorisées sans API** ⭐ **VALIDE**
-  - Commit : e976c57
-  - Toutes les fonctions vérifiées : ouverture, lecture, modification, sauvegarde, export, prétraitement, finalisation, playback
-  
-- **P2.3 Fonctions nécessitant l'API** ⭐ **VALIDE**
-  - Commit : e976c57
-  - Blocage des appels sans clé dans `ElevenLabsTranscriber`
-  - UX dégradée : bouton Transcrire désactivé + message clair
-  - Proposition d'ouvrir les paramètres
-  
-- **P2.4 UX recommandée** ⭐ **VALIDE**
-  - Commit : e976c57
-  - Bouton Transcrire visible mais désactivé sans clé
-  - Affichage discret de l'état API sur l'accueil
+### P14.2 — Journal des opérations de prétraitement ⭐ TERMINÉ (commit 01a6610)
 
-#### ✅ **P3 - DECOUPLAGE FINALISATION AUDIO / TRANSCRIPTION** ⭐ **TERMINE**
-- **P3.1 Séparer les opérations** ⭐ **VALIDE**
-  - Commit : dbe13f1
-  - Refactorisation en `_start_finalization()`
-  - Boutons "💾 Finaliser" et "☁ Transcrire" séparés
-  
-- **P3.2 Cycle de vie du projet** ⭐ **VALIDE**
-  - Commit : dbe13f1
-  - Gestion via `_finalize_mode`
-  - Finalisation sans transcription possible
+- `services/preprocessing_journal.py` : `journal_operations.json`, **fichier
+  additionnel du dossier projet v1** (additif, non destructif) — opérations
+  `decoupe` (positions), `silence_supprime` (position, durée originale, buffer),
+  `acceleration` (facteur) ; **un nouveau journal remplace l'ancien** à chaque
+  re-prétraitement ; présence optionnelle (projets antérieurs → None).
+- Conversions **pures** `position_originale_vers_traitee` /
+  `position_traitee_vers_originale` (secondes), règles de composition respectées :
+  l'accélération s'applique aux positions post-suppression, les silences ne sont
+  pas accélérés, positions/durées des silences dans le référentiel du discours
+  original (pré-découpe).
+- `duree_originale_pause(journal, position_traitee, seuil)` : durée originale de
+  la pause à une position de l'audio traité, le buffer conservé étant accepté
+  dans la marge — signal de coupe du P14.4.
+- Intégration : `AudioProcessingPipeline` construit le journal au fil du
+  `run()` ; le dialogue de prétraitement l'écrit dans le dossier projet à la fin
+  du traitement (worker : signal finished à 3 arguments).
+- `tests/unit/test_preprocessing_journal.py` : 19 tests (composition complète,
+  aller-retours, frontières documentées, validation, pauses) dont 2
+  d'intégration avec vrai FFmpeg (marqueur `slow`).
+- Correctif au passage : `tests/unit/test_ffmpeg_resolver.py` rechargeait le
+  module sous `sys.platform` patché **sans le restaurer** — la suite entière
+  héritait de FFMPEG_NAME="ffmpeg" (contamination des tests qui exécutent
+  réellement FFmpeg) ; rechargement restaurateur ajouté.
 
-#### ✅ **P4 - RESILIENCE FACE A UN MEDIA MANQUANT** ⭐ **TERMINE**
-- **P4.1 Stratégie de récupération** ⭐ **VALIDE**
-  - Commit : c5ca718
-  - Détection du media manquant à l'ouverture
-  - Dialogue "Localiser le fichier... / Ouvrir sans audio / Annuler"
-  - Mise à jour de la référence en mémoire si relocalisé
-  - Conversion en chemin relatif à la sauvegarde
-  
-- **P4.2 Mode édition sans media** ⭐ **VALIDE**
-  - Commit : c5ca718
-  - Désactivation des contrôles de lecture
-  - Affichage état "Audio indisponible" dans le titre
-  - Conservation de l'édition, sauvegarde et exports
+### P14.3 — Page Étude ⭐ TERMINÉ (commit da32b1b)
 
-#### ✅ **P5 - NETTOYAGE** ⭐ **TERMINE**
-- **P5.1 TranscriptAudio -> TranscriptStudio** ⭐ **VALIDE**
-  - Commit : 93f90e9
-  - Dossier temporaire renommé dans `audio_waveform_service.py`
-  - Aucune autre occurrence trouvée dans le code source
-  
-- **P5.2 Audit pathlib** ⭐ **VALIDE**
-  - Commit : 93f90e9
-  - Aucun chemin Windows-only trouvé
-  - Utilisation systématique de `pathlib.Path`
-  
-- **P5.3 Audit des imports et code mort** ⭐ **VALIDE**
-  - Commit : 93f90e9
-  - Import dupliqué de ProgressDialog supprimé dans `home_window.py`
+- Accueil : section **Études** (études récentes, « Nouvelle étude »,
+  « Ouvrir une étude ») à côté des projets récents ; `SettingsManager`
+  (get/add/remove/cleanup_recent_etudes).
+- `ui/etude_window.py` : vue d'ensemble — réunions dans l'ordre de lecture avec
+  statuts (joignable / projet introuvable / résumé validé), ajout de réunions
+  (**projets v1 inchangés, référencés par chemin relatif avec fallback absolu**),
+  ordre modifiable (Monter/Descendre), retrait (sans toucher au projet v1 ni au
+  registre FID), **relocalisation guidée** pour un projet introuvable,
+  ouverture de la réunion dans l'éditeur v1 existant, mode dégradé avec
+  avertissement explicite.
+- `tests/unit/test_recent_etudes.py` (3 tests) ; fumée offscreen de l'accueil et
+  de la page Étude (y compris mode dégradé) validée.
 
-#### ✅ **P6 - STOCKAGE SECURISE DES CLES API** ⭐ **TERMINE**
-- **P6.1 Abstraction** ⭐ **VALIDE**
-  - Commit : 5744295
-  - Creation de `services/credential_store.py`
-  - Intégration dans api_capabilities, elevenlabs_api, elevenlabs_transcriber, settings_dialog
-  
-- **P6.2 Migration** ⭐ **VALIDE**
-  - Commit : 5744295
-  - Méthode de migration depuis SettingsManager
-  - Ne jamais journaliser la clé
+### P14.4 — Découpage & sous-découpage automatique ⭐ TERMINÉ (commit 75075fd)
 
-#### ✅ **P7 - TESTS AUTOMATISES** ⭐ **TERMINE**
-- **P7.1 Structure de tests** ⭐ **VALIDE**
-  - Commit : 7bfcd17
-  - Structure tests/unit/ et tests/integration/ créée
-  - conftest.py avec fixtures créées
-  - 18 tests unitaires opérationnels (hors Qt)
-  
-- **P7.2 Contenu des tests** ⭐ **VALIDE**
-  - Commit : 7bfcd17
-  - Tests pour project_io, ffmpeg_resolver, api_capabilities
-  - Pas de vraie clé API incluse
-  
-- **P7.3 Matrice CI** ⭐ **PARTIEL**
-  - Commit : 7bfcd17
-  - pytest passe sur les tests non-Qt
-  - CI à configurer pour Windows/macOS/Linux
+- `services/decoupage.py` :
+  - segmentation depuis la diarisation validée du projet v1 (un bloc =
+    intervention, locuteur, positions dans l'audio traité, source = texte du
+    bloc non modifié) ;
+  - **sous-découpage déterministe et local des monologues longs** : points de
+    coupe candidats aux fins de phrase, scorés (pause longue du discours
+    originel via le journal = signal principal ; marqueurs de transition
+    « ensuite », « enfin », « deuxième »... ; fin de phrase), **pénalité absolue
+    dans une citation biblique entre guillemets « »** ; sélection par
+    programmation dynamique sous bornes de mots (600–900 par défaut,
+    configurables) ; sans journal → scoring textuel seul ;
+  - **ré-attribution des FID** (contrat §6) : bornes inchangées → FID conservé ;
+    nouveaux blocs → nouveaux FID (jamais réutilisés) ; FID disparus →
+    `actif: false` avec horodatage de fin (le FID reste au registre avec ses
+    résultats).
+- `tests/unit/test_decoupage.py` : 7 tests (fidélité à la diarisation, pauses
+  réelles, jamais dans une citation, ré-attribution en re-segmentation stable et
+  en bornes changées).
 
-#### ✅ **P8 - FFMPEG MULTIPLATEFORME AVANCE** ⭐ **TERMINE**
-- **P8.1 Résolveur FFmpeg** ⭐ **VALIDE**
-  - Commit : f327448
-  - Stratégie hiérarchique : embarqué → config utilisateur → PATH
-  - _get_embedded_ffmpeg_paths() pour multiplateforme
-  - get_ffmpeg_path(settings) avec fallback
-  
-- **P8.2 Organisation des binaires** ⭐ **VALIDE**
-  - Commit : f327448
-  - Structure tools/ffmpeg/{platform}/ supportée
-  - Ready pour packaging
+### Bilan tests
 
-#### ✅ **P9 - UI MULTIPLATEFORME** ⭐ **TERMINE**
-- **P9.1 Themes** ⭐ **VALIDE**
-  - Commit : b9429dd
-  - Remplacement de `app.setStyle("Windows11")` par `Fusion` + qdarktheme
-  - Integration de pyqtdarktheme (qdarktheme) pour les themes modernes
-  - Personnalisation du fond general (remplace blanc pur par #fafafa/#f8f8f8)
-  - Personnalisation des boutons (texte lisible, fond coherents)
-  
-- **P9.2 Polices** ⭐ **VALIDE**
-  - Commit : 7487e24
-  - Suppression de `QFont("Segoe UI Light", 28)` (Windows-only) dans `home_window.py`
-  - Police système via `QFontDatabase.systemFont(GeneralFont)` + graisse Light
-  - Emojis critiques des contrôles média remplacés par des SVG
-
-- **P9.3 Icones** ⭐ **VALIDE**
-  - Commit : 7487e24 (correctifs : 91dd073)
-  - `services/icons.py` : `make_tinted_icon(color, svg, size, dpr)` — icône SVG teintée, ancre `fill="#2942ff"`
-  - Boutons lecture/pause/précédent/suivant de l'éditeur : `icons/player-*.svg` teintés avec la couleur de texte du thème (le rendu des emojis varie fortement selon l'OS)
-  - Correctif : mêmes SVG dans la fenêtre de prétraitement (lecteurs original **et** résultat, bascules play/pause en `setIcon`, `player-stop.svg`)
-  - `make_speaker_icon` refactoré en délégation à `services/icons.py`
-  - Démarrage indépendant de `icon.ico` : repli `logo.png`, puis démarrage sans icône (`TranscriptStudio.py`)
-  - `.icns` macOS et validation visuelle des icônes restantes (emojis non critiques, libellés texte) : reportés au packaging (P11)
-
-- **P9.4 Raccourcis** ⭐ **VALIDE**
-  - Commit : 7487e24
-  - `QKeySequence("Ctrl+S")` remplacé par `QKeySequence.StandardKey.Save` (`main_window.py`) — mapping automatique `Cmd+S` sous macOS
-
-- **P9.5 Hauteur des boutons** ⭐ **VALIDE**
-  - Commit : 91dd073
-  - Constantes `ICON_BUTTON_WIDTH` / `ICON_BUTTON_HEIGHT` dans `services/icons.py` : taille de **tous** les boutons de l'application
-  - `make_button_height_css()` : hauteur fixée en CSS (`min-height`/`max-height` hors padding/bordure) — le modèle de taille de la stylesheet du thème dépasse `setFixedSize`
-  - Styles par-bouton (éditeur, prétraitement, lecteur de résultat) + stylesheet globale des boutons (`theme_manager.py`, `padding: 2px 12px`, `min-height` calculé) : accueil, paramètres et dialogues inclus
-  - Vérifié offscreen sous le vrai thème : 13 boutons éditeur + 10 boutons prétraitement à 40x25, boutons texte ≤ hauteur cible
-
-- **P9.6 Teinte des icônes par thème** ⭐ **VALIDE**
-  - Commit : 91dee65
-  - `make_theme_text_color(theme)` dans `services/icons.py` : teinte dérivée du **thème configuré** (`light` → noir `#191919`, `dark` → clair `#F0F0F0`, `system` → schéma de couleurs OS) — la palette Qt ne reflète pas la stylesheet du thème (restait la palette par défaut du système : icônes claires invisibles en thème clair sur Windows sombre)
-  - Corrigé aux 8 points de teinte : barre d'outils éditeur, bascule play/pause, icônes A+/A-, barre d'outils prétraitement, lecteur de résultat, bascules des deux lecteurs, reset après stop
-  - Vérifié pixel par pixel offscreen : thème clair → icônes noires (luminance ≤ 26), thème sombre → claires (≥ 240)
-
-#### ✅ **E1 - AMELIORATIONS UX EDITEUR** ⭐ **TERMINE**
-- **E1.1 Puce speaker** ⭐ **VALIDE**
-  - Commit : 0e8a35a
-  - `icons/user.svg` teinté à la couleur de l'intervenant (`QSvgRenderer`, pixmap haute densité)
-  - Remplace le disque CSS dont le `border-radius` était écrasé par la stylesheet qdarktheme (P9.1)
-  - Bouton plat, cliquable, insensible aux stylesheets globales
-
-- **E1.2 Mot lu sans décalage** ⭐ **VALIDE**
-  - Commit : 0e8a35a
-  - Suppression du `font-weight:bold` sur le mot actif : la mise en gras provoquait un reflow de tous les mots suivants
-
-- **E1.3 Surlignage animé du mot lu** ⭐ **VALIDE**
-  - Commit : 13f4f38
-  - Surlignage via `ExtraSelections` avec cartographie des ancres `word_N` -> positions document
-  - Fin du re-render HTML complet à chaque changement de mot (gain performance + zéro reflow)
-  - Fondu d'apparition ~70 ms (`QVariantAnimation`, OutQuad) ; fondu de retrait ~180 ms, **une animation par mot** : en lecture rapide, plusieurs mots s'effacent simultanément sur toute leur durée au lieu de disparaître instantanément
-  - Gestion du scrubbing arrière (interruption du fondu sortant du mot réactivé, reprise depuis l'alpha courant) et réapplication sans animation après re-render
-  - Régions continues : chaque mot réel possède une région couvrant l'espace qui le précède, son texte et sa ponctuation ; ponctuation isolée (`:`, `?`, `»,`) groupée avec le mot précédent ; guillemets ouvrants (`«`) groupés avec le mot suivant — chaque espace d'inter-mots est coloré avec le mot qui le suit, la bande de surlignage est continue pendant la lecture
-  - Items purs (ponctuation/guillemets autonomes) : région vide, aucun surlignage individuel ni fondu fantôme
-  - Correction rémanence : `stop()` n'émet pas `finished` sur `QVariantAnimation`, un fondu sortant interrompu (mot plus court que le fondu) laissait le mot surligné à alpha partiel de façon permanente ; retrait explicite dans `start_fade_out`
-  - Thème sombre : variante assombrie du jaune (`HIGHLIGHT_COLOR_DARK`, détection via la couleur de texte du thème) ; la couleur du texte n'est **jamais** modifiée — la sélection ne peint que le fond, le texte garde sa couleur du thème (blanc en sombre, noir en clair) à tout instant ; les constantes de couleur acceptent un tuple `(r, g, b)` ou un hex `"#rrggbb"` (`make_highlight_color`)
-  - Ancres, clics souris, double-clic et menus contextuels inchangés
-  - Validation : script fonctionnel offscreen `.vibe/test_highlight_fade.py` (9 contrôles verts, dont régions avec ponctuation/guillemets et transitions rapides)
-
-#### ✅ **P10 - CONFIGURATION MULTIPLATEFORME** ⭐ **TERMINE**
-- **P10.1 `app_paths.py`** ⭐ **VALIDE**
-  - Commit : 55b7c3b
-  - `platformdirs` réservé aux données applicatives (`APP_DATA_DIR`), `QStandardPaths` pour les dossiers utilisateur (déjà en place depuis P0)
-  - Pas de création automatique du répertoire projets à l'import (déjà en place)
-  - Chemins centralisés : `APP_DATA_DIR`, `TEMP_DIR`, `SESSION_TEMP_DIR`, `LEGACY_PROJECTS_DIR` ; `settings.py` et `audio_waveform_service.py` consomment le module
-- **P10.2 Temporaires** ⭐ **VALIDE**
-  - Commit : 55b7c3b
-  - `SESSION_TEMP_DIR` : sous-dossier unique par session (uuid) — deux instances simultanées ou deux médias de même nom ne se marchent plus dessus
-  - `ensure_session_temp_dir()` (création à la demande) + `cleanup_session_temp_dir()` via `atexit`
-  - Renommage `TranscriptAudio` -> `TranscriptStudio` déjà fait en P5.1
-  - Nettoyages existants du dialogue de prétraitement inchangés (fichiers par chemin) ; volume différent / lecture seule à valider au packaging (P11)
-
-### Phases Suivantes
-1. **P11 - PACKAGING** (builds Windows/macOS/Linux, `.icns`, validation visuelle multi-OS)
+- **93 tests pytest verts** (`tests/unit`, exécution confirmée le 2026-10-27,
+  environnement conda `transcript`, Python 3.11.15) : 30 v1 + 63 v2 (34 format
+  étude, 19 journal, 3 études récentes, 7 découpage).
+- Les 5 règles d'invariance du contrat sont couvertes par des tests dédiés.
 
 ---
 
-## 🔍 VERIFICATION DES REALISATIONS
+## DÉCISIONS TECHNIQUES DE LA SESSION (P14)
 
-### Ce qui a été confirmé dans le code :
-- [x] `services/api_capabilities.py` existe avec APICapabilityManager et toutes les fonctions requises
-- [x] `services/elevenlabs_api.py` vérifie la clé API à l'initialisation
-- [x] `ui/elevenlabs_account_dialog.py` utilise `can_access_account_info()`
-- [x] `ui/transcription_entry_dialog.py` utilise `has_transcription_api()` et désactive l'option sans API
-- [x] `ui/new_transcription_dialog.py` utilise `has_transcription_api()` pour désactiver le bouton Transcrire
-- [x] `ui/home_window.py` affiche l'état API, gère l'ouverture des paramètres et le mode de finalisation
-- [x] `ui/audio_preprocess_dialog.py` implémente les boutons Finaliser/Transcrire et `_start_finalization()`
-- [x] `services/ffmpeg_paths.py` a un résolveur multiplateforme avec fallback PATH
-- [x] `models/project.py` a `project_format_version` et ne sauvegarde pas `project_file`
-- [x] `services/project_io.py` implémente la résolution des chemins et la migration
-- [x] `ui/main_window.py` implémente `handle_missing_audio()` et `disable_audio_controls()`
-- [x] `services/audio_waveform_service.py` utilise `TranscriptStudio` au lieu de `TranscriptAudio`
-- [x] `ui/home_window.py` sans import dupliqué de `ProgressDialog`
-- [x] `services/credential_store.py` avec CredentialStore et toutes les méthodes requises
-- [x] `services/api_capabilities.py` utilise CredentialStore via _credential_store
-- [x] `services/elevenlabs_api.py` utilise CredentialStore
-- [x] `services/elevenlabs_transcriber.py` utilise CredentialStore
-- [x] `ui/settings_dialog.py` utilise CredentialStore
-- [x] `ui/block_widget.py` : icône speaker teintée via `make_speaker_icon` (user.svg + couleur intervenant)
-- [x] `ui/block_widget.py` : surlignage du mot actif par ExtraSelections, plus aucun re-render HTML à chaque mot
-- [x] `ui/home_window.py` : police système (`QFontDatabase.systemFont`), plus de dépendance `Segoe UI Light`
-- [x] `ui/main_window.py` : boutons média en SVG teinté thème, raccourci `QKeySequence.StandardKey.Save`
-- [x] `services/icons.py` : `make_tinted_icon` (icônes SVG teintées multiplateforme)
-- [x] `TranscriptStudio.py` : icône de démarrage avec repli (`icon.ico` → `logo.png` → aucune), pas de crash si absente
+1. **Champ additionnel `chemin_absolu`** dans `reunions/<nom>.json` : le contrat
+   §4 impose un « chemin absolu historique stocké en secours à la première
+   résolution réussie » mais son exemple ne le montre pas → clé ajoutée (None
+   par défaut, remplie à la première résolution, persistée à la sauvegarde).
+2. **Champ additionnel `buffer`** (secondes, nombre) dans chaque opération
+   `silence_supprime` du journal : la feuille de route §3.1 exige la consignation
+   du buffer conservé, et le P14.4 en a besoin (le silence résiduel de l'audio
+   traité encadre la coupe) ; l'exemple du contrat §11 ne le montre pas.
+3. **Sémantique des frontières de conversion** (documentée dans
+   `services/preprocessing_journal.py`) : une position située dans la partie
+   supprimée d'un silence se projette sur le début de la coupe ; la position
+   exacte d'une frontière revient au début de la partie supprimée (choix
+   conservateur ; les deux côtés d'une coupe partagent la même position traitée).
+4. **Positions des silences du journal dans le référentiel du discours original**
+   (pré-découpe) : les silences sont détectés sur l'audio découpé, le pipeline
+   ajoute le décalage de découpe — conforme feuille de route §3.1.
+5. **Doublon refusé au sein d'une étude** : le même projet v1 ne peut pas être
+   référencé par deux réunions d'une même étude (`ajouter_reunion` lève une
+   erreur) ; le contrat l'interdit *entre* études seulement, choix conservateur
+   car FID et titres d'une même étude deviendraient ambigus.
+6. **Journal écrit à la fin du traitement** (et non de la finalisation) dans le
+   dossier projet : un re-traitement le remplace, un abandon supprime le
+   dossier provisoire avec lui.
+7. **Sous-découpage : signaux implémentés** = fin de phrase + pause du discours
+   originel + marqueurs de transition + interdiction citation. Les signaux
+   « fin de paragraphe » et « changement de référence biblique » de la feuille
+   de route ne sont pas implémentés : le format v1 ne stocke pas de marqueurs de
+   paragraphes, et le parsing de références arrive en P18 (JND).
+8. **Page Étude → éditeur v1** : l'éditeur s'ouvre dans une fenêtre séparée ;
+   son bouton Accueil revient à l'accueil général (pas à la page Étude) —
+   navigation acceptable pour P14, à revoir en P16 si l'atelier le souhaite.
+9. `resources/prompts/` doit être **inclus au prochain build packaging**
+   (aux côtés de icons/ et du manuel) — pas de build v2 pour l'instant.
 
-### Tests manuels réalisés (selon commits) :
-- [x] P0.1 : Tous les tests validés
-- [x] P0.2 : Tests validés (démarrage sans clé, transcription directe bloquée, ajout clé fonctionnel)
-- [x] P0.3 : Tests validés (FFmpeg détecté sur toutes les plateformes)
-- [x] P1 : Tests manuels validés (création, copie, ouverture, modification, sauvegarde)
-- [x] P2 : Tests validés (démarrage sans clé, ouverture projet, export, prétraitement, finalisation, bouton Transcrire désactivé, message API clair)
-- [x] P3 : Tests validés (bouton Finaliser, découplage finalisation/transcription)
-- [x] P4 : Tests validés (media manquant, relocalisation, ouverture sans audio)
-- [x] P5 : Tests validés (nettoyage des noms historiques)
-- [x] P6 : Tests à valider (stockage sécurisé des clés)
-- [x] P7 : Suite pytest exécutée le 2026-10-10 (22 tests verts)
-- [x] E1 : Script fonctionnel surlignage validé (cartographie, fondus, transition, scrubbing, transitions rapides sans rémanence, re-render, ancres)
+## ÉCARTS / POINTS À ARBITRER PAR L'ATELIER
 
----
+- Les deux clés additionnelles (`chemin_absolu`, `buffer`) sont additives et
+  strictement conformes au texte du contrat ; à confirmer pour qu'elles
+  deviennent contractuelles.
+- La sémantique des frontières de conversion (décision 3) est un choix
+  conservateur documenté ; arbitrage bienvenu.
+- README et manuel utilisateur ne couvrent pas encore la section Études (UI
+  P14.3) : à mettre à jour au moment d'une livraison visible (P16 ou export v2).
 
-## 🧪 TESTS
+## NON RÉALISÉ DANS P14 (hors périmètre de la session)
 
-### Tests existants
-- **Fichier** : `test/test.py`
-- **Contenu** : Exemple basique pyqtgraph
-- **Statut** : Non pertinent pour la validation fonctionnelle
-
-### Tests automatisés
-- **État** : 27 tests pytest verts (`tests/unit` : project_io, ffmpeg_resolver, api_capabilities, app_paths), exécution confirmée le 2026-10-10
-- **Script fonctionnel** : `.vibe/test_highlight_fade.py` (surlignage ExtraSelections + fondus, offscreen, 7 contrôles)
-- **À faire** : P7.3 CI multi-OS ; intégrer les tests Qt/PySide6 (marqueur `qt`)
+- **P14.5** — fusion de blocs (FID sources, attribution multiple, réversibilité)
+  et ordre d'ouvrage par réunion : non commencé.
+- **P15/P16** — service LLM et page Reformulation : ne démarrent pas avant
+  validation de P14 par l'atelier (specs séparées dans spec_v2/).
 
 ---
 
-## 🚀 PROCHAINE ETAPE RECOMMANDEE
+## PROCHAINE ÉTAPE RECOMMANDÉE
 
-### Priorité immédiate : **P11 - PACKAGING WINDOWS (version 1.0)**
-
-**Objectif** : Diffuser la première version exécutable de Transcript Studio pour Windows
-**Stratégie retenue** : Nuitka standalone (MSVC) + installateur Inno Setup + ZIP portable ; MSI différé, MSIX exclu (signature obligatoire) ; réalités SmartScreen documentées dans le manuel v1.0
-
-#### Actions principales :
-- [x] Documentation utilisateur v1.0 (copie du manuel Word : section Installation, SmartScreen, mise à jour, dépannage)
-- [ ] Review visuelle du manuel v1.0 dans Word, puis régénération du PDF (`docs/Manuel utilisateur.pdf`)
-- [ ] Build Nuitka reproductible (MSVC, standalone, plugin PySide6) depuis un environnement propre
-- [ ] Inclusion : `icons/`, `docs/Manuel utilisateur.pdf`, `tools/ffmpeg/windows/ffmpeg.exe`
-- [ ] Script Inno Setup (per-machine, raccourcis, désinstallation) + ZIP portable
-- [ ] Vérification VirusTotal, test sur machine sans Python
-- [ ] macOS/Linux : reportés (VM à créer)
-
-#### Fichiers concernés :
-- Packaging scripts (à créer : `packaging/build_windows.py`, `packaging/transcriptstudio.iss`)
-- `requirements.txt` (ajout nuitka), `tools/ffmpeg/windows/`
-
-#### Prérequis :
-- ✅ P0 à P10 terminés (P10 : 55b7c3b)
-- ✅ E1 terminé (0e8a35a, 13f4f38)
-- ✅ Documentation utilisateur v1.0 réalisée
+1. **Arbitrage atelier** des écarts ci-dessus (retour attendu via le dossier
+   Synchro).
+2. **P14.5** (fusion de blocs + ordre d'ouvrage par réunion) pour clore P14.
+3. **P15** — service LLM multi-fournisseurs (spec : PARAMETRAGE_LLM_V2.md),
+   après validation de P14.
 
 ---
 
-## 📋 RESUME DES COMMITS RECENTS
+## RAPPEL DU CYCLE v1 (TERMINÉ)
 
-| Commit | Message | Statut | Phase |
-|--------|---------|--------|-------|
-| 7487e24 | P9.2-P9.4 - Polices systeme, icones media SVG teintees, repli icone demarrage, raccourci standard | ✅ VALIDE | P9 |
-| 91dd073 | P9.5 - Icones SVG pretraitement + hauteur globale des boutons (ICON_BUTTON_*, CSS) | ✅ VALIDE | P9 |
-| 55b7c3b | P10 - Configuration multiplateforme : app_paths centralise, temporaires uniques par session, 5 tests | ✅ VALIDE | P10 |
-| 91dee65 | Correctif icones theme - Teinte derivee du theme configure (noir en clair) | ✅ VALIDE | P9 |
-| 59f7241 | E2 - Menu contextuel projets recents : ouvrir, ouvrir repertoire, retirer de la liste | ✅ VALIDE | E2 |
-| (a realiser) | P11 preparation - Manuel utilisateur v1.0 (docx + PDF regenere, v1.1 retire), version 1.0 affichee, roadmap P11 | ⏳ A COMMIT | P11 |
-| 13f4f38 | E1.3 - Surlignage anime du mot lu : ExtraSelections, fondus par mot, regions continues | ✅ VALIDE | E1 |
-| 0e8a35a | E1.1/E1.2 - Icône user.svg teintée + suppression bold mot lu | ✅ VALIDE | E1 |
-| b9429dd | P9 - UI Multiplateforme : integration qdarktheme + correction bug _credential_store | ✅ VALIDE | P9 |
-| 7bfcd17 | P7 - Tests automatises | ✅ VALIDE | P7 |
-| 5744295 | P6 - Stockage securise des cles API | ✅ VALIDE | P6 |
-| 93f90e9 | P5 - Nettoyage et standardisation | ✅ VALIDE | P5 |
-| c5ca718 | P4 - Resilience face a un media manquant | ✅ VALIDE | P4 |
-| dbe13f1 | P3 - Decouplage finalisation audio / transcription | ✅ VALIDE | P3 |
-| 749ed6c | P2 - Mode sans cle API : UX degradee et decouplage fonctionnel | ✅ VALIDE | P2 |
-| a52e208 | P1.4 - Sauvegarde et autosave : deja implemente via P1.2 | ✅ VALIDE | P1 |
-| 4914a6c | Mise a jour PROJECT_STATE.md - P1.3 implemente | ✅ DOC | P1 |
-| 528ce8c | P1.3 - Migration non-destructive des anciens projets | ✅ VALIDE | P1 |
-| 71ac2cf | P1.2 - Resolution a l'ouverture | ✅ VALIDE | P1 |
-| 76dc6cf | P1.1 - Portable project format v1 | ✅ VALIDE | P1 |
-| fd615c9 | P0.3 - Minimal cross-platform FFmpeg resolver | ✅ VALIDE | P0 |
-| a02afb3 | Mise a jour PROJECT_STATE.md - P0.3 implémenté et validé | ✅ DOC | P0 |
-| 952a010 | Commit P0.2 - API capability decoupling | ✅ VALIDE | P0 |
-| b08698e | P0.1 First-run + Decouplage API + FFmpeg minimal | ✅ VALIDE | P0 |
+P0 (first-run, découplage API, FFmpeg) → P1 (format projet portable v1) →
+P2 (mode sans clé) → P3 (découplage finalisation/transcription) → P4 (résilience
+media manquant) → P5 (nettoyage) → P6 (CredentialStore) → P7 (tests) →
+P8 (résolveur FFmpeg hiérarchique) → P9 (UI multiplateforme : Fusion + qdarktheme,
+icônes SVG teintées thème) → P10 (app_paths, temporaires par session) →
+E1 (UX éditeur : surlignage animé du mot lu) → E2 (menu contextuel projets
+récents) → **P11/P12/P13 (packaging Windows 1.0 + correctifs + export)**.
+
+27+ tests v1 historiques toujours verts ; architecture multiplateforme en
+place (aucune régression introduite par P14 : code nouveau isolé, pipeline v1
+seulement étendu de façon additive).
 
 ---
 
-## 🎯 DEFINITION OF DONE ACTUELLE
-
-### P0 - DEBLOCAGE IMMEDIAT
-- [x] P0.1 : First-run fonctionnel et validé
-- [x] P0.2 : Découplage API implémenté et validé
-- [x] P0.3 : FFmpeg multiplateforme implémenté et validé
-- **Statut** : ✅ **100% TERMINE**
-
-### P1 - PORTABILITE DES PROJETS
-- [x] P1.1 : Contrat de format projet implémenté et validé
-- [x] P1.2 : Résolution à l'ouverture implémentée et validée
-- [x] P1.3 : Migration non-destructive implémentée et validée
-- [x] P1.4 : Sauvegarde après déplacement implémentée et validée
-- **Statut** : ✅ **100% TERMINE**
-
-### Global
-- **P0** : ✅ **TERMINE**
-- **P1** : ✅ **TERMINE**
-- **P2** : ✅ **TERMINE**
-- **P3** : ✅ **TERMINE**
-- **P4** : ✅ **TERMINE**
-- **P5** : ✅ **TERMINE**
-- **P6** : ✅ **TERMINE**
-- **P7** : ✅ **TERMINE**
-- **P8** : ✅ **TERMINE**
-- **P9** : ✅ **TERMINE** (P9.1 : b9429dd ; P9.2-P9.4 : 7487e24 ; P9.5 : 91dd073)
-- **E1** : ✅ **TERMINE** (E1.1/E1.2 : 0e8a35a ; E1.3 : 13f4f38)
-- **P10** : ✅ **TERMINE** (chemins centralises, temporaires isoles par session)
-- **E2** : ✅ **TERMINE** (menu contextuel projets recents, 30 tests verts)
-- **Prochaine** : **P11 - Packaging Windows (version 1.0)** - documentation v1.0 réalisée
-
----
-
-*Ce fichier est mis à jour après chaque étape significative du développement.*
-*Dernière mise à jour : après vérification complète de l'état du dépôt et des commits.*
+*Ce fichier est mis à jour après chaque étape significative du développement.
+Il est copié vers `G:\Mon Drive\TranscriptStudio\Synchro\PROJECT_STATE.md` à
+chaque commit (hook post-commit) et lors du rituel de synchro.*
