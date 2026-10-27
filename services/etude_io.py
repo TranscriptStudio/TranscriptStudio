@@ -65,6 +65,7 @@ from services.etude_schema import (
     valider_synthese,
 )
 from services.resources import resource_path
+from services.timecodes import horodatage_iso
 
 
 FICHIER_ETUDE = "etude.json"
@@ -97,11 +98,7 @@ def horodatage_courant() -> str:
     Horodatage ISO local ``AAAA-MM-JJTHH:MM:SS``.
     """
 
-    return (
-        datetime
-        .now()
-        .isoformat(timespec="seconds")
-    )
+    return horodatage_iso()
 
 
 def normaliser_sauts_paragraphe(texte: str) -> str:

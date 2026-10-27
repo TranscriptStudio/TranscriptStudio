@@ -30,6 +30,9 @@ from services.audio_waveform_service import AudioWaveformService
 from services.audio_processing_pipeline import  AudioProcessingPipeline
 from services.silence_detection_service import SilenceDetectionService
 from services.audio_processing_worker import AudioProcessingWorker
+from services.preprocessing_journal import (
+    enregistrer_journal
+)
 from services.audio_finalization_worker import AudioFinalizationWorker
 from services.project_manager import ProjectManager
 from services.icons import (
@@ -2067,7 +2070,10 @@ class AudioPreprocessDialog(QDialog):
                 self.audio_file,
                 self.processing_wav,
                 self.settings,
-                output_file
+                output_file,
+                duree_originale=(
+                    self.duration
+                )
             )
         )
 
@@ -2155,8 +2161,28 @@ class AudioPreprocessDialog(QDialog):
     def processing_finished(
         self,
         output_file,
-        document
+        document,
+        journal
     ):
+        #
+        # Journal des opérations de prétraitement
+        # (P14.2) : fichier additionnel du projet v1,
+        # un nouveau journal remplace l'ancien à
+        # chaque re-prétraitement.
+        #
+        if journal is not None:
+
+            try:
+                enregistrer_journal(
+                    journal,
+                    self.project_folder
+                )
+            except OSError as e:
+                print(
+                    "[JOURNAL] Écriture impossible :",
+                    e
+                )
+
         #
         # Nouveau fichier traité.
         #

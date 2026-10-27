@@ -17,6 +17,22 @@ _TIMECODE_RE = re.compile(
 )
 
 
+def horodatage_iso() -> str:
+    """
+    Horodatage ISO local ``AAAA-MM-JJTHH:MM:SS``,
+    convention du format étude et du journal des
+    opérations.
+    """
+
+    from datetime import datetime
+
+    return (
+        datetime
+        .now()
+        .isoformat(timespec="seconds")
+    )
+
+
 def formater_timecode(seconds: float) -> str:
     """
     Formate une durée en secondes au format ``HH:MM:SS.mmm``.

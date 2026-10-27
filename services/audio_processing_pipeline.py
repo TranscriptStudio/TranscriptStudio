@@ -6,6 +6,13 @@ from services.silence_detection_service import SilenceDetectionService
 from services.silence_removal_service import SilenceRemovalService
 from services.ffmpeg_paths import get_ffmpeg_path
 from services.subprocess_flags import CREATE_NO_WINDOW
+from services.preprocessing_journal import (
+    JournalOperations,
+    ajouter_acceleration,
+    ajouter_decoupe,
+    ajouter_silence_supprime,
+)
+from services.timecodes import horodatage_iso
 
 
 class AudioProcessingPipeline:
@@ -16,7 +23,8 @@ class AudioProcessingPipeline:
         processin_wav,
         settings,
         output_file,
-        progress_callback=None
+        progress_callback=None,
+        duree_originale=None
     ):
         self.audio_file = audio_file
         self.processin_wav = processin_wav
@@ -28,6 +36,15 @@ class AudioProcessingPipeline:
         self.progress_callback = (
             progress_callback
         )
+
+        # Durée de l'audio original (secondes),
+        # utile au journal des opérations quand la
+        # découpe ne fixe pas de fin.
+        self.duree_originale = duree_originale
+
+        # Journal des opérations de prétraitement
+        # (P14.2) : construit au fil du run().
+        self.journal = None
 
     def report_progress(
         self,
@@ -42,6 +59,10 @@ class AudioProcessingPipeline:
             
     def run(self):
 
+        journal = JournalOperations(
+            horodatage=horodatage_iso()
+        )
+
         current_file = self.processin_wav
 
         self.report_progress(
@@ -55,7 +76,8 @@ class AudioProcessingPipeline:
         )
 
         current_file = self.apply_trim(
-            current_file
+            current_file,
+            journal
         )
 
         self.report_progress(
@@ -70,7 +92,8 @@ class AudioProcessingPipeline:
 
         current_file = (
             self.apply_silence_removal(
-                current_file
+                current_file,
+                journal
             )
         )
 
@@ -85,13 +108,16 @@ class AudioProcessingPipeline:
         )
 
         current_file = self.apply_speed_up(
-            current_file
+            current_file,
+            journal
         )
 
         self.report_progress(
             80,
             "Accélération terminée"
         )
+
+        self.journal = journal
 
         final_file = self.output_file
 
@@ -108,7 +134,8 @@ class AudioProcessingPipeline:
 
     def apply_trim(
         self,
-        audio_file
+        audio_file,
+        journal=None
     ):
         if not (
             self.settings.trim_start_enabled
@@ -122,6 +149,21 @@ class AudioProcessingPipeline:
             if self.settings.trim_start_enabled
             else 0.0
         )
+
+        if journal is not None:
+
+            decoupe_fin = (
+                self.settings.trim_end_time
+                if self.settings.trim_end_enabled
+                else self.duree_originale
+            )
+
+            if decoupe_fin is not None:
+                ajouter_decoupe(
+                    journal,
+                    start_time,
+                    decoupe_fin
+                )
 
         output_file = (
             audio_file.parent
@@ -167,7 +209,8 @@ class AudioProcessingPipeline:
 
     def apply_silence_removal(
         self,
-        audio_file
+        audio_file,
+        journal=None
     ):
         if not self.settings.silence_enabled:
             return audio_file
@@ -188,6 +231,18 @@ class AudioProcessingPipeline:
             return audio_file
 
         #
+        # Décalage de la découpe : les silences sont
+        # détectés sur l'audio découpé ; le journal
+        # les exprime dans le référentiel du discours
+        # original (pré-découpe).
+        #
+        decoupe_debut = (
+            self.settings.trim_start_time
+            if self.settings.trim_start_enabled
+            else 0.0
+        )
+
+        #
         # Appliquer exactement le même buffer
         # que celui utilisé par l'analyse
         # prévisionnelle et la waveform.
@@ -200,6 +255,7 @@ class AudioProcessingPipeline:
         removal_silences = []
 
         for start, end in detected_silences:
+
             removal_start = (
                 start
                 + buffer_duration
@@ -224,6 +280,18 @@ class AudioProcessingPipeline:
                     removal_end
                 )
             )
+
+            if journal is not None:
+                ajouter_silence_supprime(
+                    journal,
+                    position=(
+                        start + decoupe_debut
+                    ),
+                    duree_originale=(
+                        end - start
+                    ),
+                    buffer=buffer_duration
+                )
 
 
         if not removal_silences:
@@ -252,7 +320,8 @@ class AudioProcessingPipeline:
 
     def apply_speed_up(
         self,
-        audio_file
+        audio_file,
+        journal=None
     ):
 
         if not self.settings.speed_enabled:
@@ -263,6 +332,12 @@ class AudioProcessingPipeline:
             1.0
             + self.settings.speed_percent / 100.0
         )
+
+        if journal is not None:
+            ajouter_acceleration(
+                journal,
+                speed_ratio
+            )
 
         output_file = (
             audio_file.parent

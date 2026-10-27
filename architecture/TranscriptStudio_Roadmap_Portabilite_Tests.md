@@ -1109,7 +1109,7 @@ La campagne est terminee lorsque :
       (`services/etude_schema.py`, `services/etude_io.py`, `services/timecodes.py`)
       + tests unitaires (`tests/unit/test_etude_format.py`, dont les 5 regles
       d'invariance du contrat §12). Prompts v2 embarques dans `resources/prompts/`.
-- [ ] P14.2 Journal des operations de pretraitement persiste dans le dossier
+- [x] P14.2 Journal des operations de pretraitement persiste dans le dossier
       projet v1 (`journal_operations.json`, additif non destructif : decoupe,
       silences supprimes avec positions et durees originales, acceleration ;
       un nouveau journal remplace l'ancien) + conversions position traitee <->

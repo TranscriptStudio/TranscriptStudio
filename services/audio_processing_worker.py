@@ -24,6 +24,7 @@ class AudioProcessingWorker(QObject):
 
     finished = Signal(
         object,
+        object,
         object
     )
 
@@ -34,7 +35,8 @@ class AudioProcessingWorker(QObject):
         audio_file,
         processing_wav,
         settings,
-        output_file
+        output_file,
+        duree_originale=None
     ):
         super().__init__()
 
@@ -42,6 +44,7 @@ class AudioProcessingWorker(QObject):
         self.processing_wav = processing_wav
         self.settings = settings
         self.output_file = output_file
+        self.duree_originale = duree_originale
 
     @Slot()
     def run(self):
@@ -55,6 +58,9 @@ class AudioProcessingWorker(QObject):
                 self.output_file,
                 progress_callback=(
                     self.report_progress
+                ),
+                duree_originale=(
+                    self.duree_originale
                 )
             )
 
@@ -79,7 +85,8 @@ class AudioProcessingWorker(QObject):
 
             self.finished.emit(
                 output_file,
-                document
+                document,
+                pipeline.journal
             )
 
         except Exception as e:
