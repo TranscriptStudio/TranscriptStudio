@@ -1,7 +1,9 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (session P14.5 — P14 CLOS)
+> **Dernière mise à jour** : 2026-10-27 (session P15.1/P15.2 — service LLM)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
+> **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
+> Manager, mis en place ce jour ; chaque poussée reste soumise à approbation)
 > **Modifications locales** : aucune (tout est commité)
 
 ---
@@ -183,6 +185,96 @@ transférée en P19.4 (composition de l'ouvrage), rien n'a été fait à ce suje
 
 ---
 
+## SESSION 2026-10-27 (P15, partie 1) — SERVICE LLM MULTI-FOURNISSEURS
+
+Rituel effectué (Drive inchangé). **Développement sur la branche `v2`,
+poussée en direct sur origin/v2** (paramétrage HTTPS + Git Credential
+Manager autorisant le CLI à pousser après approbation). P15 démarre :
+spec de référence PARAMETRAGE_LLM_V2.md (fait autorité).
+
+### P15.1 — Catalogue + service LLM ⭐ TERMINÉ (commit c276992)
+
+- `services/llm/catalogue.py` : **catalogue embarqué + extensible**
+  (philosophie du résolveur FFmpeg P8) — défaut
+  `resources/llm/catalogue_defaut.json` (OpenAI, Mistral, Anthropic :
+  famille, capacités, prix exacts de la spec) ; stockage dans le dossier
+  de paramétrage ; **réinitialisation reconstituant les défauts sans
+  perdre les ajouts utilisateur** (règle d'invariance 3, testée) ;
+  familles `openai_compatible` et `anthropic` ; prix = catalogue de
+  coûts du contrat format étude ; fournisseur local (localhost) sans clé.
+- `services/credential_store.py` : **credentials génériques** (une clé par
+  fournisseur, `llm_cle_<id>`), interface ElevenLabs conservée.
+- `services/llm/client.py` : client abstrait + adaptateurs
+  **openai_compatible** (`/chat/completions` en SSE, `stream_options
+  include_usage`) et **anthropic** (`/v1/messages`, événements SSE,
+  `max_tokens` obligatoire → défaut 4096) ; **streaming** avec callback ;
+  **usage réel** (fallback estimation locale si l'API ne le renvoie pas) ;
+  **coût estimé aux prix courants du catalogue** (règle 5) ;
+  **relance automatique avec backoff** (1 s, 2 s) sur erreurs transitoires
+  (429, 5xx, réseau, timeout), aucune relance sur clé invalide ;
+  **annulation propre** (avant l'appel et entre les chunks) ;
+  **erreurs claires** (cle_invalide, quota, reseau, timeout, annulation,
+  autre) — jamais d'exception brute, **la clé ne figure jamais dans un
+  message** (règle 1, testée avec un corps de réponse qui la contenait) ;
+  `tester_connexion()` (GET /models) pour le bouton « Tester la clé ».
+- Tests : 31 (catalogue, clients avec session HTTP factice injectée,
+  invariants 1/3/5).
+
+### P15.2 — Réglages, onglet LLM ⭐ TERMINÉ (commit 8cdb96c)
+
+- `ui/settings_dialog.py` refactoré en **onglets** (« Général » / « LLM
+  (reformulation) ») : fournisseur du catalogue, **clé masquée une par
+  fournisseur** (CredentialStore), « **Tester la clé** » avec état
+  valide/invalide en couleurs, modèle, **température et effort de
+  raisonnement affichés uniquement si déclarés par le modèle** (règle
+  d'invariance 2), **max_tokens plafonné au contexte déclaré** ;
+  fournisseur local : « aucune clé requise ».
+- `ui/catalogue_llm_dialog.py` : **éditeur du catalogue** —
+  ajout/suppression de fournisseurs et modèles, édition des prix et
+  capacités, réinitialisation conservant les ajouts ; validation avant
+  enregistrement.
+- `SettingsManager.get_llm_config()/set_llm_config()` : sélection
+  mémorisée app-wide (surchargeable par étude, contrat §10) ; **aucune clé
+  dans les réglages** (CredentialStore seul, testé).
+- Fumée offscreen complète : onglets, changement de fournisseur/modèle,
+  masquage des réglages non déclarés, éditeur, mode first-run. 146 tests
+  verts au total.
+
+### DÉCISIONS / ÉCARTS DE LA SESSION (P15) — à arbitrer par l'atelier
+
+1. **Infos de compte (spec §3.3)** : aucune API générique des deux
+   familles n'expose solde/quota via un endpoint commun ; P15.2 affiche
+   l'état de validité + le nombre de modèles accessibles (seul
+   renseignement générique disponible) et masque la ligne pour les
+   fournisseurs `endpoint_infos_compte: none` (Anthropic). Compléter
+   par fournisseur si l'atelier le souhaite.
+2. **Clé persistée au changement de fournisseur** : la clé saisie est
+   mémorisée dans le CredentialStore dès le changement de fournisseur
+   (et au clic Tester/Enregistrer) pour ne pas perdre la saisie — choix
+   pragmatique à confirmer.
+3. **Invariant 4 (échec sans modification des documents)** : garanti par
+   construction au niveau du service (le client n'écrit rien, il
+   retourne ou lève) ; le test d'intégration complet au niveau
+   moteur/étude viendra avec P15.3.
+4. **Estimation de tokens avant passe** : heuristique ~4 caractères par
+   token (l'usage réel de la réponse API alimente toujours les stats
+   stockées).
+5. **`stream_options: include_usage`** envoyé aux familles
+   openai_compatible ; si un endpoint local strict le refusait, le
+   rendre conditionnel (suivi à l'usage réel).
+
+### NON RÉALISÉ DANS P15 (suite de la phase)
+
+- **P15.3** — moteur de traitement : assemblage de contexte (fenêtre
+  glissante, budget), exécution séquentielle par unité, stockage des
+  résultats et métadonnées.
+- **P15.4** — journal de passe : par intervention, tokens in/out, coût,
+  durée.
+- Critères de fin de P15 (réunion traitée de bout en bout, coût estimé
+  affiché, annulation à mi-passe, reprise) : évaluer avec P15.3/P15.4.
+
+---
+
 ## DÉCISIONS TECHNIQUES DE LA SESSION (P14)
 
 1. **Champ additionnel `chemin_absolu`** dans `reunions/<nom>.json` : le contrat
@@ -255,13 +347,17 @@ transférée en P19.4 (composition de l'ouvrage), rien n'a été fait à ce suje
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
 **P14 est CLOS** (P14.1 à P14.5 livrés, validés par l'atelier).
+**P15 en cours** (P15.1/P15.2 livrés).
 
-1. **P15** — service LLM multi-fournisseurs
-   (spec : PARAMETRAGE_LLM_V2.md ; familles openai_compatible/anthropic,
-   catalogue embarqué extensible, CredentialStore, estimation de coût).
-2. Puis **P16** — bloc Reformulation et page Traitement (spec :
-   UI_REFORMULATION_V2.md), qui hébergera aussi l'UI de fusion et l'ordre
-   d'ouvrage.
+1. **P15.3** — moteur de traitement : assemblage de contexte (fenêtre
+   glissante ≤ 2 000 tokens, synthèse d'étude ≤ 1 500 tokens, budget
+   explicite), exécution séquentielle par unité, stockage des résultats
+   versionnés (contrat §7) — s'appuie sur les blocs de P14.
+2. **P15.4** — journal de passe (par intervention : tokens in/out,
+   coût, durée).
+3. Puis **P16** — bloc Reformulation et page Traitement (spec :
+   UI_REFORMULATION_V2.md), qui hébergera aussi l'UI de fusion et
+   l'ordre d'ouvrage.
 
 ---
 
