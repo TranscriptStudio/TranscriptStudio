@@ -166,6 +166,17 @@ class EtudeWindow(QWidget):
             self.ouvrir_reunion_editeur
         )
 
+        self.reformulation_button = QPushButton(
+            "Reformulation…"
+        )
+        self.reformulation_button.setToolTip(
+            "Ouvrir la page de traitement Reformulation "
+            "de cette réunion"
+        )
+        self.reformulation_button.clicked.connect(
+            self.ouvrir_reunion_reformulation
+        )
+
         self.relocaliser_button = QPushButton(
             "Relocaliser..."
         )
@@ -179,6 +190,7 @@ class EtudeWindow(QWidget):
             self.descendre_button,
             self.retirer_button,
             self.ouvrir_button,
+            self.reformulation_button,
             self.relocaliser_button,
         ):
             boutons_reunions.addWidget(bouton)
@@ -455,6 +467,45 @@ class EtudeWindow(QWidget):
 
         self.editor = MainWindow(projet)
         self.editor.show()
+
+    def ouvrir_reunion_reformulation(self):
+        """
+        Ouvre la page de traitement Reformulation
+        de la réunion sélectionnée (P16.2) :
+        table de relecture, pastilles, moteur.
+        """
+
+        nom = self.reunion_selectionnee()
+
+        if nom is None:
+            return
+
+        if not self.etude.reunion_joignable(nom):
+            QMessageBox.warning(
+                self,
+                "Projet introuvable",
+                (
+                    "Le projet v1 de cette réunion est "
+                    "introuvable : la page Reformulation "
+                    "a besoin du projet (audio, mots "
+                    "horodatés). Relocalisez le projet "
+                    "d'abord."
+                )
+            )
+            return
+
+        from ui.reformulation_window import (
+            ReformulationWindow
+        )
+
+        self.reformulation_window = (
+            ReformulationWindow(
+                self.etude,
+                nom
+            )
+        )
+
+        self.reformulation_window.show()
 
     def retour_accueil(self):
         """
