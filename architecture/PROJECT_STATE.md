@@ -1,9 +1,9 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (session P15.1/P15.2 — service LLM)
+> **Dernière mise à jour** : 2026-10-27 (session P15.3/P15.4 — **P15 CLOS**)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
-> Manager, mis en place ce jour ; chaque poussée reste soumise à approbation)
+> Manager ; chaque poussée reste soumise à approbation)
 > **Modifications locales** : aucune (tout est commité)
 
 ---
@@ -275,6 +275,116 @@ spec de référence PARAMETRAGE_LLM_V2.md (fait autorité).
 
 ---
 
+## SESSION 2026-10-27 (P15, partie 2) — MOTEUR + LOG : P15 CLOS
+
+Rituel v13 effectué : SPEC_MOTEUR_P15_V2.md (nouveau, fait autorité),
+ARBITRAGE_P15.md (7 points P15.1/P15.2 tous validés, décisions
+B1/B1bis/B2/B3/C1/C2 intégrées), contrat v13 (§10 températures, §11 log des
+opérations, §13 règle 6), feuille de route à jour — tout recopié dans
+`architecture/spec_v2/`. **origin/master vérifié : déjà à l'état v1 (74a6b09)**
+— la réécriture demandée par l'arbitrage §4 avait été faite la veille ; rien
+à réécrire.
+
+### P15.3 — Moteur de traitement ⭐ TERMINÉ (commit a3f5797)
+
+`services/traitements/moteur.py` (MoteurTraitements), strictement selon
+SPEC_MOTEUR_P15_V2.md :
+- **assemblage** (§2) : prompt système → synthèse d'étude → fenêtre glissante
+  (≤ 2 000 tokens paramétrable ; résultats **produits** en passe, **validés**
+  en relance) → unité courante → consigne ; **budget explicite** contre le
+  contexte du modèle du catalogue ;
+- **troncation par le haut** (C1) : les plus anciens de la fenêtre d'abord ;
+  jamais la synthèse ni l'unité courante ni le prompt ; si l'unité seule ne
+  tient pas → erreur propre, bloc signalé (sous-découpage) ;
+- **températures** (C2) : surcharge étude (parametres.json §10) sinon réglage
+  app (reformulation 0.3 / résumé 0.2 dans les réglages, texte d'aide à venir
+  en P16) ; envoyée uniquement si le modèle la supporte ; jamais codée en dur ;
+- **exécution séquentielle** chronologique ; **estimation de coût avant la
+  première passe totale** (B1 : fait office de confirmation, aucun dialogue,
+  aucune confirmation par bloc — relances directes) ;
+- **annulation propre** (B2) : arrêt à la fin de l'appel en cours (résultat
+  conservé), tout ce qui est produit est versionné, journalisée avec position
+  d'arrêt et résultats conservés ;
+- **reprise** (§3.3) : saute les blocs traités, reprend au premier sans
+  résultat ; **aucune cascade** (B3) ; commande explicite
+  « blocs non validés » disponible ;
+- **défaillance API** (§3.4) : retry du client puis arrêt propre, erreur
+  consignée avec le message du fournisseur, résultats conservés ;
+- **relance ciblée** : contexte identique + formulation courante + toutes les
+  versions antérieures du bloc (mécanisme P16.2b en place au niveau moteur) ;
+- le contexte utilisé est consigné dans la version (`contexte`, contrat §7) ;
+  sauvegarde de l'étude après chaque bloc traité (durabilité).
+
+### P15.4 — Log des opérations ⭐ TERMINÉ (commit a3f5797)
+
+`services/traitements/journal.py` (JournalEtude) — décision B1bis, remplace le
+« journal de passe » : `traitements/journal_operations.json` (contrat §11),
+**append-only**, **écrit à chaque opération** (survit à un crash), types
+passe_complete / reformulation_bloc / edition_manuelle / validation /
+devalidation / fusion_blocs / erreur_api / annulation_passe / resume /
+synthese. Toutes les opérations des services d'étude sont journalisées
+(règle d'invariance 4) : versions de reformulation, éditions manuelles,
+validations/dévalidations, fusions/dé-fusions, résumés, synthèses.
+Document d'audit uniquement — jamais consommé par le moteur.
+Page Log (spec UI §8) : **reportée en P16**, comme l'atelier y autorise.
+
+### Bilan tests : **163 tests verts** (146 + 17)
+
+Les **6 règles d'invariance de SPEC_MOTEUR §6** sont couvertes par des tests
+dédiés (appel échoué sans écriture — invariant 4 du P15.1 exigé par
+l'arbitrage ; annulation conservative ; troncation correcte ; exactement une
+entrée de log par opération ; température effective jamais codée en dur ;
+reprise sans re-traitement), plus la règle 6 du contrat §13 (le log ne perd
+jamais une entrée) et les critères P15 de la feuille de route (réunion de bout
+en bout, coût estimé, annulation, reprise — client LLM factice injecté).
+
+### DÉCISIONS / ÉCARTS DE LA SESSION (P15.3/P15.4) — à arbitrer par l'atelier
+
+1. **Message utilisateur unique à sections** : le contexte est assemblé en
+   un seul message (synthèse / fenêtre / unité / consigne), le prompt système
+   restant séparé — la spec fixe l'ordre, pas le découpage en messages.
+2. **« Bloc déjà traité »** (spec §3.3) : interprété comme « possédant au
+   moins une version » (conforme à « reprend au premier bloc sans
+   résultat ») ; un bloc édité à la main n'est jamais retraité
+   silencieusement.
+3. **Dé-fusion au log** : journalisée sous le type `fusion_blocs` avec champ
+   `defusion: true` (le contrat §11 ne liste pas de type dédié).
+4. **Champs des entrées** : les compléments (statut, nb_blocs, cible,
+   fids_sources, defusion...) sont fusionnés à plat dans l'entrée — style de
+   l'exemple du contrat §11, pas de sous-objet.
+5. **Synthèse d'étude** : incluse systématiquement quand une version existe ;
+   le « si cochée » de la spec attend les cases de contexte de la page P16.
+6. **Modèle par étude** (contrat §10) : résolu chez le fournisseur des
+   réglages app ; si le modèle surchargé n'existe pas chez ce fournisseur,
+   repli sur le modèle des réglages. Pas de surcharge fournisseur par étude
+   (non prévue par le contrat).
+7. **Journal créé vide** à la création d'étude ; une étude antérieure sans
+   journal démarre un log vide (créé à la première opération).
+8. **Sauvegarde après chaque bloc traité** (durabilité des résultats en
+   cas de crash pendant la passe).
+
+### NON RÉALISÉ (reporté)
+
+- **Page Log en lecture seule** (spec UI §8) : P16.
+- **Contrôle qualité local** (§5 du moteur) : P16.4/P18 comme prévu.
+- **Bloc Résumé** au moteur : P17 (les types de log et l'outillage sont prêts).
+
+---
+
+## PROCHAINE ÉTAPE RECOMMANDÉE
+
+**P15 est CLOS** (P15.1 à P15.4 livrés ; critères d'acceptation couverts par
+tests avec client factice — une réunion réelle de bout en bout sera
+vérifiée à la première occasion avec une vraie clé, idéalement avec la page
+Traitement P16).
+
+1. **P16** — bloc Reformulation et page Traitement (spec :
+   UI_REFORMULATION_V2.md, à jour en v13) : table de relecture, pastille
+   d'état et menu des opérations, page Log en lecture seule, fusion et ordre
+   d'ouvrage (UI), cases de contexte, contrôle qualité §5.1/§5.3.
+
+---
+
 ## DÉCISIONS TECHNIQUES DE LA SESSION (P14)
 
 1. **Champ additionnel `chemin_absolu`** dans `reunions/<nom>.json` : le contrat
@@ -341,23 +451,6 @@ spec de référence PARAMETRAGE_LLM_V2.md (fait autorité).
 - **UI de fusion et d'ordre d'ouvrage** (boutons Monter/Descendre,
   glisser-déposer) : couche de données complète et testée, l'UI viendra avec
   la page Traitement (P16).
-
----
-
-## PROCHAINE ÉTAPE RECOMMANDÉE
-
-**P14 est CLOS** (P14.1 à P14.5 livrés, validés par l'atelier).
-**P15 en cours** (P15.1/P15.2 livrés).
-
-1. **P15.3** — moteur de traitement : assemblage de contexte (fenêtre
-   glissante ≤ 2 000 tokens, synthèse d'étude ≤ 1 500 tokens, budget
-   explicite), exécution séquentielle par unité, stockage des résultats
-   versionnés (contrat §7) — s'appuie sur les blocs de P14.
-2. **P15.4** — journal de passe (par intervention : tokens in/out,
-   coût, durée).
-3. Puis **P16** — bloc Reformulation et page Traitement (spec :
-   UI_REFORMULATION_V2.md), qui hébergera aussi l'UI de fusion et
-   l'ordre d'ouvrage.
 
 ---
 
