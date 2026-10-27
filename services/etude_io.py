@@ -66,6 +66,9 @@ from services.etude_schema import (
 )
 from services.resources import resource_path
 from services.timecodes import horodatage_iso
+from services.controle_qualite import (
+    INTERDITS_STYLISTIQUES_DEFAUT,
+)
 from services.traitements.journal import (
     FICHIER_JOURNAL,
     JournalEtude,
@@ -256,6 +259,12 @@ def parametres_par_defaut(
                 "profondément",
                 "véritablement",
             ],
+            # Interdits stylistiques (feuille de route
+            # §5.3, P16.4) : liste éditable dans les
+            # paramètres de l'étude.
+            "interdits_stylistiques": (
+                INTERDITS_STYLISTIQUES_DEFAUT
+            ),
         },
         llm={
             "fournisseurs": [
