@@ -158,13 +158,82 @@ class TestCreationEtude:
         assert donnees["theme"] == "livre"
         assert donnees["ordre_reunions"] == []
 
-    def test_creation_refuse_dossier_non_vide(self, tmp_path):
+    def test_creation_dossier_non_vide(self, tmp_path):
+        """
+        ARBITRAGE_CREATION_ETUDE : une étude peut se
+        créer dans un dossier non vide (placer
+        l'étude à côté des projets référencés) ;
+        rien d'existant n'est modifié ni supprimé.
+        """
         dossier = tmp_path / "existant"
         dossier.mkdir()
         (dossier / "bricolage.txt").write_text("x")
+        (dossier / "projet_v1").mkdir()
+        (dossier / "projet_v1" / "project.sttproj").write_text(
+            "projet"
+        )
 
-        with pytest.raises(EtudeError):
+        creer_etude(dossier, "Étude")
+
+        assert (dossier / "etude.json").is_file()
+        assert (dossier / "reunions").is_dir()
+
+        # Aucun fichier existant n'est touché.
+        assert (
+            dossier / "bricolage.txt"
+        ).read_text(encoding="utf-8") == "x"
+
+        assert (
+            dossier / "projet_v1" / "project.sttproj"
+        ).read_text(encoding="utf-8") == "projet"
+
+    def test_creation_refuse_dossier_deja_etude(self, tmp_path):
+        """
+        Un dossier contenant déjà etude.json est
+        une étude : jamais d'écrasement — l'étude
+        existante reste intacte.
+        """
+        dossier = tmp_path / "deja_etude"
+        creer_etude(dossier, "Première étude")
+
+        with pytest.raises(EtudeError) as infos:
+            creer_etude(dossier, "Deuxième étude")
+
+        assert "etude.json" in str(infos.value)
+
+        donnees = json.loads(
+            (dossier / "etude.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        assert donnees["titre"] == "Première étude"
+
+    def test_creation_refuse_conflit_de_nom(self, tmp_path):
+        """
+        Un fichier existant occupant l'emplacement
+        d'un sous-dossier de l'étude bloque la
+        création — erreur claire et rien d'écrit.
+        """
+        dossier = tmp_path / "conflit"
+        dossier.mkdir()
+        (dossier / "blocs").write_text("un fichier")
+
+        with pytest.raises(EtudeError) as infos:
             creer_etude(dossier, "Étude")
+
+        assert "blocs" in str(infos.value)
+
+        # Rien n'a été écrit : ni l'étude, ni ses
+        # sous-dossiers ; le fichier d'origine est
+        # intact.
+        assert not (dossier / "etude.json").exists()
+        assert not (dossier / "reunions").exists()
+        assert not (dossier / "synthese").exists()
+
+        assert (
+            dossier / "blocs"
+        ).read_text(encoding="utf-8") == "un fichier"
 
     def test_parametres_par_defaut(self, tmp_path):
         etude = creer_etude(tmp_path / "E", "Étude")

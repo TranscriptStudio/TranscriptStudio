@@ -1,16 +1,19 @@
 # INDEX_SPECS — documents de spécification TranscriptStudio v2
 
-Mis à jour : 2026-10-27 (atelier). **Règle : un document suffixé par une date prime sur son homonyme non suffixé.** Le CLI recopie tout fichier nouveau ou plus récent dans architecture/spec_v2/. Source de vérité de la descente : skill partagé `transcriptstudio-spec` (v13).
+Mis à jour : 2026-10-27 (atelier, correctif création d'étude). **Règle : un document suffixé par une date prime sur son homonyme non suffixé ; en cas de plusieurs suffixes le même jour (b, c…), la lettre la plus loin dans l'alphabet prime.** Le CLI recopie tout fichier nouveau ou plus récent dans architecture/spec_v2/. Source de vérité de la descente : skill partagé `transcriptstudio-spec`.
 
 | Document | Fichier courant | Phase |
 |---|---|---|
-| Feuille de route | FEUILLE_DE_ROUTE_V2_2026-10-27.md | toutes |
+| Feuille de route | FEUILLE_DE_ROUTE_V2_2026-10-27c.md | toutes |
 | Contrat du format étude | CONTRAT_FORMAT_ETUDE_V2_2026-10-27.md | P14 |
-| Spécification moteur (nouveau) | SPEC_MOTEUR_P15_V2_2026-10-27.md | P15.3/P15.4 |
+| Spécification moteur | SPEC_MOTEUR_P15_V2_2026-10-27.md | P15.3/P15.4 |
 | Spec UI Reformulation | UI_REFORMULATION_V2_2026-10-27.md | P16 |
-| Spec paramétrage LLM | PARAMETRAGE_LLM_V2.md (inchangé, v12) | P15.1/P15.2 |
-| Prompt reformulation v2 | PROMPT_REFORMULATION_V2.md (inchangé) | P16 |
-| Prompt résumé v2 | PROMPT_RESUME_V2.md (inchangé) | P17 |
+| Spec paramétrage LLM | PARAMETRAGE_LLM_V2.md | P15.1/P15.2 |
+| Prompt reformulation v2 | PROMPT_REFORMULATION_V2.md | P16 |
+| Prompt résumé v2 | PROMPT_RESUME_V2.md | P17 |
 | Workflow (schémas) | WORKFLOW_V2_2026-10-27.md | — |
-| Arbitrage P14 | ARBITRAGE_P14.md (inchangé) | clos |
-| Arbitrage P15 (nouveau) | ARBITRAGE_P15.md | P15 |
+| Arbitrage P14 | ARBITRAGE_P14.md | clos |
+| Arbitrage P15 | ARBITRAGE_P15.md | clos |
+| Arbitrage création d'étude (nouveau) | ARBITRAGE_CREATION_ETUDE.md | correctif P14.3 |
+
+Notes atelier : P15 clos, P16 livré — prochaine session CLI : correctif création d'étude (ARBITRAGE_CREATION_ETUDE.md), puis validation P16 (recette) et P17.

@@ -349,28 +349,67 @@ def creer_etude(
     """
     Crée le dossier étude et sa structure complète.
 
-    Le dossier doit être vide ou inexistant : jamais
-    d'écrasement silencieux.
+    Le dossier peut exister et être non vide
+    (ARBITRAGE_CREATION_ETUDE : placer l'étude à
+    côté des projets référencés rend les chemins
+    relatifs robustes) — la confirmation est à la
+    charge de l'UI ; le service garantit lui :
+
+    - refus dur si le dossier contient déjà une
+      étude (etude.json) ;
+    - refus avant toute écriture si un fichier
+      existant occupe l'emplacement d'un
+      sous-dossier de l'étude ;
+    - aucun fichier préexistant n'est modifié ni
+      supprimé (la création n'écrit que etude.json
+      et les sous-dossiers de l'étude).
     """
 
     dossier = Path(dossier)
 
-    if dossier.exists() and any(dossier.iterdir()):
+    if (dossier / FICHIER_ETUDE).exists():
         raise EtudeError(
-            f"Le dossier {dossier} n'est pas vide ; "
-            "une étude ne s'y crée pas."
+            f"Le dossier {dossier} contient déjà "
+            f"une étude ({FICHIER_ETUDE}) ; elle ne "
+            "s'écrase pas. Ouvrez l'étude existante, "
+            "ou saisissez plutôt un nom de nouveau "
+            "dossier pour créer l'étude dedans."
         )
 
-    dossier.mkdir(parents=True, exist_ok=True)
-
-    for sous_dossier in (
+    sous_dossiers = (
         DOSSIER_REUNIONS,
+        DOSSIER_BLOCS,
         f"{DOSSIER_BLOCS}/{DOSSIER_DECOUPAGE}",
+        DOSSIER_TRAITEMENTS,
         f"{DOSSIER_TRAITEMENTS}/{DOSSIER_REFORMULATION}",
         f"{DOSSIER_TRAITEMENTS}/{DOSSIER_RESUME}",
         DOSSIER_SYNTHESE,
         DOSSIER_PARAMETRES,
-    ):
+    )
+
+    #
+    # Conflits de nom : un fichier existant occupant
+    # l'emplacement d'un sous-dossier de l'étude
+    # bloque la création — erreur claire avant
+    # d'écrire quoi que ce soit.
+    #
+    for sous_dossier in sous_dossiers:
+
+        chemin = dossier / sous_dossier
+
+        if chemin.exists() and not chemin.is_dir():
+            raise EtudeError(
+                f"Le dossier {dossier} contient déjà "
+                f"un fichier nommé « {sous_dossier} » "
+                "qu'un sous-dossier de l'étude devrait "
+                "occuper. Rien n'a été écrit — "
+                "saisissez plutôt un nom de nouveau "
+                "dossier pour créer l'étude dedans."
+            )
+
+    dossier.mkdir(parents=True, exist_ok=True)
+
+    for sous_dossier in sous_dossiers:
         (dossier / sous_dossier).mkdir(
             parents=True,
             exist_ok=True

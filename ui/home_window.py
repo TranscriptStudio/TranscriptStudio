@@ -720,6 +720,10 @@ class HomeWindow(QWidget):
         """
         Crée une étude : choix du dossier, titre,
         structure complète du format étude.
+
+        Dossier non vide autorisé avec confirmation
+        explicite ; dossier déjà étude : refus dur
+        avec ouverture proposée (ARBITRAGE_CREATION_ETUDE).
         """
 
         dossier = QFileDialog.getExistingDirectory(
@@ -730,6 +734,60 @@ class HomeWindow(QWidget):
 
         if not dossier:
             return
+
+        dossier = Path(dossier)
+
+        #
+        # Dossier déjà étude : jamais d'écrasement —
+        # proposer l'ouverture.
+        #
+        if (dossier / "etude.json").is_file():
+
+            reponse = QMessageBox.question(
+                self,
+                "Dossier déjà étude",
+                (
+                    "Ce dossier est déjà une étude "
+                    "(etude.json présent).\n\n"
+                    "L'ouvrir plutôt ?\n\n"
+                    "Pour créer une nouvelle étude, "
+                    "saisissez plutôt un nom de nouveau "
+                    "dossier pour la créer dedans."
+                )
+            )
+
+            if reponse == QMessageBox.StandardButton.Yes:
+                self.ouvrir_etude(dossier)
+
+            return
+
+        #
+        # Dossier non vide : confirmation explicite
+        # (l'étude s'ajoute à côté, rien d'existant
+        # n'est modifié ni supprimé).
+        #
+        if dossier.exists():
+
+            elements = len(list(dossier.iterdir()))
+
+            if elements:
+
+                reponse = QMessageBox.question(
+                    self,
+                    "Dossier non vide",
+                    (
+                        "Ce dossier contient déjà "
+                        f"{elements} élément(s). "
+                        "Créer l'étude ici quand même ?\n\n"
+                        "Aucun fichier existant ne sera "
+                        "modifié ni supprimé : l'étude "
+                        "s'ajoute à côté (etude.json et "
+                        "ses sous-dossiers)."
+                    )
+                )
+
+                if reponse != QMessageBox.StandardButton.Yes:
+                    return
 
         titre, ok = QInputDialog.getText(
             self,

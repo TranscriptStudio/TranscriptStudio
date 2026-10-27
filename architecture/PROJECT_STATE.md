@@ -1,8 +1,8 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (session P16 —
-> **P16 LIVRÉ** + correctifs post-livraison : test de clé
-> LLM, catalogue v2 GPT-5.6/6.x, purge études parasites)
+> **Dernière mise à jour** : 2026-10-27 (correctif
+> création d'étude — ARBITRAGE_CREATION_ETUDE appliqué ;
+> P16 livré ; 194 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -533,6 +533,50 @@ conteneur étude (« toutes les transcriptions dedans »). Analyse CLI :
 (références en place, `creer_etude` à assouplir), (c) copie des projets
 dans `reunions/` (dossier autonome, gestion de la divergence à prévoir).
 Recommandation CLI : (b) — petit changement, gros gain de portabilité.
+
+**→ ARBITRÉ (suite)** : l'atelier a publié ARBITRAGE_CREATION_ETUDE.md
+(2026-10-27, validé par David) — la variante (b) est actée : dossier
+non vide autorisé avec confirmation, refus dur si etude.json (ouverture
+proposée), rien d'écrasé. Livré ci-dessous.
+
+---
+
+## SESSION 2026-10-27 (correctif création d'étude — P14.3)
+
+Rituel de synchro : **ARBITRAGE_CREATION_ETUDE.md** (nouveau),
+**INDEX_SPECS.md** (v3) et **FEUILLE_DE_ROUTE_V2** (2026-10-27c)
+recopiés dans `architecture/spec_v2/`. INDEX : P15 clos, P16 livré,
+correctif création d'étude avant la recette P16 et P17.
+
+### Correctif appliqué (ARBITRAGE_CREATION_ETUDE, 4 points)
+
+1. **Dossier non vide autorisé** (`services/etude_io.creer_etude`) —
+   la règle « vide ou inexistant » est retirée du service ; la
+   confirmation est portée par l'UI (dialogue « Nouvelle étude » :
+   « Ce dossier contient déjà N élément(s). Créer l'étude ici quand
+   même ? », avec rappel qu'aucun fichier existant ne sera modifié
+   ni supprimé).
+2. **Refus dur si etude.json présent** : message « contient déjà une
+   étude ; elle ne s'écrase pas — ouvrez l'étude existante ou
+   saisissez un nom de nouveau dossier » ; l'UI propose l'ouverture
+   de l'étude existante (Oui → ouvrir, Non → rien).
+3. **Rien d'écrasé** : la création n'écrit que etude.json et les
+   sous-dossiers de l'étude ; les conflits de nom (un fichier
+   existant nommé reunions/blocs/traitements/synthese/parametres
+   ou dans leurs sous-chemins) sont détectés **avant toute
+   écriture** — erreur claire, dossier laissé intact.
+4. **Aide dans les messages d'erreur** : « Saisissez plutôt un nom
+   de nouveau dossier pour créer l'étude dedans. »
+
+Contrat format étude inchangé (§2 : structure du dossier, pas la
+vacuité préalable) ; règle non-destructif toujours couverte par
+tests. 3 tests unitaires : création dans dossier non vide OK (fichiers
+existants intacts), refus déjà-étude (étude existante intacte),
+refus conflit de nom (rien d'écrit). **194 tests verts.**
+
+Note : la confirmation UI elle-même (QMessageBox) n'est pas couverte
+par test automatisé — comportement modal à vérifier à la main à la
+prochaine utilisation.
 
 ---
 
