@@ -1,15 +1,16 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-27 (session P14.5 — P14 CLOS)
-> **Branche** : master
+> **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Modifications locales** : aucune (tout est commité)
 
 ---
 
 ## ETAT GIT
 
-- Branche `master`, historique propre, commits de la session P14 (7) poussables
-  (origin avait 5 commits de retard avant la session P14.5).
+- Développement v2 sur la branche `v2` (8 commits P14) ; **master est revenu à
+  l'état v1** (dernier commit : P13, 74a6b09) après le push accidentel des
+  commits P14 sur origin/master — à réécrire avec `--force-with-lease`.
 - v1 (P0 à P10, E1, E2) : **terminée et validée** — portabilité, mode sans clé API,
   résilience, tests.
 - **P11 — Packaging Windows v1.0 : CLOS** (décision David, 2026-10-27) :
