@@ -1,8 +1,9 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (session P17 —
-> **P17 LIVRÉ** : bloc Résumé + synthèse d'étude + récurrences ;
-> P16 livré en attente de recette ; 228 tests verts)
+> **Dernière mise à jour** : 2026-10-27 (correctifs post-P17 :
+> génération de segmentation exposée à l'UI [crash Luc 01a],
+> libellés explicites des boutons, ouverture d'étude depuis l'accueil ;
+> 228 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -725,6 +726,44 @@ Prérequis : réglages LLM (fournisseur + clé « Tester la clé »),
     vérifier qu'elle « sait » ce que la 1ʳᵉ a développé (rappels
     redondants absents) — critère d'acceptation de la feuille de
     route.
+
+---
+
+## SESSION 2026-10-27 (correctifs post-P17, retour utilisateur)
+
+### 1. Crash « Reformulation » sur une réunion sans segmentation ⭐ CORRIGÉ
+
+- **Constat** (David) : `DecoupageError: Aucun découpage pour la
+  réunion 2026-09-24_..._luc01a` au lancement de la page
+  Reformulation. **Origine** : la génération du découpage (P14.4,
+  `generer_decoupage`) n'était exposée **nulle part dans l'UI** —
+  service complet et testé, mais aucun bouton ne le déclenchait :
+  la segmentation n'était jamais produite pour une réunion réelle.
+- **Correctif** : `_assurer_decoupage` dans la page Étude — à
+  l'ouverture de « Reformulation littéraire… » ou « Résumé… », si
+  la réunion n'a pas de segmentation, l'UI propose de la générer
+  maintenant depuis la diarisation validée du projet v1
+  (confirmation, projet v1 non modifié) ; avertissement explicite
+  si le projet ne comporte aucun bloc de parole (diarisation à
+  valider d'abord dans l'éditeur de transcription) ; erreurs du
+  service affichées proprement, plus jamais de traceback.
+
+### 2. Libellés des boutons de la page Étude ⭐ CORRIGÉ
+
+- « Ouvrir dans l'éditeur » → **« Correction de transcription… »**
+  (tooltip : éditeur v1, étape de correction de l'oral) ;
+- « Reformulation… » → **« Reformulation littéraire… »** (tooltip :
+  page de relecture, blocs éditables, validation) ;
+- « Résumé… » conservé, tooltip précisé ; tooltip de la liste des
+  réunions (le double-clic ouvre la correction de transcription).
+
+### 3. Accueil : bouton « Ouvrir l'étude sélectionnée » ⭐ AJOUTÉ
+
+La liste des études récentes s'ouvre au double-clic ; ajout d'un
+bouton explicite « Ouvrir l'étude sélectionnée » (lancement des
+traitements sans connaître le double-clic) + tooltip de la liste.
+
+### Bilan : 228 tests verts (aucun impact service — correctifs UI)
 
 ---
 

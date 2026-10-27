@@ -237,6 +237,11 @@ class HomeWindow(QWidget):
             item.setToolTip(str(dossier))
             self.recent_etudes.addItem(item)
 
+        self.recent_etudes.setToolTip(
+            "Études récentes — double-clic ou bouton "
+            "« Ouvrir l'étude » pour l'ouvrir"
+        )
+
         self.recent_etudes.itemDoubleClicked.connect(
             self.ouvrir_etude_recente
         )
@@ -252,6 +257,18 @@ class HomeWindow(QWidget):
 
         self.new_etude_button = QPushButton("Nouvelle étude")
         self.open_etude_button = QPushButton("Ouvrir une étude")
+
+        self.ouvrir_etude_selection_button = QPushButton(
+            "Ouvrir l'étude sélectionnée"
+        )
+        self.ouvrir_etude_selection_button.setToolTip(
+            "Ouvrir l'étude sélectionnée dans la liste "
+            "ci-dessus : réunions, reformulation "
+            "littéraire, résumé, synthèse"
+        )
+        self.ouvrir_etude_selection_button.clicked.connect(
+            self.ouvrir_etude_selection
+        )
 
         self.new_etude_button.setToolTip(
             "Créer une étude regroupant des réunions"
@@ -270,6 +287,9 @@ class HomeWindow(QWidget):
         etudes_actions_layout.addStretch()
         etudes_actions_layout.addWidget(self.new_etude_button)
         etudes_actions_layout.addWidget(self.open_etude_button)
+        etudes_actions_layout.addWidget(
+            self.ouvrir_etude_selection_button
+        )
         etudes_actions_layout.addStretch()
         layout.addLayout(etudes_actions_layout)
         layout.addSpacing(10)
@@ -870,6 +890,28 @@ class HomeWindow(QWidget):
             return
 
         self.ouvrir_etude(dossier)
+
+    def ouvrir_etude_selection(self):
+        """
+        Ouvre l'étude sélectionnée dans la liste des
+        études récentes (bouton explicite, en plus
+        du double-clic).
+        """
+
+        item = (
+            self.recent_etudes.currentItem()
+        )
+
+        if item is None:
+            QMessageBox.information(
+                self,
+                "Aucune étude sélectionnée",
+                "Sélectionnez d'abord une étude dans "
+                "la liste."
+            )
+            return
+
+        self.ouvrir_etude_recente(item)
 
     def ouvrir_etude(self, dossier):
         """

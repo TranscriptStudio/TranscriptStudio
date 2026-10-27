@@ -165,6 +165,11 @@ class EtudeWindow(QWidget):
         layout.addWidget(QLabel("Réunions"))
 
         self.reunions_liste = QListWidget()
+        self.reunions_liste.setToolTip(
+            "Double-clic : correction de transcription "
+            "dans l'éditeur v1 — ou utilisez les "
+            "boutons explicites ci-dessous"
+        )
         self.reunions_liste.itemDoubleClicked.connect(
             self.ouvrir_reunion_editeur
         )
@@ -202,18 +207,27 @@ class EtudeWindow(QWidget):
         )
 
         self.ouvrir_button = QPushButton(
-            "Ouvrir dans l'éditeur"
+            "Correction de transcription…"
+        )
+        self.ouvrir_button.setToolTip(
+            "Ouvrir le projet v1 dans l'éditeur de "
+            "correction de transcription (étape de "
+            "correction de l'oral, avant la "
+            "reformulation) — le projet n'est pas "
+            "modifié par l'étude"
         )
         self.ouvrir_button.clicked.connect(
             self.ouvrir_reunion_editeur
         )
 
         self.reformulation_button = QPushButton(
-            "Reformulation…"
+            "Reformulation littéraire…"
         )
         self.reformulation_button.setToolTip(
-            "Ouvrir la page de traitement Reformulation "
-            "de cette réunion"
+            "Ouvrir la page de relecture de la "
+            "reformulation : texte brut en lecture "
+            "seule, bloc reformulé éditable, "
+            "validation par bloc"
         )
         self.reformulation_button.clicked.connect(
             self.ouvrir_reunion_reformulation
@@ -222,7 +236,8 @@ class EtudeWindow(QWidget):
         self.resume_button = QPushButton("Résumé…")
         self.resume_button.setToolTip(
             "Ouvrir le résumé de cette réunion "
-            "(P17 : source au choix, éditable, "
+            "(P17 : source au choix — reformulations "
+            "validées ou brute corrigée —, éditable, "
             "validable)"
         )
         self.resume_button.clicked.connect(
@@ -605,6 +620,9 @@ class EtudeWindow(QWidget):
             )
             return
 
+        if not self._assurer_decoupage(nom):
+            return
+
         from ui.reformulation_window import (
             ReformulationWindow
         )
@@ -618,6 +636,87 @@ class EtudeWindow(QWidget):
 
         self.reformulation_window.show()
 
+    def _assurer_decoupage(self, nom: str) -> bool:
+        """
+        La reformulation (et le résumé depuis la
+        brute) exigent une segmentation de la réunion
+        en blocs de parole (P14.4). La génération
+        n'était exposée nulle part dans l'UI : elle
+        est proposée ici, depuis la diarisation
+        validée du projet v1.
+
+        Retour : True si la segmentation existe (ou
+        vient d'être générée).
+        """
+
+        if self.etude.decoupages.get(nom):
+            return True
+
+        reponse = QMessageBox.question(
+            self,
+            "Segmentation de la réunion",
+            (
+                "Aucune segmentation n'existe encore pour "
+                f"la réunion « {nom} » : la reformulation "
+                "travaille par blocs de parole.\n\n"
+                "La générer maintenant à partir de la "
+                "diarisation validée du projet v1 ?\n\n"
+                "(Le projet v1 n'est pas modifié.)"
+            )
+        )
+
+        if reponse != QMessageBox.StandardButton.Yes:
+            return False
+
+        from services.decoupage import (
+            DecoupageError,
+            enregistrer_decoupage,
+            generer_decoupage,
+        )
+
+        chemin = fichier_projet_v1(self.etude, nom)
+
+        try:
+
+            projet = load_project(str(chemin))
+
+            decoupage = generer_decoupage(
+                self.etude,
+                nom,
+                projet
+            )
+
+            if not decoupage.blocs:
+
+                QMessageBox.warning(
+                    self,
+                    "Diarisation absente",
+                    (
+                        "Le projet v1 de cette réunion ne "
+                        "comporte aucun bloc de parole : "
+                        "validez d'abord la diarisation "
+                        "dans l'éditeur de correction de "
+                        "transcription, puis relancez."
+                    )
+                )
+
+                return False
+
+            enregistrer_decoupage(self.etude, decoupage)
+            sauvegarder_etude(self.etude)
+
+        except (DecoupageError, EtudeError) as e:
+
+            QMessageBox.warning(
+                self,
+                "Segmentation impossible",
+                str(e)
+            )
+
+            return False
+
+        return True
+
     def ouvrir_reunion_resume(self):
         """
         Ouvre la fenêtre Résumé de la réunion
@@ -628,6 +727,9 @@ class EtudeWindow(QWidget):
         nom = self.reunion_selectionnee()
 
         if nom is None:
+            return
+
+        if not self._assurer_decoupage(nom):
             return
 
         from ui.resume_window import ResumeWindow
