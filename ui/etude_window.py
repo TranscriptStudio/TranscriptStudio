@@ -670,8 +670,10 @@ class EtudeWindow(QWidget):
 
         from services.decoupage import (
             DecoupageError,
-            enregistrer_decoupage,
             generer_decoupage,
+        )
+        from services.etude_io import (
+            enregistrer_decoupage,
         )
 
         chemin = fichier_projet_v1(self.etude, nom)
