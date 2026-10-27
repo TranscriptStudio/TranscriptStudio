@@ -1121,7 +1121,14 @@ La campagne est terminee lorsque :
       sous-decoupage automatique des monologues longs aux pauses reelles
       (journal des operations), jamais dans une citation biblique, re-attribution
       des FID (bornes inchangees = FID conserve).
-- [ ] P14.5 Fusion de blocs et ordre d'ouvrage par reunion.
+- [x] P14.5 Fusion de blocs et ordre d'ouvrage par reunion : fusion de
+      segmentation (nouveau FID, locuteurs union multi-locuteurs, bornes
+      extremes, concatenation chronologique, fusion_de = FID sources, FID
+      sources inactifs jamais reutilises avec horodatage de fin, resultats
+      conserves, reversibilite par defusion reactivant les memes FID) ;
+      ordre d'ouvrage par reunion stocke en parallele de l'ordre
+      chronologique (defaut chronologique, permutation des blocs actifs,
+      mis a jour par fusion/defusion) ; 21 tests unitaires.
 
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 

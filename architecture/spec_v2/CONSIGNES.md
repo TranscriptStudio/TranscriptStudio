@@ -1,29 +1,41 @@
 # CONSIGNES — Atelier de spécification (Vibe Work) → Vibe Code local
+> Version du 2026-10-27 (après clôture P11 et session P14). Prime sur l'ancien CONSIGNES.md de ce dossier.
 
-> Ce fichier est écrit et tenu à jour par l'atelier de spécification (Vibe Work).
-> Il arrive dans ce dossier par synchronisation Drive : aucune action manuelle nécessaire.
-> Dernière mise à jour : 2026-10-27.
+## Lecture de ce dossier
 
-## Rôle de ce dossier
+Ce dossier est le canal de descente de la spécification. Lis d'abord INDEX_SPECS.md :
+il liste les documents en vigueur et ceux remplacés. Tout document suffixé par une
+date prime sur tout document homonyme non suffixé.
 
-- FEUILLE_DE_ROUTE_V2.md : feuille de route complète de la v2 (phases P14 à P20) — la source de vérité de la spécification.
-- PROMPT_REFORMULATION_V2.md : prompt de reformulation biblique v2 — valeur par défaut du bloc Reformulation (P16).
-- PROMPT_RESUME_V2.md : prompt de résumé d'étude biblique v2 — valeur par défaut du bloc Résumé (P17).
-- WORKFLOW_V2.md : schémas du workflow (vue d'ensemble + vue détaillée, format Mermaid).
-- PROJECT_STATE.md (copié par le hook post-commit) : ton état du code, remonté à l'atelier.
+## Documents en vigueur
 
-## Règles pour chaque session
+- FEUILLE_DE_ROUTE_V2_2026-10-27.md : feuille de route complète de la v2 (P14-P20) — source de vérité.
+- CONTRAT_FORMAT_ETUDE_V2_2026-10-27.md : contrat du format étude (P14), champs chemin_absolu et buffer contractualisés.
+- UI_REFORMULATION_V2.md : spécification UI de la page Reformulation (P16).
+- PARAMETRAGE_LLM_V2.md : spécification du paramétrage LLM (P15).
+- PROMPT_REFORMULATION_V2.md, PROMPT_RESUME_V2.md : prompts v2 (P16/P17).
+- WORKFLOW_V2.md : schémas du workflow (couleur par zone).
+- ARBITRAGE_P14.md : arbitrages atelier sur P14 (tous validés).
+- ADDENDUM_DEMARRAGE_V2.md : historique de démarrage (P11 clos, v2 débloquée) — intégré dans la feuille de route à jour.
 
-1. En DÉBUT de session : lire ce fichier et FEUILLE_DE_ROUTE_V2.md (sections 0 et phases concernées).
-2. La v2 (P14 et suivants) ne démarre qu'après la livraison de P11 (packaging Windows v1.0).
-3. En cas de conflit apparent entre ces documents et l'état réel du code : le signaler dans PROJECT_STATE.md et l'atelier tranchera — ne pas improviser d'écart silencieux.
-4. Les décisions d'architecture prises à l'atelier (principes directeurs, section 2 de la feuille de route) ne se contournent pas au niveau du code sans en reparler.
-5. Conserver les conventions v1 : commits d'une étape de développement à la fois (Pnn - sujet : détail), tests écrits au fil des phases, i18n français de l'UI.
+## Rituel de synchro (début de session + commande « synchronise avec agent de spec »)
 
-## Points d'attention v2 (rappels des principes)
+1. Lis INDEX_SPECS.md, puis ce fichier, puis les documents nécessaires à la tâche du jour.
+2. Recopie tout document nouveau ou plus récent que sa copie locale dans architecture/spec_v2/
+   (remplacement ou création, jamais de fusion ni d'édition — les fichiers de l'atelier
+   sont complets). Les versions avec suffixe de date remplacent leurs prédécesseurs dans
+   architecture/spec_v2/ sous leur nom canonique (sans suffixe).
+3. Copie architecture/PROJECT_STATE.md courant vers ce dossier (montée ; même effet que le hook post-commit).
 
-- Non-destructif : un traitement ne modifie jamais le texte source.
-- Format étude : dossier contenant et référençant des projets v1 inchangés ; FID stable par bloc de parole ; résultats stockés par bloc avec historique complet des versions.
-- Journal des opérations de prétraitement à persister dès P14 (silences supprimés : positions, durées originales, accélération) — conversions position traité ↔ original testées unitairement.
-- Prompts v2 éditables dans les paramètres de l'étude, intégrés comme valeurs par défaut.
-- Contrôles qualité locaux (gratuits) : rapport de longueur, références ajoutées/perdues, interdits stylistiques, emphase ; le LLM ne sert qu'au langage.
+## Règles de fond
+
+- Ces documents sont en lecture seule pour tout agent : ne jamais les modifier.
+- Monopole de publication : le CLI écrit librement dans PROJECT_STATE.md (décisions techniques,
+  contraintes, écarts) mais jamais dans les documents de spec ; l'atelier ne modifie jamais
+  PROJECT_STATE.md. Les arbitrages arrivent par fichiers ARBITRAGE_*.md.
+- En cas de conflit apparent entre la spec et l'état réel du code : le signaler dans
+  PROJECT_STATE.md et poursuivre — ne jamais improviser d'écart silencieux.
+- Commits conformes à AGENTS.md : une étape de développement par commit (« Pnn - sujet : détail »).
+- L'atelier ne peut pas supprimer ni remplacer les fichiers de ce dossier : les documents
+  remplacés restent présents, l'INDEX indique lesquels ignorer. David peut nettoyer
+  occasionnellement les fichiers marqués « REMPLACÉ ».

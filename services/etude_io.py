@@ -1043,6 +1043,25 @@ def marquer_fid_inactif(
     entree.fin = horodatage_courant()
 
 
+def reactiver_fid(
+    etude_ouverte: EtudeOuverte,
+    fid: int
+) -> None:
+    """
+    Réactive un FID inactif (dé-fusion : le bloc
+    redevient la segmentation active avec ses
+    données d'origine — même discours, même FID).
+    """
+
+    entree = etude_ouverte.registre.entrees.get(fid)
+
+    if entree is None:
+        raise EtudeError(f"FID inconnu : {fid}")
+
+    entree.actif = True
+    entree.fin = None
+
+
 def enregistrer_decoupage(
     etude_ouverte: EtudeOuverte,
     decoupage: DecoupageReunion

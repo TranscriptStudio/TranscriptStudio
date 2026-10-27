@@ -59,6 +59,7 @@ Conventions : encodage UTF-8 partout ; un seul retour à la ligne par saut de pa
 {
   "reference": "2026-10-13_Luc1b.json",
   "chemin_projet": "../../Projets/2026-10-13_Luc1b",   // chemin relatif vers le projet v1
+  "chemin_absolu": "C:\\Users\\David\\Projets\\2026-10-13_Luc1b",  // secours historique : null à la création, rempli à la première résolution réussie, persisté (validé atelier 2026-10-27)
   "date": "2026-10-13",
   "numero": 1,
   "titre_1": "Chapitre 1 — Naissance de Jean-Baptiste", // instance du gabarit, éditable
@@ -201,7 +202,7 @@ Décision d'atelier du 2026-10-27 : stocké **dans le dossier projet v1** sous l
   "horodatage": "2026-10-13T20:00:00",
   "operations": [
     { "type": "decoupe", "positions": ["00:00:00", "00:45:12"] },
-    { "type": "silence_supprime", "position": "00:03:12.400", "duree_originale": "00:00:04.200" },
+    { "type": "silence_supprime", "position": "00:03:12.400", "duree_originale": "00:00:04.200", "buffer": 0.25 },  // buffer conservé en secondes (validé atelier 2026-10-27)
     { "type": "acceleration", "facteur": 1.15 }
   ]
 }

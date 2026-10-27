@@ -30,6 +30,11 @@ from services.etude_io import (
     EtudeOuverte,
     attribuer_fid,
     marquer_fid_inactif,
+    reactiver_fid,
+)
+from services.timecodes import (
+    formater_timecode,
+    lire_timecode,
 )
 from services.preprocessing_journal import (
     JournalOperations,
@@ -625,10 +630,6 @@ def generer_decoupage(
                 mots_horodates[-1]
             )
 
-            from services.timecodes import (
-                formater_timecode
-            )
-
             positions = PositionsBloc(
                 debut=formater_timecode(
                     premiere_position
@@ -696,3 +697,505 @@ def generer_decoupage(
     )
 
     return decoupage
+
+
+#
+# P14.5 — Fusion de segmentation, dé-fusion et
+# ordre d'ouvrage par réunion.
+#
+
+def blocs_actifs(
+    etude_ouverte: EtudeOuverte,
+    nom_reunion: str
+) -> list:
+    """
+    Blocs de la segmentation active d'une réunion :
+    ceux dont le FID est actif au registre.
+
+    Les blocs fusionnés ou disparus restent dans le
+    découpage (avec leur FID inactif) pour que la
+    dé-fusion restaure les mêmes discours.
+    """
+
+    decoupage = etude_ouverte.decoupages.get(
+        nom_reunion
+    )
+
+    if decoupage is None:
+        raise DecoupageError(
+            f"Aucun découpage pour la réunion {nom_reunion}"
+        )
+
+    return [
+        bloc
+        for bloc in decoupage.blocs
+        if etude_ouverte.registre.entrees[
+            bloc.fid
+        ].actif
+    ]
+
+
+def fusionner_blocs(
+    etude_ouverte: EtudeOuverte,
+    nom_reunion: str,
+    fids_sources: list
+) -> int:
+    """
+    Fusionne des blocs adjacents de la segmentation
+    d'une réunion en un seul bloc de traitement
+    (P14.5, feuille de route §3.1) :
+
+    - NOUVEAU FID (jamais réutilisé) ;
+    - locuteurs = union des locuteurs sources
+      (multi-locuteurs si besoin) ;
+    - positions = bornes extrêmes des sources ;
+    - source = concaténation des textes sources
+      dans l'ordre chronologique ;
+    - ``origine.fusion_de`` = FID sources.
+
+    Les FID sources passent ``actif: false`` avec
+    horodatage de fin ; ils ne sont jamais
+    réutilisés et leurs résultats restent attachés
+    (règle d'invariance 2). Les blocs sources
+    restent dans le découpage (inactifs) pour que
+    la dé-fusion restaure les mêmes discours.
+
+    L'ordre d'ouvrage stocké, s'il existe, remplace
+    les FID sources par le FID fusionné.
+
+    Retourne le FID du bloc fusionné.
+    """
+
+    decoupage = etude_ouverte.decoupages.get(
+        nom_reunion
+    )
+
+    if decoupage is None:
+        raise DecoupageError(
+            f"Aucun découpage pour la réunion {nom_reunion}"
+        )
+
+    if not isinstance(fids_sources, list):
+        raise DecoupageError(
+            "Liste de FID sources attendue"
+        )
+
+    if len(fids_sources) < 2:
+        raise DecoupageError(
+            "La fusion porte sur deux blocs ou plus"
+        )
+
+    if len(set(fids_sources)) != len(fids_sources):
+        raise DecoupageError(
+            "FID sources en doublon"
+        )
+
+    par_fid = {
+        bloc.fid: (index, bloc)
+        for index, bloc in enumerate(decoupage.blocs)
+    }
+
+    sources = []
+
+    for fid in fids_sources:
+
+        if fid not in par_fid:
+            raise DecoupageError(
+                f"FID {fid} absent du découpage de "
+                f"{nom_reunion}"
+            )
+
+        entree = etude_ouverte.registre.entrees.get(fid)
+
+        if entree is None or not entree.actif:
+            raise DecoupageError(
+                f"FID {fid} inactif : seuls des blocs "
+                "actifs se fusionnent"
+            )
+
+        sources.append(par_fid[fid])
+
+    #
+    # Adjacence dans l'ordre chronologique du
+    # découpage : la fusion conserve un bloc de
+    # traitement continu (bornes extrêmes,
+    # concaténation chronologique).
+    #
+    indices_tries = sorted(
+        index for index, _bloc in sources
+    )
+
+    if indices_tries != list(
+        range(
+            indices_tries[0],
+            indices_tries[0] + len(indices_tries)
+        )
+    ):
+        raise DecoupageError(
+            "Les blocs à fusionner doivent être "
+            "adjacents dans l'ordre chronologique"
+        )
+
+    sources_chronologiques = [
+        bloc for _index, bloc in sorted(
+            sources,
+            key=lambda paire: paire[0]
+        )
+    ]
+
+    fids_chronologiques = [
+        bloc.fid for bloc in sources_chronologiques
+    ]
+
+    #
+    # Positions : bornes extrêmes dans l'audio
+    # traité.
+    #
+    debuts = [
+        lire_timecode(bloc.positions.debut)
+        for bloc in sources_chronologiques
+    ]
+
+    fins = [
+        lire_timecode(bloc.positions.fin)
+        for bloc in sources_chronologiques
+    ]
+
+    positions = PositionsBloc(
+        debut=formater_timecode(min(debuts)),
+        fin=formater_timecode(max(fins)),
+    )
+
+    #
+    # Locuteurs : union, dans l'ordre de première
+    # apparition.
+    #
+    locuteurs = []
+
+    for bloc in sources_chronologiques:
+
+        for locuteur in bloc.locuteurs:
+
+            if locuteur not in locuteurs:
+                locuteurs.append(locuteur)
+
+    #
+    # Source : concaténation dans l'ordre
+    # chronologique.
+    #
+    texte_fusionne = " ".join(
+        bloc.source
+        for bloc in sources_chronologiques
+    )
+
+    nouveau_fid = attribuer_fid(
+        etude_ouverte,
+        nom_reunion
+    )
+
+    bloc_fusionne = BlocParole(
+        fid=nouveau_fid,
+        locuteurs=locuteurs,
+        positions=positions,
+        source=texte_fusionne,
+        origine=OrigineBloc(
+            fusion_de=fids_chronologiques,
+            sous_decoupage=False,
+        ),
+    )
+
+    #
+    # Le bloc fusionné prend la place des sources
+    # dans la segmentation active : il s'insère
+    # après la dernière source, qui restent
+    # présentes mais inactives.
+    #
+    index_insertion = indices_tries[-1] + 1
+
+    decoupage.blocs.insert(
+        index_insertion,
+        bloc_fusionne
+    )
+
+    for fid in fids_chronologiques:
+        marquer_fid_inactif(etude_ouverte, fid)
+
+    #
+    # Ordre d'ouvrage stocké : les FID sources
+    # cèdent leur place au FID fusionné.
+    #
+    if decoupage.ordre_ouvrage is not None:
+
+        ordre = decoupage.ordre_ouvrage
+
+        position = next(
+            (
+                index
+                for index, fid
+                in enumerate(ordre)
+                if fid in fids_chronologiques
+            ),
+            None
+        )
+
+        if position is None:
+            position = len(ordre)
+
+        nouvel_ordre = [
+            fid
+            for fid in ordre
+            if fid not in fids_chronologiques
+        ]
+
+        nouvel_ordre.insert(position, nouveau_fid)
+
+        decoupage.ordre_ouvrage = nouvel_ordre
+
+    return nouveau_fid
+
+
+def defusionner_bloc(
+    etude_ouverte: EtudeOuverte,
+    nom_reunion: str,
+    fid_fusionne: int
+) -> list:
+    """
+    Dé-fusionne un bloc fusionné : la fusion est
+    réversible.
+
+    - les FID sources sont réactivés (mêmes
+      discours, mêmes FID : leurs blocs n'ont pas
+      bougé du découpage) ;
+    - le bloc fusionné quitte la segmentation
+      active et son FID passe ``actif: false``
+      (jamais réutilisé, résultats conservés) ;
+    - l'ordre d'ouvrage stocké, s'il existe,
+      remplace le FID fusionné par les FID sources
+      dans l'ordre chronologique.
+
+    Retourne les FID sources réactivés.
+    """
+
+    decoupage = etude_ouverte.decoupages.get(
+        nom_reunion
+    )
+
+    if decoupage is None:
+        raise DecoupageError(
+            f"Aucun découpage pour la réunion {nom_reunion}"
+        )
+
+    bloc = next(
+        (
+            bloc
+            for bloc in decoupage.blocs
+            if bloc.fid == fid_fusionne
+        ),
+        None
+    )
+
+    if bloc is None:
+        raise DecoupageError(
+            f"FID {fid_fusionne} absent du découpage "
+            f"de {nom_reunion}"
+        )
+
+    if not bloc.origine.fusion_de:
+        raise DecoupageError(
+            f"Le FID {fid_fusionne} n'est pas un "
+            "bloc fusionné"
+        )
+
+    entree = etude_ouverte.registre.entrees.get(
+        fid_fusionne
+    )
+
+    if entree is None or not entree.actif:
+        raise DecoupageError(
+            f"Le FID {fid_fusionne} est inactif : "
+            "rien à dé-fusionner"
+        )
+
+    fids_sources = list(bloc.origine.fusion_de)
+
+    par_fid = {
+        bloc.fid: bloc
+        for bloc in decoupage.blocs
+    }
+
+    for fid in fids_sources:
+
+        if fid not in par_fid:
+            raise DecoupageError(
+                f"FID source {fid} absent du découpage : "
+                "dé-fusion impossible"
+            )
+
+        entree_source = (
+            etude_ouverte.registre.entrees.get(fid)
+        )
+
+        if entree_source is None:
+            raise DecoupageError(
+                f"FID source {fid} absent du registre"
+            )
+
+    #
+    # Le bloc fusionné quitte la segmentation ; son
+    # FID devient inactif (jamais réutilisé), ses
+    # résultats restent attachés.
+    #
+    decoupage.blocs.remove(bloc)
+
+    marquer_fid_inactif(
+        etude_ouverte,
+        fid_fusionne
+    )
+
+    #
+    # Réactivation des sources : mêmes discours,
+    # mêmes FID.
+    #
+    for fid in fids_sources:
+        reactiver_fid(etude_ouverte, fid)
+
+    #
+    # Ordre d'ouvrage stocké : le FID fusionné
+    # cède sa place aux FID sources, dans l'ordre
+    # chronologique de la fusion.
+    #
+    if decoupage.ordre_ouvrage is not None:
+
+        ordre = decoupage.ordre_ouvrage
+
+        position = next(
+            (
+                index
+                for index, fid
+                in enumerate(ordre)
+                if fid == fid_fusionne
+            ),
+            None
+        )
+
+        if position is None:
+            position = len(ordre)
+
+        nouvel_ordre = [
+            fid
+            for fid in ordre
+            if fid != fid_fusionne
+        ]
+
+        nouvel_ordre[
+            position:position
+        ] = fids_sources
+
+        decoupage.ordre_ouvrage = nouvel_ordre
+
+    return fids_sources
+
+
+def ordre_ouvrage_effectif(
+    etude_ouverte: EtudeOuverte,
+    nom_reunion: str
+) -> list:
+    """
+    Ordre d'ouvrage d'une réunion : ordre stocké
+    s'il existe, sinon ordre chronologique des
+    blocs actifs (défaut).
+    """
+
+    decoupage = etude_ouverte.decoupages.get(
+        nom_reunion
+    )
+
+    if decoupage is None:
+        raise DecoupageError(
+            f"Aucun découpage pour la réunion {nom_reunion}"
+        )
+
+    if decoupage.ordre_ouvrage is not None:
+        return list(decoupage.ordre_ouvrage)
+
+    return [
+        bloc.fid
+        for bloc in blocs_actifs(
+            etude_ouverte,
+            nom_reunion
+        )
+    ]
+
+
+def definir_ordre_ouvrage(
+    etude_ouverte: EtudeOuverte,
+    nom_reunion: str,
+    fids: list
+) -> None:
+    """
+    Définit l'ordre d'ouvrage d'une réunion :
+    liste réordonnable des FID actifs, stockée en
+    parallèle de l'ordre chronologique (utilisé par
+    la génération d'ouvrage, P19).
+
+    La liste doit contenir chaque bloc actif de la
+    réunion exactement une fois (une permutation de
+    la segmentation active).
+    """
+
+    decoupage = etude_ouverte.decoupages.get(
+        nom_reunion
+    )
+
+    if decoupage is None:
+        raise DecoupageError(
+            f"Aucun découpage pour la réunion {nom_reunion}"
+        )
+
+    if not isinstance(fids, list):
+        raise DecoupageError(
+            "Liste de FID attendue"
+        )
+
+    fids_actifs = {
+        bloc.fid
+        for bloc in blocs_actifs(
+            etude_ouverte,
+            nom_reunion
+        )
+    }
+
+    if len(set(fids)) != len(fids):
+        raise DecoupageError(
+            "Ordre d'ouvrage : doublons interdits"
+        )
+
+    if set(fids) != fids_actifs:
+        raise DecoupageError(
+            "Ordre d'ouvrage : la liste doit être une "
+            "permutation des blocs actifs de la réunion "
+            f"({sorted(fids_actifs)})"
+        )
+
+    decoupage.ordre_ouvrage = list(fids)
+
+
+def reinitialiser_ordre_ouvrage(
+    etude_ouverte: EtudeOuverte,
+    nom_reunion: str
+) -> None:
+    """
+    Retire l'ordre d'ouvrage stocké : la réunion
+    revient à l'ordre chronologique par défaut.
+    """
+
+    decoupage = etude_ouverte.decoupages.get(
+        nom_reunion
+    )
+
+    if decoupage is None:
+        raise DecoupageError(
+            f"Aucun découpage pour la réunion {nom_reunion}"
+        )
+
+    decoupage.ordre_ouvrage = None

@@ -394,20 +394,41 @@ class DecoupageReunion:
     """
     Segmentation en blocs d'une réunion :
     ``blocs/decoupage/<reunion>.json`` (contrat §6).
+
+    ``blocs`` suit l'ordre chronologique (immuable :
+    il sert aux fenêtres glissantes, au contexte et
+    à l'audio). Les blocs fusionnés ou disparus y
+    restent — leur FID est inactif au registre —
+    afin que la dé-fusion restaure les mêmes
+    discours avec les mêmes FID.
+
+    ``ordre_ouvrage`` est la liste réordonnable des
+    FID actifs pour la lecture de l'ouvrage
+    (P14.5) ; None = ordre chronologique (défaut).
+    Il est stocké en parallèle de l'ordre
+    chronologique.
     """
 
     reunion: str = ""
     blocs: list = field(default_factory=list)
+    ordre_ouvrage: Optional[list] = None
 
     def to_dict(self) -> dict:
 
-        return {
+        data = {
             "reunion": self.reunion,
             "blocs": [
                 bloc.to_dict()
                 for bloc in self.blocs
             ],
         }
+
+        if self.ordre_ouvrage is not None:
+            data["ordre_ouvrage"] = list(
+                self.ordre_ouvrage
+            )
+
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> "DecoupageReunion":
@@ -418,6 +439,12 @@ class DecoupageReunion:
                 BlocParole.from_dict(bloc)
                 for bloc in data.get("blocs", [])
             ],
+            ordre_ouvrage=(
+                list(data["ordre_ouvrage"])
+                if "ordre_ouvrage" in data
+                and data["ordre_ouvrage"] is not None
+                else None
+            ),
         )
 
 

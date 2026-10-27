@@ -470,6 +470,55 @@ def valider_decoupage(
                 "booléen attendu"
             )
 
+    #
+    # Ordre d'ouvrage (optionnel, P14.5) : liste
+    # de FID de la réunion, sans doublon. Le
+    # défaut (absent) est l'ordre chronologique.
+    #
+    if "ordre_ouvrage" in data and data["ordre_ouvrage"] is not None:
+
+        ordre = data["ordre_ouvrage"]
+
+        if not isinstance(ordre, list):
+            _erreur(
+                fichier,
+                "ordre_ouvrage : liste de FID attendue"
+            )
+
+        fids_ordre = []
+
+        for index, fid in enumerate(ordre):
+
+            if not isinstance(fid, int):
+                _erreur(
+                    fichier,
+                    f"ordre_ouvrage[{index}] : "
+                    "FID entier attendu"
+                )
+
+            fids_ordre.append(fid)
+
+        if len(set(fids_ordre)) != len(fids_ordre):
+            _erreur(
+                fichier,
+                "ordre_ouvrage : doublons interdits"
+            )
+
+        fids_inconnus = [
+            fid
+            for fid in fids_ordre
+            if fid not in fids_vus
+        ]
+
+        if fids_inconnus:
+            _erreur(
+                fichier,
+                (
+                    "ordre_ouvrage : FID absents du "
+                    f"découpage : {fids_inconnus}"
+                )
+            )
+
 
 def _valider_validation(
     version: dict,
