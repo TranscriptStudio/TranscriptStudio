@@ -1090,3 +1090,43 @@ La campagne est terminee lorsque :
 - **Prerequis techniques** : Python 3.11+, PySide6, platformdirs, FFmpeg
 - **Licences** : GPL-3.0-only (a confirmer pour le packaging)
 - **Dependencies externes** : ElevenLabs API (optionnelle), FFmpeg (obligatoire)
+
+---
+
+# V2 — ETUDES, TRAITEMENTS LLM ET REFORMULATION (P14+)
+
+> Source de verite de la specification v2 : assets de l'atelier recopies dans
+> `architecture/spec_v2/` (FEUILLE_DE_ROUTE_V2.md, CONTRAT_FORMAT_ETUDE_V2.md,
+> ADDENDUM_DEMARRAGE_V2.md...). P11 clos le 2026-10-27 : la v2 est debloquee.
+> Le contrat du format etude fait autorite pour P14 (implementation stricte).
+
+## P14 — Format Etude & fondations donnees
+
+- [x] P14.1 Contrat `etude.json` + objets Python dans `models/etude.py`
+      (etude, reunion lieee, registre FID unique par etude, decoupage, resultats
+      versionnes par bloc avec FID stable, resume par reunion, synthese versionnee,
+      parametres avec prompts v2 en valeurs actives) + validation de schema
+      (`services/etude_schema.py`, `services/etude_io.py`, `services/timecodes.py`)
+      + tests unitaires (`tests/unit/test_etude_format.py`, dont les 5 regles
+      d'invariance du contrat §12). Prompts v2 embarques dans `resources/prompts/`.
+- [ ] P14.2 Journal des operations de pretraitement persiste dans le dossier
+      projet v1 (`journal_operations.json`, additif non destructif : decoupe,
+      silences supprimes avec positions et durees originales, acceleration ;
+      un nouveau journal remplace l'ancien) + conversions position traitee <->
+      original, tests unitaires obligatoires.
+- [ ] P14.3 UI : section Etudes sur l'accueil, page Etude (creation, ajout de
+      reunions = projets v1 inchanges, ordre, mode degrade si projet introuvable,
+      navigation accueil -> etude -> reunion).
+- [ ] P14.4 Decoupage en interventions depuis la diarisation validee ;
+      sous-decoupage automatique des monologues longs aux pauses reelles
+      (journal des operations), jamais dans une citation biblique, re-attribution
+      des FID (bornes inchangees = FID conserve).
+- [ ] P14.5 Fusion de blocs et ordre d'ouvrage par reunion.
+
+## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
+
+- P15 Service LLM multi-fournisseurs (spec separee : PARAMETRAGE_LLM_V2.md).
+- P16 Bloc Reformulation et page Traitement (spec : UI_REFORMULATION_V2.md).
+- P17 Synthese d'etude et bloc Resume.
+- P18 JND locale, validation des references, export ouvrage.
+- P19/P20 (v2.1) Page Ouvrage et edition avancee.

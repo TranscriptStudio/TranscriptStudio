@@ -94,3 +94,29 @@ Ne pas coder directement des chemins dépendants de Windows tels que :
 C:\Users\...
 AppData\...
 Documents\...
+```
+
+## 6. Synchro avec l'atelier de spécification (Vibe Work)
+
+L'atelier maintient un skill partagé dans le workspace Mistral « transcriptstudio » :
+  transcriptstudio-spec  (consignes + documents spec/ en assets)
+
+### Déclencheurs du rituel de synchro
+1. Au DÉBUT de chaque session de travail ;
+2. à chaque commande utilisateur du type « synchronise avec agent de spec ».
+
+### Rituel de synchro
+1. Lire le skill transcriptstudio-spec (dernière version) : corps + assets spec/
+   nécessaires à la tâche du jour.
+2. Recopier tout asset spec/ nouveau ou plus récent que sa copie locale dans
+   architecture/spec_v2/ (remplacement ou création, jamais de fusion ni
+   d'édition — les fichiers de l'atelier sont complets, les compléments
+   arrivent en fichiers séparés).
+3. Copier architecture/PROJECT_STATE.md courant vers le dossier Drive local
+   G:\Mon Drive\TranscriptStudio\Synchro (montée vers l'atelier).
+
+### Règles de fond
+- Ne jamais modifier le skill ni ses assets : écrits par l'atelier seul.
+- Écrire librement dans PROJECT_STATE.md (décisions techniques, contraintes,
+  écarts) ; en cas de conflit avec la spec, le signaler dedans et poursuivre.
+- La v2 (P14+) démarre après la livraison de P11.
