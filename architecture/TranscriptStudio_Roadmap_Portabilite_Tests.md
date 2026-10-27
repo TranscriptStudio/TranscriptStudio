@@ -1130,6 +1130,26 @@ La campagne est terminee lorsque :
       chronologique (defaut chronologique, permutation des blocs actifs,
       mis a jour par fusion/defusion) ; 21 tests unitaires.
 
+## P15 — Service LLM multi-fournisseurs (spec : spec_v2/PARAMETRAGE_LLM_V2.md)
+
+- [x] P15.1 Catalogue LLM embarqué et extensible (`services/llm/catalogue.py`,
+      défaut `resources/llm/catalogue_defaut.json` : OpenAI, Mistral, Anthropic
+      avec capacités et prix ; stocké dans le dossier de paramétrage ;
+      réinitialisation reconstituant les défauts sans perdre les ajouts
+      utilisateur) + CredentialStore générique (une clé par fournisseur,
+      jamais en clair hors du store) + service LLM (`services/llm/client.py` :
+      client abstrait, adaptateurs openai_compatible et anthropic, streaming
+      SSE, usage réel et coût estimé au catalogue, relance automatique avec
+      backoff sur erreurs transitoires, annulation propre, messages d'erreur
+      clairs sans jamais exposer la clé, fournisseur local sans clé) ; 31
+      tests unitaires dont invariants 1/3/5 du paramétrage LLM.
+- [ ] P15.2 Réglages : onglet LLM (fournisseur, clé masquée + « Tester la
+      clé », modèle, température/max_tokens selon capacités, éditeur de
+      catalogue).
+- [ ] P15.3 Moteur de traitement : assemblage de contexte (fenêtre glissante,
+      budget), exécution séquentielle par unité, stockage des résultats.
+- [ ] P15.4 Journal de passe : par intervention, tokens in/out, coût, durée.
+
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 
 - P15 Service LLM multi-fournisseurs (spec separee : PARAMETRAGE_LLM_V2.md).
