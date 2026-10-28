@@ -132,10 +132,20 @@ class HomeWindow(QWidget):
         self.api_status_label = QLabel("")
         self.api_status_label.setStyleSheet("font-size: 12px; color: #666666;")
 
+        #
+        # Retour relecture P16-bis : état du service IA
+        # de reformulation (noms des fournisseurs dont
+        # la clé est enregistrée, ou fournisseurs
+        # locaux sans clé).
+        #
+        self.llm_status_label = QLabel("")
+        self.llm_status_label.setStyleSheet("font-size: 12px; color: #666666;")
+
         # Les couleurs sont appliquees par une methode separee afin de pouvoir
         # les recalculer immediatement apres un changement de theme.
         self.update_header_colors()
         self.update_api_status()
+        self.maj_statut_llm()
 
         title_layout.addWidget(self.title_label)
         title_layout.addSpacing(4)
@@ -144,6 +154,7 @@ class HomeWindow(QWidget):
         title_layout.addWidget(self.version_label)
         title_layout.addSpacing(4)
         title_layout.addWidget(self.api_status_label)
+        title_layout.addWidget(self.llm_status_label)
 
         header_layout.addWidget(
             icon_label,
@@ -415,6 +426,7 @@ class HomeWindow(QWidget):
             self.settings.load()
             self.update_header_colors()
             self.update_api_status()
+            self.maj_statut_llm()
                 
     def update_api_status(self):
         """Met à jour l'affichage de l'état de l'API de transcription."""
@@ -422,6 +434,52 @@ class HomeWindow(QWidget):
             self.api_status_label.setText("Service de transcription : configuré")
         else:
             self.api_status_label.setText("Service de transcription : non configuré")
+
+    def maj_statut_llm(self):
+        """
+        Retour relecture P16-bis : état du service IA
+        de reformulation — fournisseurs du catalogue
+        dont la clé est enregistrée dans le
+        CredentialStore (les fournisseurs locaux sans
+        clé comptent comme configurés). Rafraîchi à
+        l'ouverture et après les réglages.
+        """
+
+        from services.credential_store import CredentialStore
+        from services.llm.catalogue import (
+            charger_catalogue,
+        )
+
+        try:
+            catalogue = charger_catalogue()
+        except Exception:
+            catalogue = None
+
+        noms = []
+
+        if catalogue is not None:
+
+            store = CredentialStore(
+                self.settings.app_folder / "settings.json"
+            )
+
+            for fournisseur in catalogue.fournisseurs:
+
+                if (
+                    not fournisseur.necessite_cle
+                    or store.has_cle_llm(fournisseur.id)
+                ):
+                    noms.append(fournisseur.nom)
+
+        if noms:
+            self.llm_status_label.setText(
+                "Service de reformulation : configuré — "
+                + ", ".join(noms)
+            )
+        else:
+            self.llm_status_label.setText(
+                "Service de reformulation : non configuré"
+            )
     def new_transcription(self):
 
         entry_dialog = (

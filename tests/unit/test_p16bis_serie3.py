@@ -728,3 +728,145 @@ class TestSection18Catalogue:
             f.id == "mistral"
             for f in catalogue.fournisseurs
         )
+
+
+#
+# ==================================================
+# Retour relecture complémentaire : statut de test
+# conservé par fournisseur + accueil.
+# ==================================================
+#
+
+@pytest.mark.qt
+class TestRetourRelectureStatutEtAccueil:
+
+    def test_statut_test_conserve_par_fournisseur(self, qapp, tmp_path):
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        settings.save()
+
+        store = CredentialStore(
+            settings.app_folder / "settings.json"
+        )
+
+        store.set_cle_llm("openai", "sk-test-123456")
+
+        from services.llm.catalogue import (
+            catalogue_par_defaut,
+        )
+        from ui.settings_dialog import SettingsDialog
+
+        with patch(
+            "ui.settings_dialog.charger_catalogue",
+            return_value=catalogue_par_defaut(),
+        ):
+
+            dialogue = SettingsDialog(
+                settings=settings
+            )
+
+        try:
+
+            assert (
+                dialogue.llm_fournisseur_combo
+                .currentData()
+                == "openai"
+            )
+
+            # Test réussi (même chemin d'écriture que
+            # « Tester la clé », sans réseau).
+            dialogue._enregistrer_statut_test(
+                "Clé valide. 136 modèle(s) "
+                "accessible(s) chez OpenAI.",
+                "#2E7D32",
+            )
+
+            # Changement de fournisseur : statut
+            # neutre pour le nouveau.
+            index = (
+                dialogue.llm_fournisseur_combo
+                .findData("mistral")
+            )
+
+            dialogue.llm_fournisseur_combo.setCurrentIndex(
+                index
+            )
+
+            assert dialogue.llm_test_statut.text() == (
+                "Non testée."
+            )
+
+            # Retour au fournisseur testé : le
+            # résultat du test est conservé (texte
+            # et couleur).
+            index = (
+                dialogue.llm_fournisseur_combo
+                .findData("openai")
+            )
+
+            dialogue.llm_fournisseur_combo.setCurrentIndex(
+                index
+            )
+
+            assert "Clé valide" in (
+                dialogue.llm_test_statut.text()
+            )
+
+            assert "#2E7D32" in (
+                dialogue.llm_test_statut.styleSheet()
+            )
+
+        finally:
+            dialogue.close()
+
+    def test_accueil_affiche_le_service_de_reformulation(self, qapp, tmp_path):
+
+        from services.llm.catalogue import (
+            catalogue_par_defaut,
+        )
+        from ui.home_window import HomeWindow
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        settings.save()
+
+        with patch(
+            "services.llm.catalogue.charger_catalogue",
+            return_value=catalogue_par_defaut(),
+        ):
+
+            accueil = HomeWindow(settings=settings)
+
+        try:
+
+            # Aucune clé : non configuré.
+            assert accueil.llm_status_label.text() == (
+                "Service de reformulation : "
+                "non configuré"
+            )
+
+            store = CredentialStore(
+                settings.app_folder / "settings.json"
+            )
+
+            store.set_cle_llm("openai", "sk-test-123456")
+
+            with patch(
+                "services.llm.catalogue.charger_catalogue",
+                return_value=catalogue_par_defaut(),
+            ):
+
+                accueil.maj_statut_llm()
+
+            texte = accueil.llm_status_label.text()
+
+            assert "configuré —" in texte
+            assert "OpenAI" in texte
+
+        finally:
+            accueil.close()

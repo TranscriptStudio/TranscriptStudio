@@ -65,6 +65,14 @@ class SettingsDialog(QDialog):
         self._catalogue_llm = None
         self._ancien_fournisseur_id = None
 
+        #
+        # P16-bis (retour relecture §17) : résultat
+        # du test de clé mémorisé par fournisseur —
+        # changer de fournisseur et revenir ne perd
+        # plus « Clé valide. » / « Clé invalide. ».
+        #
+        self._statuts_test = {}
+
         self._charger_catalogue_llm()
 
         # En mode first-run, le titre est different et le comportement aussi
@@ -786,11 +794,34 @@ class SettingsDialog(QDialog):
         )
 
         if not fournisseur.necessite_cle:
+            self.llm_test_statut.setStyleSheet(
+                "font-size: 12px; color: #666666;"
+            )
             self.llm_test_statut.setText(
                 "Fournisseur local : aucune clé requise."
             )
         else:
+            self.llm_test_statut.setStyleSheet(
+                "font-size: 12px; color: #666666;"
+            )
             self.llm_test_statut.setText("Non testée.")
+
+        #
+        # P16-bis (retour relecture §17) : résultat
+        # du test mémorisé pour CE fournisseur —
+        # revenir dessus ne repart pas de « Non
+        # testée. ».
+        #
+        statut = self._statuts_test.get(
+            fournisseur.id
+        )
+
+        if statut is not None:
+            self.llm_test_statut.setStyleSheet(
+                f"font-size: 12px; "
+                f"color: {statut[1]};"
+            )
+            self.llm_test_statut.setText(statut[0])
 
         self._remplir_modeles()
 
@@ -966,22 +997,52 @@ class SettingsDialog(QDialog):
             else:
                 texte = f"Échec du test : {e.message}"
 
-            self.llm_test_statut.setText(texte)
+            self._enregistrer_statut_test(
+                texte,
+                "#D32F2F"
+            )
 
             return
 
-        self.llm_test_statut.setStyleSheet(
-            "font-size: 12px; color: #2E7D32;"
-        )
-
         if not fournisseur.necessite_cle and not cle:
-            self.llm_test_statut.setText(
+            texte = (
                 f"Connexion validée ({resultat['message']})"
             )
         else:
-            self.llm_test_statut.setText(
+            texte = (
                 f"Clé valide. {resultat['message']}"
             )
+
+        self._enregistrer_statut_test(
+            texte,
+            "#2E7D32"
+        )
+
+    def _enregistrer_statut_test(
+        self,
+        texte: str,
+        couleur: str
+    ):
+        """
+        Affiche le résultat du test de la clé du
+        fournisseur courant et le mémorise par
+        fournisseur (retour relecture §17) :
+        changer de fournisseur et revenir conserve
+        le résultat.
+        """
+
+        fournisseur = self._fournisseur_courant()
+
+        if fournisseur is not None:
+            self._statuts_test[fournisseur.id] = (
+                (texte, couleur)
+            )
+
+        self.llm_test_statut.setStyleSheet(
+            f"font-size: 12px; color: {couleur};"
+        )
+
+        self.llm_test_statut.setText(texte)
 
     def ouvrir_editeur_catalogue(self):
         """
