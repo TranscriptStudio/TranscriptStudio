@@ -123,6 +123,19 @@ class SettingsManager:
                 "detect_speaker_roles": False
 
             },
+            "reformulation": {
+                # P16-bis : page Reformulation — taille
+                # du texte (défaut abaissé pour la lecture
+                # en double colonne) et largeurs de
+                # colonnes mémorisées (locuteurs, texte
+                # brut, pastilles ; la colonne reformulée
+                # absorbe l'espace restant).
+                "taille_texte": 11,
+                "largeur_locuteurs": 130,
+                "largeur_brute": None,
+                "largeur_pastilles": 160,
+            },
+
             "projects_root": "",
             "initial_setup_completed": False,
         }
@@ -392,6 +405,50 @@ class SettingsManager:
         """
 
         self.settings["llm"] = dict(config)
+
+        self.save()
+
+    def get_reformulation_prefs(self):
+        """
+        Préférences de la page Reformulation (P16-bis) :
+        taille du texte et largeurs de colonnes
+        mémorisées. Les clés absentes (études de
+        configurations antérieures) prennent les
+        valeurs par défaut.
+        """
+
+        prefs = self.settings.get(
+            "reformulation",
+            {}
+        )
+
+        defaults = (
+            self.default_settings()
+            ["reformulation"]
+        )
+
+        for cle, valeur in defaults.items():
+
+            if cle not in prefs:
+                prefs[cle] = valeur
+
+        return prefs
+
+    def set_reformulation_prefs(self, prefs: dict):
+        """
+        Mémorise les préférences de la page
+        Reformulation (fusion : seules les clés
+        fournies sont mises à jour).
+        """
+
+        actuelles = self.settings.get(
+            "reformulation",
+            {}
+        )
+
+        actuelles.update(prefs)
+
+        self.settings["reformulation"] = actuelles
 
         self.save()
 

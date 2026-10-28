@@ -3,6 +3,8 @@
 
 Ce document définit l'interface de la page de traitement Reformulation. Il complète le contrat du format étude (les données manipulées y sont définies) et fait autorité pour l'implémentation de P16.
 
+> ⚠️ **Correctifs de relecture (2026-10-27)** : la feuille « Spec UI Reformulation : correctifs de relecture (v2.1) » (asset `spec/UI_REFORMULATION_MODIFS_V2.md`) prévaut sur le présent document pour les points qu'elle traite : défilement unique synchronisé (pas de scroll interne au bloc), colonne locuteurs = noms par bloc (filtre retiré de l'UI, réactivable plus tard via menu de la barre supérieure), largeur de la zone gauche de la timeline alignée sur la colonne locuteurs, liaison éditeur v1 → Reformulation, persistance de la taille de police.
+
 ## 1. Principe directeur
 
 La page est une **table de relecture en lecture parallèle** : chaque bloc de parole apparaît sur une ligne unique dont la moitié gauche montre le texte brut corrigé (référence, avec audio) et la moitié droite le texte reformulé (éditable). L'alignement horizontal permet de vérifier d'un coup d'œil la fidélité de la reformulation.

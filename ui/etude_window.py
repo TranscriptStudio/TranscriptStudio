@@ -74,6 +74,97 @@ class SyntheseWorker(QObject):
             self.erreur.emit(str(e))
 
 
+def assurer_decoupage(
+    parent,
+    etude_ouverte: EtudeOuverte,
+    nom: str
+) -> bool:
+    """
+    La reformulation (et le résumé depuis la brute)
+    exigent une segmentation de la réunion en blocs
+    de parole (P14.4). La génération n'était exposée
+    nulle part dans l'UI : elle est proposée ici,
+    depuis la diarisation validée du projet v1.
+
+    Partagée par la page Étude et le bouton
+    « Reformulation… » de l'éditeur v1 (P16-bis,
+    spec correctifs §4).
+
+    Retour : True si la segmentation existe (ou
+    vient d'être générée).
+    """
+
+    if etude_ouverte.decoupages.get(nom):
+        return True
+
+    reponse = QMessageBox.question(
+        parent,
+        "Segmentation de la réunion",
+        (
+            "Aucune segmentation n'existe encore pour "
+            f"la réunion « {nom} » : la reformulation "
+            "travaille par blocs de parole.\n\n"
+            "La générer maintenant à partir de la "
+            "diarisation validée du projet v1 ?\n\n"
+            "(Le projet v1 n'est pas modifié.)"
+        )
+    )
+
+    if reponse != QMessageBox.StandardButton.Yes:
+        return False
+
+    from services.decoupage import (
+        DecoupageError,
+        generer_decoupage,
+    )
+    from services.etude_io import (
+        enregistrer_decoupage,
+    )
+
+    chemin = fichier_projet_v1(etude_ouverte, nom)
+
+    try:
+
+        projet = load_project(str(chemin))
+
+        decoupage = generer_decoupage(
+            etude_ouverte,
+            nom,
+            projet
+        )
+
+        if not decoupage.blocs:
+
+            QMessageBox.warning(
+                parent,
+                "Diarisation absente",
+                (
+                    "Le projet v1 de cette réunion ne "
+                    "comporte aucun bloc de parole : "
+                    "validez d'abord la diarisation "
+                    "dans l'éditeur de correction de "
+                    "transcription, puis relancez."
+                )
+            )
+
+            return False
+
+        enregistrer_decoupage(etude_ouverte, decoupage)
+        sauvegarder_etude(etude_ouverte)
+
+    except (DecoupageError, EtudeError) as e:
+
+        QMessageBox.warning(
+            parent,
+            "Segmentation impossible",
+            str(e)
+        )
+
+        return False
+
+    return True
+
+
 class EtudeWindow(QWidget):
 
     def __init__(self, dossier_etude, settings=None):
@@ -630,7 +721,8 @@ class EtudeWindow(QWidget):
         self.reformulation_window = (
             ReformulationWindow(
                 self.etude,
-                nom
+                nom,
+                settings=self.settings
             )
         )
 
@@ -638,86 +730,15 @@ class EtudeWindow(QWidget):
 
     def _assurer_decoupage(self, nom: str) -> bool:
         """
-        La reformulation (et le résumé depuis la
-        brute) exigent une segmentation de la réunion
-        en blocs de parole (P14.4). La génération
-        n'était exposée nulle part dans l'UI : elle
-        est proposée ici, depuis la diarisation
-        validée du projet v1.
-
-        Retour : True si la segmentation existe (ou
-        vient d'être générée).
+        Segmentation de la réunion : fonction partagée
+        (voir assurer_decoupage, en tête de module).
         """
 
-        if self.etude.decoupages.get(nom):
-            return True
-
-        reponse = QMessageBox.question(
+        return assurer_decoupage(
             self,
-            "Segmentation de la réunion",
-            (
-                "Aucune segmentation n'existe encore pour "
-                f"la réunion « {nom} » : la reformulation "
-                "travaille par blocs de parole.\n\n"
-                "La générer maintenant à partir de la "
-                "diarisation validée du projet v1 ?\n\n"
-                "(Le projet v1 n'est pas modifié.)"
-            )
+            self.etude,
+            nom
         )
-
-        if reponse != QMessageBox.StandardButton.Yes:
-            return False
-
-        from services.decoupage import (
-            DecoupageError,
-            generer_decoupage,
-        )
-        from services.etude_io import (
-            enregistrer_decoupage,
-        )
-
-        chemin = fichier_projet_v1(self.etude, nom)
-
-        try:
-
-            projet = load_project(str(chemin))
-
-            decoupage = generer_decoupage(
-                self.etude,
-                nom,
-                projet
-            )
-
-            if not decoupage.blocs:
-
-                QMessageBox.warning(
-                    self,
-                    "Diarisation absente",
-                    (
-                        "Le projet v1 de cette réunion ne "
-                        "comporte aucun bloc de parole : "
-                        "validez d'abord la diarisation "
-                        "dans l'éditeur de correction de "
-                        "transcription, puis relancez."
-                    )
-                )
-
-                return False
-
-            enregistrer_decoupage(self.etude, decoupage)
-            sauvegarder_etude(self.etude)
-
-        except (DecoupageError, EtudeError) as e:
-
-            QMessageBox.warning(
-                self,
-                "Segmentation impossible",
-                str(e)
-            )
-
-            return False
-
-        return True
 
     def ouvrir_reunion_resume(self):
         """

@@ -58,11 +58,23 @@ from services.settings import SettingsManager
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, project):
+    def __init__(self, project, settings=None):
         super().__init__()
 
         self.menuBar().hide()
         self.project = project
+
+        #
+        # Réglages injectables (P16-bis : le bouton
+        # « Reformulation… » consulte les études
+        # récentes ; les tests isolent la
+        # configuration réelle de l'utilisateur).
+        #
+        self.settings_manager = (
+            settings
+            if settings is not None
+            else SettingsManager()
+        )
 
         self.playback = PlaybackManager()
 
@@ -297,6 +309,21 @@ class MainWindow(QMainWindow):
         self.help_button.setToolTip(
             "Ouvrir le manuel utilisateur"
         )
+
+        #
+        # P16-bis (spec correctifs §4) : liaison
+        # correction de transcription → reformulation.
+        # Actif uniquement si le projet appartient à
+        # une étude (référencé comme réunion).
+        #
+        self.reformulation_button = QPushButton(
+            "Reformulation…"
+        )
+        self.reformulation_button.setToolTip(
+            "Ouvrir la page Reformulation littéraire "
+            "de la réunion de ce projet dans son étude"
+        )
+
         action_layout.addWidget(
             self.home_button
         )
@@ -310,6 +337,10 @@ class MainWindow(QMainWindow):
         )
         action_layout.addWidget(
             self.help_button
+        )
+
+        action_layout.addWidget(
+            self.reformulation_button
         )
 
         #
@@ -781,6 +812,200 @@ class MainWindow(QMainWindow):
         self.text_smaller_button.clicked.connect(
             self.decrease_text_size
         )
+
+        #
+        # P16-bis (spec correctifs §4) : liaison
+        # correction de transcription → reformulation.
+        #
+        self.reformulation_button.clicked.connect(
+            self.ouvrir_reformulation
+        )
+
+        self.maj_bouton_reformulation()
+
+    #
+    # ==================================================
+    # P16-bis : bouton « Reformulation… » (spec
+    # correctifs §4 — brique inverse du lien
+    # « Correction de transcription… » de la page
+    # Étude).
+    # ==================================================
+    #
+
+    def etudes_referencant_projet(self):
+        """
+        Études récentes qui référencent le projet
+        courant comme réunion : liste de
+        (dossier, nom de réunion, titre de l'étude).
+
+        Les études sont cherchées parmi les études
+        récentes des réglages (aucun registre global
+        des études n'existe — choix documenté dans
+        PROJECT_STATE.md).
+        """
+
+        resultats = []
+
+        chemin_projet = getattr(
+            self.project,
+            "project_file",
+            None
+        )
+
+        if not chemin_projet:
+            return resultats
+
+        from services.etude_io import (
+            fichier_projet_v1,
+            ouvrir_etude,
+        )
+
+        for dossier in (
+            self.settings_manager
+            .get_recent_etudes()
+        ):
+
+            if not (
+                Path(dossier) / "etude.json"
+            ).is_file():
+                continue
+
+            try:
+                etude = ouvrir_etude(dossier)
+            except Exception:
+                continue
+
+            for nom in etude.etude.ordre_reunions:
+
+                chemin = fichier_projet_v1(
+                    etude,
+                    nom
+                )
+
+                if chemin is None:
+                    continue
+
+                if (
+                    Path(chemin).resolve()
+                    == Path(chemin_projet).resolve()
+                ):
+                    resultats.append(
+                        (dossier, nom, etude.etude.titre)
+                    )
+
+        return resultats
+
+    def maj_bouton_reformulation(self):
+        """
+        Le bouton n'est actif que si le projet
+        appartient à une étude (référencé comme
+        réunion) ; sinon désactivé avec info-bulle
+        (spec correctifs §4.2).
+        """
+
+        etudes = self.etudes_referencant_projet()
+
+        if etudes:
+            self.reformulation_button.setEnabled(True)
+            self.reformulation_button.setToolTip(
+                "Ouvrir la page Reformulation littéraire "
+                "de la réunion de ce projet dans son étude"
+            )
+        else:
+            self.reformulation_button.setEnabled(False)
+            self.reformulation_button.setToolTip(
+                "Ce projet n'appartient à aucune étude"
+            )
+
+    def ouvrir_reformulation(self):
+        """
+        Ouvre la page de traitement Reformulation de
+        la réunion courante (spec correctifs §4.1) :
+        même navigation que « Reformulation
+        littéraire… » depuis la page Étude.
+
+        Projet référencé par plusieurs études :
+        dialogue de choix (spéc. §4.3 — la plus
+        récente en tête de liste des études
+        récentes).
+        """
+
+        etudes = self.etudes_referencant_projet()
+
+        if not etudes:
+            QMessageBox.information(
+                self,
+                "Aucune étude",
+                (
+                    "Ce projet n'appartient à aucune "
+                    "étude.\n\n"
+                    "Créez ou ouvrez une étude depuis "
+                    "l'accueil, puis ajoutez-y ce projet "
+                    "comme réunion."
+                )
+            )
+            return
+
+        if len(etudes) == 1:
+            dossier, nom, _titre = etudes[0]
+        else:
+
+            libelles = [
+                f"{titre} — {nom}"
+                for _d, nom, titre in etudes
+            ]
+
+            choix, ok = QInputDialog.getItem(
+                self,
+                "Quelle étude ouvrir ?",
+                (
+                    "Ce projet est référencé par "
+                    "plusieurs études :"
+                ),
+                libelles,
+                0,
+                False
+            )
+
+            if not ok:
+                return
+
+            dossier, nom, _titre = etudes[
+                libelles.index(choix)
+            ]
+
+        from services.etude_io import ouvrir_etude
+        from ui.etude_window import assurer_decoupage
+
+        etude = ouvrir_etude(dossier)
+
+        if not etude.reunion_joignable(nom):
+            QMessageBox.warning(
+                self,
+                "Projet introuvable",
+                (
+                    "Le projet v1 de cette réunion est "
+                    "introuvable dans l'étude : "
+                    "relocalisez-le depuis la page "
+                    "Étude, puis relancez."
+                )
+            )
+            return
+
+        if not assurer_decoupage(self, etude, nom):
+            return
+
+        from ui.reformulation_window import (
+            ReformulationWindow
+        )
+
+        self.reformulation_window = ReformulationWindow(
+            etude,
+            nom,
+            settings=self.settings_manager
+        )
+
+        self.reformulation_window.show()
 
     def reculer_audio_5s(self):
         self.playback.jump_backward(5)

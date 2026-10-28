@@ -2,15 +2,41 @@
 """
 Page Traitement / Reformulation (P16.2, P16.2b).
 
-Spécification de référence : UI_REFORMULATION_V2.md
-(fait autorité) + SPEC_MOTEUR_P15_V2.md (exécution).
+Spécifications de référence :
+- UI_REFORMULATION_V2.md (fait autorité) ;
+- UI_REFORMULATION_MODIFS_V2_2026-10-27.md (correctifs
+  de relecture P16-bis — PRIME sur la précédente pour
+  ses points) ;
+- SPEC_MOTEUR_P15_V2.md (exécution).
 
 Table de relecture en lecture parallèle : une
-ligne par bloc — texte brut corrigé à gauche
-(lecture seule, audio et timeline v1), bloc
-reformulé à droite (éditable), pastille d'état et
-indicateur de version à droite (menu des
+ligne par bloc — colonne locuteurs (noms du bloc),
+texte brut corrigé (lecture seule, audio et
+timeline v1), bloc reformulé (éditable), pastille
+d'état et indicateur de version à droite (menu des
 opérations).
+
+Correctifs P16-bis (spec MODIFS) :
+- une seule barre de défilement verticale pour
+  toute la table (les deux colonnes défilent
+  ensemble) ; AUCUNE barre de défilement dans une
+  cellule de bloc — les cellules s'étendent à la
+  hauteur de leur contenu ;
+- hauteur de ligne = hauteur max des deux cellules
+  (brut ↔ reformulé alignés horizontalement, l'autre
+  cellule se cale en haut), maintenue au fil de la
+  frappe et au redimensionnement des colonnes ;
+- colonne locuteurs = une cellule par ligne de bloc
+  (noms, « / » pour un bloc fusionné) ; le filtrage
+  est retiré de l'UI mais l'API est conservée
+  (selectionner_locuteur / appliquer_filtrage),
+  prête à être rebranchée plus tard sur un menu
+  « Filtrer par locuteur… » de la barre supérieure ;
+- la zone gauche de la timeline a exactement la
+  largeur de la colonne locuteurs ;
+- la taille du texte (A+/A−) et les largeurs de
+  colonnes sont mémorisées dans les réglages
+  (défaut abaissé pour la double colonne).
 
 Règles d'invariance UI (spec §7) :
 1. la colonne brute n'expose aucune commande de
@@ -42,19 +68,21 @@ from PySide6.QtGui import (
     QTextCursor,
 )
 from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QHeaderView,
     QInputDialog,
     QLabel,
     QMenu,
     QMessageBox,
-    QPlainTextEdit,
     QPushButton,
     QScrollArea,
+    QTableWidget,
     QTextEdit,
+    QToolButton,
+    QToolTip,
     QVBoxLayout,
     QWidget,
     QHBoxLayout,
-    QToolButton,
-    QToolTip,
 )
 
 from services.controle_qualite import controles_bloc
@@ -67,6 +95,7 @@ from services.etude_io import (
 )
 from services.etude_schema import EtudeFormatError
 from services.project_io import load_project
+from services.settings import SettingsManager
 from services.timecodes import lire_timecode
 from services.traitements.moteur import (
     CIBLE_NON_VALIDES,
@@ -87,6 +116,17 @@ try:
     VALIDATEUR_DEFAUT = getpass.getuser()
 except Exception:
     VALIDATEUR_DEFAUT = "Utilisateur"
+
+
+#
+# Taille du texte : plage A+/A− inchangée, défaut
+# abaissé pour la lecture en double colonne (spec
+# correctifs §5).
+#
+
+TAILLE_TEXTE_MIN = 9
+TAILLE_TEXTE_MAX = 24
+TAILLE_TEXTE_DEFAUT = 11
 
 
 #
@@ -209,21 +249,24 @@ class ReformulationBlocWorker(QObject):
             self.erreur.emit(self.fid, str(e))
 
 
-class LigneBloc(QWidget):
+class LigneBloc:
     """
-    Une ligne de la table de relecture : texte
-    brut (lecture seule) ↔ bloc reformulé
-    (éditable), pastille d'état et indicateur de
-    version.
+    Une ligne de la table de relecture : nom(s) du
+    ou des locuteurs, texte brut (lecture seule),
+    bloc reformulé (éditable), pastille d'état et
+    indicateur de version.
+
+    P16-bis : les cellules ne défilent jamais
+    intérieurement (spec correctifs §1.1) — la
+    hauteur de contenu est portée par la ligne de
+    la table.
     """
 
     def __init__(
         self,
         bloc,
-        taille_texte: int,
-        parent=None
+        taille_texte: int
     ):
-        super().__init__(parent)
 
         self.bloc = bloc
 
@@ -234,9 +277,19 @@ class LigneBloc(QWidget):
         self.non_enregistre = False
         self.filtration_locuteur = True
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        #
+        # Colonne locuteurs : le(s) nom(s) du bloc
+        # (« / » pour un bloc fusionné
+        # multi-locuteurs) — spec correctifs §2.1.
+        #
+        self.label_locuteurs = QLabel(
+            " / ".join(bloc.locuteurs)
+        )
+        self.label_locuteurs.setWordWrap(True)
+        self.label_locuteurs.setAlignment(
+            Qt.AlignmentFlag.AlignTop
+            | Qt.AlignmentFlag.AlignLeft
+        )
 
         #
         # Texte brut corrigé : référence de
@@ -244,27 +297,47 @@ class LigneBloc(QWidget):
         # (règles 1 et 2 : aucun menu, aucune
         # modification).
         #
-        self.cellule_brute = QPlainTextEdit()
+        #
+        # QTextEdit (et non QPlainTextEdit) : la
+        # hauteur de contenu rendue par le layout
+        # du document est exacte, ce qui permet
+        # d'ajuster la hauteur de ligne sans
+        # défilement interne.
+        #
+        self.cellule_brute = QTextEdit()
+        self.cellule_brute.setAcceptRichText(False)
         self.cellule_brute.setReadOnly(True)
         self.cellule_brute.setPlainText(bloc.source)
         self.cellule_brute.setTabChangesFocus(True)
-
-        layout.addWidget(self.cellule_brute, stretch=1)
+        self._sans_defilement_interne(
+            self.cellule_brute
+        )
 
         #
         # Bloc reformulé : éditable quand le bloc
         # n'est pas validé (règle 4).
         #
-        self.cellule_reformee = QPlainTextEdit()
-        self.cellule_reformee.setTabChangesFocus(True)
-
-        layout.addWidget(self.cellule_reformee, stretch=1)
+        self.cellule_reformee = QTextEdit()
+        self.cellule_reformee.setAcceptRichText(False)
+        self.cellule_reformee.setTabChangesFocus(
+            True
+        )
+        self._sans_defilement_interne(
+            self.cellule_reformee
+        )
 
         #
-        # Pastille d'état + indicateur de version.
+        # Pastille d'état + indicateur de version
+        # (spec §5), à droite de la ligne.
         #
-        colonne_droite = QVBoxLayout()
-        colonne_droite.setContentsMargins(0, 0, 0, 0)
+        self.colonne_droite = QWidget()
+
+        colonne_droite = QVBoxLayout(
+            self.colonne_droite
+        )
+        colonne_droite.setContentsMargins(
+            0, 0, 0, 0
+        )
         colonne_droite.setSpacing(4)
 
         self.pastille = QToolButton()
@@ -281,8 +354,6 @@ class LigneBloc(QWidget):
         colonne_droite.addWidget(self.pastille)
         colonne_droite.addWidget(self.version_label)
         colonne_droite.addStretch()
-
-        layout.addLayout(colonne_droite)
 
         self.appliquer_taille(taille_texte)
 
@@ -302,6 +373,28 @@ class LigneBloc(QWidget):
             re.finditer(r"\S+", bloc.source)
         )
 
+    @staticmethod
+    def _sans_defilement_interne(cellule):
+        """
+        Aucune barre de défilement dans une cellule
+        de bloc (spec correctifs §1.1) : le retour à
+        la ligne se fait sur la largeur de la
+        colonne, la hauteur est portée par la ligne
+        de la table.
+        """
+
+        cellule.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+
+        cellule.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+
+        cellule.setLineWrapMode(
+            QTextEdit.LineWrapMode.WidgetWidth
+        )
+
     def appliquer_taille(self, taille: int):
 
         for cellule in (
@@ -311,6 +404,10 @@ class LigneBloc(QWidget):
             police = cellule.font()
             police.setPointSize(taille)
             cellule.setFont(police)
+
+        police = self.label_locuteurs.font()
+        police.setPointSize(max(9, taille - 1))
+        self.label_locuteurs.setFont(police)
 
     def surligner_mot(self, index: int):
         """
@@ -362,12 +459,30 @@ class ReformulationWindow(QWidget):
     def __init__(
         self,
         etude_ouverte: EtudeOuverte,
-        nom_reunion: str
+        nom_reunion: str,
+        settings: SettingsManager = None
     ):
         super().__init__()
 
         self.etude = etude_ouverte
         self.reunion = nom_reunion
+
+        #
+        # Réglages injectables (tests : config
+        # isolée, jamais la configuration réelle de
+        # l'utilisateur) — P16-bis §5 : la taille du
+        # texte et les largeurs de colonnes sont
+        # mémorisées dans l'app.
+        #
+        self.settings = (
+            settings
+            if settings is not None
+            else SettingsManager()
+        )
+
+        prefs = (
+            self.settings.get_reformulation_prefs()
+        )
 
         self.setWindowTitle(
             f"Reformulation — {nom_reunion}"
@@ -406,7 +521,10 @@ class ReformulationWindow(QWidget):
             nom_reunion
         )
 
-        self.taille_texte = 13
+        self.taille_texte = prefs.get(
+            "taille_texte",
+            TAILLE_TEXTE_DEFAUT
+        )
 
         self.annulation_passe = None
         self.passe_en_cours = False
@@ -419,9 +537,10 @@ class ReformulationWindow(QWidget):
         self.playback = PlaybackManager()
 
         self.lignes = {}
+        self.rangees = {}
         self.locuteur_selectionne = None
 
-        self.build_ui()
+        self.build_ui(prefs)
 
         self.construire_lignes()
 
@@ -433,7 +552,7 @@ class ReformulationWindow(QWidget):
     # ==================================================
     #
 
-    def build_ui(self):
+    def build_ui(self, prefs: dict):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 8)
@@ -527,44 +646,14 @@ class ReformulationWindow(QWidget):
         layout.addLayout(barre)
 
         #
-        # Corps : locuteurs + table de relecture.
+        # Corps : table de relecture (P16-bis : une
+        # seule barre de défilement verticale pour
+        # toute la table, colonnes redimensionnables).
         #
-        corps = QHBoxLayout()
-        corps.setSpacing(8)
+        self.table = QTableWidget(0, 4)
+        self._configurer_table(prefs)
 
-        self.colonne_locuteurs = QWidget()
-        self.colonne_locuteurs.setFixedWidth(130)
-
-        self.locuteurs_layout = QVBoxLayout(
-            self.colonne_locuteurs
-        )
-        self.locuteurs_layout.setContentsMargins(
-            0, 0, 0, 0
-        )
-        self.locuteurs_layout.setSpacing(4)
-
-        self.construire_colonne_locuteurs()
-
-        self.zone_defilement = QScrollArea()
-        self.zone_defilement.setWidgetResizable(True)
-
-        self.conteneur_lignes = QWidget()
-        self.lignes_layout = QVBoxLayout(
-            self.conteneur_lignes
-        )
-        self.lignes_layout.setContentsMargins(
-            0, 0, 0, 0
-        )
-        self.lignes_layout.setSpacing(4)
-
-        self.zone_defilement.setWidget(
-            self.conteneur_lignes
-        )
-
-        corps.addWidget(self.colonne_locuteurs)
-        corps.addWidget(self.zone_defilement, stretch=1)
-
-        layout.addLayout(corps, stretch=1)
+        layout.addWidget(self.table, stretch=1)
 
         #
         # Timeline v1 (composant inchangé, ancré en
@@ -586,6 +675,17 @@ class ReformulationWindow(QWidget):
 
             self.timeline_speakers = (
                 TimelineSpeakerPanel(self.projet_v1)
+            )
+
+            #
+            # La zone gauche de la timeline a
+            # exactement la largeur de la colonne
+            # locuteurs (spec correctifs §3) — le bord
+            # gauche de la timeline s'aligne sur le
+            # bord gauche des colonnes de texte.
+            #
+            self.timeline_speakers.setFixedWidth(
+                self.table.columnWidth(0)
             )
 
             zone_timeline = QScrollArea()
@@ -666,48 +766,170 @@ class ReformulationWindow(QWidget):
             self.basculer_lecture
         )
 
-    def construire_colonne_locuteurs(self):
+    def _configurer_table(self, prefs: dict):
         """
-        Colonne des locuteurs : un bouton par
-        locuteur (surbrillance/filtrage des blocs du
-        locuteur) ; un bloc fusionné multi-locuteurs
-        apparaît chez chacun de ses locuteurs.
+        Table de relecture P16-bis (spec correctifs
+        §1) : une seule barre de défilement verticale
+        pour toute la table (les deux colonnes
+        défilent ensemble), lignes à hauteur
+        variable ajustées au contenu (jamais de
+        hauteur fixe), colonnes redimensionnables
+        dont les largeurs sont mémorisées.
         """
 
-        label = QLabel("Locuteurs")
-        self.locuteurs_layout.addWidget(label)
+        self.table.setHorizontalHeaderLabels([
+            "Locuteurs",
+            "Texte brut corrigé (v1)",
+            "Bloc reformulé (LLM)",
+            "",
+        ])
 
-        self.boutons_locuteurs = []
+        self.table.verticalHeader().setVisible(False)
 
-        locuteurs = []
+        self.table.setEditTriggers(
+            QAbstractItemView.EditTrigger
+            .NoEditTriggers
+        )
 
-        for bloc in self.blocs_actifs():
+        self.table.setSelectionMode(
+            QAbstractItemView.SelectionMode
+            .NoSelection
+        )
 
-            for locuteur in bloc.locuteurs:
+        self.table.setFocusPolicy(
+            Qt.FocusPolicy.NoFocus
+        )
 
-                if locuteur not in locuteurs:
-                    locuteurs.append(locuteur)
+        entete = self.table.horizontalHeader()
 
-        for locuteur in locuteurs:
+        entete.setSectionsMovable(False)
 
-            bouton = QPushButton(locuteur)
-            bouton.setCheckable(True)
-            bouton.setToolTip(
-                "Surbriller et filtrer les blocs de "
-                f"{locuteur}"
+        entete.setSectionResizeMode(
+            0,
+            QHeaderView.ResizeMode.Interactive
+        )
+        entete.setSectionResizeMode(
+            1,
+            QHeaderView.ResizeMode.Interactive
+        )
+        entete.setSectionResizeMode(
+            2,
+            QHeaderView.ResizeMode.Stretch
+        )
+        entete.setSectionResizeMode(
+            3,
+            QHeaderView.ResizeMode.Interactive
+        )
+
+        self.table.setColumnWidth(
+            0,
+            prefs.get("largeur_locuteurs") or 130
+        )
+
+        if prefs.get("largeur_brute"):
+            self.table.setColumnWidth(
+                1,
+                prefs["largeur_brute"]
             )
 
-            bouton.clicked.connect(
-                lambda _checked, nom=locuteur:
-                self.selectionner_locuteur(nom)
-            )
+        self.table.setColumnWidth(
+            3,
+            prefs.get("largeur_pastilles") or 160
+        )
 
-            self.locuteurs_layout.addWidget(bouton)
-            self.boutons_locuteurs.append(
-                (locuteur, bouton)
-            )
+        entete.sectionResized.connect(
+            self._sur_section_resized
+        )
 
-        self.locuteurs_layout.addStretch()
+    def _sur_section_resized(
+        self,
+        index: int,
+        _ancienne: int,
+        nouvelle: int
+    ):
+        """
+        Redimensionnement d'une colonne : la zone
+        gauche de la timeline suit la colonne
+        locuteurs (spec correctifs §3) ; les lignes
+        se réétalent au nouveau retour à la ligne
+        (§1.4).
+        """
+
+        if index == 0:
+
+            if (
+                getattr(
+                    self, "timeline_speakers", None
+                )
+                is not None
+            ):
+                self.timeline_speakers.setFixedWidth(
+                    int(nouvelle)
+                )
+
+        elif index in (1, 2):
+
+            for fid in self.lignes:
+                self._ajuster_hauteur_ligne(fid)
+
+    @staticmethod
+    def _hauteur_cellule(cellule) -> int:
+        """
+        Hauteur nécessaire à une cellule pour montrer
+        tout son contenu sans barre de défilement
+        (retour à la ligne à la largeur courante de
+        la colonne).
+        """
+
+        document = cellule.document()
+
+        hauteur = (
+            document.documentLayout()
+            .documentSize()
+            .height()
+        )
+
+        marges = cellule.contentsMargins()
+
+        hauteur += (
+            2 * cellule.frameWidth()
+            + marges.top()
+            + marges.bottom()
+        )
+
+        return int(hauteur) + 4
+
+    def _ajuster_hauteur_ligne(self, fid: int):
+        """
+        Hauteur de ligne = hauteur max des deux
+        cellules du bloc (spec correctifs §1.3) :
+        la ligne s'aligne sur la plus haute, l'autre
+        cellule se cale en haut.
+        """
+
+        ligne = self.lignes.get(fid)
+
+        if ligne is None:
+            return
+
+        rangée = self.rangees.get(fid)
+
+        if rangée is None:
+            return
+
+        hauteur = max(
+            self._hauteur_cellule(
+                ligne.cellule_brute
+            ),
+            self._hauteur_cellule(
+                ligne.cellule_reformee
+            ),
+            ligne.colonne_droite.sizeHint().height(),
+            ligne.label_locuteurs.sizeHint().height(),
+            56,
+        )
+
+        self.table.setRowHeight(rangée, hauteur)
 
     def blocs_actifs(self) -> list:
 
@@ -729,15 +951,29 @@ class ReformulationWindow(QWidget):
 
         for bloc in self.blocs_actifs():
 
+            rangée = self.table.rowCount()
+            self.table.insertRow(rangée)
+
             ligne = LigneBloc(
                 bloc,
-                self.taille_texte,
-                parent=self.conteneur_lignes
+                self.taille_texte
             )
 
             self.lignes[bloc.fid] = ligne
+            self.rangees[bloc.fid] = rangée
 
-            self.lignes_layout.addWidget(ligne)
+            self.table.setCellWidget(
+                rangée, 0, ligne.label_locuteurs
+            )
+            self.table.setCellWidget(
+                rangée, 1, ligne.cellule_brute
+            )
+            self.table.setCellWidget(
+                rangée, 2, ligne.cellule_reformee
+            )
+            self.table.setCellWidget(
+                rangée, 3, ligne.colonne_droite
+            )
 
             self.brancher_ligne(ligne)
 
@@ -745,7 +981,34 @@ class ReformulationWindow(QWidget):
 
             self.rafraichir_ligne(bloc.fid)
 
-        self.lignes_layout.addStretch()
+            #
+            # La hauteur de ligne suit le contenu au
+            # fil de la frappe et au retournement de
+            # ligne (spec correctifs §1.4).
+            #
+            (
+                ligne.cellule_brute
+                .document()
+                .documentLayout()
+                .documentSizeChanged
+                .connect(
+                    lambda _taille, fid=bloc.fid:
+                    self._ajuster_hauteur_ligne(fid)
+                )
+            )
+
+            (
+                ligne.cellule_reformee
+                .document()
+                .documentLayout()
+                .documentSizeChanged
+                .connect(
+                    lambda _taille, fid=bloc.fid:
+                    self._ajuster_hauteur_ligne(fid)
+                )
+            )
+
+            self._ajuster_hauteur_ligne(bloc.fid)
 
         self.maj_barre_etat()
 
@@ -849,7 +1112,7 @@ class ReformulationWindow(QWidget):
 
             self.positionner_audio(ligne, position_caractere)
 
-            QPlainTextEdit.mousePressEvent(
+            QTextEdit.mousePressEvent(
                 cellule,
                 event
             )
@@ -2019,27 +2282,26 @@ class ReformulationWindow(QWidget):
 
     #
     # ==================================================
-    # Locuteurs (filtrage, spec §6).
+    # Locuteurs (API de filtrage conservée,
+    # spec correctifs §2.3 — retirée de l'UI,
+    # prête à être rebranchée sur un menu
+    # « Filtrer par locuteur… » de la barre
+    # supérieure).
     # ==================================================
     #
 
     def selectionner_locuteur(self, locuteur: str):
         """
-        Surbrillance/filtrage des blocs du
-        locuteur ; le traitement en cours et la
-        barre d'état ne sont jamais masqués
-        (règle 6).
+        Filtre par locuteur (API conservée — plus
+        exposée dans l'UI depuis P16-bis) ; le
+        traitement en cours et la barre d'état ne
+        sont jamais masqués (règle 6).
         """
 
         if self.locuteur_selectionne == locuteur:
             self.locuteur_selectionne = None
         else:
             self.locuteur_selectionne = locuteur
-
-        for nom, bouton in self.boutons_locuteurs:
-            bouton.setChecked(
-                nom == self.locuteur_selectionne
-            )
 
         for ligne in self.lignes.values():
             self.appliquer_filtrage(ligne)
@@ -2058,7 +2320,23 @@ class ReformulationWindow(QWidget):
                 in ligne.bloc.locuteurs
             )
 
-        ligne.setVisible(visible)
+        rangée = self.rangees.get(ligne.bloc.fid)
+
+        if rangée is not None:
+            self.table.setRowHidden(rangée, not visible)
+
+    def ligne_visible(self, fid: int) -> bool:
+        """
+        Visibilité d'une ligne de bloc (API de
+        filtrage conservée).
+        """
+
+        rangée = self.rangees.get(fid)
+
+        if rangée is None:
+            return False
+
+        return not self.table.isRowHidden(rangée)
 
     #
     # ==================================================
@@ -2221,16 +2499,51 @@ class ReformulationWindow(QWidget):
     def changer_taille(self, delta: int):
         """
         A+ / A− : agit simultanément sur les deux
-        colonnes.
+        colonnes ; la taille est mémorisée dans les
+        réglages (spec correctifs §5) et les
+        hauteurs de lignes suivent le nouvel
+        étalonnement du texte.
         """
 
         self.taille_texte = max(
-            9,
-            min(24, self.taille_texte + delta)
+            TAILLE_TEXTE_MIN,
+            min(TAILLE_TEXTE_MAX, self.taille_texte + delta)
         )
 
         for ligne in self.lignes.values():
             ligne.appliquer_taille(self.taille_texte)
+
+        for fid in self.lignes:
+            self._ajuster_hauteur_ligne(fid)
+
+        self._enregistrer_prefs()
+
+    def _enregistrer_prefs(self):
+        """
+        Mémorise la taille du texte et les largeurs
+        de colonnes (spec correctifs §5.2 et règle
+        d'invariance 4 : conservées après
+        fermeture/réouverture).
+        """
+
+        self.settings.set_reformulation_prefs({
+            "taille_texte": self.taille_texte,
+            "largeur_locuteurs": (
+                self.table.columnWidth(0)
+            ),
+            "largeur_brute": (
+                self.table.columnWidth(1)
+            ),
+            "largeur_pastilles": (
+                self.table.columnWidth(3)
+            ),
+        })
+
+    def closeEvent(self, event):
+
+        self._enregistrer_prefs()
+
+        super().closeEvent(event)
 
     def sauvegarder_etude(self):
 

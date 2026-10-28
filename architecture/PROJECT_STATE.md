@@ -1,9 +1,10 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (correctifs post-P17 :
-> génération de segmentation exposée à l'UI [crash Luc 01a],
-> libellés explicites des boutons, ouverture d'étude depuis l'accueil ;
-> 228 tests verts)
+> **Dernière mise à jour** : 2026-10-27 (P16-bis : correctifs de
+> relecture UI selon UI_REFORMULATION_MODIFS_V2_2026-10-27.md —
+> défilement vertical unique, colonne locuteurs = noms par bloc,
+> bouton « Reformulation… » de l'éditeur v1, persistance de la
+> taille de police ; 243 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -38,6 +39,9 @@
   local) — spec UI_REFORMULATION_V2 ; 188 tests verts.
 - **P17 : LIVRÉ** (P17.1 bloc Résumé, P17.2 synthèse d'étude + cases de
   contexte, P17.3 récurrences entre réunions) — 228 tests verts.
+- **P16-bis : LIVRÉ** (correctifs de relecture UI,
+  UI_REFORMULATION_MODIFS_V2_2026-10-27.md prime sur
+  UI_REFORMULATION_V2 pour ses points) — 243 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -767,9 +771,101 @@ traitements sans connaître le double-clic) + tooltip de la liste.
 
 ---
 
+## SESSION 2026-10-27 (P16-bis) — CORRECTIFS DE RELECTURE UI : LIVRÉ
+
+Rituel de synchro (skill v15) : INDEX_SPECS.md (v du jour),
+UI_REFORMULATION_MODIFS_V2_2026-10-27.md (nouveau — prime sur
+UI_REFORMULATION_V2 pour ses points), UI_REFORMULATION_V2
+(2026-10-27b) et FEUILLE_DE_ROUTE_V2 (2026-10-27d) recopiés dans
+`architecture/spec_v2/` ; PROJECT_STATE.md remonté vers le dossier
+Synchro du Drive.
+
+### Correctifs appliqués (spec UI_REFORMULATION_MODIFS §1-§5)
+
+1. **Défilement unique synchronisé** : la table de relecture est
+   désormais un `QTableWidget` — une seule barre de défilement
+   vertical pour toute la page (les deux colonnes défilent
+   ensemble) ; **aucune barre de défilement dans une cellule** :
+   les cellules sont des `QTextEdit` dont la hauteur de contenu
+   est exacte (le `documentSize()` de `QPlainTextEdit` sous-estime
+   la hauteur — layout propre, constaté par sonde), barres
+   désactivées, retour à la ligne sur la largeur de colonne ;
+   hauteur de ligne = max des deux cellules (l'autre se cale en
+   haut), maintenue au fil de la frappe (`documentSizeChanged`)
+   et au redimensionnement des colonnes.
+2. **Colonne locuteurs = noms par bloc** : colonne 0 de la table,
+   une cellule par ligne (« / » pour un bloc fusionné
+   multi-locuteurs) ; le panneau de cases à cocher est retiré ;
+   l'API de filtrage est **conservée** (`selectionner_locuteur`,
+   `appliquer_filtrage`, `ligne_visible` — lignes masquées de la
+   table), prête à rebrancher sur un menu « Filtrer par
+   locuteur… » (non implémenté, conformément à la spec §2.3).
+3. **Zone gauche de la timeline = largeur de la colonne
+   locuteurs** : le panneau des locuteurs de la timeline suit la
+   colonne 0 (`sectionResized`), bord gauche aligné.
+4. **Bouton « Reformulation… » dans l'éditeur v1** : actif si le
+   projet appartient à une étude, sinon désactivé avec l'info-bulle
+   « Ce projet n'appartient à aucune étude » ; ouvre la page
+   Reformulation de la réunion courante (brique inverse du lien
+   « Correction de transcription… » de la page Étude) ;
+   segmentation assurée par la fonction partagée
+   `assurer_decoupage` (extraite de la page Étude) ; projet
+   référencé par plusieurs études → dialogue de choix.
+5. **Persistance de la taille de police** : A+/A− mémorisé dans
+   les réglages (`SettingsManager.get/set_reformulation_prefs`),
+   réappliqué à chaque ouverture ; **défaut abaissé à 11** (double
+   colonne — à vérifier en relecture par David, spec §5.2) ; plage
+   9-24 inchangée ; **largeurs de colonnes mémorisées** aussi
+   (locuteurs, texte brut, pastilles ; enregistrées à la
+   fermeture, la taille de police à chaque changement).
+
+### Correctif création d'étude (ARBITRAGE_CREATION_ETUDE)
+
+Déjà livré (commit 6b4c564, 3 tests) ; complément : test de
+l'aide « Saisissez plutôt un nom de nouveau dossier » dans les
+deux messages d'erreur (point 4 de l'arbitrage).
+
+### Décisions / écarts de la session (P16-bis)
+
+1. **Recherche des études du projet** : parmi les **études
+   récentes** des réglages (aucun registre global des études
+   n'existe) — une étude jamais ouverte sur cette machine ne sera
+   pas trouvée ; à arbitrer si l'atelier veut un scan disque.
+2. **Bouton désactivé plutôt que masqué** (spec §4.2 laisse le
+   choix) : la fonctionnalité reste visible et expliquée par
+   l'info-bulle.
+3. **Colonne reformulée en Stretch** (absorbe l'espace restant) :
+   seules les largeurs locuteurs/brute/pastilles sont mémorisées
+   ; l'utilisateur redimensionne via l'en-tête (poignées).
+4. **`QTextEdit` au lieu de `QPlainTextEdit`** pour les cellules :
+   détail d'implémentation exigé par le calcul de hauteur exact
+   (`documentSize` fiable), texte riche refusé
+   (`setAcceptRichText(False)`), normalisation \n inchangée.
+5. **Réglages injectables** : `MainWindow(settings=...)` et
+   `ReformulationWindow(settings=...)` — les fumées ne touchent
+   jamais la configuration réelle (leçon des études parasites
+   P16) ; l'éditeur v1 transmet ses réglages à la page
+   Reformulation ouverte depuis le bouton.
+6. La règle 6 (§7) sur le filtrage reste testée via l'API
+   conservée (plus de boutons dans l'UI).
+
+### Bilan tests : **243 verts** (228 + 15)
+
+`tests/unit/test_reformulation_ui.py` réécrit : 25 tests (11 de la
+spec §7 adaptés + 14 nouveaux couvrant les **5 règles d'invariance
+additionnelles §6** de la spec correctifs : aucune barre de
+défilement dans une cellule [3 fumées offscreen], hauts des
+cellules brute/reformulée alignés et hauteurs variables, largeur
+de la zone gauche de la timeline = colonne locuteurs, persistance
+taille police + largeurs après fermeture/réouverture + défaut
+abaissé, bouton « Reformulation… » actif/inactif et réunion
+exacte) ; `test_etude_format.py` : +1 (aide des messages).
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 et P17 sont LIVRÉS** (228 tests verts). Restent :
+**P16, P16-bis et P17 sont LIVRÉS** (243 tests verts). Restent :
 
 1. **Recette P16/P17 par David** (checklist en fin de session P17
    ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé, jugement

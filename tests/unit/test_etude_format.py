@@ -235,6 +235,31 @@ class TestCreationEtude:
             dossier / "blocs"
         ).read_text(encoding="utf-8") == "un fichier"
 
+    def test_messages_incluent_l_aide(self, tmp_path):
+        """
+        ARBITRAGE_CREATION_ETUDE point 4 : les
+        messages d'erreur guident l'utilisateur —
+        « Saisissez plutôt un nom de nouveau dossier
+        pour créer l'étude dedans. »
+        """
+        deja_etude = tmp_path / "deja_etude"
+        creer_etude(deja_etude, "Première étude")
+
+        with pytest.raises(EtudeError) as infos_etude:
+            creer_etude(deja_etude, "Deuxième étude")
+
+        assert "nouveau dossier" in str(infos_etude.value)
+
+        conflit = tmp_path / "conflit"
+        conflit.mkdir()
+        (conflit / "blocs").write_text("un fichier")
+
+        with pytest.raises(EtudeError) as infos_conflit:
+            creer_etude(conflit, "Étude")
+
+        assert "nouveau dossier" in str(infos_conflit.value)
+        assert "Rien n'a été écrit" in str(infos_conflit.value)
+
     def test_parametres_par_defaut(self, tmp_path):
         etude = creer_etude(tmp_path / "E", "Étude")
 

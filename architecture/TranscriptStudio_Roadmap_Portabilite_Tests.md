@@ -1251,6 +1251,47 @@ La campagne est terminee lorsque :
 - 34 tests (30 services dans test_resume_synthese.py + 4 UI dans
       test_resume_ui.py) ; 228 tests verts au total.
 
+## P16-bis — Correctifs de relecture UI (spec :
+      UI_REFORMULATION_MODIFS_V2_2026-10-27.md, prime sur
+      UI_REFORMULATION_V2 pour ses points)
+
+- [x] Défilement unique synchronisé (spec §1) : la table de relecture
+      est un QTableWidget — une seule barre de défilement vertical
+      pour toute la page (les deux colonnes défilent ensemble),
+      AUCUNE barre de défilement dans une cellule (QTextEdit à
+      hauteur de contenu, barres désactivées) ; hauteur de ligne =
+      max des deux cellules (brut ↔ reformulé alignés horizontalement,
+      l'autre se cale en haut), maintenue au fil de la frappe
+      (documentSizeChanged) et au redimensionnement des colonnes.
+- [x] Colonne locuteurs = noms par bloc (spec §2) : une cellule par
+      ligne de bloc (« / » pour un bloc fusionné), plus de cases à
+      cocher ni de panneau latéral ; l'API de filtrage est conservée
+      (selectionner_locuteur / appliquer_filtrage / ligne_visible,
+      lignes masquées de la table), prête à être rebranchée plus tard
+      sur un menu « Filtrer par locuteur… » de la barre supérieure
+      (non implémenté conformément à la spec).
+- [x] Zone gauche de la timeline = largeur de la colonne locuteurs
+      (spec §3) : le panneau des locuteurs de la timeline suit la
+      colonne 0 au redimensionnement.
+- [x] Bouton « Reformulation… » dans l'éditeur v1 (spec §4) : actif
+      si le projet appartient à une étude (recherche parmi les
+      études récentes), sinon désactivé avec l'info-bulle « Ce
+      projet n'appartient à aucune étude » ; ouvre la page
+      Reformulation de la réunion courante (même navigation que la
+      page Étude, segmentation assurée par la fonction partagée
+      assurer_decoupage) ; choix de l'étude par dialogue si le projet
+      est référencé par plusieurs études.
+- [x] Persistance de la taille de police (spec §5) : A+/A− mémorisé
+      dans les réglages (SettingsManager, réappliqué à chaque
+      ouverture), défaut abaissé à 11 pour la double colonne, plage
+      9-24 inchangée ; largeurs de colonnes mémorisées également.
+- 243 tests verts au total : les 5 règles d'invariance additionnelles
+      (spec §6) sont couvertes dans tests/unit/test_reformulation_ui.py
+      (pas de barre interne, alignement des hauts de cellules,
+      largeur timeline = colonne locuteurs, persistance, bouton
+      éditeur v1) + aide des messages d'erreur du correctif création
+      d'étude (ARBITRAGE point 4).
+
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 
 - P18 JND locale, validation des references, export ouvrage.

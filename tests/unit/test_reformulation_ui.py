@@ -1,26 +1,43 @@
 """
-Tests d'invariance UI de la page Reformulation
-(P16.2, spec UI_REFORMULATION_V2.md §7).
+Tests d'invariance UI de la page Reformulation.
 
-Six règles à tester :
-1. la colonne brute n'expose aucune commande de
-   modification (ni active ni grisée) ;
-2. aucune opération ne modifie le texte brut ;
-3. l'alignement brut ↔ reformulé tient ; la
-   timeline ancrée en bas n'est pas affectée par
-   le défilement ;
-4. un bloc validé est figé (édition et relances
-   verrouillées ; versions consultées non
-   éditables) ;
-5. la validation n'est possible que sur une
-   version sauvegardée ;
-6. le filtrage par locuteur ne masque ni le
-   traitement en cours ni la barre d'état.
+Deux jeux de règles :
+
+1. spec UI_REFORMULATION_V2.md §7 (P16.2) :
+   1. la colonne brute n'expose aucune commande de
+      modification (ni active ni grisée) ;
+   2. aucune opération ne modifie le texte brut ;
+   3. l'alignement brut ↔ reformulé tient ; la
+      timeline ancrée en bas n'est pas affectée
+      par le défilement ;
+   4. un bloc validé est figé (édition et relances
+      verrouillées ; versions consultées non
+      éditables) ;
+   5. la validation n'est possible que sur une
+      version sauvegardée ;
+   6. le filtrage par locuteur ne masque ni le
+      traitement en cours ni la barre d'état.
+
+2. spec UI_REFORMULATION_MODIFS_V2_2026-10-27.md
+   §6 (P16-bis, correctifs de relecture) :
+   1. aucune barre de défilement verticale visible
+      à l'intérieur d'une cellule de bloc ;
+   2. à tout instant, le haut de la cellule brute
+      et le haut de la cellule reformulée sont sur
+      la même ligne horizontale ;
+   3. la largeur de la zone gauche de la timeline
+      est égale à celle de la colonne locuteurs ;
+   4. après fermeture/réouverture, la taille de
+      police et la largeur des colonnes sont
+      conservées ;
+   5. « Reformulation… » depuis l'éditeur v1
+      aboutit à la page Reformulation de la même
+      réunion, et n'est pas actif pour un projet
+      hors étude.
 """
 
 import json
 import os
-from pathlib import Path
 from unittest.mock import patch
 
 os.environ.setdefault(
@@ -30,18 +47,24 @@ os.environ.setdefault(
 
 import pytest
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QScrollBar,
+)
 
 from services.etude_io import (
     ajouter_reunion,
     ajouter_version_reformulation,
     creer_etude,
     enregistrer_decoupage,
+    ouvrir_etude,
     sauvegarder_etude,
     valider_version_reformulation,
 )
 from services.decoupage import generer_decoupage
 from services.project_io import load_project
+from services.settings import SettingsManager
 
 
 @pytest.fixture(scope="module")
@@ -54,12 +77,11 @@ def qapp():
     yield application
 
 
-@pytest.fixture
-def fenetre(qapp, tmp_path):
+def construire_projet_test(tmp_path):
     """
-    Page Reformulation d'une étude de 3 blocs
-    (2 locuteurs), construite sur un projet v1
-    fictif horodaté.
+    Projet v1 fictif horodaté : 3 blocs de parole,
+    2 locuteurs (Philippe : blocs 1-2, Daniel :
+    bloc 3), mots horodatés.
     """
 
     projet = tmp_path / "2026-10-13_Luc1b"
@@ -128,8 +150,19 @@ def fenetre(qapp, tmp_path):
         encoding="utf-8"
     )
 
-    projet_v1 = load_project(
+    return projet, load_project(
         str(projet / "project.sttproj")
+    )
+
+
+def construire_etude_test(tmp_path):
+    """
+    Étude d'une réunion (le projet v1 de test),
+    segmentation générée et enregistrée.
+    """
+
+    projet, projet_v1 = construire_projet_test(
+        tmp_path
     )
 
     etude = creer_etude(
@@ -148,18 +181,34 @@ def fenetre(qapp, tmp_path):
     enregistrer_decoupage(etude, decoupage)
     sauvegarder_etude(etude)
 
+    return projet, projet_v1, etude, nom
+
+
+@pytest.fixture
+def fenetre(qapp, tmp_path):
+    """
+    Page Reformulation d'une étude de 3 blocs
+    (2 locuteurs), construite sur un projet v1
+    fictif horodaté. Réglages isolés (jamais la
+    configuration réelle de l'utilisateur).
+    """
+
+    _projet, _projet_v1, _etude, nom = (
+        construire_etude_test(tmp_path)
+    )
+
+    etude_disco = ouvrir_etude(tmp_path / "Etude")
+
     from ui.reformulation_window import (
         ReformulationWindow
     )
 
-    # La fenêtre charge l'étude du disque.
-    from services.etude_io import ouvrir_etude
-
-    etude_disco = ouvrir_etude(tmp_path / "Etude")
-
     fenetre = ReformulationWindow(
         etude_disco,
-        nom
+        nom,
+        settings=SettingsManager(
+            str(tmp_path / "reglages")
+        )
     )
 
     yield fenetre
@@ -167,11 +216,65 @@ def fenetre(qapp, tmp_path):
     fenetre.close()
 
 
+@pytest.fixture
+def editeur(qapp, tmp_path):
+    """
+    Éditeur v1 (correction de transcription) d'un
+    projet appartenant à une étude (référencée
+    dans les études récentes de réglages isolés).
+    """
+
+    from ui.main_window import MainWindow
+
+    _projet, projet_v1, _etude, _nom = (
+        construire_etude_test(tmp_path)
+    )
+
+    settings = SettingsManager(
+        str(tmp_path / "reglages")
+    )
+
+    settings.add_recent_etude(
+        str(tmp_path / "Etude")
+    )
+
+    editeur = MainWindow(projet_v1, settings=settings)
+
+    yield editeur
+
+    editeur.close()
+
+
+@pytest.fixture
+def editeur_hors_etude(qapp, tmp_path):
+    """
+    Éditeur v1 d'un projet n'appartenant à aucune
+    étude (aucune étude récente).
+    """
+
+    from ui.main_window import MainWindow
+
+    _projet, projet_v1, _etude, _nom = (
+        construire_etude_test(tmp_path)
+    )
+
+    editeur = MainWindow(
+        projet_v1,
+        settings=SettingsManager(
+            str(tmp_path / "reglages_hors_etude")
+        )
+    )
+
+    yield editeur
+
+    editeur.close()
+
+
 @pytest.mark.qt
 class TestRegle1ColonneBrute:
     """
-    Règle 1 : la colonne brute n'expose aucune
-    commande de modification — ni active ni
+    Règle 1 (spec §7) : la colonne brute n'expose
+    aucune commande de modification — ni active ni
     grisée ; seuls le positionnement du curseur
     (clic) et la timeline réagissent.
     """
@@ -196,9 +299,6 @@ class TestRegle1ColonneBrute:
         # garde le comportement par défaut.
         assert ligne.cellule_reformee.contextMenuEvent
 
-        # Le menu des opérations n'existe que par la
-        # pastille et le clic droit sur la cellule
-        # reformulée — jamais sur la brute.
         methode = getattr(
             ligne.cellule_brute,
             "contextMenuEvent",
@@ -230,9 +330,9 @@ class TestRegle1ColonneBrute:
 @pytest.mark.qt
 class TestRegle2BrutImmuable:
     """
-    Règle 2 : aucune opération ne modifie le texte
-    brut d'un bloc ; toute écriture passe par la
-    colonne reformulée et crée une version.
+    Règle 2 (spec §7) : aucune opération ne modifie
+    le texte brut d'un bloc ; toute écriture passe
+    par la colonne reformulée et crée une version.
     """
 
     def test_operations_ne_touchent_pas_le_brut(self, fenetre):
@@ -242,8 +342,6 @@ class TestRegle2BrutImmuable:
             for fid, ligne in fenetre.lignes.items()
         }
 
-        # Édition manuelle + sauvegarde (nouvelle
-        # version, contrat §7).
         fenetre.lignes[
             2
         ].cellule_reformee.setPlainText(
@@ -255,7 +353,6 @@ class TestRegle2BrutImmuable:
 
         assert len(fenetre.versions_bloc(2)) == 1
 
-        # Le texte brut est intact.
         for fid, texte in texte_brut_avant.items():
             assert fenetre.lignes[
                 fid
@@ -265,31 +362,29 @@ class TestRegle2BrutImmuable:
 @pytest.mark.qt
 class TestRegle3Alignement:
     """
-    Règle 3 : l'alignement brut ↔ reformulé se
-    maintient ; la timeline (composant v1, ancrée
-    en bas) n'est jamais affectée par le
+    Règle 3 (spec §7) : l'alignement brut ↔
+    reformulé se maintient ; la timeline (composant
+    v1, ancrée en bas) n'est jamais affectée par le
     défilement vertical des colonnes.
     """
 
     def test_cellules_de_taille_egale(self, fenetre):
 
-        ligne = fenetre.lignes[1]
+        fenetre.show()
+        QApplication.processEvents()
 
-        hauteur_brute = (
-            ligne.cellule_brute.height()
-        )
-        hauteur_reformee = (
-            ligne.cellule_reformee.height()
-        )
+        for ligne in fenetre.lignes.values():
 
-        # La hauteur de ligne est le max des deux
-        # cellules : alignment par bloc.
-        assert hauteur_brute == hauteur_reformee
+            assert (
+                ligne.cellule_brute.height()
+                == ligne.cellule_reformee.height()
+            )
 
-    def test_timeline_hors_zone_defilement(self, fenetre):
+    def test_timeline_hors_de_la_table(self, fenetre):
         """
-        La timeline est ancrée hors de la zone de
-        défilement des colonnes.
+        La timeline est ancrée hors de la table (la
+        seule barre de défilement vertical de la
+        page ne l'atteint pas).
         """
 
         parents = []
@@ -300,13 +395,9 @@ class TestRegle3Alignement:
             parents.append(widget)
             widget = widget.parentWidget()
 
-        assert fenetre.zone_defilement not in parents
+        assert fenetre.table not in parents
 
         # La timeline est masquable.
-        assert fenetre.conteneur_timeline.isVisibleTo(
-            fenetre
-        ) or fenetre.conteneur_timeline.isHidden()
-
         fenetre.conteneur_timeline.setVisible(False)
         fenetre.conteneur_timeline.setVisible(True)
 
@@ -314,9 +405,9 @@ class TestRegle3Alignement:
 @pytest.mark.qt
 class TestRegle4BlocValideFigé:
     """
-    Règle 4 : un bloc validé est figé — aucune
-    édition ni relance ; les versions consultées
-    ne peuvent pas être éditées.
+    Règle 4 (spec §7) : un bloc validé est figé —
+    aucune édition ni relance ; les versions
+    consultées ne peuvent pas être éditées.
     """
 
     def test_validation_fige_le_bloc(self, fenetre):
@@ -398,17 +489,13 @@ class TestRegle4BlocValideFigé:
 @pytest.mark.qt
 class TestRegle5ValidationSurVersionSauvegardee:
     """
-    Règle 5 : une validation n'est possible que
-    sur une version sauvegardée (l'édition non
-    sauvegardée est signalée ; la validation
-    propose de sauvegarder d'abord).
+    Règle 5 (spec §7) : une validation n'est
+    possible que sur une version sauvegardée
+    (l'édition non sauvegardée est signalée ; la
+    validation propose de sauvegarder d'abord).
     """
 
     def test_validation_refusee_sans_sauvegarde(self, fenetre):
-        """
-        L'utilisateur refuse la sauvegarde :
-        aucune validation ne part.
-        """
 
         ajouter_version_reformulation(
             fenetre.etude,
@@ -419,7 +506,6 @@ class TestRegle5ValidationSurVersionSauvegardee:
 
         fenetre.rafraichir_ligne(1)
 
-        # Modifications non enregistrées.
         fenetre.lignes[
             1
         ].cellule_reformee.setPlainText(
@@ -456,8 +542,6 @@ class TestRegle5ValidationSurVersionSauvegardee:
         assert fenetre.etat_bloc(1) == "validee"
         assert fenetre.lignes[1].non_enregistre is False
 
-        # La version validée est l'édition
-        # manuelle créée par la sauvegarde.
         derniere = fenetre.derniere_version(1)
 
         assert derniere.type == "edition_manuelle"
@@ -468,9 +552,10 @@ class TestRegle5ValidationSurVersionSauvegardee:
 @pytest.mark.qt
 class TestRegle6Filtrage:
     """
-    Règle 6 : le filtrage par locuteur ne masque
-    jamais le traitement en cours ni les
-    indicateurs de la barre d'état.
+    Règle 6 (spec §7) : le filtrage par locuteur
+    (API conservée, retirée de l'UI en P16-bis)
+    ne masque jamais le traitement en cours ni
+    les indicateurs de la barre d'état.
     """
 
     def test_barre_etat_toujours_visible(self, fenetre):
@@ -481,13 +566,9 @@ class TestRegle6Filtrage:
 
         # Les blocs de Philippe sont masqués, pas la
         # barre d'état ni les boutons de traitement.
-        masques = [
-            fid
-            for fid, ligne in fenetre.lignes.items()
-            if ligne.isHidden()
-        ]
-
-        assert 3 not in masques
+        assert not fenetre.ligne_visible(1)
+        assert not fenetre.ligne_visible(2)
+        assert fenetre.ligne_visible(3)
 
         assert not fenetre.barre_etat.isHidden()
         assert fenetre.barre_etat.text() == barre_avant
@@ -498,8 +579,8 @@ class TestRegle6Filtrage:
         fenetre.selectionner_locuteur("Daniel")
 
         assert all(
-            not ligne.isHidden()
-            for ligne in fenetre.lignes.values()
+            fenetre.ligne_visible(fid)
+            for fid in fenetre.lignes
         )
 
     def test_filtrage_par_locuteur(self, fenetre):
@@ -511,21 +592,413 @@ class TestRegle6Filtrage:
 
         fenetre.selectionner_locuteur("Philippe")
 
-        assert not fenetre.lignes[1].isHidden()
-        assert not fenetre.lignes[2].isHidden()
-        assert fenetre.lignes[3].isHidden()
+        assert fenetre.ligne_visible(1)
+        assert fenetre.ligne_visible(2)
+        assert not fenetre.ligne_visible(3)
 
         fenetre.selectionner_locuteur("Philippe")
 
         fenetre.selectionner_locuteur("Daniel")
 
-        assert fenetre.lignes[1].isHidden()
-        assert fenetre.lignes[2].isHidden()
-        assert not fenetre.lignes[3].isHidden()
+        assert not fenetre.ligne_visible(1)
+        assert not fenetre.ligne_visible(2)
+        assert fenetre.ligne_visible(3)
 
         fenetre.selectionner_locuteur("Daniel")
 
         assert all(
-            not ligne.isHidden()
-            for ligne in fenetre.lignes.values()
+            fenetre.ligne_visible(fid)
+            for fid in fenetre.lignes
         )
+
+    def test_api_conservee_sans_cases_a_cocher(self, fenetre):
+        """
+        P16-bis (spec correctifs §2) : la colonne
+        locuteurs est une colonne de la table (un
+        nom par ligne de bloc), plus aucun panneau
+        de cases à cocher ; l'API de filtrage reste
+        utilisable (prête à être rebranchée).
+        """
+
+        assert not hasattr(fenetre, "boutons_locuteurs")
+
+        for fid, ligne in fenetre.lignes.items():
+
+            rangée = fenetre.rangees[fid]
+
+            label = fenetre.table.cellWidget(rangée, 0)
+
+            assert label is ligne.label_locuteurs
+
+            # Noms attendus : Philippe (blocs 1-2),
+            # Daniel (bloc 3).
+            attendu = " / ".join(ligne.bloc.locuteurs)
+
+            assert label.text() == attendu
+
+
+#
+# ==================================================
+# P16-bis — règles d'invariance additionnelles
+# (spec UI_REFORMULATION_MODIFS_V2_2026-10-27 §6).
+# ==================================================
+#
+
+@pytest.mark.qt
+class TestInvariance1SansDefilementInterne:
+    """
+    Règle 1 (spec correctifs §6.1) : aucune barre
+    de défilement verticale visible à l'intérieur
+    d'une cellule de bloc, quel que soit le
+    contenu.
+    """
+
+    def test_cellules_sans_barre_visible(self, fenetre):
+
+        fenetre.show()
+        QApplication.processEvents()
+
+        for fid, ligne in fenetre.lignes.items():
+
+            for cellule in (
+                ligne.cellule_brute,
+                ligne.cellule_reformee,
+            ):
+
+                assert (
+                    cellule.verticalScrollBarPolicy()
+                    == Qt.ScrollBarPolicy
+                    .ScrollBarAlwaysOff
+                )
+
+                barre = cellule.verticalScrollBar()
+
+                assert not barre.isVisibleTo(cellule)
+
+                # Le contenu tient entièrement dans la
+                # cellule : pas de plage de défilement.
+                assert barre.maximum() == 0
+
+    def test_arbre_de_la_table_sans_defilement_interne(self, fenetre):
+        """
+        Parcours des widgets de la table : les
+        seules barres visibles appartiennent à la
+        table elle-même (défilement unique).
+        """
+
+        fenetre.show()
+        QApplication.processEvents()
+
+        for fid, ligne in fenetre.lignes.items():
+
+            widgets = [
+                ligne.cellule_brute,
+                ligne.cellule_reformee,
+                ligne.label_locuteurs,
+                ligne.colonne_droite,
+            ]
+
+            for widget in widgets:
+
+                for barre in widget.findChildren(
+                    QScrollBar
+                ):
+                    assert not barre.isVisibleTo(widget)
+
+    def test_contenu_long_sans_barre(self, fenetre):
+        """
+        Un contenu plus long que la hauteur par
+        défaut étend la ligne au lieu de faire
+        apparaître un défilement interne.
+        """
+
+        fenetre.show()
+        QApplication.processEvents()
+
+        texte_long = " ".join(
+            f"mot{i}" for i in range(200)
+        )
+
+        fenetre.lignes[1].cellule_reformee.setPlainText(
+            texte_long
+        )
+
+        fenetre.sur_texte_change(1)
+
+        QApplication.processEvents()
+
+        barre = (
+            fenetre.lignes[1]
+            .cellule_reformee
+            .verticalScrollBar()
+        )
+
+        assert not barre.isVisibleTo(
+            fenetre.lignes[1].cellule_reformee
+        )
+
+        assert barre.maximum() == 0
+
+
+@pytest.mark.qt
+class TestInvariance2AlignementHorizontal:
+    """
+    Règle 2 (spec correctifs §6.2) : à tout instant,
+    pour chaque bloc visible, le haut de la cellule
+    brute et le haut de la cellule reformulée sont
+    sur la même ligne horizontale (hauteur de
+    ligne = max des deux cellules, l'autre se cale
+    en haut).
+    """
+
+    def test_hauts_des_cellules_alignes(self, fenetre):
+
+        fenetre.show()
+        QApplication.processEvents()
+
+        for fid, ligne in fenetre.lignes.items():
+
+            rangée = fenetre.rangees[fid]
+
+            brute = fenetre.table.cellWidget(rangée, 1)
+            reformee = fenetre.table.cellWidget(rangée, 2)
+
+            assert brute.y() == reformee.y()
+
+            # Hauteur de ligne = max des deux cellules
+            # : les cellules remplissent la ligne.
+            assert brute.height() == reformee.height()
+
+    def test_alignement_malgre_hauteurs_differentes(self, fenetre):
+        """
+        Deux blocs de contenus différents ont des
+        hauteurs de ligne différentes et restent
+        alignés horizontalement ; la ligne s'agrandit
+        au fil de la frappe (spec correctifs §1.4).
+        """
+
+        fenetre.show()
+        QApplication.processEvents()
+
+        hauteurs_avant = {
+            fid: fenetre.table.rowHeight(
+                fenetre.rangees[fid]
+            )
+            for fid in fenetre.lignes
+        }
+
+        # Toutes les cellules vides au départ :
+        # hauteurs identiques (plancher commun).
+        assert len(set(hauteurs_avant.values())) == 1
+
+        texte_long = " ".join(
+            f"mot{i}" for i in range(120)
+        )
+
+        fenetre.lignes[2].cellule_reformee.setPlainText(
+            texte_long
+        )
+
+        fenetre.sur_texte_change(2)
+
+        QApplication.processEvents()
+
+        hauteur_1 = fenetre.table.rowHeight(
+            fenetre.rangees[1]
+        )
+        hauteur_2 = fenetre.table.rowHeight(
+            fenetre.rangees[2]
+        )
+
+        # La ligne du bloc édité a grandi.
+        assert hauteur_2 > hauteur_1
+
+        # Les deux cellules du bloc restent alignées.
+        brute = fenetre.table.cellWidget(
+            fenetre.rangees[2], 1
+        )
+        reformee = fenetre.table.cellWidget(
+            fenetre.rangees[2], 2
+        )
+
+        assert brute.y() == reformee.y()
+
+
+@pytest.mark.qt
+class TestInvariance3LargeurZoneGaucheTimeline:
+    """
+    Règle 3 (spec correctifs §6.3) : la largeur de
+    la zone gauche de la timeline est égale à celle
+    de la colonne locuteurs (à la tolérance de
+    bordure près).
+    """
+
+    def test_largeurs_egales(self, fenetre):
+
+        assert (
+            fenetre.timeline_speakers.width()
+            == fenetre.table.columnWidth(0)
+        )
+
+    def test_largeurs_suivent_le_redimensionnement(self, fenetre):
+
+        fenetre.table.setColumnWidth(0, 210)
+
+        QApplication.processEvents()
+
+        assert fenetre.table.columnWidth(0) == 210
+        assert fenetre.timeline_speakers.width() == 210
+
+        fenetre.table.setColumnWidth(0, 130)
+
+        QApplication.processEvents()
+
+        assert fenetre.timeline_speakers.width() == 130
+
+
+@pytest.mark.qt
+class TestInvariance4Persistance:
+    """
+    Règle 4 (spec correctifs §6.4) : après
+    fermeture/réouverture, la taille de police
+    configurée et la largeur des colonnes sont
+    conservées.
+    """
+
+    def test_defaut_abaisse_double_colonne(self, tmp_path):
+        """
+        Le défaut est abaissé pour la double colonne
+        (spec correctifs §5.2).
+        """
+
+        from ui.reformulation_window import (
+            TAILLE_TEXTE_DEFAUT
+        )
+
+        prefs = SettingsManager(
+            str(tmp_path / "reglages")
+        ).get_reformulation_prefs()
+
+        assert prefs["taille_texte"] == (
+            TAILLE_TEXTE_DEFAUT
+        )
+
+        assert TAILLE_TEXTE_DEFAUT < 13
+
+    def test_taille_et_largeurs_conservees(self, fenetre, tmp_path):
+
+        fenetre.changer_taille(2)
+
+        assert fenetre.taille_texte == 13
+
+        fenetre.table.setColumnWidth(0, 200)
+
+        fenetre.close()
+
+        # Réouverture avec les mêmes réglages : tout
+        # est réappliqué.
+        from ui.reformulation_window import (
+            ReformulationWindow
+        )
+
+        etude = fenetre.etude
+        nom = fenetre.reunion
+
+        fenetre2 = ReformulationWindow(
+            etude,
+            nom,
+            settings=SettingsManager(
+                str(tmp_path / "reglages")
+            )
+        )
+
+        try:
+
+            assert fenetre2.taille_texte == 13
+            assert fenetre2.table.columnWidth(0) == 200
+
+            # La taille est appliquée aux cellules.
+            police = (
+                fenetre2.lignes[1]
+                .cellule_brute
+                .font()
+            )
+
+            assert police.pointSize() == 13
+
+        finally:
+            fenetre2.close()
+
+    def test_plage_bornee(self, fenetre):
+        """
+        La plage A+/A− reste bornée comme avant
+        (spec correctifs §5.3).
+        """
+
+        fenetre.taille_texte = 24
+        fenetre.changer_taille(1)
+        assert fenetre.taille_texte == 24
+
+        fenetre.taille_texte = 9
+        fenetre.changer_taille(-1)
+        assert fenetre.taille_texte == 9
+
+
+@pytest.mark.qt
+class TestInvariance5BoutonReformulationEditeur:
+    """
+    Règle 5 (spec correctifs §6.5) : «
+    Reformulation… » depuis l'éditeur v1 aboutit
+    toujours à la page Reformulation de la même
+    réunion (jamais d'une autre), et n'est pas
+    actif pour un projet hors étude.
+    """
+
+    def test_actif_si_projet_dans_une_etude(self, editeur):
+
+        assert editeur.reformulation_button.isEnabled()
+
+    def test_ouvre_la_page_de_la_meme_reunion(self, editeur, tmp_path):
+
+        from pathlib import Path
+
+        from services.etude_io import fichier_projet_v1
+        from ui.reformulation_window import (
+            ReformulationWindow
+        )
+
+        editeur.ouvrir_reformulation()
+
+        fenetre = editeur.reformulation_window
+
+        assert isinstance(fenetre, ReformulationWindow)
+
+        # La même réunion : celle qui référence le
+        # projet ouvert dans l'éditeur (jamais une
+        # autre).
+        chemin = fichier_projet_v1(
+            fenetre.etude,
+            fenetre.reunion
+        )
+
+        assert chemin is not None
+
+        assert (
+            Path(chemin).resolve()
+            == Path(editeur.project.project_file).resolve()
+        )
+
+        fenetre.close()
+
+    def test_inactif_si_projet_hors_etude(self, editeur_hors_etude):
+
+        bouton = editeur_hors_etude.reformulation_button
+
+        assert not bouton.isEnabled()
+
+        assert (
+            "n'appartient à aucune étude"
+            in bouton.toolTip()
+        )
+
+        assert editeur_hors_etude.etudes_referencant_projet() == []

@@ -239,6 +239,10 @@ Convention de commit existante : `Pnn - <sujet> : <détail>`. Les phases v2 comm
 - P16.4 Contrôle qualité local (§5.1 et §5.3) affiché dans la page.
 - Critères : réunion Luc 1b de test reformulée intégralement ; chaque résultat relisible face à sa source ; une intervention modifiée n'affecte que les suivantes après revalidation ; une méditation monologue est traitée en sous-blocs successifs sans rupture stylistique perceptible entre les jonctions.
 
+### P16-bis — Correctifs de relecture UI (spec UI_REFORMULATION_MODIFS_V2.md — prime sur UI_REFORMULATION_V2 pour ces points)
+
+Suite à la relecture de David (2026-10-27) : **défilement vertical unique et synchronisé** sur les deux colonnes, aucune barre de défilement interne aux blocs, hauteurs de ligne variables (blocs alignés horizontalement) ; **colonne locuteurs = noms par bloc** (une cellule par ligne, pas de cases à cocher ; le filtre est retiré de l'UI mais son API est conservée, réactivation future via menu de la barre supérieure) ; **zone gauche de la timeline de même largeur que la colonne locuteurs** ; **bouton « Reformulation… » dans l'éditeur v1** (actif si le projet appartient à une étude) ; **persistance de la taille de police** (A+/A− mémorisé dans les réglages, défaut abaissé pour la double colonne). 5 règles d'invariance additionnelles testées (spec §6).
+
 ### P17 — Niveau 2 : synthèse d'étude & bloc Résumé
 
 - P17.1 Bloc Résumé (segments avec chevauchement, **prompt de résumé v2 fourni en annexe comme valeur par défaut éditable**), **source au choix à chaque lancement** (transcription brute corrigée ou reformulations validées, source stockée dans les métadonnées du résultat, avertissement si la source a évolué depuis) + outillage d'édition complet (§ Bloc Résumé) réutilisé du moteur commun ; longueur cible (650–700 mots par défaut) paramétrable au lancement.
