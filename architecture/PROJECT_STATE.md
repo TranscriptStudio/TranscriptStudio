@@ -1,10 +1,9 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-28 (P16-bis 3ᵉ série :
-> lecteur audio sain au retour de page, aucune lecture
-> automatique au clic, clé LLM persistée avec parité
-> ElevenLabs, éditeur de catalogue lié à la sélection ;
-> 277 tests verts)
+> **Dernière mise à jour** : 2026-10-28 (correctif de
+> relecture §17 : les credentials vivent dans
+> credentials.json, plus jamais effacés par les
+> sauvegardes de réglages ; 279 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -41,7 +40,7 @@
   contexte, P17.3 récurrences entre réunions) — 228 tests verts.
 - **P16-bis : LIVRÉ** (correctifs de relecture UI, séries 1 à 3 +
   terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
-  sur UI_REFORMULATION_V2 pour ses points) — 277 tests verts.
+  sur UI_REFORMULATION_V2 pour ses points) — 279 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -1005,14 +1004,37 @@ nouvelle).
    `jouer_audio_si_charge` est retiré du chemin de clic,
    méthode réduite à un garde-fou inactif) ; **seul le bouton
    lecture/pause joue**.
-3. **Clé API LLM persistée (§17)** : cause racine trouvée —
-   `CredentialStore._load_credentials` ne rechargeait que la
-   clé ElevenLabs : les clés `llm_cle_<fournisseur>`
-   étaient écrites sur disque mais **perdues à chaque
-   redémarrage**. Corrigé : toutes les clés `llm_cle_*` sont
-   rechargées. L'UX était déjà à parité ElevenLabs (champ
-   prérempli en mode Password, « Tester la clé » sans
-   ressaisie, vider le champ = effacer) — vérifiée par test.
+3. **Clé API LLM persistée (§17)** — DEUX causes
+   racine, la seconde constatée en relecture par
+   David (capture : clé saisie + test OK, puis
+   disparue après enregistrement) :
+   - (a) `CredentialStore._load_credentials` ne
+     rechargeait que la clé ElevenLabs — les clés
+     `llm_cle_*` étaient écrites mais perdues au
+     redémarrage (corrigé au commit précédent) ;
+   - (b) **`SettingsManager.save()` réécrit
+     settings.json EN ENTIER** (dictionnaire qui ne
+     connaît pas les clés `llm_cle_*`) : chaque
+     sauvegarde de réglages — enregistrement des
+     paramètres, changement de thème, projet/étude
+     récent — EFFAÇAIT les clés du fichier, juste
+     après que le CredentialStore les y avait
+     écrites. Correctif à la racine : les
+     credentials vivent désormais dans leur
+     **propre fichier `credentials.json`** (dossier
+     de paramétrage), avec **migration automatique**
+     à la première exécution (clé ElevenLabs P6 +
+     clés LLM P15 relues depuis settings.json) ;
+     plus aucune écriture de credential dans
+     settings.json, plus aucun effacement possible.
+     L'UX est inchangée et à parité ElevenLabs
+     (champ masqué prérempli, « Tester la clé »
+     sans ressaisie, vider le champ = effacer).
+     Deux tests de régression : survie à
+     set_theme/add_recent_project/set_llm_config
+     puis relecture, et scénario complet saisie →
+     enregistrement → réouverture (champ toujours
+     prérempli).
 4. **Éditeur de catalogue lié à la sélection (§18)** :
    les incohérences constatées venaient d'écritures
    transitoires pendant les rechargements (les champs
@@ -1046,9 +1068,9 @@ nouvelle).
    (choix conservateur : l'utilisateur peut encore le
    récupérer via « Réinitialiser », rien n'est écrasé).
 
-### Bilan tests : **277 verts** (261 + 16)
+### Bilan tests : **279 verts** (261 + 18)
 
-`tests/unit/test_p16bis_serie3.py` (16) : arrêt/libération
+`tests/unit/test_p16bis_serie3.py` (18) : arrêt/libération
 au quit + position conservée puis restaurée + erreur
 signalée + `sur_navigation_entrante` appelé par la pile au
 retour ; aucun chemin de clic ne joue (bloc, timeline,
@@ -1066,7 +1088,7 @@ stocké invalide → repli sur les défauts embarqués.
 
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 (séries 1 à 3), P16-bis et P17 sont LIVRÉS** (277
+**P16 (séries 1 à 3), P16-bis et P17 sont LIVRÉS** (279
 tests verts). Restent :
 
 1. **Recette P16/P17 par David** (checklist en fin de session P17

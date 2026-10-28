@@ -28,12 +28,18 @@ CLE_ELEVENLABS = "elevenlabs_api_key"
 # P15 : une clé par fournisseur LLM, stockée sous
 # le nom llm_cle_<id> (identifiant de fournisseur
 # du catalogue, stable). P16-bis 3ᵉ série
-# (spec correctifs §17) : ces clés doivent être
-# RECHARGÉES au démarrage — c'est la cause de la
-# régression « clé à ressaisir à chaque fois ».
+# (spec correctifs §17) : les credentials vivent
+# dans leur PROPRE fichier (credentials.json) —
+# settings.json est réécrit en entier par
+# SettingsManager à chaque sauvegarde (réglages,
+# projets/études récents, thème…) et effaçait les
+# clés LLM qui y étaient écrites : c'est la cause
+# de « la clé disparaît après enregistrement ».
 #
 
 PREFIXE_CLE_LLM = "llm_cle_"
+
+FICHIER_CREDENTIALS = "credentials.json"
 
 
 class CredentialStore:
@@ -49,34 +55,68 @@ class CredentialStore:
         Initialise le CredentialStore.
 
         Args:
-            settings_file: Chemin vers le fichier settings.json
+            settings_file: Chemin historique vers
+            settings.json — utilisé uniquement pour
+            la migration initiale (P6/P15) ; les
+            credentials vivent désormais dans
+            credentials.json, à côté.
         """
-        self.settings_file = settings_file
+        self.settings_file = Path(settings_file)
+
+        self.fichier_credentials = (
+            self.settings_file.parent
+            / FICHIER_CREDENTIALS
+        )
+
         self._credentials = {}
         self._load_credentials()
 
     def _load_credentials(self) -> None:
         """
-        Charge les identifiants depuis le fichier de configuration.
+        Charge les identifiants depuis
+        credentials.json ; à défaut, migre les clés
+        historiques de settings.json (clé ElevenLabs
+        P6 + clés LLM P15).
         """
+        if self.fichier_credentials.exists():
+            try:
+                with open(
+                    self.fichier_credentials,
+                    "r",
+                    encoding="utf-8"
+                ) as f:
+                    data = json.load(f)
+
+                self._credentials = {
+                    nom: valeur
+                    for nom, valeur in data.items()
+                    if isinstance(valeur, str)
+                }
+            except (json.JSONDecodeError, IOError):
+                self._credentials = {}
+
+            return
+
+        #
+        # Première exécution : migration depuis
+        # settings.json, puis écriture du fichier
+        # dédié.
+        #
+        self._credentials = {CLE_ELEVENLABS: ""}
+
         if self.settings_file.exists():
             try:
-                with open(self.settings_file, "r", encoding="utf-8") as f:
+                with open(
+                    self.settings_file,
+                    "r",
+                    encoding="utf-8"
+                ) as f:
                     settings = json.load(f)
-                    # Récupère la clé API (ancien format ou nouveau)
-                    self._credentials = {
-                        CLE_ELEVENLABS: settings.get(
-                            CLE_ELEVENLABS, ""
-                        )
-                    }
-                    #
-                    # P16-bis 3ᵉ série (spec correctifs
-                    # §17) : les clés LLM persistées
-                    # (llm_cle_<fournisseur>) sont
-                    # rechargées — sans cela elles étaient
-                    # écrites sur disque mais perdues à
-                    # chaque redémarrage.
-                    #
+
+                    self._credentials[CLE_ELEVENLABS] = (
+                        settings.get(CLE_ELEVENLABS, "")
+                    )
+
                     for nom, valeur in settings.items():
                         if (
                             nom.startswith(PREFIXE_CLE_LLM)
@@ -84,30 +124,30 @@ class CredentialStore:
                         ):
                             self._credentials[nom] = valeur
             except (json.JSONDecodeError, IOError):
-                # Si le fichier est corrompu, on part de zéro
-                self._credentials = {CLE_ELEVENLABS: ""}
-        else:
-            self._credentials = {CLE_ELEVENLABS: ""}
+                pass
+
+        self._save_credentials()
 
     def _save_credentials(self) -> None:
         """
-        Sauvegarde les identifiants dans le fichier de configuration.
+        Sauvegarde les identifiants dans le fichier
+        dédié credentials.json — jamais dans
+        settings.json (réécrit en entier par
+        SettingsManager, qui ne connaît pas les
+        credentials).
         """
         try:
-            # Lire les settings existantes
-            if self.settings_file.exists():
-                with open(self.settings_file, "r", encoding="utf-8") as f:
-                    settings = json.load(f)
-            else:
-                settings = {}
-
-            # Mettre à jour les credentials connus
-            for nom, valeur in self._credentials.items():
-                settings[nom] = valeur
-
-            # Sauvegarder
-            with open(self.settings_file, "w", encoding="utf-8") as f:
-                json.dump(settings, f, ensure_ascii=False, indent=2)
+            with open(
+                self.fichier_credentials,
+                "w",
+                encoding="utf-8"
+            ) as f:
+                json.dump(
+                    self._credentials,
+                    f,
+                    ensure_ascii=False,
+                    indent=2
+                )
         except (IOError, json.JSONDecodeError):
             # Si on ne peut pas sauvegarder, c'est un problème mais on ne veut pas
             # bloquer l'application

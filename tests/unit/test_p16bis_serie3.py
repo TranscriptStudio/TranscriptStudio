@@ -311,7 +311,7 @@ class TestSection17CleLLM:
         store.set_cle_llm("openai", "sk-test-123456")
 
         # « Redémarrage » : nouveau store, même
-        # fichier — la clé est rechargée.
+        # dossier — la clé est rechargée.
         store2 = CredentialStore(fichier)
 
         assert store2.get_cle_llm("openai") == (
@@ -319,6 +319,121 @@ class TestSection17CleLLM:
         )
 
         assert store2.has_cle_llm("openai")
+
+    def test_cle_survit_aux_sauvegardes_des_reglages(self, tmp_path):
+        """
+        Régression constatée en relecture : la clé
+        était EFFACÉE par SettingsManager.save()
+        (réécriture entière de settings.json, qui ne
+        connaît pas les clés llm_cle_*). Les
+        credentials vivent désormais dans leur
+        propre fichier — une sauvegarde de réglages
+        (thème, récents…) ne peut plus les effacer.
+        """
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        settings.save()
+
+        store = CredentialStore(
+            settings.app_folder / "settings.json"
+        )
+
+        store.set_cle_llm("openai", "sk-test-123456")
+
+        # Toutes les causes d'effacement passées :
+        # sauvegarde du thème, projet/étude récent,
+        # configuration LLM.
+        settings.set_theme("dark")
+
+        settings.add_recent_project(
+            str(tmp_path / "reunion.sttproj")
+        )
+
+        settings.set_llm_config(
+            settings.get_llm_config()
+        )
+
+        store2 = CredentialStore(
+            settings.app_folder / "settings.json"
+        )
+
+        assert store2.get_cle_llm("openai") == (
+            "sk-test-123456"
+        )
+
+    def test_saisie_puis_reouverture(self, qapp, tmp_path):
+        """
+        Scénario complet de la relecture : clé
+        renseignée et testée dans les réglages,
+        enregistrement, réouverture des réglages —
+        la clé est toujours là (champ masqué
+        prérempli), sans ressaisie.
+        """
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        settings.save()
+
+        store = CredentialStore(
+            settings.app_folder / "settings.json"
+        )
+
+        store.set_cle_llm("openai", "sk-test-123456")
+
+        from ui.settings_dialog import SettingsDialog
+
+        dialogue = SettingsDialog(
+            settings=settings
+        )
+
+        try:
+
+            # Fournisseur par défaut : openai — le
+            # champ est prérempli avec la clé.
+            assert (
+                dialogue.llm_fournisseur_combo
+                .currentData()
+                == "openai"
+            )
+
+            assert dialogue.llm_cle_edit.text() == (
+                "sk-test-123456"
+            )
+
+            # « Enregistrer » : la clé persiste malgré
+            # les sauvegardes de réglages.
+            dialogue.save_settings()
+
+        finally:
+            dialogue.close()
+
+        store2 = CredentialStore(
+            settings.app_folder / "settings.json"
+        )
+
+        assert store2.get_cle_llm("openai") == (
+            "sk-test-123456"
+        )
+
+        # Réouverture des réglages : clé toujours
+        # présente, sans ressaisie.
+        dialogue2 = SettingsDialog(
+            settings=settings
+        )
+
+        try:
+
+            assert dialogue2.llm_cle_edit.text() == (
+                "sk-test-123456"
+            )
+
+        finally:
+            dialogue2.close()
 
     def test_vider_le_champ_efface(self, tmp_path):
 
