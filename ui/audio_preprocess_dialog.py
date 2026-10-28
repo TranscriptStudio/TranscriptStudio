@@ -2958,7 +2958,7 @@ class AudioPreprocessDialog(QDialog):
             (
                 "Voulez-vous vraiment abandonner "
                 "le prétraitement audio ?\n\n"
-                "Le projet provisoire et les fichiers "
+                "La réunion provisoire et les fichiers "
                 "générés seront supprimés."
             ),
             (
@@ -2981,7 +2981,7 @@ class AudioPreprocessDialog(QDialog):
                 "Erreur de nettoyage",
                 (
                     "Impossible de supprimer complètement "
-                    "le projet provisoire.\n\n"
+                    "la réunion provisoire.\n\n"
                     + str(e)
                 )
             )

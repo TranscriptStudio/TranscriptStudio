@@ -38,6 +38,23 @@ Correctifs P16-bis (spec MODIFS) :
   colonnes sont mémorisées dans les réglages
   (défaut abaissé pour la double colonne).
 
+Correctifs P16-bis, 2ᵉ série (spec MODIFS §8-§13) :
+- synchronisation bidirectionnelle timeline ↔
+  blocs : clic bloc (brute, locuteurs, pastille) =
+  curseur au début du bloc, timeline défilée ;
+  clic timeline = bloc courant sélectionné ;
+  lecture = bloc surligné + suivi par défilement
+  paresseux (jamais pendant une édition) ;
+- surlignage lisible dans les deux thèmes
+  (couleurs par thème, contraste AA, jaune clair
+  supprimé du thème sombre) ;
+- gouttière gauche de la timeline = colonne
+  locuteurs, pistes jusqu'au bord droit de la
+  fenêtre ;
+- navigation à pile unique : « Accueil » = accueil
+  de l'app, « Retour à l'étude » distinct, jamais
+  de pages dupliquées (voir ui/app_window.py).
+
 Règles d'invariance UI (spec §7) :
 1. la colonne brute n'expose aucune commande de
    modification (ni active ni grisée) ;
@@ -69,6 +86,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QHeaderView,
     QInputDialog,
     QLabel,
@@ -96,6 +114,11 @@ from services.etude_io import (
 from services.etude_schema import EtudeFormatError
 from services.project_io import load_project
 from services.settings import SettingsManager
+from services.theme_manager import (
+    COULEUR_SURLIGNAGE_MOT_CLAIR,
+    couleurs_surlignage,
+    est_sombre,
+)
 from services.timecodes import lire_timecode
 from services.traitements.moteur import (
     CIBLE_NON_VALIDES,
@@ -409,15 +432,24 @@ class LigneBloc:
         police.setPointSize(max(9, taille - 1))
         self.label_locuteurs.setFont(police)
 
-    def surligner_mot(self, index: int):
+    def surligner_mot(
+        self,
+        index: int,
+        couleur: str = None
+    ):
         """
         Surligne le jeton d'index donné dans la
-        cellule brute (mot lu).
+        cellule brute (mot lu). La couleur vient du
+        thème courant (spec correctifs §9) — par
+        défaut celle du thème clair.
         """
+
+        if couleur is None:
+            couleur = COULEUR_SURLIGNAGE_MOT_CLAIR
 
         format_surlignage = QTextCharFormat()
         format_surlignage.setBackground(
-            QColor("#FFF3B0")
+            QColor(couleur)
         )
 
         if index is None or not self.mots_ligne:
@@ -539,6 +571,7 @@ class ReformulationWindow(QWidget):
         self.lignes = {}
         self.rangees = {}
         self.locuteur_selectionne = None
+        self.bloc_courant = None
 
         self.build_ui(prefs)
 
@@ -578,6 +611,22 @@ class ReformulationWindow(QWidget):
 
         self.accueil_button = QPushButton(
             "🏠 Accueil"
+        )
+        self.accueil_button.setToolTip(
+            "Revenir à l'accueil de l'application "
+            "(réunions et études récentes)"
+        )
+
+        #
+        # « Retour à l'étude » (spec correctifs §11.2)
+        # : la page Étude de l'étude courante —
+        # distinct du bouton Accueil.
+        #
+        self.retour_etude_button = QPushButton(
+            "↩ Retour à l'étude"
+        )
+        self.retour_etude_button.setToolTip(
+            "Revenir à la page de l'étude courante"
         )
 
         self.traiter_button = QPushButton(
@@ -626,6 +675,7 @@ class ReformulationWindow(QWidget):
             self.sauvegarder_button,
             self.aide_button,
             self.accueil_button,
+            self.retour_etude_button,
             self.traiter_button,
             self.couts_button,
             self.annuler_button,
@@ -678,34 +728,57 @@ class ReformulationWindow(QWidget):
             )
 
             #
-            # La zone gauche de la timeline a
+            # Gouttière gauche de la timeline =
             # exactement la largeur de la colonne
-            # locuteurs (spec correctifs §3) — le bord
-            # gauche de la timeline s'aligne sur le
-            # bord gauche des colonnes de texte.
+            # locuteurs (spec correctifs §10.1) — le
+            # bord gauche de la timeline s'aligne sur
+            # les colonnes de texte.
             #
             self.timeline_speakers.setFixedWidth(
                 self.table.columnWidth(0)
             )
 
-            zone_timeline = QScrollArea()
-            zone_timeline.setWidgetResizable(True)
-            zone_timeline.setFixedHeight(160)
-            zone_timeline.setHorizontalScrollBarPolicy(
+            #
+            # Seule la timeline défile : les pistes
+            # s'étendent jusqu'au bord droit de la
+            # fenêtre (§10.2), sans gouttière à
+            # droite.
+            #
+            self.zone_timeline = QScrollArea()
+            self.zone_timeline.setWidgetResizable(True)
+            self.zone_timeline.setFixedHeight(160)
+            self.zone_timeline.setHorizontalScrollBarPolicy(
                 Qt.ScrollBarPolicy.ScrollBarAlwaysOn
             )
 
-            contenu_timeline = QWidget()
-            contenu = QHBoxLayout(contenu_timeline)
-            contenu.setContentsMargins(0, 0, 0, 0)
-            contenu.setSpacing(0)
+            self.zone_timeline.setWidget(self.timeline)
 
-            contenu.addWidget(self.timeline_speakers)
-            contenu.addWidget(self.timeline, stretch=1)
+            #
+            # Les pistes réétalent leur largeur quand
+            # la zone défilante est redimensionnée
+            # (spec correctifs §10.2 : jusqu'au bord
+            # droit, sans marge).
+            #
+            self.zone_timeline.viewport(
+            ).installEventFilter(self)
 
-            zone_timeline.setWidget(contenu_timeline)
+            #
+            # Le composant v1 suit son curseur via
+            # cette zone (défilement horizontal du
+            # segment en lecture, §8.1).
+            #
+            self.timeline.timeline_scroll = (
+                self.zone_timeline
+            )
 
-            timeline_layout.addWidget(zone_timeline)
+            timeline_layout.addWidget(
+                self.timeline_speakers
+            )
+
+            timeline_layout.addWidget(
+                self.zone_timeline,
+                stretch=1
+            )
 
         layout.addWidget(self.conteneur_timeline)
 
@@ -732,6 +805,10 @@ class ReformulationWindow(QWidget):
 
         self.accueil_button.clicked.connect(
             self.retour_accueil
+        )
+
+        self.retour_etude_button.clicked.connect(
+            self.retour_a_l_etude
         )
 
         self.traiter_button.clicked.connect(
@@ -1093,6 +1170,22 @@ class ReformulationWindow(QWidget):
             )
         )
 
+        #
+        # Synchronisation timeline ↔ blocs (spec
+        # correctifs §8.1) : cliquer le bloc —
+        # colonne locuteurs ou pastille aussi —
+        # positionne le curseur audio à son début.
+        #
+        ligne.label_locuteurs.mousePressEvent = (
+            lambda event, _ligne=ligne:
+            self.positionner_audio(_ligne, 0)
+        )
+
+        ligne.pastille.pressed.connect(
+            lambda _ligne=ligne:
+            self.positionner_audio(_ligne, 0)
+        )
+
     def _clic_cellule_brute(self, ligne: LigneBloc):
         """
         Gestionnaire de clic dans la cellule brute :
@@ -1161,6 +1254,14 @@ class ReformulationWindow(QWidget):
                     position = float(mot.start)
 
         self.playback.set_position(position)
+
+        #
+        # La timeline s'illumine et défile pour
+        # rendre le segment visible (§8.1).
+        #
+        if getattr(self, "timeline", None) is not None:
+            self.timeline.set_current_time(position)
+
         self.jouer_audio_si_charge()
 
     #
@@ -2371,13 +2472,34 @@ class ReformulationWindow(QWidget):
             self.sur_position_audio
         )
 
+        #
+        # Synchronisation timeline ↔ blocs (§8) :
+        # le curseur de la timeline suit la lecture ;
+        # un clic dessus sélectionne le bloc
+        # correspondant (même en pause).
+        #
+        self.playback.position_changed.connect(
+            self.timeline.set_current_time
+        )
+
         self.timeline.seek_requested.connect(
-            self.playback.set_position
+            self.sur_clic_timeline
         )
 
         self.timeline.block_clicked.connect(
             self.sur_bloc_timeline_clic
         )
+
+    def sur_clic_timeline(self, position: float):
+        """
+        Clic sur la timeline (§8.2) : le curseur se
+        positionne et le bloc contenant la position
+        devient le bloc courant de la table.
+        """
+
+        self.playback.set_position(position)
+
+        self.sur_position_audio(position)
 
     def jouer_audio_si_charge(self):
 
@@ -2408,24 +2530,31 @@ class ReformulationWindow(QWidget):
     def sur_position_audio(self, position: float):
         """
         Surligne le mot lu dans la cellule brute et
-        surbrille le bloc joué (E1.3, spec §3).
+        surbrille le bloc joué (E1.3, spec §3) —
+        couleurs du thème courant (spec correctifs
+        §9 : contraste AA, aucun jaune clair sur
+        fond sombre).
         """
+
+        couleurs = couleurs_surlignage(
+            est_sombre(self)
+        )
+
+        bloc_courant = self._bloc_a_la_position(
+            position
+        )
 
         for fid, ligne in self.lignes.items():
 
-            debut = lire_timecode(
-                ligne.bloc.positions.debut
-            )
-
-            fin = lire_timecode(
-                ligne.bloc.positions.fin
-            )
-
-            jouee = debut <= position < fin
+            jouee = fid == bloc_courant
 
             ligne.cellule_brute.setStyleSheet(
                 "border-left: 3px solid "
-                + (COULEUR_MODIFIABLE if jouee else "transparent")
+                + (
+                    couleurs["bloc"]
+                    if jouee
+                    else "transparent"
+                )
                 + ";"
             )
 
@@ -2452,7 +2581,98 @@ class ReformulationWindow(QWidget):
                     ):
                         break
 
-            ligne.surligner_mot(index)
+            ligne.surligner_mot(
+                index,
+                couleur=couleurs["mot"],
+            )
+
+        #
+        # Suivi par défilement paresseux (spec
+        # correctifs §8.3) : seulement quand le bloc
+        # courant change et sort de la zone visible ;
+        # jamais pendant une sélection ou une
+        # édition dans la table.
+        #
+        if bloc_courant != self.bloc_courant:
+
+            self.bloc_courant = bloc_courant
+
+            self._defiler_vers_bloc(bloc_courant)
+
+    def _bloc_a_la_position(self, position: float):
+        """
+        Bloc actif contenant la position (positions
+        de l'audio traité, contrat §6).
+        """
+
+        for fid, ligne in self.lignes.items():
+
+            debut = lire_timecode(
+                ligne.bloc.positions.debut
+            )
+
+            fin = lire_timecode(
+                ligne.bloc.positions.fin
+            )
+
+            if debut <= position < fin:
+                return fid
+
+        return None
+
+    def _rangée_visible(self, rangée: int) -> bool:
+        """
+        La ligne est-elle entièrement dans la zone
+        visible de la table ?
+        """
+
+        index = self.table.model().index(rangée, 0)
+
+        rectangle = self.table.visualRect(index)
+
+        zone = self.table.viewport().rect()
+
+        return (
+            rectangle.top() >= zone.top()
+            and rectangle.bottom() <= zone.bottom()
+        )
+
+    def _defiler_vers_bloc(self, fid: int):
+        """
+        Défilement paresseux (spec correctifs §8.3) :
+        la vue suit le bloc en lecture seulement
+        quand il sort de la zone visible ; jamais si
+        l'utilisateur est en train de sélectionner
+        ou d'éditer dans la table.
+        """
+
+        if fid is None:
+            return
+
+        rangée = self.rangees.get(fid)
+
+        if rangée is None:
+            return
+
+        if self.table.isRowHidden(rangée):
+            return
+
+        focus = QApplication.focusWidget()
+
+        if (
+            focus is not None
+            and self.table.isAncestorOf(focus)
+        ):
+            return
+
+        if self._rangée_visible(rangée):
+            return
+
+        self.table.scrollTo(
+            self.table.model().index(rangée, 0),
+            QAbstractItemView.ScrollHint
+            .PositionAtCenter,
+        )
 
     def sur_bloc_timeline_clic(self, block_id: int):
         """
@@ -2570,16 +2790,107 @@ class ReformulationWindow(QWidget):
         dialogue.exec()
 
     def retour_accueil(self):
+        """
+        « Accueil » ramène toujours à la page
+        d'accueil de l'app (spec correctifs §11.1),
+        jamais à la page Étude.
+        """
 
         self.sauvegarder_etude()
 
         self.playback.stop()
         self.playback.unload()
 
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+
+            navigation.ouvrir_accueil()
+
+            return
+
+        self.close()
+
+    def retour_a_l_etude(self):
+        """
+        « Retour à l'étude » (spec correctifs §11.2) :
+        revient à la page Étude de l'étude courante.
+        """
+
+        self.sauvegarder_etude()
+
+        self.playback.stop()
+        self.playback.unload()
+
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+
+            navigation.ouvrir_etude(
+                self.etude.dossier
+            )
+
+            return
+
         from ui.etude_window import EtudeWindow
 
-        self.etude_window = EtudeWindow(self.etude.dossier)
+        self.etude_window = EtudeWindow(
+            self.etude.dossier
+        )
 
         self.etude_window.show()
 
         self.close()
+
+    def sur_navigation_sortante(self):
+        """
+        Appelé par la fenêtre principale quand une
+        autre page est activée (pile unique) :
+        sauvegarde des préférences et de l'étude,
+        arrêt de l'audio.
+        """
+
+        self._enregistrer_prefs()
+
+        self.sauvegarder_etude()
+
+        self.playback.stop()
+        self.playback.unload()
+
+    def resizeEvent(self, event):
+        """
+        Au redimensionnement, les pistes de la
+        timeline réétalent leur largeur pour
+        continuer de s'étendre jusqu'au bord droit
+        (spec correctifs §10.2).
+        """
+
+        super().resizeEvent(event)
+
+        timeline = getattr(self, "timeline", None)
+
+        if timeline is not None:
+            timeline.update_timeline_width()
+
+    def eventFilter(self, objet, event):
+        """
+        Redimensionnement du viewport de la zone
+        timeline : les pistes s'étendent jusqu'au
+        nouveau bord droit (spec correctifs §10.2).
+        """
+
+        if (
+            getattr(self, "zone_timeline", None)
+            is not None
+            and objet is (
+                self.zone_timeline.viewport()
+            )
+            and event.type() == event.Type.Resize
+        ):
+
+            timeline = getattr(self, "timeline", None)
+
+            if timeline is not None:
+                timeline.update_timeline_width()
+
+        return super().eventFilter(objet, event)

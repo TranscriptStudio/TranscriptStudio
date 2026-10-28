@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget,
     QMenu,
+    QScrollArea,
 )
 
 from PySide6.QtGui import (
@@ -656,6 +657,24 @@ class TimelineWidget(QWidget):
 
         event.accept()
 
+    def _largeur_viewport(self) -> int:
+        """
+        Largeur du viewport du QScrollArea ancêtre
+        (0 si la timeline n'est pas dans une zone
+        défilable).
+        """
+
+        widget = self.parentWidget()
+
+        while widget is not None:
+
+            if isinstance(widget, QScrollArea):
+                return widget.viewport().width()
+
+            widget = widget.parentWidget()
+
+        return 0
+
     def update_timeline_width(self):
 
         duration = self.get_duration()
@@ -666,6 +685,17 @@ class TimelineWidget(QWidget):
         width = int(
             duration * self.zoom
         )
+
+        #
+        # P16-bis (spec correctifs §10.2) : les pistes
+        # s'étendent jusqu'au bord droit — dézoomé, la
+        # timeline ne laisse jamais de marge vide à
+        # droite du viewport.
+        #
+        viewport = self._largeur_viewport()
+
+        if viewport > 0:
+            width = max(width, viewport)
 
         self.setFixedWidth(width)
 

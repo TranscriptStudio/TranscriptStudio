@@ -60,10 +60,19 @@ from ui.etude_window import EtudeWindow
 
 class HomeWindow(QWidget):
 
-    def __init__(self):
+    def __init__(self, settings=None):
         super().__init__()
 
-        self.settings = SettingsManager()
+        #
+        # Réglages injectables (fenêtre à pile unique,
+        # P16-bis §11 : les tests isolent la
+        # configuration réelle de l'utilisateur).
+        #
+        self.settings = (
+            settings
+            if settings is not None
+            else SettingsManager()
+        )
         self.transcription_thread = None
         self.transcription_worker = None
         self.progress_dialog = None
@@ -146,8 +155,8 @@ class HomeWindow(QWidget):
         layout.addSpacing(6)
 
         # Actions principales
-        self.new_transcription_button = QPushButton("Nouvelle transcription")
-        self.open_project_button = QPushButton("Ouvrir un projet")
+        self.new_transcription_button = QPushButton("Nouvelle réunion")
+        self.open_project_button = QPushButton("Ouvrir une réunion")
 
         self.new_transcription_button.setIcon(
             QIcon(str(resource_path("icons/bubble-text.svg")))
@@ -157,10 +166,11 @@ class HomeWindow(QWidget):
         )
 
         self.new_transcription_button.setToolTip(
-            "Créer une nouvelle transcription"
+            "Créer une nouvelle réunion "
+            "(enregistrement transcrit)"
         )
         self.open_project_button.setToolTip(
-            "Ouvrir un projet existant"
+            "Ouvrir une réunion existante"
         )
 
         for button in (
@@ -180,7 +190,7 @@ class HomeWindow(QWidget):
         layout.addSpacing(6)
 
         # Projets recents
-        recent_label = QLabel("Projets récents")
+        recent_label = QLabel("Réunions récentes")
         layout.addWidget(recent_label)
 
         self.recent_projects = QListWidget()
@@ -256,7 +266,9 @@ class HomeWindow(QWidget):
         etudes_actions_layout.setSpacing(10)
 
         self.new_etude_button = QPushButton("Nouvelle étude")
-        self.open_etude_button = QPushButton("Ouvrir une étude")
+        self.open_etude_button = QPushButton(
+            "Ouvrir depuis un dossier…"
+        )
 
         self.ouvrir_etude_selection_button = QPushButton(
             "Ouvrir l'étude sélectionnée"
@@ -274,7 +286,8 @@ class HomeWindow(QWidget):
             "Créer une étude regroupant des réunions"
         )
         self.open_etude_button.setToolTip(
-            "Ouvrir un dossier étude existant"
+            "Choisir un dossier étude sur le disque "
+            "(il doit contenir un etude.json)"
         )
 
         self.new_etude_button.clicked.connect(
@@ -483,7 +496,7 @@ class HomeWindow(QWidget):
                         "Erreur de nettoyage",
                         (
                             "Impossible de supprimer "
-                            "le projet provisoire.\n\n"
+                            "la réunion provisoire.\n\n"
                             + str(e)
                         )
                     )
@@ -558,9 +571,9 @@ class HomeWindow(QWidget):
 
         filename, _ = QFileDialog.getOpenFileName(
             self,
-            "Ouvrir un projet",
+            "Ouvrir une réunion",
             projects_root,
-            "Projet (*.sttproj)"
+            "Réunion (*.sttproj)"
         )
 
         if not filename:
@@ -570,13 +583,7 @@ class HomeWindow(QWidget):
             filename
         )
 
-        self.editor = MainWindow(
-            project
-        )
-
-        self.editor.show()
-
-        self.close()
+        self.ouvrir_correction(project)
 
     def open_recent_project(
         self,
@@ -594,9 +601,9 @@ class HomeWindow(QWidget):
         ).exists():
             QMessageBox.warning(
                 self,
-                "Projet introuvable",
+                "Réunion introuvable",
                 (
-                    "Le fichier\n\n"
+                    "La réunion\n\n"
                     f"{filename}\n\n"
                     "n'existe plus."
                 )
@@ -607,13 +614,7 @@ class HomeWindow(QWidget):
             filename
         )
 
-        self.editor = MainWindow(
-            project
-        )
-
-        self.editor.show()
-
-        self.close()
+        self.ouvrir_correction(project)
 
     def show_recent_project_menu(
         self,
@@ -646,7 +647,7 @@ class HomeWindow(QWidget):
         )
 
         open_action = menu.addAction(
-            "Ouvrir le projet"
+            "Ouvrir la réunion"
         )
 
         open_action.triggered.connect(
@@ -657,7 +658,7 @@ class HomeWindow(QWidget):
         )
 
         folder_action = menu.addAction(
-            "Ouvrir le répertoire du projet"
+            "Ouvrir le répertoire de la réunion"
         )
 
         folder_action.triggered.connect(
@@ -670,7 +671,7 @@ class HomeWindow(QWidget):
         menu.addSeparator()
 
         remove_action = menu.addAction(
-            "Retirer de la liste des projets récents"
+            "Retirer de la liste des réunions récentes"
         )
 
         remove_action.triggered.connect(
@@ -731,6 +732,32 @@ class HomeWindow(QWidget):
         )
 
         self.refresh_recent_projects()
+
+    #
+    # Navigation (P16-bis §11 : pile unique).
+    #
+
+    def ouvrir_correction(self, projet):
+        """
+        Ouvre la page Réunion « Correction de
+        transcription » (éditeur v1) : via la pile de
+        la fenêtre principale si présente, sinon en
+        fenêtre autonome (lancement direct/tests).
+        """
+
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+            navigation.ouvrir_correction(projet)
+            return
+
+        self.editor = MainWindow(
+            project
+        )
+
+        self.editor.show()
+
+        self.close()
 
     #
     # Etudes (v2 - P14.3)
@@ -846,16 +873,36 @@ class HomeWindow(QWidget):
 
     def ouvrir_etude_dialogue(self):
         """
-        Ouvre un dossier étude existant.
+        « Ouvrir depuis un dossier… » (spec correctifs
+        §12) : sélection d'un dossier, validation de
+        la présence d'un etude.json (sinon message
+        clair, rien ne s'ouvre), ouverture.
         """
 
         dossier = QFileDialog.getExistingDirectory(
             self,
-            "Ouvrir une étude",
+            "Ouvrir une étude depuis un dossier",
             self.settings.get_projects_root()
         )
 
         if not dossier:
+            return
+
+        dossier = Path(dossier)
+
+        if not (dossier / "etude.json").is_file():
+            QMessageBox.warning(
+                self,
+                "Ce dossier n'est pas une étude",
+                (
+                    "Le dossier\n\n"
+                    f"{dossier}\n\n"
+                    "ne contient pas de etude.json : "
+                    "ce n'est pas une étude.\n\n"
+                    "Les études sont créées depuis "
+                    "« Nouvelle étude »."
+                )
+            )
             return
 
         self.ouvrir_etude(dossier)
@@ -917,8 +964,19 @@ class HomeWindow(QWidget):
         """
         Ouvre la page Étude ; en cas de projet v1
         introuvable, la page s'affiche en mode
-        dégradé sans bloquer.
+        dégradé sans bloquer. Navigation à pile
+        unique : une étude déjà ouverte est réactivée.
         """
+
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+
+            navigation.ouvrir_etude(dossier)
+
+            self.refresh_recent_etudes()
+
+            return
 
         try:
             self.etude_window = EtudeWindow(dossier)
@@ -991,12 +1049,7 @@ class HomeWindow(QWidget):
 
         self.refresh_recent_projects()
 
-        self.editor = MainWindow(
-            project
-        )
-
-        self.editor.show()
-        self.close()
+        self.ouvrir_correction(project)
 
     def transcription_error(
         self,
@@ -1287,7 +1340,7 @@ class HomeWindow(QWidget):
                     "Erreur de nettoyage",
                     (
                         "Impossible de supprimer "
-                        "le projet provisoire.\n\n"
+                        "la réunion provisoire.\n\n"
                         + str(e)
                     )
                 )

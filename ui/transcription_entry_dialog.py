@@ -144,7 +144,7 @@ class TranscriptionEntryDialog(QDialog):
         # Sous-répertoire projet
         #
         category_group = QGroupBox(
-            "Sous-répertoire du projet"
+            "Sous-répertoire de la réunion"
         )
 
         category_layout = QHBoxLayout(
@@ -167,7 +167,7 @@ class TranscriptionEntryDialog(QDialog):
 
         self.new_category_button.setToolTip(
             "Créer un nouveau sous-répertoire "
-            "pour classer le projet"
+            "pour classer la réunion"
         )
 
         category_layout.addWidget(
@@ -397,7 +397,7 @@ class TranscriptionEntryDialog(QDialog):
                 self,
                 "Service de transcription non configuré",
                 "Une clé API ElevenLabs est nécessaire pour la transcription directe.\n\n"
-                "Le projet sera créé en mode prétraitement pour une transcription ultérieure."
+                "La réunion sera créée en mode prétraitement pour une transcription ultérieure."
             )
             self.preprocessing_radio.setChecked(True)
             self.direct_radio.setChecked(False)

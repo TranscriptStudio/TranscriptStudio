@@ -3,7 +3,7 @@
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
 from services.resources import resource_path
-from ui.home_window import HomeWindow
+from ui.app_window import AppWindow
 from ui.settings_dialog import SettingsDialog
 from services.settings import SettingsManager
 from services.theme_manager import ThemeManager
@@ -84,8 +84,10 @@ if not settings.is_initial_setup_completed():
         app.quit()
         exit(1)
 
-# Configuration terminee, on peut lancer l'application normale
-window = HomeWindow()
+# Configuration terminee, on peut lancer l'application normale.
+# P16-bis (spec correctifs section 11) : fenetre principale
+# unique, pages empilees Accueil -> Etude -> Reunion.
+window = AppWindow()
 
 window.show()
 

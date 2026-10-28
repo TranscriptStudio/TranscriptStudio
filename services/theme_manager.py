@@ -537,3 +537,64 @@ class ThemeManager:
                 outline: 0;
             }
         """)
+
+
+#
+# P16-bis, 2ᵉ série (spec correctifs §9) : couleurs de
+# surlignage définies par thème — aucun jaune clair
+# partagé entre les thèmes, texte lisible sur le fond
+# surligné (contraste AA minimum).
+#
+
+COULEUR_SURLIGNAGE_MOT_CLAIR = "#FFF3B0"
+COULEUR_SURLIGNAGE_MOT_SOMBRE = "#6B5300"
+
+COULEUR_BLOC_JOUE_CLAIR = "#2196F3"
+COULEUR_BLOC_JOUE_SOMBRE = "#64B5F6"
+
+
+def est_sombre(widget) -> bool:
+    """
+    Résout le thème effectif d'un widget : le
+    réglage « system » suit la luminosité de la
+    palette courante (recalculée à chaque appel —
+    un changement de thème est immédiatement
+    pris en compte).
+    """
+
+    if widget is None:
+        return False
+
+    return (
+        widget.palette()
+        .window()
+        .color()
+        .lightness()
+        < 128
+    )
+
+
+def couleurs_surlignage(sombre: bool) -> dict:
+    """
+    Couleurs de surlignage du thème courant :
+    - « mot » : fond du mot lu (E1.3) ;
+    - « bloc » : surbrillance du bloc en cours de
+      lecture (§8.3).
+
+    Paires texte/fond par thème (contraste AA) :
+    - clair : texte #191919 sur fond #FFF3B0 ;
+    - sombre : texte clair du thème sur fond
+      #6B5300 (ambre sombre — le jaune clair
+      disparaît du thème sombre).
+    """
+
+    if sombre:
+        return {
+            "mot": COULEUR_SURLIGNAGE_MOT_SOMBRE,
+            "bloc": COULEUR_BLOC_JOUE_SOMBRE,
+        }
+
+    return {
+        "mot": COULEUR_SURLIGNAGE_MOT_CLAIR,
+        "bloc": COULEUR_BLOC_JOUE_CLAIR,
+    }

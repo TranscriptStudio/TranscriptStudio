@@ -202,7 +202,7 @@ class NewTranscriptionDialog(QDialog):
             "Abandonner la transcription",
             (
                 "Abandonner cette transcription ?\n\n"
-                "Le projet provisoire et ses fichiers "
+                "La réunion provisoire et ses fichiers "
                 "seront supprimés."
             ),
             (

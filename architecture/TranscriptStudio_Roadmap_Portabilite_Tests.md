@@ -1292,6 +1292,34 @@ La campagne est terminee lorsque :
       éditeur v1) + aide des messages d'erreur du correctif création
       d'étude (ARBITRAGE point 4).
 
+## P16-bis, 2ᵉ série + terminologie (spec :
+      UI_REFORMULATION_MODIFS_V2_2026-10-27c.md §8-§14)
+
+- [x] Synchro bidirectionnelle timeline ↔ blocs (§8) : clic bloc =
+      curseur au début + timeline défilée ; clic timeline = bloc courant
+      sélectionné (même en pause) ; lecture = bloc surligné + défilement
+      paresseux (seulement hors zone visible, jamais pendant l'édition).
+- [x] Surlignage lisible dans les deux thèmes (§9) : couleurs par thème
+      dans services/theme_manager (clair #FFF3B0, sombre ambre #6B5300,
+      contraste AA testé WCAG ; bleu clair #64B5F6 pour le bloc joué en
+      sombre), plus aucune couleur codée en dur dans la page.
+- [x] Timeline (§10) : gouttière gauche = colonne locuteurs (hors zone
+      défilante), pistes jusqu'au bord droit (largeur bornée par le
+      viewport, réétalée au redimensionnement).
+- [x] Navigation à pile unique (§11) : ui/app_window.py (AppWindow,
+      QStackedWidget) — Accueil → Étude → Réunion, jamais de pages
+      dupliquées (clés par chemin résolu), « Accueil » = accueil de
+      l'app, bouton « Retour à l'étude » sur les pages Réunion, pages
+      autonomes avec repli pour les tests.
+- [x] « Ouvrir une étude depuis un dossier… » (§12) : validation
+      etude.json (refus propre sinon), rejoint les études récentes.
+- [x] Terminologie « réunion » partout dans l'UI (§13, arbitrée) :
+      renommage d'affichage uniquement (code/format/specs inchangés),
+      revue systématique des libellés ui/*.py.
+- 261 tests verts au total : règles §14 complètes dans
+      tests/unit/test_p16bis_serie2.py (18 tests, dont contraste AA
+      calculé WCAG dans les deux thèmes).
+
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 
 - P18 JND locale, validation des references, export ouvrage.

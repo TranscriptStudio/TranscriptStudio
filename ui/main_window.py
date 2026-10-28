@@ -182,7 +182,7 @@ class MainWindow(QMainWindow):
                 f"Le fichier audio '{audio_filename}' est introuvable."
             )
             msg_box.setInformativeText(
-                "Souhaitez-vous localiser le fichier, ouvrir le projet sans audio, ou annuler ?"
+                "Souhaitez-vous localiser le fichier, ouvrir la réunion sans audio, ou annuler ?"
             )
             
             # Boutons personnalisés
@@ -299,8 +299,27 @@ class MainWindow(QMainWindow):
             "Retour à l'accueil"
         )
 
+        #
+        # P16-bis (spec correctifs §11.2) : « Retour à
+        # l'étude » — visible si la réunion courante
+        # appartient à une étude.
+        #
+        self.retour_etude_button = QPushButton(
+            "↩ Retour à l'étude"
+        )
+        self.retour_etude_button.setToolTip(
+            "Revenir à la page de l'étude contenant "
+            "cette réunion"
+        )
+        self.retour_etude_button.clicked.connect(
+            self.retour_a_l_etude
+        )
+        self.retour_etude_button.setVisible(
+            bool(self.etudes_referencant_projet())
+        )
+
         self.save_button.setToolTip(
-            "Enregistrer le projet"
+            "Enregistrer la réunion"
         )
 
         self.export_button.setToolTip(
@@ -321,11 +340,15 @@ class MainWindow(QMainWindow):
         )
         self.reformulation_button.setToolTip(
             "Ouvrir la page Reformulation littéraire "
-            "de la réunion de ce projet dans son étude"
+            "de cette réunion dans son étude"
         )
 
         action_layout.addWidget(
             self.home_button
+        )
+
+        action_layout.addWidget(
+            self.retour_etude_button
         )
 
         action_layout.addWidget(
@@ -649,17 +672,17 @@ class MainWindow(QMainWindow):
 
         QMessageBox.information(
             self,
-            "Réparation du projet",
+            "Réparation de la réunion",
             (
                 "Une incohérence provenant d'une "
                 "ancienne version de Transcript Studio "
-                "a été détectée dans ce projet.\n\n"
+                "a été détectée dans cette réunion.\n\n"
                 f"{block_text}\n\n"
                 "Les blocs concernés ont été affectés "
                 "automatiquement à l'intervenant :\n\n"
                 f"« {generic_name} »\n\n"
                 "Vérifiez l'intervenant de ces blocs "
-                "avant d'enregistrer le projet."
+                "avant d'enregistrer la réunion."
             )
         )
 
@@ -909,12 +932,12 @@ class MainWindow(QMainWindow):
             self.reformulation_button.setEnabled(True)
             self.reformulation_button.setToolTip(
                 "Ouvrir la page Reformulation littéraire "
-                "de la réunion de ce projet dans son étude"
+                "de cette réunion dans son étude"
             )
         else:
             self.reformulation_button.setEnabled(False)
             self.reformulation_button.setToolTip(
-                "Ce projet n'appartient à aucune étude"
+                "Cette réunion n'appartient à aucune étude"
             )
 
     def ouvrir_reformulation(self):
@@ -937,10 +960,10 @@ class MainWindow(QMainWindow):
                 self,
                 "Aucune étude",
                 (
-                    "Ce projet n'appartient à aucune "
+                    "Cette réunion n'appartient à aucune "
                     "étude.\n\n"
                     "Créez ou ouvrez une étude depuis "
-                    "l'accueil, puis ajoutez-y ce projet "
+                    "l'accueil, puis ajoutez-y cette réunion "
                     "comme réunion."
                 )
             )
@@ -959,7 +982,7 @@ class MainWindow(QMainWindow):
                 self,
                 "Quelle étude ouvrir ?",
                 (
-                    "Ce projet est référencé par "
+                    "Cette réunion est référencée par "
                     "plusieurs études :"
                 ),
                 libelles,
@@ -982,11 +1005,11 @@ class MainWindow(QMainWindow):
         if not etude.reunion_joignable(nom):
             QMessageBox.warning(
                 self,
-                "Projet introuvable",
+                "Réunion introuvable",
                 (
-                    "Le projet v1 de cette réunion est "
+                    "La réunion est "
                     "introuvable dans l'étude : "
-                    "relocalisez-le depuis la page "
+                    "relocalisez-la depuis la page "
                     "Étude, puis relancez."
                 )
             )
@@ -998,6 +1021,22 @@ class MainWindow(QMainWindow):
         from ui.reformulation_window import (
             ReformulationWindow
         )
+
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+
+            #
+            # P16-bis (spec correctifs §11.3) : pile
+            # unique — la page Reformulation d'une
+            # réunion déjà ouverte est réactivée.
+            #
+            navigation.ouvrir_reformulation(
+                etude,
+                nom
+            )
+
+            return
 
         self.reformulation_window = ReformulationWindow(
             etude,
@@ -1495,8 +1534,8 @@ class MainWindow(QMainWindow):
 
         reply = QMessageBox.question(
             self,
-            "Projet modifié",
-            "Le projet a été modifié.\n\n"
+            "Réunion modifiée",
+            "La réunion a été modifiée.\n\n"
             "Voulez-vous enregistrer les modifications ?",
             QMessageBox.StandardButton.Save
             | QMessageBox.StandardButton.Discard
@@ -1691,9 +1730,9 @@ class MainWindow(QMainWindow):
         if self.project.modified:
             reply = QMessageBox.question(
                 self,
-                "Projet modifié",
+                "Réunion modifiée",
                 (
-                    "Le projet a été modifié.\n\n"
+                    "La réunion a été modifiée.\n\n"
                     "Voulez-vous enregistrer les modifications "
                     "avant de revenir à l'accueil ?"
                 ),
@@ -1738,6 +1777,20 @@ class MainWindow(QMainWindow):
         self.playback.stop()
         self.playback.unload()
 
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+
+            #
+            # P16-bis (spec correctifs §11.1) :
+            # « Accueil » ramène toujours à la page
+            # d'accueil de l'app — la page reste dans
+            # la pile, réactivable sans doublon.
+            #
+            navigation.ouvrir_accueil()
+
+            return
+
         from ui.home_window import HomeWindow
 
         self.home_window = HomeWindow()
@@ -1749,6 +1802,37 @@ class MainWindow(QMainWindow):
         # une seconde confirmation.
         #
         self.close()
+
+    def retour_a_l_etude(self):
+        """
+        « Retour à l'étude » (spec correctifs §11.2) :
+        revient à la page Étude de l'étude la plus
+        récente référençant cette réunion (la même
+        que celle du bouton « Reformulation… »).
+        """
+
+        etudes = self.etudes_referencant_projet()
+
+        if not etudes:
+            return
+
+        dossier, _nom, _titre = etudes[0]
+
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+            navigation.ouvrir_etude(dossier)
+            return
+
+        from ui.etude_window import EtudeWindow
+        from services.etude_schema import EtudeFormatError
+
+        try:
+            self.etude_window = EtudeWindow(dossier)
+        except EtudeFormatError:
+            return
+
+        self.etude_window.show()
         
     def on_timeline_seek(
         self,

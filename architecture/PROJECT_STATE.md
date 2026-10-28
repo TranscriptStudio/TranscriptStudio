@@ -1,10 +1,10 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-27 (P16-bis : correctifs de
-> relecture UI selon UI_REFORMULATION_MODIFS_V2_2026-10-27.md —
-> défilement vertical unique, colonne locuteurs = noms par bloc,
-> bouton « Reformulation… » de l'éditeur v1, persistance de la
-> taille de police ; 243 tests verts)
+> **Dernière mise à jour** : 2026-10-28 (P16-bis 2ᵉ série +
+> terminologie : synchro bidirectionnelle timeline ↔ blocs,
+> surlignage par thème, pistes jusqu'au bord droit, navigation
+> à pile unique, « Ouvrir depuis un dossier… », « réunion »
+> partout dans l'UI ; 261 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -39,9 +39,9 @@
   local) — spec UI_REFORMULATION_V2 ; 188 tests verts.
 - **P17 : LIVRÉ** (P17.1 bloc Résumé, P17.2 synthèse d'étude + cases de
   contexte, P17.3 récurrences entre réunions) — 228 tests verts.
-- **P16-bis : LIVRÉ** (correctifs de relecture UI,
-  UI_REFORMULATION_MODIFS_V2_2026-10-27.md prime sur
-  UI_REFORMULATION_V2 pour ses points) — 243 tests verts.
+- **P16-bis : LIVRÉ** (correctifs de relecture UI, 1ʳᵉ + 2ᵉ série +
+  terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27c.md prime
+  sur UI_REFORMULATION_V2 pour ses points) — 261 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -863,9 +863,122 @@ exacte) ; `test_etude_format.py` : +1 (aide des messages).
 
 ---
 
+## SESSION 2026-10-28 (P16-bis, 2ᵉ série + terminologie) : LIVRÉ
+
+Rituel de synchro (skill v17) : INDEX_SPECS.md (terminologie
+arbitrée), UI_REFORMULATION_MODIFS_V2_2026-10-27b.md et
+UI_REFORMULATION_MODIFS_V2_2026-10-27c.md (1ʳᵉ + 2ᵉ série —
+prime sur tout le reste pour ses points) recopiés dans
+`architecture/spec_v2/`.
+
+### 2ᵉ série (spec MODIFS §8-§12)
+
+1. **Synchro bidirectionnelle timeline ↔ blocs (§8)** : clic
+   sur un bloc (colonne brute, cellule locuteurs, pastille) =
+   curseur au début du bloc + timeline défilée vers le segment
+   (`set_current_time` → `ensure_cursor_visible`, zone de
+   défilement branchée sur le composant v1) ; clic timeline =
+   bloc courant sélectionné (`sur_clic_timeline`, marche en
+   pause) ; lecture = bloc surligné + **défilement paresseux**
+   (`_defiler_vers_bloc` : seulement quand le bloc courant
+   sort de la zone visible, jamais si le focus clavier est
+   dans la table).
+2. **Surlignage lisible dans les deux thèmes (§9)** : couleurs
+   centralisées dans `services/theme_manager`
+   (`couleurs_surlignage` / `est_sombre`, résolution « system »
+   par la palette) — clair : jaune #FFF3B0 inchangé ; sombre :
+   ambre sombre #6B5300 (texte clair dessus, contraste AA ≥
+   4,5 vérifié par test WCAG), bleu clair #64B5F6 pour le bloc
+   joué ; plus aucune couleur de surlignage codée en dur dans
+   la page. (Le composant v1 block_widget gérait déjà son
+   jaune assombri en sombre.)
+3. **Timeline : gouttière et bord droit (§10)** : la gouttière
+   gauche (panneau locuteurs) est **hors** de la zone
+   défilante, exactement à la largeur de la colonne locuteurs ;
+   seule la timeline défile ; `update_timeline_width` borne la
+   largeur par le viewport (pistes jusqu'au bord droit, plus
+   de marge vide) — réétalé au redimensionnement (eventFilter
+   sur le viewport + resizeEvent).
+4. **Navigation à pile unique (§11)** : nouvelle
+   `ui/app_window.py` — **AppWindow**, unique fenêtre
+   principale (QStackedWidget) : Accueil → Étude → Réunion
+   (Correction / Reformulation), clés uniques par chemin
+   résolu (une étude ou une réunion déjà ouverte est
+   **réactivée**, jamais dupliquée) ; « Accueil » = toujours
+   l'accueil de l'app ; bouton **« Retour à l'étude »**
+   distinct sur les pages Réunion (éditeur v1 : visible si la
+   réunion appartient à une étude ; page Reformulation :
+   toujours) ; les pages sauvegardent leur état en sortie
+   (`sur_navigation_sortante`) et à la fermeture de l'app ;
+   point d'entrée `TranscriptStudio.py` passe à AppWindow.
+   Les dialogues modaux (Résumé, Log, paramètres) restent des
+   QDialog — pas des pages.
+5. **« Ouvrir une étude depuis un dossier… » (§12)** : l'ancien
+   bouton « Ouvrir une étude » (sélecteur de dossier) est
+   renommé et **valide etude.json** — dossier sans étude :
+   message clair, rien ne s'ouvre ; l'étude ouverte rejoint les
+   études récentes (la liste des études récentes reste
+   accessible par double-clic et « Ouvrir l'étude
+   sélectionnée »).
+
+### Terminologie « réunion » (§13, arbitrée David)
+
+Renommage d'**affichage uniquement** (code, format de fichier,
+specs et identifiants inchangés — « projet v1 » reste le terme
+technique) : accueil (« Réunions récentes », « Nouvelle
+réunion », « Ouvrir une réunion », « Réunion (*.sttproj) »),
+éditeur v1 (tooltips, « Réunion modifiée », réparation,
+messages), dialogues v1 (répertoires, réunion provisoire),
+page Étude (filtres, relocalisation, messages), éditeur v1
+filtres de fichiers. Revue systématique faite sur tous les
+libellés des `ui/*.py` ; le manuel utilisateur PDF n'est pas
+régénéré (reporté à la livraison visible, comme convenu en
+P16).
+
+### Décisions / écarts de la session (2ᵉ série)
+
+1. **« Retour à l'étude » de l'éditeur v1** : si la réunion
+   appartient à plusieurs études, revient à la plus récente
+   (même choix que le bouton « Reformulation… », qui lui
+   propose le dialogue de choix) — arbitrage bienvenu.
+2. **AppWindow** remplace les fenêtres séparées de P14.3 ;
+   les pages restent constructibles autonomes (tests,
+   lancement direct) avec repli sur l'ancien comportement
+   quand aucun `navigation` n'est injecté.
+3. **Contraste AA vérifié par test** avec la formule WCAG
+   (luminance relative + rapport 4,5:1 texte, 3:1 bord de
+   bloc) ; la relecture visuelle des deux thèmes reste à
+   David (offscreen = palette claire).
+4. **« Ouvrir une étude » → « Ouvrir depuis un dossier… »** :
+   la spec §12 décrit le nouveau bouton « à côté de
+   Ouvrir une étude » ; le bouton existant faisait déjà ce
+   travail (sélecteur de dossier) — renommé + validateur
+   ajouté plutôt que deux boutons redondants.
+5. Le surlignage du **mot lu** de la page Reformulation
+   suivait le thème via la palette à chaque appel (changement
+   de thème pris en compte sans rechargement).
+
+### Bilan tests : **261 verts** (243 + 18)
+
+`tests/unit/test_p16bis_serie2.py` (18) : **règles §14**
+complètes — aller-retour bloc ↔ timeline (clic bloc = curseur
+au début ; clic timeline = bloc courant sélectionné), bloc
+courant surligné et ramené dans la zone visible sans
+intervention (40 blocs) + jamais de défilement pendant
+l'édition ni si déjà visible, couleurs par thème + contraste
+AA (formule WCAG) + aucun jaune clair partagé + couleur du
+mot lu passée par la fenêtre, gouttière = colonne locuteurs +
+pistes ≥ viewport (bord droit), pile unique (pas de doublons,
+Accueil = accueil, Retour à l'étude depuis la reformulation et
+l'éditeur), dossier sans etude.json refusé proprement + étude
+valide ouverte et mémorisée.
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16, P16-bis et P17 sont LIVRÉS** (243 tests verts). Restent :
+**P16 (1ʳᵉ + 2ᵉ série), P16-bis et P17 sont LIVRÉS** (261
+tests verts). Restent :
 
 1. **Recette P16/P17 par David** (checklist en fin de session P17
    ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé, jugement

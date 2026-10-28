@@ -80,7 +80,7 @@ class SettingsDialog(QDialog):
         folder = self.projects_root_edit.text().strip()
 
         if not folder:
-            return False, "Veuillez sélectionner un répertoire pour vos projets."
+            return False, "Veuillez sélectionner un répertoire pour vos réunions."
 
         folder_path = Path(folder)
 
@@ -271,7 +271,7 @@ class SettingsDialog(QDialog):
         if self._is_first_run:
             intro_label = QLabel(
                 "<b>Configuration initiale requise</b><br><br>"
-                "Veuillez configurer le répertoire où vos projets seront enregistrés.<br>"
+                "Veuillez configurer le répertoire où vos réunions seront enregistrées.<br>"
                 "La clé API ElevenLabs est facultative et peut être ajoutée ultérieurement.<br><br>"
                 "<i>Cette configuration ne peut pas être ignorée.</i>"
             )
@@ -342,11 +342,11 @@ class SettingsDialog(QDialog):
         #
         if self._is_first_run:
             projects_label = QLabel(
-                "Répertoire des projets <span style='color: #D32F2F;'>*</span>"
+                "Répertoire des réunions <span style='color: #D32F2F;'>*</span>"
             )
         else:
             projects_label = QLabel(
-                "Répertoire des projets"
+                "Répertoire des réunions"
             )
         projects_label.setWordWrap(True)
 
@@ -1155,7 +1155,7 @@ class SettingsDialog(QDialog):
         
         folder = QFileDialog.getExistingDirectory(
             self,
-            "Choisir le répertoire projets",
+            "Choisir le répertoire des réunions",
             default_dir
         )
 

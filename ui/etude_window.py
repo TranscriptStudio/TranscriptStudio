@@ -105,8 +105,8 @@ def assurer_decoupage(
             f"la réunion « {nom} » : la reformulation "
             "travaille par blocs de parole.\n\n"
             "La générer maintenant à partir de la "
-            "diarisation validée du projet v1 ?\n\n"
-            "(Le projet v1 n'est pas modifié.)"
+            "diarisation validée de la réunion ?\n\n"
+            "(La réunion n'est pas modifiée.)"
         )
     )
 
@@ -139,7 +139,7 @@ def assurer_decoupage(
                 parent,
                 "Diarisation absente",
                 (
-                    "Le projet v1 de cette réunion ne "
+                    "La réunion ne "
                     "comporte aucun bloc de parole : "
                     "validez d'abord la diarisation "
                     "dans l'éditeur de correction de "
@@ -301,10 +301,10 @@ class EtudeWindow(QWidget):
             "Correction de transcription…"
         )
         self.ouvrir_button.setToolTip(
-            "Ouvrir le projet v1 dans l'éditeur de "
+            "Ouvrir la réunion dans l'éditeur de "
             "correction de transcription (étape de "
             "correction de l'oral, avant la "
-            "reformulation) — le projet n'est pas "
+            "reformulation) — la réunion n'est pas "
             "modifié par l'étude"
         )
         self.ouvrir_button.clicked.connect(
@@ -454,7 +454,7 @@ class EtudeWindow(QWidget):
             )
 
             if introuvable:
-                libelle += "  —  projet introuvable"
+                libelle += "  —  introuvable"
 
             elif reunion.resume_valide:
                 libelle += "  —  résumé validé"
@@ -480,7 +480,7 @@ class EtudeWindow(QWidget):
             self.avertissement_label.setText(
                 "Mode dégradé : "
                 f"{len(introuvables)} réunion(s) "
-                "ont un projet v1 introuvable. "
+                "ont une réunion introuvable. "
                 "Les autres réunions restent "
                 "utilisables ; utilisez "
                 "« Relocaliser... » après avoir "
@@ -513,9 +513,9 @@ class EtudeWindow(QWidget):
 
         dossier, _ = QFileDialog.getOpenFileName(
             self,
-            "Choisir un projet v1 (réunion)",
+            "Choisir une réunion (fichier v1)",
             self.settings.get_projects_root(),
-            "Projet (*.sttproj)"
+            "Réunion (*.sttproj)"
         )
 
         if not dossier:
@@ -559,7 +559,7 @@ class EtudeWindow(QWidget):
             (
                 "Retirer cette réunion de l'étude ?\n\n"
                 "Sa référence et ses résultats d'étude "
-                "seront retirés. Le projet v1 n'est pas "
+                "seront retirés. La réunion n'est pas "
                 "touché."
             )
         )
@@ -622,11 +622,11 @@ class EtudeWindow(QWidget):
         dossier, _ = QFileDialog.getOpenFileName(
             self,
             (
-                "Relocaliser le projet de la réunion "
+                "Relocaliser la réunion "
                 f"« {nom} »"
             ),
             "",
-            "Projet (*.sttproj)"
+            "Réunion (*.sttproj)"
         )
 
         if not dossier:
@@ -668,9 +668,9 @@ class EtudeWindow(QWidget):
         if chemin is None:
             QMessageBox.warning(
                 self,
-                "Projet introuvable",
+                "Réunion introuvable",
                 (
-                    "Le projet v1 de cette réunion est "
+                    "La réunion est "
                     "introuvable. Utilisez "
                     "« Relocaliser... » pour le "
                     "retouver."
@@ -679,6 +679,12 @@ class EtudeWindow(QWidget):
             return
 
         projet = load_project(str(chemin))
+
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+            navigation.ouvrir_correction(projet)
+            return
 
         from ui.main_window import MainWindow
 
@@ -700,18 +706,27 @@ class EtudeWindow(QWidget):
         if not self.etude.reunion_joignable(nom):
             QMessageBox.warning(
                 self,
-                "Projet introuvable",
+                "Réunion introuvable",
                 (
-                    "Le projet v1 de cette réunion est "
+                    "La réunion est "
                     "introuvable : la page Reformulation "
-                    "a besoin du projet (audio, mots "
-                    "horodatés). Relocalisez le projet "
+                    "a besoin de la réunion (audio, mots "
+                    "horodatés). Relocalisez-la "
                     "d'abord."
                 )
             )
             return
 
         if not self._assurer_decoupage(nom):
+            return
+
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+            navigation.ouvrir_reformulation(
+                self.etude,
+                nom
+            )
             return
 
         from ui.reformulation_window import (
@@ -973,10 +988,19 @@ class EtudeWindow(QWidget):
 
     def retour_accueil(self):
         """
-        Sauvegarde l'étude et revient à l'accueil.
+        Sauvegarde l'étude et revient à l'accueil —
+        toujours la page d'accueil de l'app (spec
+        correctifs §11.1), jamais une nouvelle
+        fenêtre.
         """
 
         sauvegarder_etude(self.etude)
+
+        navigation = getattr(self, "navigation", None)
+
+        if navigation is not None:
+            navigation.ouvrir_accueil()
+            return
 
         from ui.home_window import HomeWindow
 
