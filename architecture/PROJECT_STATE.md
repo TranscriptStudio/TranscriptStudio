@@ -1,9 +1,11 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-28 (P18 livré :
-> JND locale OSIS, contrôle qualité des références
-> et citations avec alignement à la demande, export
-> DOCX/TXT de l'ouvrage ; Bible réelle installée et vérifiée ; 312 tests verts)
+> **Dernière mise à jour** : 2026-10-28 (P18.5 livré :
+> téléchargeur de Bibles intégré aux réglages — Darby,
+> Darby révisée, Segond 1910 en import manuel ; version
+> retenue par étude (bloc bible, défaut darbyR) ;
+> écarts de versification = information consultable ;
+> 334 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -41,7 +43,10 @@
   après P16-bis (3 fumées test_p17_integration.py).
 - **P18 : LIVRÉ** (P18.1 JND OSIS locale, P18.2 contrôle références/
   citations + alignement, P18.3 export DOCX/TXT de l'ouvrage ;
-  P18.4 pré-correction NON réalisée — optionnel) — 312 tests verts.
+  P18.4 pré-correction NON réalisée — optionnel).
+- **P18.5 : LIVRÉ** (téléchargeur de Bibles intégré, version retenue
+  par étude, versifications — spec BIBLE_JND_V2_2026-10-28b) —
+  334 tests verts.
 - **P16-bis : LIVRÉ** (correctifs de relecture UI, séries 1 à 3 +
   terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
   sur UI_REFORMULATION_V2 pour ses points).
@@ -1263,17 +1268,136 @@ d'ouvrage + exclusion d'une réunion vide + options, DOCX relu
 
 ---
 
+## SESSION 2026-10-28 (P18.5) — TÉLÉCHARGEUR DE BIBLES & VERSION RETENUE PAR ÉTUDE : LIVRÉ
+
+Rituel de synchro : INDEX_SPECS.md (skill v19/v20),
+BIBLE_JND_V2_2026-10-28b.md (+ 28) et
+FEUILLE_DE_ROUTE_V2_2026-10-28b.md recopiés depuis le
+Drive dans `architecture/spec_v2/` (le suffixe daté le
+plus loin dans l'alphabet prime) ; spec
+BIBLE_JND_V2_2026-10-28b = **fait autorité**.
+
+### Services (services/bibles.py, nouveau)
+
+- Catalogue des 3 versions (spec §1) : `darby`
+  (JND éd. 2024 rév 2.0, domaine public), `darbyR`
+  (JND révisée éd. 2026 rév 2.3, CC BY NC ND) —
+  zips OSIS sur concordance.bible (miroir BPC, URLs
+  vérifiées par recherche web) — et `segond1910`
+  (domaine public, AUCUN lien direct vérifié →
+  import manuel, ErreurBible invitant à
+  « Charger depuis un fichier… »).
+- Dossier de stockage `resources/bible/` **injectable
+  pour les tests** ; fichiers **jamais commités**
+  (règle 1, .gitignore).
+- **Téléchargement** : zip en `.part`, extraction du
+  premier .osis.xml, validation minimale, installation
+  atomique, progression(lus, total) + annulation()
+  callbacks ; échec/annulation = **aucun partiel
+  conservé** (règle 4), zip supprimé aussi en cas de
+  succès.
+- **Import manuel** `installer_fichier` : validation
+  minimale (OSIS lisible, ≥1 verset) puis copie
+  atomique ; non-OSIS et OSIS vide refusés.
+- **Version retenue par étude** (§3) :
+  `version_bible_etude` (défaut **darbyR**, id inconnu
+  → défaut, jamais bloquant), `bible_de_l_etude`
+  (le contrôle qualité travaille TOUJOURS contre la
+  version de l'étude — règle 3),
+  `autres_versions_installees` (consultation des
+  écarts de versification).
+
+### Format étude
+
+- `models/etude.py` : `ParametresEtude.bible`
+  (dict, jamais requis) ; `parametres_par_defaut`
+  écrit `{"version": "darbyR"}` ; **aucune migration**
+  des études existantes (règle 2 : absence de bloc =
+  défaut, testé y compris fichier non réécrit) ;
+  validation schéma optionnelle (dict, version str).
+
+### UI
+
+- **Réglages, onglet « Bibles »** (spec §2) : une
+  carte par version (nom, éditeur, édition, licence,
+  état installée), « Télécharger » (QThread +
+  QProgressDialog, annulation, remplacement confirmé,
+  **jamais silencieux**), « Charger depuis un
+  fichier… » ; Segond 1910 sans bouton Télécharger.
+- **Paramètres de l'étude** : déroulant « Bible de
+  référence » (état installé affiché), sauvegarde
+  dans `bible.version` ; version non installée →
+  message proposant d'ouvrir les réglages.
+- **Page Reformulation** : `_bible_jnd` charge la
+  Bible **de l'étude** ; l'indicateur de la pastille
+  consulte les autres versions installées pour un
+  écart de versification.
+- **Page Étude / export** : la version retenue est
+  affichée près de la synthèse et mentionnée dans
+  l'export (« Bible de référence : <nom> », DOCX et
+  TXT — spec §4.4).
+
+### Versifications (§4)
+
+`controle_references`/`controle_citations` acceptent
+`autres_versions` : une référence (ou citation)
+introuvable dans la version retenue devient une
+**information** « autre versification ? » avec
+l'extrait trouvé dans les autres versions installées —
+consultation seulement, **jamais de décision
+automatique**.
+
+### jnd.py
+
+Le repli implicite `chemin_bible()` garde
+JND.osis.xml explicite en tête, puis **DarbyR (nouveau
+défaut)** avant Darby — l'app passe partout par
+bibles.py et la version de l'étude ; MESSAGE_BIBLE_ABSENTE
+pointe vers l'onglet « Bibles » des réglages.
+
+### Décisions / écarts de la session (P18.5)
+
+1. Segond 1910 : aucun URL direct vérifié (404 sur les
+   patterns essayés) → import manuel, message invitant
+   à concordance.bible — conforme à la spec.
+2. `Non confirmé 442609.crdownload` (résidu de
+   téléchargement de David) : le fichier a disparu du
+   dossier, rien à nettoyer.
+3. Le message de la régle 5 (changement de version) ne
+   touche ni reformulations, ni résumés, ni journal —
+   testé au niveau données (aucune écriture autre que
+   parametres.json).
+
+### Bilan tests : **334 verts** (312 + 22)
+
+`tests/unit/test_p18_5.py` (22) : les 5 règles
+d'invariance §5 (git check-ignore + aucun .osis.xml
+dans une étude ; étude sans bloc bible rouverte sans
+migration ; contrôle contre la version retenue ;
+annulation/panne réseau/zip sans OSIS = dossier vide ;
+changement de version sans re-traitement), défaut
+darbyR + id inconnu, schéma avec/sans bloc, écart de
+versification (référence ET citation : information
+avec extrait de l'autre version, honnête sans les
+autres versions), téléchargement nominal file://,
+Segond 1910 import manuel, import refusé (non-OSIS,
+OSIS vide) / accepté, onglet Bibles des réglages,
+déroulant des paramètres d'étude.
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 (séries 1 à 3), P16-bis, P17 et P18 sont LIVRÉS** (312
+**P16 (séries 1 à 3), P16-bis, P17, P18 et P18.5 sont LIVRÉS** (334
 tests verts). Restent :
 
 1. **Recette P16/P17/P18 par David** (checklist en fin de session
    P17 ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé,
    jugement humain sur la fidélité, les jonctions de méditation et
    la « mémoire » de la 2ᵉ réunion (synthèse) ; P18 : références
-   complétées vérifiables en un clic (installer la Bible JND, voir
-   README), export DOCX de l'étude relu sous Word.
+   complétées vérifiables en un clic (Bibles installables depuis
+   les réglages, onglet « Bibles »), export DOCX de l'étude relu
+   sous Word.
 2. **P19/P20 (v2.1)** — page Ouvrage de référence et édition
    avancée (fusion de pensées, mobilité des paragraphes,
    sous-titres proposés par IA, export structuré).

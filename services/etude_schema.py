@@ -1030,6 +1030,32 @@ def valider_parametres(
 
     llm = _exiger_cle(data, "llm", fichier, dict)
 
+    #
+    # P18.5 (spec BIBLE_JND_V2 section 3) : bloc
+    # bible OPTIONNEL - les etudes anterieures
+    # n'ont pas ce bloc (defaut darbyR applique a
+    # la lecture, aucune migration, jamais
+    # bloquant) ; present, il doit etre un dict.
+    #
+    if "bible" in data and data["bible"] is not None:
+
+        if not isinstance(data["bible"], dict):
+            _erreur(
+                fichier,
+                "bible : objet attendu"
+            )
+
+        version = data["bible"].get("version")
+
+        if version is not None and not isinstance(
+            version,
+            str
+        ):
+            _erreur(
+                fichier,
+                "bible.version : chaine attendue"
+            )
+
     fournisseurs = llm.get("fournisseurs", [])
 
     if not isinstance(fournisseurs, list):

@@ -1390,6 +1390,45 @@ La campagne est terminee lorsque :
       selon l'ordre d'ouvrage, options, DOCX relu (ordre, pas de
       gras, guillemets “...”), TXT ; 309 tests verts au total.
 
+## P18.5 — Téléchargeur de Bibles & version retenue par étude
+      (spec BIBLE_JND_V2_2026-10-28b.md, fait autorité, skill v19/v20)
+
+- [x] Catalogue des 3 versions (services/bibles.py) : darby
+      (JND éd. 2024 rév 2.0, domaine public), darbyR (JND révisée
+      éd. 2026 rév 2.3, CC BY NC ND — zips OSIS concordance.bible,
+      URLs vérifiées), segond1910 (domaine public ; aucun lien
+      direct vérifié → import manuel « Charger depuis un
+      fichier… ») ; stockage resources/bible/ injectable pour les
+      tests, jamais commité (règle 1).
+- [x] Téléchargement à la demande (jamais silencieux) : zip
+      .part, extraction, validation minimale, installation
+      atomique, progression + annulation ; échec = aucun partiel
+      (règle 4), zip purgé aussi en cas de succès.
+- [x] Import manuel : validation minimale (OSIS lisible, ≥1
+      verset), copie atomique ; remplacement confirmé.
+- [x] Onglet « Bibles » des réglages : une carte par version
+      (éditeur, édition, licence, état installée), Télécharger
+      (QThread + QProgressDialog), Charger depuis un fichier… ;
+      Segond 1910 sans bouton Télécharger.
+- [x] Version retenue par étude : bloc bible de
+      parametres/parametres.json, DÉFAUT darbyR, aucune migration
+      des études existantes (règle 2, absence = défaut) ; déroulant
+      des paramètres d'étude avec raccourci réglages si non
+      installée ; contrôle qualité TOUJOURS contre la version de
+      l'étude (règle 3) ; changer la version ne re-traite rien
+      (règle 5).
+- [x] Versifications différentes (§4) : référence ou citation
+      introuvable dans la version retenue = information « autre
+      versification ? » avec extrait consultable dans les autres
+      versions installées (controle_references/controle_citations
+      param autres_versions) ; synthèse et export mentionnent la
+      version retenue (page Étude, DOCX, TXT).
+- 22 tests (test_p18_5.py) : les 5 règles d'invariance de la spec
+      §5 sur extraits OSIS fictifs (milestone), écart de
+      versification référence + citation, téléchargement nominal
+      et interrompu, imports refusés/acceptés, UI onglet Bibles et
+      déroulant ; 334 tests verts au total.
+
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 
 - P19/P20 (v2.1) Page Ouvrage et edition avancee.

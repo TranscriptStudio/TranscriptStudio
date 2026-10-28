@@ -140,8 +140,11 @@ class TestJNDMilestones:
 
         #
         # Un JND.osis.xml explicite prime sur les
-        # modules CrossWire ; sinon la Darby
-        # classique avant la révisée.
+        # modules CrossWire ; sinon la version par
+        # défaut de P18.5 (DarbyR) avant la Darby
+        # classique (repli implicite uniquement —
+        # le contrôle qualité passe par la version
+        # retenue par l'étude).
         #
         from services import jnd as service_jnd
 
@@ -160,8 +163,8 @@ class TestJNDMilestones:
         noms = service_jnd.NOMS_FICHIERS_BIBLE
 
         assert noms.index("JND.osis.xml") < (
-            noms.index("Darby.osis.xml")
-        ) < noms.index("DarbyR.osis.xml")
+            noms.index("DarbyR.osis.xml")
+        ) < noms.index("Darby.osis.xml")
 
 
 @pytest.fixture

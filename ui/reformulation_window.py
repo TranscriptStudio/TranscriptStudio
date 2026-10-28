@@ -2398,6 +2398,9 @@ class ReformulationWindow(QWidget):
             ligne.cellule_reformee.toPlainText(),
             self.etude.parametres.controle_qualite,
             bible=self._bible_jnd(),
+            autres_versions=(
+                self._autres_versions_bible()
+            ),
         )
 
         message = (
@@ -2417,9 +2420,12 @@ class ReformulationWindow(QWidget):
 
     def _bible_jnd(self):
         """
-        Bible JND chargée en mémoire (None si la
-        ressource n'est pas installée — le contrôle
-        reste local et gratuit sans elle).
+        Bible de la version retenue par l'étude
+        (P18.5, spec §3.3 : le contrôle qualité
+        travaille TOUJOURS contre la version de
+        l'étude, jamais une version implicite).
+        None si la version n'est pas installée — le
+        contrôle reste local et gratuit sans elle.
         """
 
         if hasattr(self, "_bible_jnd_cache"):
@@ -2428,13 +2434,48 @@ class ReformulationWindow(QWidget):
         self._bible_jnd_cache = None
 
         try:
-            from services.jnd import charger_bible
+            from services.bibles import (
+                bible_de_l_etude
+            )
 
-            self._bible_jnd_cache = charger_bible()
+            self._bible_jnd_cache = bible_de_l_etude(
+                self.etude
+            )
         except Exception:
             self._bible_jnd_cache = None
 
         return self._bible_jnd_cache
+
+    def _autres_versions_bible(self):
+        """
+        Autres versions installées (versifications
+        différentes, spec §4) : pour CONSULTER un
+        écart, jamais pour décider à la place de
+        l'utilisateur.
+        """
+
+        if hasattr(self, "_autres_bibles_cache"):
+            return self._autres_bibles_cache
+
+        self._autres_bibles_cache = {}
+
+        try:
+            from services.bibles import (
+                autres_versions_installees,
+                version_bible_etude,
+            )
+
+            self._autres_bibles_cache = (
+                autres_versions_installees(
+                    version_bible_etude(
+                        self.etude.parametres
+                    )
+                )
+            )
+        except Exception:
+            self._autres_bibles_cache = {}
+
+        return self._autres_bibles_cache
 
     def aligner_citations_jnd(self, fid: int):
         """
@@ -2457,13 +2498,15 @@ class ReformulationWindow(QWidget):
 
             QMessageBox.information(
                 self,
-                "Bible JND absente",
+                "Bible absente",
                 (
-                    "La Bible JND (OSIS XML) n'est pas "
-                    "installée : l'alignement des "
-                    "citations est impossible.\n\n"
-                    "Placez le fichier JND.osis.xml "
-                    "dans resources/bible/ (voir README)."
+                    "La version de Bible retenue par "
+                    "l'étude n'est pas installée : "
+                    "l'alignement des citations est "
+                    "impossible.\n\n"
+                    "Installez-la depuis les réglages "
+                    "de l'application, onglet "
+                    "« Bibles »."
                 )
             )
 

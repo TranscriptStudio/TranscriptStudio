@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QSpinBox,
@@ -29,6 +30,11 @@ from PySide6.QtWidgets import (
 
 from services.controle_qualite import (
     INTERDITS_STYLISTIQUES_DEFAUT,
+)
+from services.bibles import (
+    VERSIONS_BIBLE,
+    version_bible_etude,
+    version_installee,
 )
 from services.etude_io import (
     EtudeOuverte,
@@ -71,8 +77,9 @@ class ParametresEtudeDialog(QDialog):
 
         reformulation = self._onglet_reformulation()
         resume = self._onglet_resume()
+        bible = self._bloc_bible()
 
-        for onglet in (reformulation, resume):
+        for onglet in (reformulation, resume, bible):
             layout.addWidget(onglet)
 
         interdits_label = QLabel(
@@ -278,6 +285,55 @@ class ParametresEtudeDialog(QDialog):
 
         return bloc
 
+    def _bloc_bible(self) -> QWidget:
+        """
+        Bloc Bible (P18.5, spec §3) : version retenue
+        par l'étude (bloc ``bible`` de parametres.json,
+        défaut darbyR) — le contrôle qualité travaille
+        toujours contre cette version.
+        """
+
+        bloc = QWidget()
+
+        formulaire = QFormLayout(bloc)
+        formulaire.setContentsMargins(0, 8, 0, 8)
+        formulaire.setSpacing(8)
+
+        titre = QLabel("<b>Bible de référence</b>")
+        formulaire.addRow(titre)
+
+        self.version_bible_combo = QComboBox()
+
+        for identifiant in VERSIONS_BIBLE:
+
+            version = VERSIONS_BIBLE[identifiant]
+
+            etat = (
+                "installée"
+                if version_installee(identifiant)
+                else "non installée"
+            )
+
+            self.version_bible_combo.addItem(
+                f"{version['nom']} — {etat}",
+                identifiant
+            )
+
+        self.version_bible_combo.setToolTip(
+            "Version utilisée par le contrôle qualité "
+            "(références et citations) pour cette "
+            "étude. Les versions s'installent depuis "
+            "les réglages de l'application, onglet "
+            "« Bibles »."
+        )
+
+        formulaire.addRow(
+            "Version retenue",
+            self.version_bible_combo
+        )
+
+        return bloc
+
     def charger_valeurs(self):
         """
         Charge les valeurs actives de l'étude.
@@ -346,6 +402,14 @@ class ParametresEtudeDialog(QDialog):
 
         self.source_defaut_combo.setCurrentIndex(
             max(0, index)
+        )
+
+        index_bible = self.version_bible_combo.findData(
+            version_bible_etude(self.etude.parametres)
+        )
+
+        self.version_bible_combo.setCurrentIndex(
+            max(0, index_bible)
         )
 
         interdits = (
@@ -419,6 +483,14 @@ class ParametresEtudeDialog(QDialog):
             self.source_defaut_combo.currentData()
         )
 
+        version_bible = (
+            self.version_bible_combo.currentData()
+        )
+
+        self.etude.parametres.bible["version"] = (
+            version_bible
+        )
+
         interdits = [
             ligne.strip()
             for ligne in self.interdits_edit.toPlainText().splitlines()
@@ -430,5 +502,27 @@ class ParametresEtudeDialog(QDialog):
         ] = interdits
 
         sauvegarder_etude(self.etude)
+
+        if not version_installee(version_bible):
+
+            reponse = QMessageBox.question(
+                self,
+                "Bible non installée",
+                "La version retenue n'est pas installée : "
+                "le contrôle qualité des références et "
+                "citations ne pourra pas l'utiliser.\n\n"
+                "Ouvrir les réglages pour l'installer ?",
+                (
+                    QMessageBox.StandardButton.Yes
+                    | QMessageBox.StandardButton.No
+                ),
+            )
+
+            if reponse == (
+                QMessageBox.StandardButton.Yes
+            ):
+                from ui.settings_dialog import SettingsDialog
+
+                SettingsDialog(self).exec()
 
         self.accept()

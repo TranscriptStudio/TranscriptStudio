@@ -783,6 +783,16 @@ class ParametresEtude:
     )
     llm: dict = field(default_factory=dict)
 
+    #
+    # P18.5 (spec BIBLE_JND_V2) : version de Bible
+    # retenue par l'étude — bloc ``bible`` de
+    # parametres.json, défaut ``darbyR``. Les
+    # études existantes n'ont pas ce bloc : lu
+    # comme vide (défaut appliqué, aucune
+    # migration), jamais bloquant.
+    #
+    bible: dict = field(default_factory=dict)
+
     def to_dict(self) -> dict:
 
         return {
@@ -792,6 +802,7 @@ class ParametresEtude:
             "controle_qualite":
                 self.controle_qualite,
             "llm": self.llm,
+            "bible": self.bible,
         }
 
     @classmethod
@@ -810,4 +821,7 @@ class ParametresEtude:
                 "controle_qualite"
             ],
             llm=data["llm"],
+            # Bloc optionnel (études antérieures à
+            # P18.5) : jamais requis, jamais migré.
+            bible=data.get("bible", {}) or {},
         )

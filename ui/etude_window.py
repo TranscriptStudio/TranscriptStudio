@@ -820,6 +820,17 @@ class EtudeWindow(QWidget):
 
     def maj_synthese(self):
 
+        from services.bibles import (
+            VERSIONS_BIBLE,
+            version_bible_etude,
+        )
+
+        version_bible = version_bible_etude(
+            self.etude.parametres
+        )
+
+        nom_bible = VERSIONS_BIBLE[version_bible]["nom"]
+
         versions = self.etude.synthese.versions
 
         if versions:
@@ -834,12 +845,13 @@ class EtudeWindow(QWidget):
                 f"v{derniere.numero} · "
                 f"{derniere.horodatage} · "
                 f"{derniere.declencheur}"
+                f" · Bible : {nom_bible}"
             )
 
         else:
             self.synthese_edit.clear()
             self.synthese_statut_label.setText(
-                "aucune version"
+                f"Bible : {nom_bible}"
             )
 
     def regenerer_synthese(self):

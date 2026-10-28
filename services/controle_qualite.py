@@ -175,7 +175,8 @@ def controles_bloc(
     source: str,
     resultat: str,
     controle_qualite: dict = None,
-    bible=None
+    bible=None,
+    autres_versions=None
 ) -> dict:
     """
     Contrôles qualité locaux d'un bloc (indicateurs
@@ -192,6 +193,13 @@ def controles_bloc(
     sans elle, les références sont extraites mais
     sans extrait JND ; le parsing reste local et
     gratuit).
+
+    ``autres_versions`` : {identifiant, BibleJND}
+    des AUTRES versions installées (P18.5, spec
+    §4) — quand une référence est introuvable dans
+    la version retenue, un éventuel texte trouvé
+    dans une autre versification est proposé à la
+    CONSULTATION, jamais comme décision.
     """
 
     controle_qualite = controle_qualite or {}
@@ -229,7 +237,8 @@ def controles_bloc(
     references = controle_references(
         source,
         resultat,
-        bible=bible
+        bible=bible,
+        autres_versions=autres_versions
     )
 
     return {
@@ -284,7 +293,8 @@ def _normaliser_pour_comparaison(texte: str) -> str:
 def controle_references(
     source: str,
     resultat: str,
-    bible=None
+    bible=None,
+    autres_versions=None
 ) -> dict:
     """
     §5.2 : références du résultat absentes de la
@@ -341,6 +351,14 @@ def controle_references(
                         :_EXTRAIT_JND_MAX
                     ]
 
+                else:
+                    entree.update(
+                        _versification_autres(
+                            reference,
+                            autres_versions
+                        )
+                    )
+
             ajoutees.append(entree)
 
             continue
@@ -377,6 +395,14 @@ def controle_references(
                             texte_jnd[:_EXTRAIT_JND_MAX]
                         )
 
+                    else:
+                        entree.update(
+                            _versification_autres(
+                                reference,
+                                autres_versions
+                            )
+                        )
+
                 ajoutees.append(entree)
 
     perdues = [
@@ -388,7 +414,8 @@ def controle_references(
     citations = controle_citations(
         resultat,
         references=references_resultat,
-        bible=bible
+        bible=bible,
+        autres_versions=autres_versions
     )
 
     #
@@ -462,6 +489,46 @@ def controle_references(
             + "."
         )
 
+    #
+    # Versifications différentes (P18.5, spec
+    # §4) : une référence introuvable dans la
+    # version retenue est une INFORMATION —
+    # existerait-elle dans une autre version
+    # installée ? Consultation seulement, jamais
+    # de décision automatique.
+    #
+    versification = [
+        ajoutee
+        for ajoutee in ajoutees
+        if ajoutee.get("autres_versifications")
+    ]
+
+    versification += [
+        citation
+        for citation in citations_sans_jnd
+        if citation.get("autres_versifications")
+    ]
+
+    if versification:
+
+        detail = ", ".join(
+            entree["reference"]
+            for entree in versification
+        )
+
+        trouvees = sorted({
+            autre["version"]
+            for entree in versification
+            for autre in entree["autres_versifications"]
+        })
+
+        morceaux.append(
+            "Référence(s) introuvable(s) dans la "
+            "version retenue — autre versification ? "
+            f"À consulter dans {', '.join(trouvees)} "
+            f": {detail}."
+        )
+
     message = (
         "Références : "
         + (" ; ".join(morceaux) if morceaux
@@ -487,10 +554,48 @@ def controle_references(
     }
 
 
+def _versification_autres(
+    reference,
+    autres_versions
+) -> dict:
+    """
+    Consultation d'une référence dans les autres
+    versions installées (P18.5, spec §4) : les
+    versifications différent d'une traduction à
+    l'autre — un texte trouvé ailleurs est une
+    information à consulter, jamais une décision
+    automatique.
+    """
+
+    consultations = []
+
+    if autres_versions:
+
+        for identifiant, bible in (
+            autres_versions.items()
+        ):
+
+            texte = bible.texte_reference(reference)
+
+            if texte:
+                consultations.append({
+                    "version": identifiant,
+                    "extrait": texte[:_EXTRAIT_JND_MAX],
+                })
+
+    if not consultations:
+        return {}
+
+    return {
+        "autres_versifications": consultations
+    }
+
+
 def controle_citations(
     texte: str,
     references=None,
-    bible=None
+    bible=None,
+    autres_versions=None
 ) -> list:
     """
     §5.4 : citations entre guillemets associées à
@@ -579,6 +684,12 @@ def controle_citations(
 
         if not texte_jnd:
             entree["statut"] = "jnd_absente"
+            entree.update(
+                _versification_autres(
+                    reference_proche,
+                    autres_versions
+                )
+            )
             citations.append(entree)
             continue
 

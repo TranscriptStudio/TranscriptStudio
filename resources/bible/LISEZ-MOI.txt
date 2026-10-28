@@ -1,17 +1,27 @@
-Placez ici la Bible JND (OSIS XML).
+Placez ici les Bibles (OSIS XML) — ou, plus simple,
+utilisez le téléchargeur intégré : Réglages de
+l'application, onglet « Bibles ».
 
-Fichiers acceptés, par ordre de priorité :
-    1. JND.osis.xml        (choix explicite — prime toujours)
-    2. Darby.osis.xml      (modules CrossWire « Darby », JND classique)
-    3. DarbyR.osis.xml     (modules CrossWire « Darby révisée »)
+Versions gérées (P18.5) :
+    darby        Darby.osis.xml        (téléchargeable, onglet Bibles)
+    darbyR       DarbyR.osis.xml       (téléchargeable, onglet Bibles)
+    segond1910   Segond1910.osis.xml   (import manuel : « Charger depuis
+                                         un fichier… », le fichier se
+                                         télécharge sur concordance.bible)
+    JND.osis.xml choix explicite hérité (prime pour un chargement
+                 implicite hors étude)
 
-Pour forcer une édition (par ex. la révisée), renommez
-le fichier concerné en JND.osis.xml.
+La version utilisée par une étude se choisit dans les
+paramètres de l'étude (« Bible de référence », défaut :
+Darby révisée) ; une étude existante sans ce réglage
+utilise le défaut, sans migration.
 
-Ces fichiers ne sont pas distribués avec le dépôt (volume).
-Téléchargement : modules OSIS de CrossWire (Darby / DarbyR).
-Instructions complètes : README.md, section « Installation
-de la Bible JND ».
+Ces fichiers ne sont pas distribués avec le dépôt
+(volume et licences) : ils sont ignorés par git et ne
+sont JAMAIS commités.
 
-Sans la Bible, le contrôle qualité des références reste
-local (pas d'extrait JND, pas d'alignement des citations).
+Sans Bible, l'application fonctionne normalement ; le
+contrôle qualité des références reste local (pas
+d'extrait biblique, pas d'alignement des citations).
+Instructions complètes : README.md, section
+« Installation des Bibles ».

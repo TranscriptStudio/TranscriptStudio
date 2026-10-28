@@ -14,10 +14,13 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QSpinBox,
     QFormLayout,
+    QFrame,
 )
 from PySide6.QtCore import (
     QSize,
     Qt,
+    QThread,
+    Signal,
 )
 from PySide6.QtGui import (
     QIcon,
@@ -40,6 +43,52 @@ from services.llm.client import (
     creer_client,
 )
 from ui.catalogue_llm_dialog import CatalogueLLMDialog
+from services.bibles import (
+    ErreurBible,
+    VERSIONS_BIBLE,
+    installer_fichier,
+    telecharger_bible,
+    version_installee,
+)
+
+
+class TelechargeurBible(QThread):
+    """
+    Téléchargement d'une Bible OSIS en fil
+    séparé (spec §2.2 : progression, annulation,
+    aucune trace en cas d'échec).
+    """
+
+    progres = Signal(int, int)
+    terminee = Signal(str)
+    erreur = Signal(str)
+
+    def __init__(self, identifiant, parent=None):
+
+        super().__init__(parent)
+
+        self._identifiant = identifiant
+        self._annule = False
+
+    def annuler(self):
+
+        self._annule = True
+
+    def run(self):
+
+        try:
+            telecharger_bible(
+                self._identifiant,
+                progression=lambda lus, total: (
+                    self.progres.emit(lus, total or 0)
+                ),
+                annulation=lambda: self._annule,
+            )
+        except ErreurBible as e:
+            self.erreur.emit(str(e))
+            return
+
+        self.terminee.emit(self._identifiant)
 
 
 class SettingsDialog(QDialog):
@@ -159,6 +208,11 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(
             self._construire_onglet_llm(),
             "LLM (reformulation)"
+        )
+
+        self.tabs.addTab(
+            self._construire_onglet_bibles(),
+            "Bibles"
         )
 
         layout.addWidget(
@@ -496,6 +550,326 @@ class SettingsDialog(QDialog):
         layout.addStretch()
 
         return onglet
+
+    def _construire_onglet_bibles(self) -> QWidget:
+        """
+        Onglet Bibles (P18.5, spec §2) : liste des
+        versions supportées (éditeur, édition,
+        licence, état installée), téléchargement à
+        la demande (jamais silencieux) et import
+        manuel « Charger depuis un fichier… ».
+        Les fichiers vivent dans le dossier de
+        ressources de l'app, hors dépôt git.
+        """
+
+        from services.bibles import dossier_bibles
+
+        onglet = QWidget()
+
+        layout = QVBoxLayout(onglet)
+
+        layout.setSpacing(10)
+
+        note = QLabel(
+            "Les fichiers Bible sont stockés hors du "
+            "dépôt (jamais commités) dans :<br>"
+            f"<code>{dossier_bibles()}</code>"
+        )
+
+        note.setWordWrap(True)
+
+        note.setStyleSheet("font-size: 12px; color: #666666;")
+
+        layout.addWidget(note)
+
+        self._bible_etats = {}
+
+        self._bible_boutons = {}
+
+        for identifiant in VERSIONS_BIBLE:
+
+            carte = self._construire_carte_bible(identifiant)
+
+            layout.addWidget(carte)
+
+        self._rafraichir_bibles()
+
+        layout.addStretch()
+
+        return onglet
+
+    def _construire_carte_bible(self, identifiant) -> QFrame:
+        """
+        Carte d'une version : nom, éditeur, édition,
+        licence, état installée, actions
+        (Télécharger / Charger depuis un fichier…).
+        """
+
+        version = VERSIONS_BIBLE[identifiant]
+
+        carte = QFrame()
+
+        carte.setFrameShape(QFrame.Shape.StyledPanel)
+
+        layout = QVBoxLayout(carte)
+
+        layout.setContentsMargins(10, 8, 10, 8)
+
+        layout.setSpacing(4)
+
+        titre = QLabel(
+            f"<b>{version['nom']}</b>"
+            f" <code>({identifiant})</code>"
+        )
+
+        layout.addWidget(titre)
+
+        infos = QLabel(
+            f"{version['editeur']} — {version['edition']}"
+            f"<br>Licence : {version['licence']}"
+        )
+
+        infos.setStyleSheet("font-size: 12px; color: #666666;")
+
+        layout.addWidget(infos)
+
+        ligne = QHBoxLayout()
+
+        etat = QLabel()
+
+        etat.setStyleSheet("font-size: 12px;")
+
+        self._bible_etats[identifiant] = etat
+
+        ligne.addWidget(etat, 1)
+
+        boutons = {}
+
+        if version.get("url_zip"):
+
+            bouton_telecharger = QPushButton("Télécharger")
+
+            bouton_telecharger.clicked.connect(
+                lambda _=False, v=identifiant: (
+                    self._telecharger_bible(v)
+                )
+            )
+
+            ligne.addWidget(bouton_telecharger)
+
+            boutons["telecharger"] = bouton_telecharger
+
+        bouton_fichier = QPushButton(
+            "Charger depuis un fichier…"
+        )
+
+        bouton_fichier.clicked.connect(
+            lambda _=False, v=identifiant: (
+                self._charger_bible_depuis_fichier(v)
+            )
+        )
+
+        ligne.addWidget(bouton_fichier)
+
+        boutons["fichier"] = bouton_fichier
+
+        self._bible_boutons[identifiant] = boutons
+
+        layout.addLayout(ligne)
+
+        return carte
+
+    def _rafraichir_bibles(self):
+        """
+        Met à jour les états « installée / non
+        installée » et l'activation des boutons.
+        """
+
+        for identifiant in VERSIONS_BIBLE:
+
+            installee = version_installee(identifiant)
+
+            etat = self._bible_etats[identifiant]
+
+            if installee:
+                etat.setText("Installée.")
+                etat.setStyleSheet("font-size: 12px; color: #1d7a1d;")
+            else:
+                etat.setText("Non installée.")
+                etat.setStyleSheet("font-size: 12px; color: #666666;")
+
+            boutons = self._bible_boutons[identifiant]
+
+            if "telecharger" in boutons:
+                boutons["telecharger"].setEnabled(
+                    not installee
+                )
+
+    def _telecharger_bible(self, identifiant):
+        """
+        Télécharge une version avec progression et
+        annulation (spec §2.2) ; confirmation avant
+        remplacement d'une version installée (§2.5).
+        """
+
+        from PySide6.QtWidgets import QProgressDialog
+
+        if version_installee(identifiant):
+
+            reponse = QMessageBox.question(
+                self,
+                "Remplacer la version ?",
+                "Cette version est déjà installée. "
+                "La remplacer ?",
+                (
+                    QMessageBox.StandardButton.Yes
+                    | QMessageBox.StandardButton.No
+                ),
+            )
+
+            if reponse != (
+                QMessageBox.StandardButton.Yes
+            ):
+                return
+
+        self._telechargeur = TelechargeurBible(
+            identifiant,
+            self
+        )
+
+        self._progress_bible = QProgressDialog(
+            "Téléchargement en cours…",
+            "Annuler",
+            0,
+            100,
+            self
+        )
+
+        self._progress_bible.setWindowTitle(
+            "Téléchargement de la Bible"
+        )
+
+        self._progress_bible.setMinimumDuration(300)
+
+        self._progress_bible.canceled.connect(
+            self._telechargeur.annuler
+        )
+
+        self._telechargeur.progres.connect(
+            self._progres_bible
+        )
+
+        self._telechargeur.terminee.connect(
+            self._bible_telechargee
+        )
+
+        self._telechargeur.erreur.connect(
+            self._bible_erreur
+        )
+
+        self._telechargeur.start()
+
+    def _progres_bible(self, lus, total):
+
+        if total:
+            self._progress_bible.setRange(0, 100)
+            self._progress_bible.setValue(
+                int(lus * 100 / max(total, 1))
+            )
+
+        else:
+            self._progress_bible.setRange(0, 0)
+
+        self._progres_bible_label(lus)
+
+    def _progres_bible_label(self, lus):
+
+        mo = lus / (1024 * 1024)
+
+        self._progress_bible.setLabelText(
+            "Téléchargement en cours… "
+            f"({mo:.1f} Mio)"
+        )
+
+    def _bible_telechargee(self, identifiant):
+
+        self._progress_bible.reset()
+
+        self._rafraichir_bibles()
+
+        QMessageBox.information(
+            self,
+            "Bible installée",
+            f"{VERSIONS_BIBLE[identifiant]['nom']} "
+            "est installée."
+        )
+
+    def _bible_erreur(self, message):
+
+        self._progress_bible.reset()
+
+        self._rafraichir_bibles()
+
+        QMessageBox.warning(
+            self,
+            "Téléchargement impossible",
+            message
+        )
+
+    def _charger_bible_depuis_fichier(self, identifiant):
+        """
+        Import manuel (spec §2.4) : choix d'un
+        fichier OSIS, validation minimale,
+        remplacement confirmé si déjà installée.
+        """
+
+        chemin, _ = QFileDialog.getOpenFileName(
+            self,
+            "Charger un fichier Bible (OSIS XML)",
+            "",
+            "Fichiers OSIS XML (*.osis.xml *.xml);;"
+            "Tous les fichiers (*)"
+        )
+
+        if not chemin:
+            return
+
+        if version_installee(identifiant):
+
+            reponse = QMessageBox.question(
+                self,
+                "Remplacer la version ?",
+                "Cette version est déjà installée. "
+                "La remplacer ?",
+                (
+                    QMessageBox.StandardButton.Yes
+                    | QMessageBox.StandardButton.No
+                ),
+            )
+
+            if reponse != (
+                QMessageBox.StandardButton.Yes
+            ):
+                return
+
+        try:
+            installer_fichier(identifiant, chemin)
+        except ErreurBible as e:
+            QMessageBox.warning(
+                self,
+                "Fichier Bible invalide",
+                str(e)
+            )
+            return
+
+        self._rafraichir_bibles()
+
+        QMessageBox.information(
+            self,
+            "Bible installée",
+            f"{VERSIONS_BIBLE[identifiant]['nom']} "
+            "est installée."
+        )
 
     def _construire_onglet_llm(self) -> QWidget:
         """

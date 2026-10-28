@@ -47,23 +47,28 @@ NOM_FICHIER_BIBLE = "JND.osis.xml"
 
 #
 # Noms de fichiers acceptés, par ordre de priorité
-# (les modules CrossWire s'appellent Darby/DarbyR ;
-# un fichier JND.osis.xml explicite prime toujours,
-# sinon la Darby classique — la « JND » que citent
-# les orateurs — avant la révisée).
+# pour un chargement IMPLICITE (sans version
+# d'étude) : un JND.osis.xml explicite prime
+# toujours, sinon la version par défaut de P18.5
+# (darbyR — décision David 2026-10-28) avant la
+# Darby classique. Le contrôle qualité passe
+# désormais par services/bibles.py, qui travaille
+# contre la version retenue par l'étude (spec
+# BIBLE_JND §3.3) — ce repli ne sert qu'aux
+# usages hors étude.
 #
 
 NOMS_FICHIERS_BIBLE = [
     "JND.osis.xml",
-    "Darby.osis.xml",
     "DarbyR.osis.xml",
+    "Darby.osis.xml",
 ]
 
 MESSAGE_BIBLE_ABSENTE = (
-    "La Bible JND (OSIS XML) n'est pas installée.\n\n"
-    "Placez le fichier JND.osis.xml dans le dossier "
-    "resources/bible/ de l'application (instructions "
-    "de téléchargement dans le README)."
+    "La Bible (OSIS XML) n'est pas installée.\n\n"
+    "Installez une version depuis les réglages de "
+    "l'application, onglet « Bibles » (téléchargeur "
+    "intégré ou « Charger depuis un fichier… »)."
 )
 
 

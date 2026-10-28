@@ -80,6 +80,10 @@ def assembler_ouvrage(
     l'assemblage.
     """
 
+    from services.bibles import (
+        VERSIONS_BIBLE,
+        version_bible_etude,
+    )
     from services.decoupage import (
         ordre_ouvrage_effectif,
     )
@@ -161,10 +165,23 @@ def assembler_ouvrage(
             "blocs": blocs,
         })
 
+    #
+    # Version de Bible retenue par l'étude (P18.5,
+    # spec §4.4 : l'ouvrage exporté mentionne la
+    # version utilisée pour la vérification des
+    # références et citations).
+    #
+    version_bible = version_bible_etude(
+        etude_ouverte.parametres
+    )
+
+    nom_bible = VERSIONS_BIBLE[version_bible]["nom"]
+
     return {
         "titre": titre_etude,
         "reunions": sections,
         "en_tetes_reunions": en_tetes_reunions,
+        "bible": nom_bible,
     }
 
 
@@ -197,6 +214,12 @@ def exporter_docx(ouvrage: dict, chemin) -> Path:
     document = Document()
 
     document.add_heading(ouvrage["titre"], level=0)
+
+    if ouvrage.get("bible"):
+        document.add_paragraph(
+            "Bible de référence : "
+            + ouvrage["bible"]
+        )
 
     for section in ouvrage["reunions"]:
 
@@ -232,6 +255,12 @@ def exporter_txt(ouvrage: dict, chemin) -> Path:
     """
 
     lignes = [ouvrage["titre"], ""]
+
+    if ouvrage.get("bible"):
+        lignes.append(
+            "Bible de référence : " + ouvrage["bible"]
+        )
+        lignes.append("")
 
     for section in ouvrage["reunions"]:
 

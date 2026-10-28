@@ -282,6 +282,12 @@ def parametres_par_defaut(
                 },
             ],
         },
+        # P18.5 (spec BIBLE_JND_V2 §3) : version de
+        # Bible retenue, défaut darbyR (Darby
+        # révisée, décision David 2026-10-28).
+        bible={
+            "version": "darbyR",
+        },
     )
 
 

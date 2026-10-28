@@ -241,29 +241,32 @@ Vérifier ensuite depuis PowerShell :
 
 Le code de Transcript Studio recherche l’exécutable d’abord dans `tools/ffmpeg/windows/`, puis à cet emplacement, avant de se replier sur le chemin configuré dans les paramètres et enfin sur le `PATH` système.
 
-#### Installation de la Bible JND (sources uniquement, facultative)
+#### Installation des Bibles (téléchargeur intégré, facultative)
 
-La **Bible JND (et JND révisée) au format OSIS XML** est une ressource facultative utilisée par le contrôle qualité des références et des citations (version 2) : extrait de vérification d’une référence complétée, comparaison des citations au texte biblique, alignement à la demande.
+La **Bible au format OSIS XML** est une ressource facultative utilisée par le contrôle qualité des références et des citations (version 2) : extrait de vérification d’une référence complétée, comparaison des citations au texte biblique, alignement à la demande.
 
-Le fichier OSIS n’est pas fourni dans ce dépôt (volume). Télécharger la Bible JND au format OSIS XML depuis un dépôt libre (par exemple les modules OSIS de CrossWire) :
+Trois versions sont gérées (spécification P18.5) :
+
+| Identifiant | Version | Source | Licence |
+|---|---|---|---|
+| `darby` | Bible J. N. Darby (éd. 2024, rév. 2.0) | concordance.bible (miroir BPC), zip OSIS | Domaine public |
+| `darbyR` | Bible J. N. Darby révisée (éd. 2026, rév. 2.3) | concordance.bible (miroir BPC), zip OSIS | CC BY NC ND |
+| `segond1910` | Bible Segond 1910 | aucun lien direct vérifié : import manuel | Domaine public |
+
+**Téléchargeur intégré** : Réglages de l’application, onglet « Bibles » — bouton « Télécharger » pour Darby et Darby révisée (progression, annulation, aucune trace en cas d’échec), bouton « Charger depuis un fichier… » pour un fichier OSIS déjà téléchargé (notamment Segond 1910, depuis https://concordance.bible). Aucun téléchargement n’a jamais lieu en silence : toujours à la demande.
+
+**Version retenue par étude** : les paramètres de l’étude proposent un déroulant « Bible de référence » (défaut : Darby révisée). Le contrôle qualité travaille toujours contre la version retenue par l’étude ; une étude existante sans ce réglage utilise le défaut, sans migration. Une référence introuvable dans la version retenue est une information consultable dans les autres versions installées (versifications différentes), jamais une décision automatique.
+
+Les fichiers Bible vivent dans `resources/bible/`, ne sont **jamais commités** (volume et licences, ignorés par `.gitignore`) :
 
 ```text
-https://www.crosswire.org/sword/modules/ModDisp.jsp?modType=Bibles
+resources/bible/Darby.osis.xml       # version « darby »
+resources/bible/DarbyR.osis.xml      # version « darbyR »
+resources/bible/Segond1910.osis.xml  # version « segond1910 » (import manuel)
+resources/bible/JND.osis.xml         # choix explicite hérité (prime pour un chargement implicite hors étude)
 ```
 
-(chercher la JND ou la JND révisée, format OSIS)
-
-Après téléchargement, copier le fichier dans `resources/bible/`. Trois noms sont acceptés, par ordre de priorité :
-
-```text
-resources/bible/JND.osis.xml     # choix explicite (prime toujours)
-resources/bible/Darby.osis.xml   # modules CrossWire « Darby » (JND classique)
-resources/bible/DarbyR.osis.xml  # modules CrossWire « Darby révisée »
-```
-
-La Darby classique est utilisée si les deux éditions sont présentes (c'est la « JND » que citent les orateurs) ; pour forcer la révisée, renommer `DarbyR.osis.xml` en `JND.osis.xml`.
-
-Sans ce fichier, l’application fonctionne normalement ; le contrôle qualité des références reste local (extraction et comparaison source ↔ résultat) mais ne peut afficher ni extrait JND, ni proposer l’alignement des citations.
+Sans Bible installée, l’application fonctionne normalement ; le contrôle qualité des références reste local (extraction et comparaison source ↔ résultat) mais ne peut afficher ni extrait biblique, ni proposer l’alignement des citations.
 
 ## Configuration ElevenLabs
 
