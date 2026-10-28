@@ -3,7 +3,7 @@
 > **Dernière mise à jour** : 2026-10-28 (P18 livré :
 > JND locale OSIS, contrôle qualité des références
 > et citations avec alignement à la demande, export
-> DOCX/TXT de l'ouvrage ; 309 tests verts)
+> DOCX/TXT de l'ouvrage ; Bible réelle installée et vérifiée ; 312 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -41,7 +41,7 @@
   après P16-bis (3 fumées test_p17_integration.py).
 - **P18 : LIVRÉ** (P18.1 JND OSIS locale, P18.2 contrôle références/
   citations + alignement, P18.3 export DOCX/TXT de l'ouvrage ;
-  P18.4 pré-correction NON réalisée — optionnel) — 309 tests verts.
+  P18.4 pré-correction NON réalisée — optionnel) — 312 tests verts.
 - **P16-bis : LIVRÉ** (correctifs de relecture UI, séries 1 à 3 +
   terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
   sur UI_REFORMULATION_V2 pour ses points).
@@ -1200,6 +1200,37 @@ est la feuille de route §5.2, §5.4, §6, §7.
   message de fin avec **Ouvrir le fichier / Ouvrir le dossier**
   (flux P13 réutilisé).
 
+### Complément (retour David : Bible installée)
+
+David a installé les deux éditions réelles (modules
+CrossWire, 22 Mo chacun) : `resources/bible/Darby.osis.xml`
+(JND classique, FreJND) et `DarbyR.osis.xml` (révisée,
+FreBPC). Conséquences livrées :
+
+- les modules réels utilisent des versets **milestone**
+  (`<verse sID/> texte <verse eID/>`) — le chargeur
+  initial (versets conteneurs) n'y voyait que des
+  éléments vides ; réécriture en machine à états
+  (les deux styles restent acceptés), notes et
+  titres exclus du texte, espaces insécables
+  nettoyées ; **vérifié sur le fichier réel : 31 167
+  versets, 66 livres, lookups exacts** (Genèse 1.1,
+  Luc 15.11-12, Jean 3.16, Psaume 23, recherche
+  « brebis perdue » → Matthieu 10.6/15.24, Luc 15.6,
+  contrôle références + citations + alignement bout
+  en bout) ;
+- noms acceptés par priorité : JND.osis.xml (explicite)
+  > Darby.osis.xml (classique, la « JND » citée par
+  les orateurs) > DarbyR.osis.xml ; README et LISEZ-MOI
+  mis à jour — **arbitrage atelier bienvenu** sur
+  l'édition de référence pour le contrôle qualité ;
+- limite connue : l'alignement d'une citation en écart
+  insère le texte entier du verset, préfixe narratif
+  inclus (« Et il dit : Un homme avait deux fils ; »
+  pour Luc 15.11) — c'est une édition à relire (jamais
+  automatique), l'utilisateur ajuste ; affiner au
+  besoin en P19+.
+
 ### Décisions / écarts de la session (P18)
 
 1. **P18.4 pré-correction NON réalisée** : optionnelle dans la
@@ -1215,9 +1246,9 @@ est la feuille de route §5.2, §5.4, §6, §7.
 4. `resources/bible/` + LISEZ-MOI ajoutés au dépôt (le fichier
    OSIS lui-même reste non suivi, hors périmètre Git comme FFmpeg).
 
-### Bilan tests : **309 verts** (286 + 23)
+### Bilan tests : **312 verts** (286 + 26)
 
-`tests/unit/test_p18.py` (23) : Bible absente (erreur claire),
+`tests/unit/test_p18.py` (26) : Bible absente (erreur claire),
 chargeur avec espace de noms + exclusion des notes, lookup
 ponctuel/plage/chapitre, référence introuvable, parsing des
 variantes françaises + pas de faux positifs, normalisation,
@@ -1234,7 +1265,7 @@ d'ouvrage + exclusion d'une réunion vide + options, DOCX relu
 
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 (séries 1 à 3), P16-bis, P17 et P18 sont LIVRÉS** (309
+**P16 (séries 1 à 3), P16-bis, P17 et P18 sont LIVRÉS** (312
 tests verts). Restent :
 
 1. **Recette P16/P17/P18 par David** (checklist en fin de session

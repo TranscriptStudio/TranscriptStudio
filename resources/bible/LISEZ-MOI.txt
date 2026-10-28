@@ -1,11 +1,17 @@
-Placez ici la Bible JND (OSIS XML), renommée :
+Placez ici la Bible JND (OSIS XML).
 
-    JND.osis.xml
+Fichiers acceptés, par ordre de priorité :
+    1. JND.osis.xml        (choix explicite — prime toujours)
+    2. Darby.osis.xml      (modules CrossWire « Darby », JND classique)
+    3. DarbyR.osis.xml     (modules CrossWire « Darby révisée »)
 
-Ce fichier n'est pas distribué avec le dépôt (volume).
-Téléchargement : modules OSIS de CrossWire (JND / JND révisée).
+Pour forcer une édition (par ex. la révisée), renommez
+le fichier concerné en JND.osis.xml.
+
+Ces fichiers ne sont pas distribués avec le dépôt (volume).
+Téléchargement : modules OSIS de CrossWire (Darby / DarbyR).
 Instructions complètes : README.md, section « Installation
 de la Bible JND ».
 
-Sans ce fichier, le contrôle qualité des références reste
+Sans la Bible, le contrôle qualité des références reste
 local (pas d'extrait JND, pas d'alignement des citations).

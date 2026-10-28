@@ -45,6 +45,20 @@ from services.resources import resource_path
 
 NOM_FICHIER_BIBLE = "JND.osis.xml"
 
+#
+# Noms de fichiers acceptés, par ordre de priorité
+# (les modules CrossWire s'appellent Darby/DarbyR ;
+# un fichier JND.osis.xml explicite prime toujours,
+# sinon la Darby classique — la « JND » que citent
+# les orateurs — avant la révisée).
+#
+
+NOMS_FICHIERS_BIBLE = [
+    "JND.osis.xml",
+    "Darby.osis.xml",
+    "DarbyR.osis.xml",
+]
+
 MESSAGE_BIBLE_ABSENTE = (
     "La Bible JND (OSIS XML) n'est pas installée.\n\n"
     "Placez le fichier JND.osis.xml dans le dossier "
@@ -61,8 +75,21 @@ class BibleAbsente(Exception):
 
 def chemin_bible() -> Path:
     """
-    Chemin attendu de la ressource JND.
+    Chemin de la ressource JND installée : le
+    premier fichier attendu qui existe (JND.osis.xml
+    explicite, puis Darby.osis.xml, puis DarbyR).
+    Aucun n'est installé → chemin par défaut
+    (JND.osis.xml, utilisé dans le message d'erreur).
     """
+
+    for nom in NOMS_FICHIERS_BIBLE:
+
+        chemin = resource_path(
+            f"resources/bible/{nom}"
+        )
+
+        if chemin.is_file():
+            return chemin
 
     return resource_path(
         f"resources/bible/{NOM_FICHIER_BIBLE}"
@@ -344,11 +371,24 @@ def normaliser_reference(texte: str):
 #
 # Chargement OSIS XML.
 #
+# Deux styles de versets coexistent dans les
+# modules réels (CrossWire) :
+# - conteneurs : <verse osisID="Gen 1.1">texte…</verse> ;
+# - milestones : <verse sID="Gen.1.1"/>texte…<verse eID="Gen.1.1"/>
+#   (le texte VIT ENTRE les deux marqueurs ; les modules
+#   FreJND/FreBPC de la Darby utilisent ce style — un
+#   lecteur naïf n'y verrait que des éléments vides).
+#
+
+_EXCLUS_TEXTE = ("note", "title")
+
 
 def _nom_local(tag: str) -> str:
     """
     Nom local d'un tag XML (sans l'éventuel espace
-    de noms OSIS).
+    de noms OSIS — les modules réels utilisent
+    bibletechnologies.net/2003, le synthétique
+    crosswire.org, les deux sont acceptés).
     """
 
     return tag.rsplit("}", 1)[-1]
@@ -356,9 +396,9 @@ def _nom_local(tag: str) -> str:
 
 def _texte_verse(element) -> str:
     """
-    Texte d'un élément <verse> OSIS : le texte de
-    l'élément et de ses enfants, en excluant les
-    <note> (apparats et renvois).
+    Texte d'un élément <verse> CONTENEUR : le texte
+    de l'élément et de ses enfants, en excluant les
+    <note> et <title> (apparats et renvois).
     """
 
     morceaux = []
@@ -368,7 +408,7 @@ def _texte_verse(element) -> str:
 
     for enfant in element:
 
-        if _nom_local(enfant.tag) != "note":
+        if _nom_local(enfant.tag) not in _EXCLUS_TEXTE:
             morceaux.append(
                 "".join(enfant.itertext())
             )
@@ -377,6 +417,190 @@ def _texte_verse(element) -> str:
             morceaux.append(enfant.tail)
 
     return "".join(morceaux).strip()
+
+
+def _nettoyer_texte(morceaux: list) -> str:
+    """
+    Assemble et nettoie le texte d'un verset :
+    espaces insécables (y compris fine) ramenées à
+    l'espace, espaces multiples resserrées.
+    """
+
+    texte = "".join(morceaux)
+
+    texte = texte.replace("\xa0", " ")
+    texte = texte.replace("\u202f", " ")
+
+    return " ".join(texte.split()).strip()
+
+
+def _identifiants_verset(identifiant: str):
+    """
+    Décompose un osisID (« Gen 1.1 » ou « Gen.1.1 »)
+    en (osis_id, chapitre, verset) ; None si
+    illisible.
+    """
+
+    parties = re.split(
+        r"[ .]",
+        (identifiant or "").strip()
+    )
+
+    if len(parties) < 3:
+        return None
+
+    try:
+        return (
+            parties[0],
+            int(parties[1]),
+            int(parties[2]),
+        )
+    except ValueError:
+        return None
+
+
+def _stocker_verset(
+    versets: dict,
+    identifiant: str,
+    morceaux: list
+) -> None:
+    """
+    Range le texte d'un verset dans l'index
+    (ignore silencieusement les identifiants
+    illisibles et les textes vides).
+    """
+
+    identifiants = _identifiants_verset(identifiant)
+
+    if identifiants is None:
+        return
+
+    osis_id, chapitre, numero = identifiants
+
+    texte = _nettoyer_texte(morceaux)
+
+    if not texte:
+        return
+
+    versets.setdefault(
+        osis_id,
+        {}
+    ).setdefault(
+        chapitre,
+        {}
+    )[numero] = texte
+
+
+def _parcourir_osis(
+    element,
+    etat: dict,
+    versets: dict
+) -> None:
+    """
+    Parcours récursif du document dans l'ordre :
+    détecte les ouvertures/fermetures de versets
+    milestone, collecte le texte entre elles (hors
+    notes et titres), et traite aussi les versets
+    conteneurs.
+    """
+
+    for enfant in element:
+
+        local = _nom_local(enfant.tag)
+
+        if local == "verse":
+
+            sid = enfant.get("sID")
+            eid = enfant.get("eID")
+
+            if sid:
+
+                #
+                # Ouverture milestone : le texte du
+                # verset commence par le tail du
+                # marqueur d'ouverture.
+                #
+                if etat["id"] is not None:
+                    _stocker_verset(
+                        versets,
+                        etat["id"],
+                        etat["morceaux"]
+                    )
+
+                etat["id"] = (
+                    enfant.get("osisID") or sid
+                )
+                etat["morceaux"] = []
+
+                if enfant.tail:
+                    etat["morceaux"].append(
+                        enfant.tail
+                    )
+
+            elif eid:
+
+                #
+                # Fermeture milestone.
+                #
+                if etat["id"] is not None:
+                    _stocker_verset(
+                        versets,
+                        etat["id"],
+                        etat["morceaux"]
+                    )
+
+                etat["id"] = None
+                etat["morceaux"] = []
+
+            else:
+
+                #
+                # Verset conteneur : texte complet de
+                # l'élément (hors notes/titres).
+                #
+                identifiant = enfant.get("osisID")
+
+                if identifiant:
+                    _stocker_verset(
+                        versets,
+                        identifiant,
+                        [_texte_verse(enfant)]
+                    )
+
+            continue
+
+        if local in _EXCLUS_TEXTE:
+
+            #
+            # Note ou titre : sous-arbre ignoré, mais
+            # le texte qui suit (tail) appartient au
+            # verset en cours.
+            #
+            if (
+                etat["id"] is not None
+                and enfant.tail
+            ):
+                etat["morceaux"].append(enfant.tail)
+
+            continue
+
+        #
+        # Élément de contenu (w, q, divineName...) :
+        # son texte puis sa descendance, puis le
+        # texte qui le suit.
+        #
+        if etat["id"] is not None:
+
+            if enfant.text:
+                etat["morceaux"].append(enfant.text)
+
+        _parcourir_osis(enfant, etat, versets)
+
+        if (
+            etat["id"] is not None
+            and enfant.tail
+        ):
+            etat["morceaux"].append(enfant.tail)
 
 
 class BibleJND:
@@ -529,45 +753,19 @@ def charger_bible(chemin=None) -> BibleJND:
 
     versets = {}
 
-    for element in racine.iter():
+    etat = {"id": None, "morceaux": []}
 
-        if _nom_local(element.tag) != "verse":
-            continue
+    _parcourir_osis(racine, etat, versets)
 
-        identifiant = element.get("osisID")
-
-        if not identifiant:
-            continue
-
-        # Formats « Gen 1.1 » et « Gen.1.1 ».
-        parties = re.split(
-            r"[ .]",
-            identifiant.strip()
+    #
+    # Dernier verset non refermé (fichier tronqué).
+    #
+    if etat["id"] is not None:
+        _stocker_verset(
+            versets,
+            etat["id"],
+            etat["morceaux"]
         )
-
-        if len(parties) < 3:
-            continue
-
-        osis_id = parties[0]
-
-        try:
-            chapitre = int(parties[1])
-            numero = int(parties[2])
-        except ValueError:
-            continue
-
-        texte = _texte_verse(element)
-
-        if not texte:
-            continue
-
-        versets.setdefault(
-            osis_id,
-            {}
-        ).setdefault(
-            chapitre,
-            {}
-        )[numero] = texte
 
     bible = BibleJND(versets)
 

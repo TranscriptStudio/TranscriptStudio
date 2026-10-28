@@ -253,11 +253,15 @@ https://www.crosswire.org/sword/modules/ModDisp.jsp?modType=Bibles
 
 (chercher la JND ou la JND révisée, format OSIS)
 
-Après téléchargement, renommer le fichier si nécessaire et le copier dans :
+Après téléchargement, copier le fichier dans `resources/bible/`. Trois noms sont acceptés, par ordre de priorité :
 
 ```text
-resources/bible/JND.osis.xml
+resources/bible/JND.osis.xml     # choix explicite (prime toujours)
+resources/bible/Darby.osis.xml   # modules CrossWire « Darby » (JND classique)
+resources/bible/DarbyR.osis.xml  # modules CrossWire « Darby révisée »
 ```
+
+La Darby classique est utilisée si les deux éditions sont présentes (c'est la « JND » que citent les orateurs) ; pour forcer la révisée, renommer `DarbyR.osis.xml` en `JND.osis.xml`.
 
 Sans ce fichier, l’application fonctionne normalement ; le contrôle qualité des références reste local (extraction et comparaison source ↔ résultat) mais ne peut afficher ni extrait JND, ni proposer l’alignement des citations.
 

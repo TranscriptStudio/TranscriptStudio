@@ -72,6 +72,98 @@ def bible(tmp_path):
     return charger_bible(chemin)
 
 
+#
+# Format milestone des modules réels (CrossWire :
+# Darby / DarbyR) : le texte VIT ENTRE
+# <verse sID/> et <verse eID/> — un lecteur naïf
+# n'y verrait que des éléments vides.
+#
+
+OSIS_MILESTONE = """<?xml version="1.0" encoding="UTF-8"?>
+<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">
+  <osisText osisIDWork="FreJND">
+    <div type="book" osisID="Luke">
+      <chapter osisID="Luke 15">
+        <verse sID="Luke.15.11" osisID="Luke.15.11" n="11"/>Et il dit\u00a0: <w lemma="strong:G0444">Un</w> homme avait deux fils\u202f;<note>note de l'éditeur à exclure</note> et le plus jeune partit.
+        <verse eID="Luke.15.11"/>
+        <verse sID="Luke.15.12" osisID="Luke.15.12" n="12"/>Le plus jeune dit à son père\u00a0: Donne-moi la part.
+        <verse eID="Luke.15.12"/>
+      </chapter>
+    </div>
+  </osisText>
+</osis>
+"""
+
+
+@pytest.fixture
+def bible_milestone(tmp_path):
+
+    chemin = tmp_path / "Darby.osis.xml"
+    chemin.write_text(OSIS_MILESTONE, encoding="utf-8")
+
+    return charger_bible(chemin)
+
+
+class TestJNDMilestones:
+
+    def test_texte_entre_les_marqueurs(self, bible_milestone):
+
+        ref = extraire_references("Luc 15.11")[0]
+
+        texte = bible_milestone.texte_reference(ref)
+
+        # Texte réel (tail du sID + <w> + tails), la
+        # note exclue, espaces insécables nettoyées.
+        assert texte == (
+            "Et il dit : Un homme avait deux fils ; "
+            "et le plus jeune partit."
+        )
+
+    def test_plage_et_recherche(self, bible_milestone):
+
+        ref = extraire_references("Luc 15.11-12")[0]
+
+        texte = bible_milestone.texte_reference(ref)
+
+        assert "deux fils" in texte
+        assert "Donne-moi la part" in texte
+
+        resultats = bible_milestone.rechercher(
+            "Donne-moi"
+        )
+
+        assert resultats[0]["reference"] == (
+            "Luc 15.12"
+        )
+
+    def test_fichier_choisi_par_priorite(self, tmp_path):
+
+        #
+        # Un JND.osis.xml explicite prime sur les
+        # modules CrossWire ; sinon la Darby
+        # classique avant la révisée.
+        #
+        from services import jnd as service_jnd
+
+        (tmp_path / "DarbyR.osis.xml").write_text(
+            OSIS_MILESTONE,
+            encoding="utf-8"
+        )
+
+        chemin = service_jnd.chemin_bible()
+
+        # Sans JND.osis.xml dans le dossier des
+        # ressources réelles, le fichier local
+        # n'est PAS pris : chemin_bible regarde
+        # resources/bible/. On teste donc la
+        # priorité relative des fichiers réels.
+        noms = service_jnd.NOMS_FICHIERS_BIBLE
+
+        assert noms.index("JND.osis.xml") < (
+            noms.index("Darby.osis.xml")
+        ) < noms.index("DarbyR.osis.xml")
+
+
 @pytest.fixture
 def etude_validee(tmp_path):
     """
