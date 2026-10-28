@@ -13,11 +13,20 @@ automatique du texte** :
   de motifs dans une liste éditable (« l'orateur »,
   « le frère », « nous avons vu que », « il convient
   de »...), stockée dans les paramètres de l'étude
-  (contrat §10, controle_qualite).
+  (contrat §10, controle_qualite) ;
+- §5.2 **références bibliques** (P18.2) :
+  références ajoutées par le résultat (suggestion
+  de validation avec extrait JND — PAS une alerte :
+  la complétion est voulue) et références de la
+  source absentes du résultat (alerte discrète) ;
+- §5.4 **citations** (P18.2) : correspondance
+  citation ↔ référence avec le texte JND local ;
+  écart signalé (paraphrase vs citation exacte),
+  alignement sur le texte JND À LA DEMANDE
+  (``aligner_citations``), jamais automatique.
 
-Les références bibliques (§5.2) et les citations
-JND (§5.4) arrivent en P18 ; la récurrence d'emphase
-(P20) portera sur l'ouvrage, pas sur le bloc.
+La récurrence d'emphase (P20) portera sur
+l'ouvrage, pas sur le bloc.
 """
 
 import re
@@ -165,18 +174,24 @@ def interdits_stylistiques(
 def controles_bloc(
     source: str,
     resultat: str,
-    controle_qualite: dict = None
+    controle_qualite: dict = None,
+    bible=None
 ) -> dict:
     """
     Contrôles qualité locaux d'un bloc (indicateurs
     discrets de la page Reformulation, spec UI §4) :
-    longueur + interdits stylistiques (les références
-    et citations arrivent en P18).
+    longueur + interdits stylistiques + références
+    bibliques et citations (P18.2).
 
     ``controle_qualite`` : la section
     ``controle_qualite`` des paramètres de l'étude
     (contrat §10) — liste éditable
     ``interdits_stylistiques``.
+
+    ``bible`` : la BibleJND chargée (facultative —
+    sans elle, les références sont extraites mais
+    sans extrait JND ; le parsing reste local et
+    gratuit).
     """
 
     controle_qualite = controle_qualite or {}
@@ -211,15 +226,449 @@ def controles_bloc(
             "Interdits stylistiques : aucun."
         )
 
+    references = controle_references(
+        source,
+        resultat,
+        bible=bible
+    )
+
     return {
         "longueur": longueur,
         "interdits": interdits,
         "message_interdits": message_interdits,
+        "references": references,
+        "message_references": references["message"],
         "nb_alertes": (
             (1 if longueur["avertissement"] else 0)
             + len(interdits)
+            + len(references["perdues"])
         ),
     }
+
+
+#
+# P18.2 — références bibliques et citations (§5.2
+# et §5.4 de la feuille de route) : vérifications
+# locales et gratuites, signalées seulement — jamais
+# de modification automatique du texte.
+#
+
+_EXTRAIT_JND_MAX = 220
+
+_MOTIF_CITATION = re.compile(
+    r"[«“]([^»”]{10,600})[»”]"
+)
+
+
+def _normaliser_pour_comparaison(texte: str) -> str:
+    """
+    Normalisation pour la comparaison citation ↔
+    texte JND : minuscules sans accents, sans
+    ponctuation, espaces resserrées.
+    """
+
+    from services.jnd import _sans_accents
+
+    if not texte:
+        return ""
+
+    nettoye = re.sub(
+        r"[^\w\sÀ-ÿ]",
+        " ",
+        _sans_accents(texte).lower()
+    )
+
+    return re.sub(r"\s+", " ", nettoye).strip()
+
+
+def controle_references(
+    source: str,
+    resultat: str,
+    bible=None
+) -> dict:
+    """
+    §5.2 : références du résultat absentes de la
+    source (complétions — SUGGESTION de validation
+    avec extrait JND quand la Bible est installée)
+    et références de la source absentes du résultat
+    (alerte discrète). §5.4 : citations entre
+    guillemets associées à une référence — citation
+    exacte ou écart (paraphrase) signalé.
+
+    La comparaison des références se fait au niveau
+    livre + chapitre : « Luc 15 » dans la source et
+    « Luc 15.11-32 » dans le résultat n'est ni un
+    ajout ni une perte — MAIS une complétion de
+    numéros de versets (« Luc 15 » -> « Luc 15.11 »)
+    est signalée comme référence complétée : les
+    numéros ont été ajoutés, la vérification JND se
+    justifie.
+    """
+
+    from services.jnd import extraire_references
+
+    references_source = extraire_references(source)
+    references_resultat = extraire_references(
+        resultat
+    )
+
+    cles_source = {
+        reference.cle
+        for reference in references_source
+    }
+
+    cles_resultat = {
+        reference.cle
+        for reference in references_resultat
+    }
+
+    ajoutees = []
+
+    for reference in references_resultat:
+
+        if reference.cle not in cles_source:
+
+            entree = {"reference": str(reference)}
+
+            if bible is not None:
+
+                texte_jnd = bible.texte_reference(
+                    reference
+                )
+
+                if texte_jnd:
+                    entree["extrait_jnd"] = texte_jnd[
+                        :_EXTRAIT_JND_MAX
+                    ]
+
+            ajoutees.append(entree)
+
+            continue
+
+        #
+        # Complétion de numéros de versets : la
+        # source cite le chapitre sans verset, le
+        # résultat précise des versets — les numéros
+        # ont été ajoutés, la vérification se
+        # justifie (§5.2 : suggestion, pas alerte).
+        #
+        if reference.verset_debut is not None:
+
+            chapitre_sans_versets = any(
+                source_ref.cle == reference.cle
+                and source_ref.verset_debut is None
+                for source_ref in references_source
+            )
+
+            if chapitre_sans_versets:
+
+                entree = {
+                    "reference": str(reference)
+                }
+
+                if bible is not None:
+
+                    texte_jnd = bible.texte_reference(
+                        reference
+                    )
+
+                    if texte_jnd:
+                        entree["extrait_jnd"] = (
+                            texte_jnd[:_EXTRAIT_JND_MAX]
+                        )
+
+                ajoutees.append(entree)
+
+    perdues = [
+        {"reference": str(reference)}
+        for reference in references_source
+        if reference.cle not in cles_resultat
+    ]
+
+    citations = controle_citations(
+        resultat,
+        references=references_resultat,
+        bible=bible
+    )
+
+    #
+    # Message court pour l'indicateur discret de la
+    # page Reformulation.
+    #
+    morceaux = []
+
+    if ajoutees:
+
+        detail = ", ".join(
+            ajoutee["reference"]
+            for ajoutee in ajoutees
+        )
+
+        if any(
+            "extrait_jnd" in ajoutee
+            for ajoutee in ajoutees
+        ):
+            morceaux.append(
+                "Références complétées (à vérifier "
+                f"face à la JND) : {detail}."
+            )
+        else:
+            morceaux.append(
+                "Références complétées : "
+                f"{detail}."
+            )
+
+    if perdues:
+        morceaux.append(
+            "Références de la source absentes du "
+            "résultat : "
+            + ", ".join(
+                perdue["reference"]
+                for perdue in perdues
+            )
+            + "."
+        )
+
+    ecarts = [
+        citation
+        for citation in citations
+        if citation["statut"] == "ecart"
+    ]
+
+    if ecarts:
+        morceaux.append(
+            "Citations s'écartant du texte JND : "
+            + ", ".join(
+                citation["reference"]
+                for citation in ecarts
+            )
+            + "."
+        )
+
+    citations_sans_jnd = [
+        citation
+        for citation in citations
+        if citation["statut"] == "jnd_absente"
+    ]
+
+    if citations_sans_jnd:
+        morceaux.append(
+            "Citations à références introuvables "
+            "dans la JND : "
+            + ", ".join(
+                citation["reference"]
+                for citation in citations_sans_jnd
+            )
+            + "."
+        )
+
+    message = (
+        "Références : "
+        + (" ; ".join(morceaux) if morceaux
+           else "rien à signaler.")
+    )
+
+    if (
+        ajoutees
+        and bible is None
+    ):
+        message += (
+            "  (Bible JND non installée : sans extrait "
+            "de vérification — voir README.)"
+        )
+
+    return {
+        "source": references_source,
+        "resultat": references_resultat,
+        "ajoutees": ajoutees,
+        "perdues": perdues,
+        "citations": citations,
+        "message": message,
+    }
+
+
+def controle_citations(
+    texte: str,
+    references=None,
+    bible=None
+) -> list:
+    """
+    §5.4 : citations entre guillemets associées à
+    une référence proche (avant ou après, dans les
+    ~120 caractères). Statut :
+
+    - ``exacte`` : citation = texte JND (au signes
+      près) ;
+    - ``ecart`` : paraphrase — écart signalé,
+      alignement possible à la demande ;
+    - ``jnd_absente`` : référence introuvable dans
+      la JND (ou Bible non installée) ;
+    - ``sans_reference`` : citation sans référence
+      proche (non vérifiable localement).
+
+    Retour : liste ``{"citation", "reference",
+    "statut", "texte_jnd"}`` (texte_jnd seulement
+    quand disponible).
+    """
+
+    from services.jnd import extraire_references
+
+    if not texte:
+        return []
+
+    if references is None:
+        references = extraire_references(texte)
+
+    citations = []
+
+    for occurrence in _MOTIF_CITATION.finditer(
+        texte
+    ):
+
+        citation = occurrence.group(1).strip()
+
+        #
+        # Référence la plus proche (avant ou après),
+        # dans une fenêtre de ~160 caractères.
+        #
+        reference_proche = None
+        distance_min = None
+
+        for position, reference in _positions_references(
+            texte,
+            references
+        ):
+
+            distance = min(
+                abs(position - occurrence.start()),
+                abs(position - occurrence.end()),
+            )
+
+            if distance > 160:
+                continue
+
+            if (
+                distance_min is None
+                or distance < distance_min
+            ):
+                distance_min = distance
+                reference_proche = reference
+
+        if reference_proche is None:
+            citations.append({
+                "citation": citation,
+                "reference": None,
+                "statut": "sans_reference",
+            })
+            continue
+
+        entree = {
+            "citation": citation,
+            "reference": str(reference_proche),
+            "statut": "jnd_absente",
+        }
+
+        if bible is None:
+            entree["statut"] = "jnd_absente"
+            citations.append(entree)
+            continue
+
+        texte_jnd = bible.texte_reference(
+            reference_proche
+        )
+
+        if not texte_jnd:
+            entree["statut"] = "jnd_absente"
+            citations.append(entree)
+            continue
+
+        entree["texte_jnd"] = texte_jnd
+
+        if _normaliser_pour_comparaison(
+            citation
+        ) in _normaliser_pour_comparaison(texte_jnd):
+            entree["statut"] = "exacte"
+        else:
+            entree["statut"] = "ecart"
+
+        citations.append(entree)
+
+    return citations
+
+
+def _positions_references(texte: str, references):
+    """
+    Position approximative de chaque référence dans
+    le texte (recherche du libellé canonique).
+    """
+
+    for reference in references:
+
+        libelle = str(reference)
+
+        position = texte.find(libelle)
+
+        if position < 0:
+            continue
+
+        yield position, reference
+
+
+def aligner_citations(
+    texte: str,
+    bible,
+    references=None
+) -> str:
+    """
+    §5.4 — option « aligner sur le texte JND »,
+    À LA DEMANDE (jamais automatique) : chaque
+    citation entre guillemets associée à une
+    référence dont le texte JND est disponible et
+    diffère (paraphrase) est remplacée par le texte
+    JND. Les citations exactes et sans référence
+    sont laissées telles quelles.
+    """
+
+    if not texte:
+        return texte
+
+    citations = controle_citations(
+        texte,
+        references=references,
+        bible=bible
+    )
+
+    resultat = texte
+
+    for entree in citations:
+
+        if entree["statut"] != "ecart":
+            continue
+
+        if not entree.get("texte_jnd"):
+            continue
+
+        citation = entree["citation"]
+
+        texte_jnd = entree["texte_jnd"].strip()
+
+        #
+        # Substitution prudente : exactement la
+        # citation détectée, guillemets français.
+        #
+        resultat = resultat.replace(
+            f"« {citation} »",
+            f"« {texte_jnd} »",
+            1
+        )
+
+        resultat = resultat.replace(
+            f"«{citation}»",
+            f"« {texte_jnd} »",
+            1
+        )
+
+    return resultat
 
 
 #

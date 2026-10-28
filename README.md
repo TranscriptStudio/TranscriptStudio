@@ -241,6 +241,26 @@ Vérifier ensuite depuis PowerShell :
 
 Le code de Transcript Studio recherche l’exécutable d’abord dans `tools/ffmpeg/windows/`, puis à cet emplacement, avant de se replier sur le chemin configuré dans les paramètres et enfin sur le `PATH` système.
 
+#### Installation de la Bible JND (sources uniquement, facultative)
+
+La **Bible JND (et JND révisée) au format OSIS XML** est une ressource facultative utilisée par le contrôle qualité des références et des citations (version 2) : extrait de vérification d’une référence complétée, comparaison des citations au texte biblique, alignement à la demande.
+
+Le fichier OSIS n’est pas fourni dans ce dépôt (volume). Télécharger la Bible JND au format OSIS XML depuis un dépôt libre (par exemple les modules OSIS de CrossWire) :
+
+```text
+https://www.crosswire.org/sword/modules/ModDisp.jsp?modType=Bibles
+```
+
+(chercher la JND ou la JND révisée, format OSIS)
+
+Après téléchargement, renommer le fichier si nécessaire et le copier dans :
+
+```text
+resources/bible/JND.osis.xml
+```
+
+Sans ce fichier, l’application fonctionne normalement ; le contrôle qualité des références reste local (extraction et comparaison source ↔ résultat) mais ne peut afficher ni extrait JND, ni proposer l’alignement des citations.
+
 ## Configuration ElevenLabs
 
 Transcript Studio utilise l’API ElevenLabs Speech-to-Text pour produire les transcriptions.

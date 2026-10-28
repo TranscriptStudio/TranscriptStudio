@@ -1346,7 +1346,50 @@ La campagne est terminee lorsque :
 - 277 tests verts au total : §15-18 couverts dans
       tests/unit/test_p16bis_serie3.py (16 tests).
 
+## P18 — JND locale, validation des références & export
+      (feuille de route §5.2, §5.4, §6, §7)
+
+- [x] P18.1 Ressource OSIS XML (services/jnd.py) : chargeur avec
+      espace de noms OSIS (notes exclues du texte), table des 66
+      livres français (noms + abréviations, insensible à la casse
+      et aux accents), parsing des références du texte libre
+      (« Luc 15.11-32 », « Jn 3:16 », « genèse 2 verset 4 à 6 »,
+      « Ps 23 », « 1 Samuel 3 »…), normalisation canonique, lookup
+      par référence (ponctuelle, plage, chapitre entier),
+      recherche par expression ; fichier non distribué
+      (resources/bible/JND.osis.xml — instructions README et
+      LISEZ-MOI, BibleAbsente = erreur claire sans la ressource).
+- [x] P18.2 Contrôle qualité des références et citations :
+      références complétées (nouveau passage OU numéros de versets
+      complétés) = SUGGESTION avec extrait JND ; références de la
+      source absentes du résultat = alerte discrète ; citations
+      entre guillemets associées à une référence proche = exactes
+      ou s'écartant du texte JND (paraphrase signalée) ;
+      « Aligner les citations sur la JND… » au menu de la pastille
+      (à la demande, jamais automatique = édition ordinaire, une
+      nouvelle version à la sauvegarde) ; le contrôle reste local
+      et gratuit sans la Bible (parsing seul).
+- [x] P18.3 Export de l'ouvrage (services/export_ouvrage.py +
+      bouton « Exporter l'ouvrage… » de la page Étude) :
+      assemblage des textes validés dans l'ordre de l'étude
+      (résumé validé en tête de section si souhaité, puis
+      reformulations validées dans l'ordre d'ouvrage, réunions
+      sans texte validé exclues) ; DOCX sobre (python-docx,
+      guillemets “...”, pas de gras dans le corps, titres de
+      réunion optionnels) et TXT simple ; options
+      (résumés/titres/format) puis message de fin avec ouverture
+      du fichier ou du dossier (flux P13).
+- [ ] P18.4 Pré-correction légère : NON RÉALISÉ (optionnel dans
+      la feuille de route — arbitrage atelier bienvenu ; le
+      dictionnaire biblique attendu s'appuierait sur services/jnd).
+- 23 tests (test_p18.py) : chargeur OSIS avec espace de noms et
+      exclusion des notes, parsing des variantes françaises,
+      lookup plages/chapitres, recherche, suggestions avec
+      extrait, complétion de versets signalée, références perdues,
+      citation exacte vs écart, alignement à la demande, assemblage
+      selon l'ordre d'ouvrage, options, DOCX relu (ordre, pas de
+      gras, guillemets “...”), TXT ; 309 tests verts au total.
+
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 
-- P18 JND locale, validation des references, export ouvrage.
 - P19/P20 (v2.1) Page Ouvrage et edition avancee.

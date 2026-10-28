@@ -15,6 +15,9 @@ joignables uniquement).
 from pathlib import Path
 
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -26,7 +29,15 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PySide6.QtCore import Qt, QObject, QThread, Signal, Slot
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import (
+    Qt,
+    QObject,
+    QThread,
+    QUrl,
+    Signal,
+    Slot,
+)
 
 from services.etude_io import (
     EtudeError,
@@ -411,6 +422,27 @@ class EtudeWindow(QWidget):
         )
         boutons_synthese.addWidget(
             self.synthese_statut_label
+        )
+
+        #
+        # Export de l'ouvrage (P18.3) : DOCX (ou TXT)
+        # assemblé des textes validés.
+        #
+        self.exporter_ouvrage_button = QPushButton(
+            "📤 Exporter l'ouvrage…"
+        )
+        self.exporter_ouvrage_button.setToolTip(
+            "Assembler les textes validés (résumés en "
+            "tête de section, reformulations dans "
+            "l'ordre d'ouvrage) et exporter en "
+            "document Word ou texte"
+        )
+        self.exporter_ouvrage_button.clicked.connect(
+            self.exporter_ouvrage
+        )
+
+        boutons_synthese.addWidget(
+            self.exporter_ouvrage_button
         )
         boutons_synthese.addStretch()
 
@@ -985,6 +1017,187 @@ class EtudeWindow(QWidget):
                 + "\n".join(lignes[:20])
             )
         )
+
+    #
+    # Export de l'ouvrage (P18.3).
+    #
+
+    def exporter_ouvrage(self):
+        """
+        « Exporter l'ouvrage… » : assemble les
+        textes validés (résumés en tête de section
+        si souhaité, reformulations dans l'ordre
+        d'ouvrage) et exporte en DOCX (ou TXT).
+        Message de fin avec ouverture du fichier ou
+        du dossier — même flux que l'export v1 (P13).
+        """
+
+        import re as _re
+
+        from services.export_ouvrage import (
+            assembler_ouvrage,
+            exporter_docx,
+            exporter_txt,
+        )
+
+        #
+        # Rien à exporter : au moins un texte validé
+        # est nécessaire (l'ordre d'ouvrage exige un
+        # découpage ; une réunion sans segmentation
+        # est simplement ignorée).
+        #
+        apercu = assembler_ouvrage(
+            self.etude,
+            inclure_resumes=True,
+            en_tetes_reunions=True
+        )
+
+        if not apercu["reunions"]:
+
+            QMessageBox.information(
+                self,
+                "Rien à exporter",
+                (
+                    "Aucun texte validé dans l'étude : "
+                    "validez des reformulations (ou un "
+                    "résumé) avant d'exporter l'ouvrage."
+                )
+            )
+
+            return
+
+        #
+        # Options d'assemblage.
+        #
+        dialogue = QDialog(self)
+        dialogue.setWindowTitle("Exporter l'ouvrage")
+
+        options = QVBoxLayout(dialogue)
+
+        resumes_check = QCheckBox(
+            "Inclure les résumés validés "
+            "en tête de section"
+        )
+        resumes_check.setChecked(True)
+
+        tetes_check = QCheckBox(
+            "Titres de réunion"
+        )
+        tetes_check.setChecked(True)
+
+        options.addWidget(resumes_check)
+        options.addWidget(tetes_check)
+
+        boutons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+
+        boutons.accepted.connect(dialogue.accept)
+        boutons.rejected.connect(dialogue.reject)
+
+        options.addWidget(boutons)
+
+        if dialogue.exec() != (
+            QDialog.DialogCode.Accepted
+        ):
+            return
+
+        #
+        # Fichier de destination.
+        #
+        nom_defaut = _re.sub(
+            r"[^\w\- ]",
+            "",
+            apercu["titre"]
+        ).strip() or "ouvrage"
+
+        chemin, filtre = QFileDialog.getSaveFileName(
+            self,
+            "Exporter l'ouvrage",
+            str(
+                self.etude.dossier
+                / f"{nom_defaut}.docx"
+            ),
+            "Document Word (*.docx);;"
+            "Texte (*.txt)"
+        )
+
+        if not chemin:
+            return
+
+        ouvrage = assembler_ouvrage(
+            self.etude,
+            inclure_resumes=(
+                resumes_check.isChecked()
+            ),
+            en_tetes_reunions=(
+                tetes_check.isChecked()
+            )
+        )
+
+        try:
+
+            if filtre.startswith("Document"):
+                chemin = exporter_docx(
+                    ouvrage,
+                    chemin
+                )
+            else:
+                chemin = exporter_txt(
+                    ouvrage,
+                    chemin
+                )
+
+        except Exception as e:
+
+            QMessageBox.critical(
+                self,
+                "Export impossible",
+                str(e)
+            )
+
+            return
+
+        #
+        # Message de fin (flux P13).
+        #
+        message = QMessageBox(self)
+        message.setWindowTitle("Ouvrage exporté")
+        message.setText(
+            f"L'ouvrage a été exporté :\n\n{chemin}"
+        )
+
+        open_file_button = message.addButton(
+            "Ouvrir le fichier",
+            QMessageBox.ButtonRole.AcceptRole
+        )
+
+        open_folder_button = message.addButton(
+            "Ouvrir le dossier",
+            QMessageBox.ButtonRole.AcceptRole
+        )
+
+        message.addButton(
+            "Fermer",
+            QMessageBox.ButtonRole.RejectRole
+        )
+
+        message.exec()
+
+        clicked = message.clickedButton()
+
+        if clicked is open_file_button:
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(str(chemin))
+            )
+
+        elif clicked is open_folder_button:
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(
+                    str(Path(chemin).parent)
+                )
+            )
 
     def retour_accueil(self):
         """

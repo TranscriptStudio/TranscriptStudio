@@ -1,10 +1,9 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-28 (P17 vérifié
-> intégré après la refonte P16-bis : fumées
-> d'intégration du déclencheur synthèse, de la
-> fenêtre Résumé et du rapport Récurrences ;
-> 286 tests verts)
+> **Dernière mise à jour** : 2026-10-28 (P18 livré :
+> JND locale OSIS, contrôle qualité des références
+> et citations avec alignement à la demande, export
+> DOCX/TXT de l'ouvrage ; 309 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -38,10 +37,14 @@
   Reformulation + page Log, P16.3 via moteur P15.3, P16.4 contrôle qualité
   local) — spec UI_REFORMULATION_V2 ; 188 tests verts.
 - **P17 : LIVRÉ** (P17.1 bloc Résumé, P17.2 synthèse d'étude + cases de
-  contexte, P17.3 récurrences entre réunions) — 228 tests verts.
+  contexte, P17.3 récurrences entre réunions) — vérifié intégré
+  après P16-bis (3 fumées test_p17_integration.py).
+- **P18 : LIVRÉ** (P18.1 JND OSIS locale, P18.2 contrôle références/
+  citations + alignement, P18.3 export DOCX/TXT de l'ouvrage ;
+  P18.4 pré-correction NON réalisée — optionnel) — 309 tests verts.
 - **P16-bis : LIVRÉ** (correctifs de relecture UI, séries 1 à 3 +
   terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
-  sur UI_REFORMULATION_V2 pour ses points) — 286 tests verts.
+  sur UI_REFORMULATION_V2 pour ses points).
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -1130,20 +1133,119 @@ rapport. **Reste la recette humaine de P17** (clé
 API réelle + jugement de David — checklist en fin
 de session P17 ci-dessous) ; P18 ensuite.
 
+## SESSION 2026-10-28 (P18) — JND LOCALE, RÉFÉRENCES & EXPORT : LIVRÉ
+
+Rituel de synchro : dossier Drive inchangé depuis le skill v18
+(INDEX_SPECS et MODIFS 27d déjà recopiés ; PROJECT_STATE distant
+= mes propres montées, aucune annotation atelier) — la spec P18
+est la feuille de route §5.2, §5.4, §6, §7.
+
+### P18.1 — Ressource JND (services/jnd.py)
+
+- Chargeur **OSIS XML avec espace de noms** (tags locaux), texte
+  des versets hors `<note>` ; une entrée par verset, indexée
+  livre/chapitre/verset (formats osisID « Gen 1.1 » et « Gen.1.1 »).
+- **Table des 66 livres** français (noms canoniques + abréviations
+  courantes, Jn/Lc/Ps/1S/És...), correspondance **insensible à la
+  casse et aux accents**.
+- **Parsing des références du texte libre** : « Luc 15.11-32 »,
+  « Jn 3:16 », « genèse 2 verset 4 à 6 », « Ps 23 », « 1 Samuel 3 »,
+  plages avec -/à/et ; un nom de livre sans chapitre n'est PAS une
+  référence (pas de faux positifs « job », « actes ») ;
+  normalisation canonique « Genèse 2.4-6 ».
+- Lookup ponctuel / plage / chapitre entier, recherche par
+  expression. Fichier **non distribué** :
+  `resources/bible/JND.osis.xml` (LISEZ-MOI + section README
+  « Installation de la Bible JND », comme FFmpeg) ; `BibleAbsente`
+  = erreur claire, l'app fonctionne sans.
+
+### P18.2 — Contrôle qualité références et citations (§5.2/§5.4)
+
+- Références **complétées** par le résultat = SUGGESTION de
+  validation avec **extrait JND** : nouveau passage, ou
+  **complétion de numéros de versets** (« Luc 15 » -> « Luc 15.11 » :
+  les numéros ont été ajoutés, la vérification se justifie) ;
+  jamais une alerte (la complétion est voulue).
+- Références de la source **absentes du résultat** = alerte
+  discrète (comptées dans nb_alertes).
+- **Citations** entre guillemets associées à une référence proche
+  (~160 caractères) : « exacte » ou « écart » (paraphrase) selon la
+  comparaison normalisée au texte JND.
+- **« Aligner les citations sur la JND… »** au menu de la pastille
+  (bloc non validé) : remplace les citations en écart par le texte
+  JND — À LA DEMANDE, jamais automatique ; c'est une édition
+  ordinaire (une nouvelle version est créée à la sauvegarde,
+  indicateur non enregistré).
+- Sans la Bible installée : parsing et comparaisons locales
+  toujours actifs (gratuits), sans extraits ; message pointer vers
+  le README.
+- L'indicateur de la page Reformulation (survol de la pastille)
+  affiche désormais longueur + interdits + références.
+
+### P18.3 — Export de l'ouvrage (services/export_ouvrage.py)
+
+- **Assemblage** : par réunion dans l'ordre de l'étude — résumé
+  validé en tête de section (si coché), puis reformulations
+  validées dans l'**ordre d'ouvrage** ; réunions sans texte validé
+  exclues ; réunion sans découpage ignorée proprement.
+- **DOCX** (python-docx, déjà en dépendance) : styles sobres,
+  guillemets “...” (les « » du texte validé sont convertis),
+  **pas de gras dans le corps** (les titres sont des styles de
+  structure), titres de réunion optionnels (titre 1 de la réunion
+  sinon son nom).
+- **TXT** simple en complément (choix du format dans le dialogue
+  de fichier).
+- Bouton **« Exporter l'ouvrage… »** sur la page Étude : options
+  (résumés, titres), fichier (dossier de l'étude par défaut),
+  message de fin avec **Ouvrir le fichier / Ouvrir le dossier**
+  (flux P13 réutilisé).
+
+### Décisions / écarts de la session (P18)
+
+1. **P18.4 pré-correction NON réalisée** : optionnelle dans la
+   feuille de route ; le dictionnaire biblique attendu
+   s'appuierait sur services/jnd — arbitrage atelier bienvenu.
+2. **Manuel utilisateur PDF non régénéré** (report de la section
+   Études déjà acté ; la mise à jour du manuel arrive avec la
+   livraison visible P19/P20) — README couvre la ressource JND.
+3. La complétion de **numéros de versets** est signalée comme
+   suggestion (pas seulement les références entièrement
+   nouvelles) : les numéros ont été inventés par le LLM, la
+   vérification JND se justifie ; à faire valider par l'atelier.
+4. `resources/bible/` + LISEZ-MOI ajoutés au dépôt (le fichier
+   OSIS lui-même reste non suivi, hors périmètre Git comme FFmpeg).
+
+### Bilan tests : **309 verts** (286 + 23)
+
+`tests/unit/test_p18.py` (23) : Bible absente (erreur claire),
+chargeur avec espace de noms + exclusion des notes, lookup
+ponctuel/plage/chapitre, référence introuvable, parsing des
+variantes françaises + pas de faux positifs, normalisation,
+recherche, suggestion avec extrait, complétion de versets
+signalée, référence perdue, contrôle sans Bible (parsing local,
+message README), controles_bloc complet, citation exacte vs
+écart (paraphrase), alignement à la demande (paraphrase remplacée
+une fois, citation exacte intacte), assemblage selon l'ordre
+d'ouvrage + exclusion d'une réunion vide + options, DOCX relu
+(ordre résumé→bloc 2→bloc 1, pas de gras dans le corps), TXT
+(ordre), guillemets “...” dans le DOCX.
+
 ---
 
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 (séries 1 à 3), P16-bis et P17 sont LIVRÉS** (286
+**P16 (séries 1 à 3), P16-bis, P17 et P18 sont LIVRÉS** (309
 tests verts). Restent :
 
-1. **Recette P16/P17 par David** (checklist en fin de session P17
-   ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé, jugement
-   humain sur la fidélité, les jonctions de méditation et la
-   « mémoire » de la 2ᵉ réunion (synthèse).
-2. **P18** — JND locale (OSIS XML), validation des références et des
-   citations (§5.2/§5.4), export DOCX de l'ouvrage, éventuelle
-   pré-correction.
+1. **Recette P16/P17/P18 par David** (checklist en fin de session
+   P17 ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé,
+   jugement humain sur la fidélité, les jonctions de méditation et
+   la « mémoire » de la 2ᵉ réunion (synthèse) ; P18 : références
+   complétées vérifiables en un clic (installer la Bible JND, voir
+   README), export DOCX de l'étude relu sous Word.
+2. **P19/P20 (v2.1)** — page Ouvrage de référence et édition
+   avancée (fusion de pensées, mobilité des paragraphes,
+   sous-titres proposés par IA, export structuré).
 
 ---
 

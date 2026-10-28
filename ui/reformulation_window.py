@@ -1559,6 +1559,10 @@ class ReformulationWindow(QWidget):
             "Reformuler le texte sélectionné…"
         )
 
+        action_aligner = menu.addAction(
+            "Aligner les citations sur la JND…"
+        )
+
         menu.addSeparator()
 
         action_valider = menu.addAction(
@@ -1581,6 +1585,7 @@ class ReformulationWindow(QWidget):
             action_retour.setVisible(False)
             action_reformuler.setVisible(False)
             action_selection.setVisible(False)
+            action_aligner.setVisible(False)
             action_valider.setVisible(False)
 
         else:
@@ -1601,6 +1606,7 @@ class ReformulationWindow(QWidget):
                 action_sauvegarder.setVisible(False)
                 action_reformuler.setVisible(False)
                 action_selection.setVisible(False)
+                action_aligner.setVisible(False)
 
         action = menu.exec(
             ligne.pastille.mapToGlobal(
@@ -1622,6 +1628,9 @@ class ReformulationWindow(QWidget):
 
         elif action == action_selection:
             self.reformuler_selection(fid)
+
+        elif action == action_aligner:
+            self.aligner_citations_jnd(fid)
 
         elif action == action_valider:
             self.valider_bloc(fid)
@@ -2359,6 +2368,14 @@ class ReformulationWindow(QWidget):
     #
 
     def afficher_controles(self, fid: int):
+        """
+        Contrôle qualité local du bloc (longueur,
+        interdits stylistiques, références et
+        citations P18.2) : indicateur discret, au
+        survol de la pastille — suggestions de
+        validation avec extrait JND, jamais de
+        modification automatique.
+        """
 
         ligne = self.lignes.get(fid)
 
@@ -2379,13 +2396,16 @@ class ReformulationWindow(QWidget):
         controles = controles_bloc(
             ligne.bloc.source,
             ligne.cellule_reformee.toPlainText(),
-            self.etude.parametres.controle_qualite
+            self.etude.parametres.controle_qualite,
+            bible=self._bible_jnd(),
         )
 
         message = (
             controles["longueur"]["message"]
             + "\n"
             + controles["message_interdits"]
+            + "\n"
+            + controles["message_references"]
         )
 
         QToolTip.showText(
@@ -2394,6 +2414,87 @@ class ReformulationWindow(QWidget):
             ),
             message
         )
+
+    def _bible_jnd(self):
+        """
+        Bible JND chargée en mémoire (None si la
+        ressource n'est pas installée — le contrôle
+        reste local et gratuit sans elle).
+        """
+
+        if hasattr(self, "_bible_jnd_cache"):
+            return self._bible_jnd_cache
+
+        self._bible_jnd_cache = None
+
+        try:
+            from services.jnd import charger_bible
+
+            self._bible_jnd_cache = charger_bible()
+        except Exception:
+            self._bible_jnd_cache = None
+
+        return self._bible_jnd_cache
+
+    def aligner_citations_jnd(self, fid: int):
+        """
+        §5.4 — option « aligner sur le texte JND »,
+        À LA DEMANDE (jamais automatique) : les
+        citations qui s'écartent du texte JND sont
+        remplacées par le texte JND. L'alignement est
+        une édition ordinaire : une nouvelle version
+        est créée à la sauvegarde.
+        """
+
+        ligne = self.lignes.get(fid)
+
+        if ligne is None:
+            return
+
+        bible = self._bible_jnd()
+
+        if bible is None:
+
+            QMessageBox.information(
+                self,
+                "Bible JND absente",
+                (
+                    "La Bible JND (OSIS XML) n'est pas "
+                    "installée : l'alignement des "
+                    "citations est impossible.\n\n"
+                    "Placez le fichier JND.osis.xml "
+                    "dans resources/bible/ (voir README)."
+                )
+            )
+
+            return
+
+        from services.controle_qualite import (
+            aligner_citations
+        )
+
+        texte = ligne.cellule_reformee.toPlainText()
+
+        aligne = aligner_citations(texte, bible)
+
+        if aligne == texte:
+
+            QMessageBox.information(
+                self,
+                "Aucun écart",
+                (
+                    "Aucune citation à aligner : les "
+                    "citations à références suivent "
+                    "déjà le texte JND (ou n'ont pas "
+                    "de référence vérifiable)."
+                )
+            )
+
+            return
+
+        ligne.cellule_reformee.setPlainText(aligne)
+
+        self.sur_texte_change(fid)
 
     #
     # ==================================================

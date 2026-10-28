@@ -1,0 +1,11 @@
+Placez ici la Bible JND (OSIS XML), renommée :
+
+    JND.osis.xml
+
+Ce fichier n'est pas distribué avec le dépôt (volume).
+Téléchargement : modules OSIS de CrossWire (JND / JND révisée).
+Instructions complètes : README.md, section « Installation
+de la Bible JND ».
+
+Sans ce fichier, le contrôle qualité des références reste
+local (pas d'extrait JND, pas d'alignement des citations).
