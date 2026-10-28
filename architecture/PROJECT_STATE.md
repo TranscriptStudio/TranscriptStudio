@@ -1,11 +1,10 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-28 (retour relecture :
-> credentials dans credentials.json, statut de test
-> persistant par fournisseur (invalidé si la clé
-> change), accueil affiche l'état du service de
-> reformulation avec les fournisseurs configurés ;
-> 283 tests verts)
+> **Dernière mise à jour** : 2026-10-28 (P17 vérifié
+> intégré après la refonte P16-bis : fumées
+> d'intégration du déclencheur synthèse, de la
+> fenêtre Résumé et du rapport Récurrences ;
+> 286 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -42,7 +41,7 @@
   contexte, P17.3 récurrences entre réunions) — 228 tests verts.
 - **P16-bis : LIVRÉ** (correctifs de relecture UI, séries 1 à 3 +
   terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
-  sur UI_REFORMULATION_V2 pour ses points) — 283 tests verts.
+  sur UI_REFORMULATION_V2 pour ses points) — 286 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -1113,11 +1112,29 @@ doublon, défauts non corrompus après un parcours complet,
 identifiant en doublon refusé avec message, fichier
 stocké invalide → repli sur les défauts embarqués.
 
+### P17 vérifié intégré après P16-bis (2026-10-28)
+
+P17 était livré AVANT la refonte P16-bis (page
+Reformulation réécrite, assurer_decoupage extrait
+en fonction partagée, navigation à pile unique) :
+3 fumées d'intégration nouvelles
+(`tests/unit/test_p17_integration.py`) prouvent que
+le câblage tient — chaque validation de bloc
+appelle le déclencheur de synthèse (validation_bloc,
+contrat §9) et la condition « réunion entièrement
+validée » ne devient vraie qu'au dernier bloc ;
+« Résumé… » ouvre la fenêtre de LA réunion
+sélectionnée avec segmentation assurée par la
+fonction partagée ; « Récurrences… » produit son
+rapport. **Reste la recette humaine de P17** (clé
+API réelle + jugement de David — checklist en fin
+de session P17 ci-dessous) ; P18 ensuite.
+
 ---
 
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 (séries 1 à 3), P16-bis et P17 sont LIVRÉS** (283
+**P16 (séries 1 à 3), P16-bis et P17 sont LIVRÉS** (286
 tests verts). Restent :
 
 1. **Recette P16/P17 par David** (checklist en fin de session P17
