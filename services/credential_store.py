@@ -24,6 +24,17 @@ from typing import Optional
 
 CLE_ELEVENLABS = "elevenlabs_api_key"
 
+#
+# P15 : une clé par fournisseur LLM, stockée sous
+# le nom llm_cle_<id> (identifiant de fournisseur
+# du catalogue, stable). P16-bis 3ᵉ série
+# (spec correctifs §17) : ces clés doivent être
+# RECHARGÉES au démarrage — c'est la cause de la
+# régression « clé à ressaisir à chaque fois ».
+#
+
+PREFIXE_CLE_LLM = "llm_cle_"
+
 
 class CredentialStore:
     """
@@ -53,9 +64,25 @@ class CredentialStore:
                 with open(self.settings_file, "r", encoding="utf-8") as f:
                     settings = json.load(f)
                     # Récupère la clé API (ancien format ou nouveau)
-                    self._credentials[CLE_ELEVENLABS] = settings.get(
-                        CLE_ELEVENLABS, ""
-                    )
+                    self._credentials = {
+                        CLE_ELEVENLABS: settings.get(
+                            CLE_ELEVENLABS, ""
+                        )
+                    }
+                    #
+                    # P16-bis 3ᵉ série (spec correctifs
+                    # §17) : les clés LLM persistées
+                    # (llm_cle_<fournisseur>) sont
+                    # rechargées — sans cela elles étaient
+                    # écrites sur disque mais perdues à
+                    # chaque redémarrage.
+                    #
+                    for nom, valeur in settings.items():
+                        if (
+                            nom.startswith(PREFIXE_CLE_LLM)
+                            and isinstance(valeur, str)
+                        ):
+                            self._credentials[nom] = valeur
             except (json.JSONDecodeError, IOError):
                 # Si le fichier est corrompu, on part de zéro
                 self._credentials = {CLE_ELEVENLABS: ""}

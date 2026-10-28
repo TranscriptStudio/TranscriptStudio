@@ -79,6 +79,18 @@ class CatalogueLLMDialog(QDialog):
         self.fournisseur_courant = None
         self.modele_courant = None
 
+        #
+        # P16-bis 3ᵉ série (spec correctifs §18) :
+        # l'éditeur est strictement lié à la
+        # sélection — pendant les rechargements des
+        # champs (changement de fournisseur ou de
+        # modèle), les signaux des champs sont
+        # ignorés : aucune valeur transitoire ne
+        # s'écrit dans un objet (c'est la cause des
+        # mélanges et doublons constatés).
+        #
+        self._remplissage = False
+
         self.build_ui()
 
         self.remplir_fournisseurs()
@@ -397,23 +409,42 @@ class CatalogueLLMDialog(QDialog):
         courant,
         _precedent
     ):
-
-        self.appliquer_champs_fournisseur()
-        self.appliquer_champs_modele()
+        """
+        Changement de fournisseur (spec correctifs
+        §18.1) : la liste des modèles est rechargée
+        avec UNIQUEMENT les modèles du fournisseur
+        sélectionné, et TOUT modèle est
+        désélectionné — le panneau de droite
+        revient à l'état par défaut tant qu'aucun
+        modèle de CE fournisseur n'est choisi.
+        """
 
         if courant is None:
             self.fournisseur_courant = None
+            self.modele_courant = None
+            self.vider_champs_fournisseur()
+            self.vider_champs_modele()
             return
 
         fournisseur_id = courant.data(
             Qt.ItemDataRole.UserRole
         )
 
-        self.fournisseur_courant = (
+        fournisseur = (
             self.catalogue.chercher_fournisseur(
                 fournisseur_id
             )
         )
+
+        if fournisseur is None:
+            self.fournisseur_courant = None
+            self.modele_courant = None
+            self.vider_champs_fournisseur()
+            self.vider_champs_modele()
+            return
+
+        self.fournisseur_courant = fournisseur
+        self.modele_courant = None
 
         self.remplir_champs_fournisseur()
         self.remplir_modeles()
@@ -426,25 +457,42 @@ class CatalogueLLMDialog(QDialog):
             self.vider_champs_fournisseur()
             return
 
-        self.nom_edit.setText(fournisseur.nom)
-        self.famille_combo.setCurrentText(
-            fournisseur.famille_api
-        )
-        self.base_url_edit.setText(fournisseur.base_url)
+        self._remplissage = True
 
-        index = self.endpoint_combo.findData(
-            fournisseur.endpoint_infos_compte
-        )
+        try:
+            self.nom_edit.setText(fournisseur.nom)
+            self.famille_combo.setCurrentText(
+                fournisseur.famille_api
+            )
+            self.base_url_edit.setText(
+                fournisseur.base_url
+            )
 
-        if index >= 0:
-            self.endpoint_combo.setCurrentIndex(index)
+            index = self.endpoint_combo.findData(
+                fournisseur.endpoint_infos_compte
+            )
+
+            if index >= 0:
+                self.endpoint_combo.setCurrentIndex(
+                    index
+                )
+        finally:
+            self._remplissage = False
 
     def vider_champs_fournisseur(self):
 
-        self.nom_edit.setText("")
-        self.base_url_edit.setText("")
+        self._remplissage = True
+
+        try:
+            self.nom_edit.setText("")
+            self.base_url_edit.setText("")
+        finally:
+            self._remplissage = False
 
     def on_champ_fournisseur_change(self, *args):
+
+        if self._remplissage:
+            return
 
         fournisseur = self.fournisseur_courant
 
@@ -549,6 +597,15 @@ class CatalogueLLMDialog(QDialog):
     #
 
     def remplir_modeles(self):
+        """
+        Liste des modèles du fournisseur COURANT
+        (spec correctifs §18.1) — jamais ceux d'un
+        autre fournisseur. Après un changement de
+        fournisseur, aucun modèle n'est
+        sélectionné : le panneau de droite reste à
+        l'état par défaut tant que l'utilisateur
+        n'en choisit pas un.
+        """
 
         self.liste_modeles.blockSignals(True)
         self.liste_modeles.clear()
@@ -569,36 +626,46 @@ class CatalogueLLMDialog(QDialog):
 
         self.liste_modeles.blockSignals(False)
 
-        if fournisseur and fournisseur.modeles:
-            self.liste_modeles.setCurrentRow(0)
-        else:
-            self.modele_courant = None
-            self.vider_champs_modele()
+        self.modele_courant = None
+        self.vider_champs_modele()
 
     def on_modele_selectionne(
         self,
         courant,
         _precedent
     ):
-
-        self.appliquer_champs_modele()
-
-        if courant is None:
-            self.modele_courant = None
-            return
+        """
+        Le panneau d'édition reflète STRICTEMENT le
+        modèle sélectionné dans la liste du
+        fournisseur courant (spec correctifs
+        §18.2) — jamais un modèle d'un autre
+        fournisseur ni un index orphelin.
+        """
 
         fournisseur = self.fournisseur_courant
 
-        if fournisseur is None:
+        if (
+            courant is None
+            or fournisseur is None
+        ):
+            self.modele_courant = None
+            self.vider_champs_modele()
             return
 
         modele_id = courant.data(
             Qt.ItemDataRole.UserRole
         )
 
-        self.modele_courant = (
-            fournisseur.chercher_modele(modele_id)
+        modele = fournisseur.chercher_modele(
+            modele_id
         )
+
+        if modele is None:
+            self.modele_courant = None
+            self.vider_champs_modele()
+            return
+
+        self.modele_courant = modele
 
         self.remplir_champs_modele()
 
@@ -610,44 +677,101 @@ class CatalogueLLMDialog(QDialog):
             self.vider_champs_modele()
             return
 
-        self.modele_id_edit.setText(modele.id)
-        self.modele_nom_edit.setText(modele.nom_affiche)
-        self.prix_in_spin.setValue(
-            float(modele.prix.get("in_par_million", 0.0))
-        )
-        self.prix_out_spin.setValue(
-            float(modele.prix.get("out_par_million", 0.0))
-        )
-        self.temperature_check.setChecked(
-            bool(modele.capacites.get("temperature"))
-        )
+        self._remplissage = True
 
-        contexte = modele.capacites.get(
-            "max_contexte_tokens",
-            0
-        )
+        try:
+            self.modele_id_edit.setText(modele.id)
+            self.modele_nom_edit.setText(modele.nom_affiche)
+            self.prix_in_spin.setValue(
+                float(modele.prix.get("in_par_million", 0.0))
+            )
+            self.prix_out_spin.setValue(
+                float(modele.prix.get("out_par_million", 0.0))
+            )
+            self.temperature_check.setChecked(
+                bool(modele.capacites.get("temperature"))
+            )
 
-        self.contexte_spin.setValue(
-            int(contexte) if contexte else 0
-        )
+            contexte = modele.capacites.get(
+                "max_contexte_tokens",
+                0
+            )
+
+            self.contexte_spin.setValue(
+                int(contexte) if contexte else 0
+            )
+        finally:
+            self._remplissage = False
 
     def vider_champs_modele(self):
 
-        self.modele_id_edit.setText("")
-        self.modele_nom_edit.setText("")
-        self.prix_in_spin.setValue(0.0)
-        self.prix_out_spin.setValue(0.0)
-        self.temperature_check.setChecked(False)
-        self.contexte_spin.setValue(0)
+        self._remplissage = True
+
+        try:
+            self.modele_id_edit.setText("")
+            self.modele_nom_edit.setText("")
+            self.prix_in_spin.setValue(0.0)
+            self.prix_out_spin.setValue(0.0)
+            self.temperature_check.setChecked(False)
+            self.contexte_spin.setValue(0)
+        finally:
+            self._remplissage = False
 
     def on_champ_modele_change(self, *args):
+        """
+        Édition d'un modèle du fournisseur courant.
+        Un identifiant en doublon au sein du
+        fournisseur est refusé avec message (spec
+        correctifs §18.3) — le champ revient à
+        l'identifiant précédent.
+        """
+
+        if self._remplissage:
+            return
 
         modele = self.modele_courant
 
         if modele is None:
             return
 
-        modele.id = self.modele_id_edit.text()
+        fournisseur = self.fournisseur_courant
+
+        identifiant = self.modele_id_edit.text().strip()
+
+        if fournisseur is not None and identifiant:
+
+            doublon = any(
+                autre.id == identifiant
+                for autre in fournisseur.modeles
+                if autre is not modele
+            )
+
+            if doublon:
+
+                QMessageBox.warning(
+                    self,
+                    "Identifiant déjà utilisé",
+                    (
+                        f"Le fournisseur "
+                        f"{fournisseur.nom} possède déjà "
+                        f"un modèle « {identifiant} ». "
+                        "Les identifiants sont uniques "
+                        "au sein d'un fournisseur."
+                    )
+                )
+
+                self._remplissage = True
+
+                try:
+                    self.modele_id_edit.setText(
+                        modele.id
+                    )
+                finally:
+                    self._remplissage = False
+
+                return
+
+        modele.id = self.modele_id_edit.text().strip()
         modele.nom_affiche = (
             self.modele_nom_edit.text()
             or modele.id

@@ -1,10 +1,10 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-28 (P16-bis 2ᵉ série +
-> terminologie : synchro bidirectionnelle timeline ↔ blocs,
-> surlignage par thème, pistes jusqu'au bord droit, navigation
-> à pile unique, « Ouvrir depuis un dossier… », « réunion »
-> partout dans l'UI ; 261 tests verts)
+> **Dernière mise à jour** : 2026-10-28 (P16-bis 3ᵉ série :
+> lecteur audio sain au retour de page, aucune lecture
+> automatique au clic, clé LLM persistée avec parité
+> ElevenLabs, éditeur de catalogue lié à la sélection ;
+> 277 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -39,9 +39,9 @@
   local) — spec UI_REFORMULATION_V2 ; 188 tests verts.
 - **P17 : LIVRÉ** (P17.1 bloc Résumé, P17.2 synthèse d'étude + cases de
   contexte, P17.3 récurrences entre réunions) — 228 tests verts.
-- **P16-bis : LIVRÉ** (correctifs de relecture UI, 1ʳᵉ + 2ᵉ série +
-  terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27c.md prime
-  sur UI_REFORMULATION_V2 pour ses points) — 261 tests verts.
+- **P16-bis : LIVRÉ** (correctifs de relecture UI, séries 1 à 3 +
+  terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
+  sur UI_REFORMULATION_V2 pour ses points) — 277 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -975,9 +975,98 @@ valide ouverte et mémorisée.
 
 ---
 
+## SESSION 2026-10-28 (P16-bis, 3ᵉ série) : LIVRÉ
+
+Rituel de synchro (skill v18) : INDEX_SPECS.md et
+UI_REFORMULATION_MODIFS_V2_2026-10-27d.md recopiés dans
+`architecture/spec_v2/` (§1-14 inchangés par rapport à la
+version c — vérifié par diff ; seule la 3ᵉ série §15-18 est
+nouvelle).
+
+### Correctifs appliqués (spec MODIFS §15-§18)
+
+1. **Lecteur audio sain au retour (§15)** : quitter la page
+   Reformulation (Étude/Accueil, pile unique) **arrête la
+   lecture et libère l'audio** (`_quitter_page` : stop +
+   unload + bouton réinitialisé, dernière position
+   conservée) ; le retour réinitialise un lecteur **jouable
+   immédiatement** (`sur_navigation_entrante`, appelé par
+   AppWindow à l'activation de la page : rechargement du
+   fichier, curseur restauré à la dernière position) ;
+   erreur du périphérique **signalée dans la barre d'état**
+   (nouveau signal `PlaybackManager.erreur_audio`, jamais
+   d'échec silencieux) — cause de l'état zombie : le lecteur
+   était déchargé en quittant la page mais jamais rechargé
+   au retour.
+2. **Aucune lecture automatique au clic (§16)** : le clic
+   (bloc, cellule locuteurs, pastille, timeline) **positionne
+   et sélectionne sans jamais jouer** — `positionner_audio`
+   ne lance plus la lecture (le lancement résiduel
+   `jouer_audio_si_charge` est retiré du chemin de clic,
+   méthode réduite à un garde-fou inactif) ; **seul le bouton
+   lecture/pause joue**.
+3. **Clé API LLM persistée (§17)** : cause racine trouvée —
+   `CredentialStore._load_credentials` ne rechargeait que la
+   clé ElevenLabs : les clés `llm_cle_<fournisseur>`
+   étaient écrites sur disque mais **perdues à chaque
+   redémarrage**. Corrigé : toutes les clés `llm_cle_*` sont
+   rechargées. L'UX était déjà à parité ElevenLabs (champ
+   prérempli en mode Password, « Tester la clé » sans
+   ressaisie, vider le champ = effacer) — vérifiée par test.
+4. **Éditeur de catalogue lié à la sélection (§18)** :
+   les incohérences constatées venaient d'écritures
+   transitoires pendant les rechargements (les champs
+   écrivent en direct dans les objets ; en changeant de
+   fournisseur, les valeurs de l'ancien fournisseur
+   s'écrivaient un instant dans le nouveau). Corrigé :
+   rechargements sous garde `_remplissage` (signaux
+   ignorés), **changement de fournisseur = désélection de
+   tout modèle** (panneau à l'état par défaut), panneau
+   d'édition strictement lié au modèle sélectionné du
+   fournisseur courant (id introuvable → panneau vidé),
+   **identifiant en doublon refusé avec message** au moment
+   de la frappe (retour à l'identifiant précédent), défauts
+   embarqués préremplis et « Réinitialiser » inchangé, et
+   **repli sur le catalogue embarqué si le fichier stocké
+   est invalide** (doublons d'une version antérieure —
+   fichier conservé, réparable par « Réinitialiser les
+   valeurs par défaut ») — sans ce repli, un catalogue
+   corrompu bloquait l'ouverture des réglages.
+
+### Décisions / écarts de la session (3ᵉ série)
+
+1. `SettingsDialog(settings=...)` accepte des réglages
+   injectables (même approche que les autres fenêtres —
+   les fumées n'écrivent jamais dans la config réelle).
+2. La clé masquée préremplie reste la clé réelle dans un
+   champ `Password` (même mécanique que l'onglet ElevenLabs
+   historique — parité stricte plutôt que placeholder).
+3. Le repli sur les défauts en cas de catalogue stocké
+   invalide ne répare pas le fichier automatiquement
+   (choix conservateur : l'utilisateur peut encore le
+   récupérer via « Réinitialiser », rien n'est écrasé).
+
+### Bilan tests : **277 verts** (261 + 16)
+
+`tests/unit/test_p16bis_serie3.py` (16) : arrêt/libération
+au quit + position conservée puis restaurée + erreur
+signalée + `sur_navigation_entrante` appelé par la pile au
+retour ; aucun chemin de clic ne joue (bloc, timeline,
+bloc timeline) + seul le bouton bascule ; clé LLM qui
+survit à un « redémarrage » (nouveau CredentialStore sur
+le même fichier) + champ masqué prérempli + vider =
+effacer ; catalogue — chaque fournisseur n'affiche que ses
+modèles, changement de fournisseur désélectionne, panneau
+= modèle du fournisseur courant, aucune liste sans
+doublon, défauts non corrompus après un parcours complet,
+identifiant en doublon refusé avec message, fichier
+stocké invalide → repli sur les défauts embarqués.
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 (1ʳᵉ + 2ᵉ série), P16-bis et P17 sont LIVRÉS** (261
+**P16 (séries 1 à 3), P16-bis et P17 sont LIVRÉS** (277
 tests verts). Restent :
 
 1. **Recette P16/P17 par David** (checklist en fin de session P17

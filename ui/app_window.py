@@ -143,6 +143,20 @@ class AppWindow(QMainWindow):
 
         self.pile.setCurrentWidget(page)
 
+        #
+        # P16-bis 3ᵉ série (spec correctifs §15.2) :
+        # la page activée réinitialise son état
+        # (lecteur audio jouable au retour, etc.).
+        #
+        entree = getattr(
+            page,
+            "sur_navigation_entrante",
+            None
+        )
+
+        if entree is not None:
+            entree()
+
         return page
 
     def page_active(self):

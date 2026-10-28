@@ -44,10 +44,19 @@ from ui.catalogue_llm_dialog import CatalogueLLMDialog
 
 class SettingsDialog(QDialog):
 
-    def __init__(self, parent=None, first_run=False):
+    def __init__(self, parent=None, first_run=False, settings=None):
         super().__init__(parent)
 
-        self.settings = SettingsManager()
+        #
+        # Réglages injectables (P16-bis 3ᵉ série :
+        # les tests isolent la configuration réelle
+        # de l'utilisateur).
+        #
+        self.settings = (
+            settings
+            if settings is not None
+            else SettingsManager()
+        )
         self._credential_store = CredentialStore(self.settings.app_folder / "settings.json")
         self._is_first_run = first_run
 

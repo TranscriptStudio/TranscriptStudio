@@ -449,7 +449,20 @@ def charger_catalogue(chemin=None) -> CatalogueLLM:
             f"Catalogue illisible ({chemin}) : {e}"
         )
 
-    valider_catalogue(catalogue)
+    #
+    # P16-bis 3ᵉ série (spec correctifs §18) : un
+    # fichier stocké invalide (doublons issus
+    # d'une version antérieure de l'éditeur, par
+    # exemple) ne bloque pas l'app — repli sur le
+    # catalogue embarqué, fichier conservé tel
+    # quel (réparable par « Réinitialiser les
+    # valeurs par défaut »).
+    #
+
+    try:
+        valider_catalogue(catalogue)
+    except CatalogueError:
+        return catalogue_par_defaut()
 
     defaut = catalogue_par_defaut()
 

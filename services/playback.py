@@ -14,6 +14,11 @@ class PlaybackManager(QObject):
     # état lecture / pause
     playing_changed = Signal(bool)
 
+    # erreur du périphérique audio (P16-bis 3ᵉ série,
+    # spec correctifs §15.3 : message clair plutôt
+    # qu'un échec silencieux)
+    erreur_audio = Signal(str)
+
     def __init__(self):
         super().__init__()
 
@@ -34,6 +39,10 @@ class PlaybackManager(QObject):
 
         self.player.playbackStateChanged.connect(
             self._on_state_changed
+        )
+
+        self.player.errorOccurred.connect(
+            self._on_erreur_audio
         )
 
     # -----------------------
@@ -145,6 +154,17 @@ class PlaybackManager(QObject):
 
         self.playing_changed.emit(
             playing
+        )
+
+    def _on_erreur_audio(self, _source, erreur, message):
+        """
+        Erreur du média ou du périphérique audio :
+        signalée, jamais silencieuse (spec correctifs
+        §15.3). Le message ne contient jamais de clé.
+        """
+
+        self.erreur_audio.emit(
+            message or str(erreur)
         )
 
     def jump_forward(self, seconds: float = 5):

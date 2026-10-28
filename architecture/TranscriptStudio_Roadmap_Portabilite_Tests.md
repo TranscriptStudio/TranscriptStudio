@@ -1320,6 +1320,32 @@ La campagne est terminee lorsque :
       tests/unit/test_p16bis_serie2.py (18 tests, dont contraste AA
       calculé WCAG dans les deux thèmes).
 
+## P16-bis, 3ᵉ série (spec :
+      UI_REFORMULATION_MODIFS_V2_2026-10-27d.md §15-§18)
+
+- [x] Lecteur audio sain au retour de page (§15) : quitter la page
+      arrête la lecture et libère l'audio (dernière position
+      conservée) ; le retour réinitialise un lecteur jouable
+      immédiatement (sur_navigation_entrante appelé par la pile,
+      curseur restauré) ; erreur du périphérique signalée dans la
+      barre d'état (signal PlaybackManager.erreur_audio).
+- [x] Aucune lecture automatique au clic (§16) : clic bloc /
+      locuteurs / pastille / timeline = positionnement et
+      sélection uniquement ; seul le bouton lecture/pause joue.
+- [x] Clé API LLM persistée (§17) : cause racine corrigée —
+      CredentialStore recharge les clés llm_cle_* (elles étaient
+      écrites mais perdues à chaque redémarrage) ; parité ElevenLabs
+      vérifiée (champ masqué prérempli, test sans ressaisie, vider =
+      effacer).
+- [x] Éditeur de catalogue lié à la sélection (§18) : rechargements
+      sous garde (plus d'écritures transitoires entre fournisseurs),
+      changement de fournisseur = désélection de tout modèle,
+      panneau strictement lié au modèle du fournisseur courant,
+      identifiant en doublon refusé avec message, défauts embarqués
+      préremplis, repli sur les défauts si fichier stocké invalide.
+- 277 tests verts au total : §15-18 couverts dans
+      tests/unit/test_p16bis_serie3.py (16 tests).
+
 ## Phases suivantes (voir spec_v2/FEUILLE_DE_ROUTE_V2.md)
 
 - P18 JND locale, validation des references, export ouvrage.

@@ -573,6 +573,14 @@ class ReformulationWindow(QWidget):
         self.locuteur_selectionne = None
         self.bloc_courant = None
 
+        #
+        # P16-bis 3ᵉ série (spec correctifs §15) :
+        # dernière position de lecture, conservée
+        # entre les allers-retours de pages (pile
+        # unique) pour un retour jouable.
+        #
+        self.derniere_position = 0.0
+
         self.build_ui(prefs)
 
         self.construire_lignes()
@@ -1262,7 +1270,13 @@ class ReformulationWindow(QWidget):
         if getattr(self, "timeline", None) is not None:
             self.timeline.set_current_time(position)
 
-        self.jouer_audio_si_charge()
+        #
+        # P16-bis 3ᵉ série (spec correctifs §16) :
+        # un clic positionne le curseur et
+        # sélectionne — il ne déclenche JAMAIS la
+        # lecture ; seul le bouton lecture/pause
+        # joue.
+        #
 
     #
     # ==================================================
@@ -2473,6 +2487,15 @@ class ReformulationWindow(QWidget):
         )
 
         #
+        # Erreur du périphérique audio : message
+        # clair dans la barre d'état, jamais d'échec
+        # silencieux (spec correctifs §15.3).
+        #
+        self.playback.erreur_audio.connect(
+            self.sur_erreur_audio
+        )
+
+        #
         # Synchronisation timeline ↔ blocs (§8) :
         # le curseur de la timeline suit la lecture ;
         # un clic dessus sélectionne le bloc
@@ -2490,6 +2513,18 @@ class ReformulationWindow(QWidget):
             self.sur_bloc_timeline_clic
         )
 
+    def sur_erreur_audio(self, message: str):
+        """
+        Erreur du périphérique audio (§15.3) :
+        signalée dans la barre d'état.
+        """
+
+        self.barre_etat.setText(
+            "Lecture audio impossible : " + message
+        )
+
+        self.jouer_button.setText("▶ Audio")
+
     def sur_clic_timeline(self, position: float):
         """
         Clic sur la timeline (§8.2) : le curseur se
@@ -2502,18 +2537,15 @@ class ReformulationWindow(QWidget):
         self.sur_position_audio(position)
 
     def jouer_audio_si_charge(self):
+        """
+        P16-bis 3ᵉ série (spec correctifs §16) :
+        cette méthode ne lance plus la lecture —
+        conservée comme garde-fou inactif pour tout
+        appel résiduel ; seule la bascule du bouton
+        lecture/pause joue.
+        """
 
-        if self.projet_v1 is None:
-            return
-
-        if not self.projet_v1.audio_file:
-            return
-
-        if not Path(self.projet_v1.audio_file).exists():
-            return
-
-        self.playback.play()
-        self.jouer_button.setText("⏸ Pause")
+        return
 
     def basculer_lecture(self):
 
@@ -2798,8 +2830,7 @@ class ReformulationWindow(QWidget):
 
         self.sauvegarder_etude()
 
-        self.playback.stop()
-        self.playback.unload()
+        self._quitter_page()
 
         navigation = getattr(self, "navigation", None)
 
@@ -2819,8 +2850,7 @@ class ReformulationWindow(QWidget):
 
         self.sauvegarder_etude()
 
-        self.playback.stop()
-        self.playback.unload()
+        self._quitter_page()
 
         navigation = getattr(self, "navigation", None)
 
@@ -2842,20 +2872,77 @@ class ReformulationWindow(QWidget):
 
         self.close()
 
+    def _quitter_page(self):
+        """
+        Quitter la page (vers l'étude ou l'accueil,
+        spec correctifs §15.1) : la lecture est
+        arrêtée proprement, les ressources audio
+        libérées — pas de son orphelin en
+        arrière-plan. La dernière position est
+        conservée pour le retour.
+        """
+
+        self.derniere_position = (
+            self.playback.get_position()
+        )
+
+        self.playback.stop()
+        self.playback.unload()
+
+        self.jouer_button.setText("▶ Audio")
+
     def sur_navigation_sortante(self):
         """
         Appelé par la fenêtre principale quand une
         autre page est activée (pile unique) :
         sauvegarde des préférences et de l'étude,
-        arrêt de l'audio.
+        arrêt propre de l'audio (§15.1).
         """
 
         self._enregistrer_prefs()
 
         self.sauvegarder_etude()
 
-        self.playback.stop()
-        self.playback.unload()
+        self._quitter_page()
+
+    def sur_navigation_entrante(self):
+        """
+        Retour sur la page (pile unique, spec
+        correctifs §15.2) : le lecteur est
+        réinitialisé et jouable immédiatement —
+        curseur conservé à sa dernière position.
+        """
+
+        if self.projet_v1 is None:
+            return
+
+        if not self.projet_v1.audio_file:
+            return
+
+        chemin_audio = Path(self.projet_v1.audio_file)
+
+        if not chemin_audio.exists():
+            self.jouer_button.setEnabled(False)
+            return
+
+        try:
+            self.playback.load_file(
+                str(chemin_audio)
+            )
+
+            self.playback.set_position(
+                self.derniere_position
+            )
+
+            self.jouer_button.setEnabled(True)
+
+        except Exception as e:
+            self.barre_etat.setText(
+                "Audio indisponible au retour : "
+                + str(e)
+            )
+
+            self.jouer_button.setEnabled(False)
 
     def resizeEvent(self, event):
         """
