@@ -870,3 +870,120 @@ class TestRetourRelectureStatutEtAccueil:
 
         finally:
             accueil.close()
+
+
+@pytest.mark.qt
+class TestStatutTestPersistant:
+
+    def test_statut_survit_a_la_reouverture(self, qapp, tmp_path):
+        """
+        Scénario de relecture : clé testée dans les
+        réglages, fermeture, réouverture des
+        réglages — le résultat du test est toujours
+        affiché.
+        """
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        settings.save()
+
+        store = CredentialStore(
+            settings.app_folder / "settings.json"
+        )
+
+        store.set_cle_llm("openai", "sk-test-123456")
+
+        from services.llm.catalogue import (
+            catalogue_par_defaut,
+        )
+        from ui.settings_dialog import SettingsDialog
+
+        with patch(
+            "ui.settings_dialog.charger_catalogue",
+            return_value=catalogue_par_defaut(),
+        ):
+
+            dialogue = SettingsDialog(
+                settings=settings
+            )
+
+        try:
+
+            dialogue._enregistrer_statut_test(
+                "Clé valide. 136 modèle(s) "
+                "accessible(s) chez OpenAI.",
+                "#2E7D32",
+            )
+
+        finally:
+            dialogue.close()
+
+        # Réouverture : statut restauré depuis le
+        # CredentialStore.
+        with patch(
+            "ui.settings_dialog.charger_catalogue",
+            return_value=catalogue_par_defaut(),
+        ):
+
+            dialogue2 = SettingsDialog(
+                settings=settings
+            )
+
+        try:
+
+            assert "Clé valide" in (
+                dialogue2.llm_test_statut.text()
+            )
+
+            assert "#2E7D32" in (
+                dialogue2.llm_test_statut.styleSheet()
+            )
+
+        finally:
+            dialogue2.close()
+
+    def test_invalidation_par_changement_de_cle(self, tmp_path):
+        """
+        Le statut persisté concernait une clé : si
+        la clé change, il est invalidé ; la même clé
+        réenregistrée (aller-retour de fournisseur)
+        le conserve.
+        """
+
+        fichier = tmp_path / "settings.json"
+
+        store = CredentialStore(fichier)
+
+        store.set_cle_llm("openai", "sk-ancienne")
+
+        store.set_statut_test(
+            "openai",
+            "Clé valide.",
+            "#2E7D32",
+        )
+
+        # Même valeur : conservé.
+        store.set_cle_llm("openai", "sk-ancienne")
+
+        store2 = CredentialStore(fichier)
+
+        assert store2.get_statut_test("openai") == {
+            "texte": "Clé valide.",
+            "couleur": "#2E7D32",
+        }
+
+        # Clé changée : statut invalidé, clé
+        # remplacée.
+        store.set_cle_llm("openai", "sk-nouvelle")
+
+        store3 = CredentialStore(fichier)
+
+        assert store3.get_statut_test("openai") is (
+            None
+        )
+
+        assert store3.get_cle_llm("openai") == (
+            "sk-nouvelle"
+        )

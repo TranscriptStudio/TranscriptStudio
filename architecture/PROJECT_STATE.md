@@ -2,9 +2,10 @@
 
 > **Dernière mise à jour** : 2026-10-28 (retour relecture :
 > credentials dans credentials.json, statut de test
-> conservé par fournisseur, accueil affiche l'état du
-> service de reformulation avec les fournisseurs
-> configurés ; 281 tests verts)
+> persistant par fournisseur (invalidé si la clé
+> change), accueil affiche l'état du service de
+> reformulation avec les fournisseurs configurés ;
+> 283 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -41,7 +42,7 @@
   contexte, P17.3 récurrences entre réunions) — 228 tests verts.
 - **P16-bis : LIVRÉ** (correctifs de relecture UI, séries 1 à 3 +
   terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
-  sur UI_REFORMULATION_V2 pour ses points) — 281 tests verts.
+  sur UI_REFORMULATION_V2 pour ses points) — 283 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -1061,19 +1062,27 @@ nouvelle).
 1. **Statut de test conservé par fournisseur** : le
    résultat de « Tester la clé » (« Clé valide. » /
    « Clé invalide. », avec sa couleur) est mémorisé
-   par fournisseur dans le dialogue — changer de
-   fournisseur et revenir ne repart plus de
-   « Non testée. » (mémoire de session : un statut
-   d'un appel réseau ne serait pas fiable d'une
-   session à l'autre, la clé pouvant changer).
+   par fournisseur dans le dialogue ET **persisté
+   dans le CredentialStore** (credentials.json) —
+   changer de fournisseur et revenir ne repart
+   plus de « Non testée. », et **la réouverture des
+   réglages restaure le dernier résultat**. Garde-
+   fou anti-staleness : le statut est **invalidé si
+   la clé change** (il concernait l'ancienne clé) ;
+   la même clé réenregistrée (aller-retour de
+   fournisseur, enregistrement des réglages) le
+   conserve. Le texte du statut ne contient
+   jamais la clé.
 2. **Accueil — état du service de reformulation** :
    nouvelle ligne sous l'état de transcription,
    « Service de reformulation : configuré — <noms
    des fournisseurs dont la clé est enregistrée
    (ou fournisseurs locaux sans clé)> » / « non
    configuré » ; rafraîchie après fermeture des
-   réglages. 2 tests (statut conservé par
-   fournisseur, ligne d'accueil).
+   réglages. 4 tests (statut conservé par
+   fournisseur, statut survit à la réouverture,
+   invalidation par changement de clé, ligne
+   d'accueil).
 
 ### Décisions / écarts de la session (3ᵉ série)
 
@@ -1088,9 +1097,9 @@ nouvelle).
    (choix conservateur : l'utilisateur peut encore le
    récupérer via « Réinitialiser », rien n'est écrasé).
 
-### Bilan tests : **281 verts** (261 + 20)
+### Bilan tests : **283 verts** (261 + 22)
 
-`tests/unit/test_p16bis_serie3.py` (20) : arrêt/libération
+`tests/unit/test_p16bis_serie3.py` (22) : arrêt/libération
 au quit + position conservée puis restaurée + erreur
 signalée + `sur_navigation_entrante` appelé par la pile au
 retour ; aucun chemin de clic ne joue (bloc, timeline,
@@ -1108,7 +1117,7 @@ stocké invalide → repli sur les défauts embarqués.
 
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 (séries 1 à 3), P16-bis et P17 sont LIVRÉS** (281
+**P16 (séries 1 à 3), P16-bis et P17 sont LIVRÉS** (283
 tests verts). Restent :
 
 1. **Recette P16/P17 par David** (checklist en fin de session P17

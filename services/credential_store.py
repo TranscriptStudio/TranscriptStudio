@@ -90,7 +90,10 @@ class CredentialStore:
                 self._credentials = {
                     nom: valeur
                     for nom, valeur in data.items()
-                    if isinstance(valeur, str)
+                    if isinstance(
+                        valeur,
+                        (str, dict)
+                    )
                 }
             except (json.JSONDecodeError, IOError):
                 self._credentials = {}
@@ -242,11 +245,94 @@ class CredentialStore:
     ) -> None:
         """
         Définit la clé API du fournisseur LLM donné.
+        Si la clé CHANGE, le dernier résultat de
+        test (qui concernait l'ancienne clé) est
+        invalidé.
         """
+
+        if self.get_cle_llm(fournisseur_id) != (
+            cle or ""
+        ):
+            self.effacer_statut_test(fournisseur_id)
+
         self.set_credential(
             self.nom_cle_llm(fournisseur_id),
             cle
         )
+
+    def set_statut_test(
+        self,
+        fournisseur_id: str,
+        texte: str,
+        couleur: str
+    ) -> None:
+        """
+        Mémorise le dernier résultat de « Tester la
+        clé » d'un fournisseur (retour relecture §17 :
+        il survit à la fermeture des réglages tant
+        que la clé ne change pas). Le texte ne
+        contient jamais la clé.
+        """
+
+        statuts = self._credentials.get(
+            "statuts_test",
+            {}
+        )
+
+        if not isinstance(statuts, dict):
+            statuts = {}
+
+        statuts[fournisseur_id] = {
+            "texte": texte,
+            "couleur": couleur,
+        }
+
+        self._credentials["statuts_test"] = statuts
+
+        self._save_credentials()
+
+    def get_statut_test(self, fournisseur_id: str):
+        """
+        Dernier résultat de test du fournisseur
+        ({'texte', 'couleur'} ou None).
+        """
+
+        statuts = self._credentials.get(
+            "statuts_test",
+            {}
+        )
+
+        if not isinstance(statuts, dict):
+            return None
+
+        return statuts.get(fournisseur_id)
+
+    def effacer_statut_test(
+        self,
+        fournisseur_id: str
+    ) -> None:
+        """
+        Invalide le résultat de test d'un fournisseur
+        (appelé quand sa clé change).
+        """
+
+        statuts = self._credentials.get(
+            "statuts_test",
+            {}
+        )
+
+        if not isinstance(statuts, dict):
+            return
+
+        if fournisseur_id in statuts:
+
+            statuts.pop(fournisseur_id)
+
+            self._credentials["statuts_test"] = (
+                statuts
+            )
+
+            self._save_credentials()
 
     def has_cle_llm(self, fournisseur_id: str) -> bool:
         """

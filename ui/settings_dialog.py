@@ -809,12 +809,28 @@ class SettingsDialog(QDialog):
         #
         # P16-bis (retour relecture §17) : résultat
         # du test mémorisé pour CE fournisseur —
-        # revenir dessus ne repart pas de « Non
-        # testée. ».
+        # d'abord celui testé dans cette session,
+        # sinon le dernier persisté (il survit à la
+        # fermeture des réglages tant que la clé ne
+        # change pas).
         #
         statut = self._statuts_test.get(
             fournisseur.id
         )
+
+        if statut is None:
+
+            persiste = (
+                self._credential_store.get_statut_test(
+                    fournisseur.id
+                )
+            )
+
+            if persiste:
+                statut = (
+                    persiste.get("texte", ""),
+                    persiste.get("couleur", "#666666"),
+                )
 
         if statut is not None:
             self.llm_test_statut.setStyleSheet(
@@ -1025,18 +1041,30 @@ class SettingsDialog(QDialog):
     ):
         """
         Affiche le résultat du test de la clé du
-        fournisseur courant et le mémorise par
-        fournisseur (retour relecture §17) :
-        changer de fournisseur et revenir conserve
-        le résultat.
+        fournisseur courant, le mémorise par
+        fournisseur dans le dialogue ET le persiste
+        dans le CredentialStore (retour relecture
+        §17) : il survit à la fermeture des réglages
+        tant que la clé ne change pas (une clé
+        changée l'invalide côté store).
         """
 
         fournisseur = self._fournisseur_courant()
 
         if fournisseur is not None:
+
             self._statuts_test[fournisseur.id] = (
                 (texte, couleur)
             )
+
+            try:
+                self._credential_store.set_statut_test(
+                    fournisseur.id,
+                    texte,
+                    couleur
+                )
+            except Exception:
+                pass
 
         self.llm_test_statut.setStyleSheet(
             f"font-size: 12px; color: {couleur};"
