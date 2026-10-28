@@ -1,11 +1,12 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-28 (P18.5 livré :
-> téléchargeur de Bibles intégré aux réglages — Darby,
-> Darby révisée, Segond 1910 en import manuel ; version
-> retenue par étude (bloc bible, défaut darbyR) ;
-> écarts de versification = information consultable ;
-> 334 tests verts)
+> **Dernière mise à jour** : 2026-10-29 (correctif
+> effort de raisonnement : valeur mémorisée
+> restaurée à l'ouverture des réglages, niveaux
+> complets exposés jusqu'à « Très élevé »,
+> réglage ENFIN transmis à l'API par le moteur,
+> résumé et synthèse — idem « Tokens max » ;
+> 341 tests verts)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -1383,6 +1384,57 @@ autres versions), téléchargement nominal file://,
 Segond 1910 import manuel, import refusé (non-OSIS,
 OSIS vide) / accepté, onglet Bibles des réglages,
 déroulant des paramètres d'étude.
+
+---
+
+## SESSION 2026-10-29 (correctif) — EFFORT DE RAISONNEMENT : LIVRÉ
+
+Retour David : « l'effort de raisonnement n'est pas
+mémorisé, il revient toujours à faible ; la liste
+déroulante est tronquée, d'autres efforts sont
+disponibles (très élevé, etc.) ».
+
+Trois causes réelles trouvées et corrigées :
+
+1. **La valeur n'était jamais restaurée à
+   l'ouverture des réglages** : le combo repassait
+   à sa première entrée (« Faible »), et
+   « Enregistrer » écrasait alors l'ancienne
+   valeur. Désormais `on_llm_modele_change`
+   sélectionne la valeur mémorisée (une valeur
+   inconnue du catalogue est ajoutée telle
+   quelle, jamais perdue).
+2. **Le réglage n'était JAMAIS transmis à l'API** :
+   le moteur, le résumé et la synthèse
+   construisaient `ParametresCompletion` sans
+   `effort_raisonnement` (ni `max_tokens`) —
+   l'effort mémorisé ne servait de nulle part.
+   Désormais envoyé UNIQUEMENT si le modèle le
+   déclare (mêmes règles que la température,
+   décision C2) ; None = clé absente de la
+   requête = défaut de l'API.
+3. **Sauvegarde dépendante de la visibilité** :
+   `save_settings` n'écrivait température/effort
+   que si la ligne était visible — changer
+   d'onglet avant « Enregistrer » perdait le
+   réglage. Désormais basé sur les capacités du
+   modèle courant, pas sur l'onglet actif.
+
+Niveaux exposés (liste commune
+`services/llm/client.py::EFFORTS_RAISONNEMENT`,
+utilisée par l'UI et testée) : Minimal / Faible /
+Moyen / Élevé / **Très élevé** (reasoning_effort
+minimal, low, medium, high, xhigh), plus « Défaut
+de l'API » (None) en première entrée ; le combo
+s'ajuste à son contenu (AdjustToContents —
+fini la liste tronquée).
+
+Bilan tests : **341 verts** (334 + 7) — effort
+envoyé/présent selon le modèle (client factice +
+moteur), max_tokens transmis, niveaux exposés,
+restauration à l'ouverture + préservation à
+l'enregistrement + réouverture (UI offscreen),
+« Défaut de l'API » = None.
 
 ---
 

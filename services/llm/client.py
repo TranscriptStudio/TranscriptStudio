@@ -99,6 +99,23 @@ class ParametresCompletion:
     effort_raisonnement: str = None
 
 
+#
+# Niveaux d'effort de raisonnement exposés à
+# l'utilisateur (raisoning_effort côté API OpenAI
+# compatible) — liste commune à l'UI (réglages)
+# et au moteur, l'API n'étant pas poussée au
+# delà de ces valeurs.
+#
+
+EFFORTS_RAISONNEMENT = [
+    ("minimal", "Minimal"),
+    ("low", "Faible"),
+    ("medium", "Moyen"),
+    ("high", "Élevé"),
+    ("xhigh", "Très élevé"),
+]
+
+
 @dataclass
 class ResultatCompletion:
     """

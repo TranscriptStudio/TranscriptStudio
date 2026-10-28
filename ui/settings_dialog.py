@@ -1000,11 +1000,33 @@ class SettingsDialog(QDialog):
         #
         # Effort de raisonnement : affiché
         # uniquement si le modèle le déclare.
+        # « Défaut de l'API » (valeur None) ne
+        # JAMAIS envoyer de reasoning_effort —
+        # l'API applique alors son propre défaut.
         #
+        from services.llm.client import (
+            EFFORTS_RAISONNEMENT,
+        )
+
         self.llm_effort_combo = QComboBox()
-        self.llm_effort_combo.addItem("Faible", "low")
-        self.llm_effort_combo.addItem("Moyen", "medium")
-        self.llm_effort_combo.addItem("Élevé", "high")
+
+        self.llm_effort_combo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.
+            AdjustToContents
+        )
+
+        self.llm_effort_combo.addItem(
+            "Défaut de l'API",
+            None
+        )
+
+        for identifiant, libelle in (
+            EFFORTS_RAISONNEMENT
+        ):
+            self.llm_effort_combo.addItem(
+                libelle,
+                identifiant
+            )
 
         self.llm_effort_ligne = QWidget()
         ligne_layout = QHBoxLayout(self.llm_effort_ligne)
@@ -1317,11 +1339,55 @@ class SettingsDialog(QDialog):
 
         #
         # Effort de raisonnement : uniquement si
-        # déclaré.
+        # déclaré — ET restauration de la valeur
+        # mémorisée (elle était perdue à chaque
+        # réouverture : le combo repassait à sa
+        # première entrée, puis « Enregistrer »
+        # écrasait l'ancienne valeur).
         #
-        self.llm_effort_ligne.setVisible(
+        effort_visible = (
             "effort_raisonnement" in reglages
         )
+
+        self.llm_effort_ligne.setVisible(
+            effort_visible
+        )
+
+        if effort_visible:
+
+            effort = config.get(
+                "effort_raisonnement"
+            )
+
+            index = 0
+
+            if effort:
+                index = (
+                    self.llm_effort_combo.findData(
+                        effort
+                    )
+                )
+
+                if index < 0:
+
+                    #
+                    # Valeur inconnue (catalogue
+                    # personnalisé) : jamais perdue,
+                    # ajoutée telle quelle.
+                    #
+                    self.llm_effort_combo.addItem(
+                        effort,
+                        effort
+                    )
+
+                    index = (
+                        self.llm_effort_combo.count()
+                        - 1
+                    )
+
+            self.llm_effort_combo.setCurrentIndex(
+                index
+            )
 
         #
         # max_tokens : plafond au contexte du modèle.
@@ -1518,7 +1584,19 @@ class SettingsDialog(QDialog):
             self.llm_modele_combo.currentData()
         )
 
-        if self.llm_temperature_ligne.isVisible():
+        #
+        # Température et effort : enregistrés selon
+        # les CAPACITÉS du modèle courant — pas la
+        # visibilité des widgets (changer d'onglet
+        # avant « Enregistrer » ne doit jamais
+        # perdre un réglage réglé sur l'onglet LLM).
+        #
+        modele_courant = self._modele_courant()
+
+        if (
+            modele_courant is None
+            or modele_courant.capacite_temperature
+        ):
             config["temperature"] = (
                 self.llm_temperature_spin.value()
             )
@@ -1527,7 +1605,13 @@ class SettingsDialog(QDialog):
             self.llm_max_tokens_spin.value() or None
         )
 
-        if self.llm_effort_ligne.isVisible():
+        if (
+            modele_courant is None
+            or (
+                modele_courant
+                .capacite_effort_raisonnement
+            )
+        ):
             config["effort_raisonnement"] = (
                 self.llm_effort_combo.currentData()
             )

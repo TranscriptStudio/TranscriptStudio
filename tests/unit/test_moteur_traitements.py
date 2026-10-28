@@ -1127,3 +1127,125 @@ class TestJournalRegles:
         assert chemin.exists()
 
         assert reouverte.journal.nb_entrees() == 1
+
+
+class TestEffortRaisonnement:
+    """
+    L'effort de raisonnement mémorisé dans les
+    réglages LLM de l'app est transmis au client
+    UNIQUEMENT si le modèle le déclare (mêmes
+    règles que la température, décision C2) ;
+    « Tokens max par réponse » suit le même
+    principe (valeur mémorisée transmise).
+    """
+
+    def test_effort_transmis_si_declare(
+        self, tmp_path
+    ):
+
+        etude, nom = creer_etude_avec_blocs(
+            tmp_path
+        )
+
+        moteur = fabriquer_moteur(
+            etude,
+            nom,
+            ClientFactice(None, ""),
+            parametres_app={
+                **PARAMETRES_APP,
+                "modele": "gpt-5.6-terra",
+                "effort_raisonnement": "high",
+            },
+        )
+
+        _fournisseur, modele = moteur.resoudre()
+
+        assert modele.capacite_effort_raisonnement
+
+        parametres = moteur._parametres_completion(
+            modele,
+            0.3
+        )
+
+        assert (
+            parametres.effort_raisonnement
+            == "high"
+        )
+
+        # gpt-5.6 ne déclare pas la température.
+        assert parametres.temperature is None
+
+    def test_effort_absent_si_non_declare(
+        self, tmp_path
+    ):
+
+        etude, nom = creer_etude_avec_blocs(
+            tmp_path
+        )
+
+        moteur = fabriquer_moteur(
+            etude,
+            nom,
+            ClientFactice(None, ""),
+            parametres_app={
+                **PARAMETRES_APP,
+                "effort_raisonnement": "high",
+            },
+        )
+
+        _fournisseur, modele = moteur.resoudre()
+
+        assert not modele.capacite_effort_raisonnement
+
+        parametres = moteur._parametres_completion(
+            modele,
+            0.3
+        )
+
+        assert (
+            parametres.effort_raisonnement is None
+        )
+
+    def test_max_tokens_memorise_transmis(
+        self, tmp_path
+    ):
+
+        etude, nom = creer_etude_avec_blocs(
+            tmp_path
+        )
+
+        moteur = fabriquer_moteur(
+            etude,
+            nom,
+            ClientFactice(None, ""),
+            parametres_app={
+                **PARAMETRES_APP,
+                "max_tokens": 4096,
+            },
+        )
+
+        _fournisseur, modele = moteur.resoudre()
+
+        parametres = moteur._parametres_completion(
+            modele,
+            0.3
+        )
+
+        assert parametres.max_tokens == 4096
+
+    def test_niveaux_exposes(self):
+
+        from services.llm.client import (
+            EFFORTS_RAISONNEMENT,
+        )
+
+        assert [
+            identifiant
+            for identifiant, _ in EFFORTS_RAISONNEMENT
+        ] == [
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+        ]

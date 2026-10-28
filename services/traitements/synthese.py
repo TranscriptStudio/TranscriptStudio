@@ -411,7 +411,20 @@ class ServiceSynthese:
                 }
             ],
             ParametresCompletion(
-                modele=modele.id
+                modele=modele.id,
+                max_tokens=(
+                    self._parametres_app().get(
+                        "max_tokens"
+                    )
+                    or None
+                ),
+                effort_raisonnement=(
+                    self._parametres_app().get(
+                        "effort_raisonnement"
+                    )
+                    if modele.capacite_effort_raisonnement
+                    else None
+                ),
             ),
             annulation=annulation
         )

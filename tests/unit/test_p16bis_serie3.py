@@ -987,3 +987,132 @@ class TestStatutTestPersistant:
         assert store3.get_cle_llm("openai") == (
             "sk-nouvelle"
         )
+
+
+class TestSectionEffortRaisonnement:
+    """
+    Effort de raisonnement (retour David 2026-10-29)
+    : la valeur mémorisée est RESTAURÉE à
+    l'ouverture des réglages (le combo repassait
+    à sa première entrée, et « Enregistrer »
+    écrasait l'ancienne valeur) ; les niveaux
+    complets sont exposés (jusqu'à « Très élevé »)
+    ; « Défaut de l'API » n'envoie rien.
+    """
+
+    def test_effort_memorise_puis_restaure(
+        self, qapp, tmp_path
+    ):
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        settings.save()
+
+        config = settings.get_llm_config()
+
+        config["fournisseur"] = "openai"
+        config["modele"] = "gpt-5.6-terra"
+        config["effort_raisonnement"] = "high"
+
+        settings.set_llm_config(config)
+
+        from ui.settings_dialog import SettingsDialog
+
+        dialogue = SettingsDialog(
+            settings=settings
+        )
+
+        dialogue.show()
+
+        # Onglet LLM : les réglages du modèle y
+        # vivent (l'effort n'est visible que sur
+        # l'onglet actif).
+        onglet_llm = next(
+            i for i in range(dialogue.tabs.count())
+            if "LLM" in dialogue.tabs.tabText(i)
+        )
+
+        dialogue.tabs.setCurrentIndex(onglet_llm)
+
+        try:
+
+            # Le modèle déclare l'effort : la ligne
+            # est visible et la valeur mémorisée
+            # sélectionnée (pas « Faible » par
+            # défaut).
+            assert dialogue.llm_effort_ligne.isVisible()
+
+            assert dialogue.llm_effort_combo.currentData() == "high"
+
+            # Enregistrer sans toucher préserve
+            # la valeur.
+            dialogue.save_settings()
+
+        finally:
+            dialogue.close()
+
+        assert settings.get_llm_config().get(
+            "effort_raisonnement"
+        ) == "high"
+
+        # Réouverture : toujours restaurée.
+        dialogue2 = SettingsDialog(
+            settings=settings
+        )
+
+        try:
+
+            assert dialogue2.llm_effort_combo.currentData() == "high"
+
+        finally:
+            dialogue2.close()
+
+    def test_niveaux_complets_exposes(
+        self, qapp, tmp_path
+    ):
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        settings.save()
+
+        config = settings.get_llm_config()
+
+        config["fournisseur"] = "openai"
+        config["modele"] = "gpt-5.6-terra"
+        config["effort_raisonnement"] = "xhigh"
+
+        settings.set_llm_config(config)
+
+        from ui.settings_dialog import SettingsDialog
+
+        dialogue = SettingsDialog(
+            settings=settings
+        )
+
+        try:
+
+            libelles = [
+                dialogue.llm_effort_combo.itemText(i)
+                for i in range(
+                    dialogue.llm_effort_combo.count()
+                )
+            ]
+
+            assert "Très élevé" in libelles
+            assert "Minimal" in libelles
+
+            # « Défaut de l'API » = première entrée,
+            # valeur None (jamais de reasoning_effort
+            # envoyé).
+            assert dialogue.llm_effort_combo.itemData(0) is None
+
+            # Valeur mémorisée inconnue du catalogue :
+            # jamais perdue.
+            assert dialogue.llm_effort_combo.currentData() == "xhigh"
+
+        finally:
+            dialogue.close()

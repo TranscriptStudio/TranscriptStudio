@@ -230,6 +230,61 @@ class TestClientOpenAICompatible:
             "content": "Texte.",
         }
 
+    def test_effort_raisonnement_dans_la_requete(self):
+        """
+        L'effort de raisonnement mémorisé est bien
+        transmis à l'API (reasoning_effort) ; None
+        n'envoie JAMAIS la clé (défaut de l'API).
+        """
+
+        lignes = _sse_openai(["Ok."])
+
+        session = FausseSession(
+            [FausseReponse(statut=200, lignes=lignes)]
+        )
+
+        client = creer_client(
+            _fournisseur_openai(),
+            CLE,
+            session=session,
+        )
+
+        client.completions(
+            "Prompt système.",
+            [{"role": "user", "content": "Texte."}],
+            _parametres(effort_raisonnement="xhigh"),
+        )
+
+        appel = session.appels[0]
+
+        assert appel["json"]["reasoning_effort"] == (
+            "xhigh"
+        )
+
+        #
+        # Sans effort : la clé est absente de la
+        # requête (l'API garde son propre défaut).
+        #
+        session2 = FausseSession(
+            [FausseReponse(statut=200, lignes=lignes)]
+        )
+
+        client2 = creer_client(
+            _fournisseur_openai(),
+            CLE,
+            session=session2,
+        )
+
+        client2.completions(
+            "Prompt système.",
+            [{"role": "user", "content": "Texte."}],
+            _parametres(),
+        )
+
+        assert "reasoning_effort" not in (
+            session2.appels[0]["json"]
+        )
+
     def test_usage_absent_estimation_locale(self):
         lignes = _sse_openai(["a" * 100])
 
