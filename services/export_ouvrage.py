@@ -185,6 +185,107 @@ def assembler_ouvrage(
     }
 
 
+def assembler_reunion(
+    etude_ouverte,
+    nom_reunion: str,
+    inclure_resume: bool = True
+) -> dict:
+    """
+    Assemble les textes validés d'UNE réunion —
+    portée « réunion » des exports (P18.6f, spec
+    navigation §8.1 : y compris intermédiaire).
+
+    Retour :
+    ``{"titre", "reunion": {"titre", "resume",
+    "blocs": [textes...]}}`` — ``reunion`` vaut
+    None si la réunion ne comporte aucun texte
+    validé.
+
+    Le résumé validé est inclus en tête (spec §8.3 :
+    portée « résumé » selon P17) ; les reformulations
+    validées suivent l'ordre d'ouvrage de la réunion.
+    """
+
+    from services.bibles import (
+        VERSIONS_BIBLE,
+        version_bible_etude,
+    )
+    from services.decoupage import (
+        ordre_ouvrage_effectif,
+    )
+
+    reunion = etude_ouverte.reunions.get(
+        nom_reunion
+    )
+
+    titre_reunion = (
+        (reunion.titre_1 if reunion else "")
+        or nom_reunion
+    )
+
+    resume = None
+
+    if inclure_resume:
+
+        resultat_resume = (
+            etude_ouverte.resumes.get(nom_reunion)
+        )
+
+        version = _derniere_version_validee(
+            resultat_resume
+        )
+
+        if version is not None:
+            resume = version.texte
+
+    blocs = []
+
+    try:
+
+        ordre = ordre_ouvrage_effectif(
+            etude_ouverte,
+            nom_reunion
+        )
+
+    except Exception:
+        ordre = []
+
+    for fid in ordre:
+
+        resultat = (
+            etude_ouverte.reformulations.get(fid)
+        )
+
+        version = _derniere_version_validee(
+            resultat
+        )
+
+        if version is not None:
+            blocs.append(version.texte)
+
+    if not blocs and resume is None:
+        section = None
+    else:
+        section = {
+            "titre": titre_reunion,
+            "resume": resume,
+            "blocs": blocs,
+        }
+
+    version_bible = version_bible_etude(
+        etude_ouverte.parametres
+    )
+
+    nom_bible = VERSIONS_BIBLE[version_bible]["nom"]
+
+    return {
+        "titre": titre_reunion,
+        "reunions": [section] if section else [],
+        "en_tetes_reunions": True,
+        "bible": nom_bible,
+    }
+
+
 def _paragraphes(texte: str) -> list:
     """
     Paragraphes d'un texte validé : un seul retour à

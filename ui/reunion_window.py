@@ -879,6 +879,28 @@ class ReunionWindow(QWidget):
         actions.addWidget(
             self.export_transcription_button
         )
+
+        if self.rattachee():
+
+            self.export_valides_button = (
+                QPushButton(
+                    "Exporter les textes validés…"
+                )
+            )
+            self.export_valides_button.setToolTip(
+                "Export de réunion (portée P18.6f) : "
+                "résumé validé en tête et "
+                "reformulations validées dans l'ordre "
+                "d'ouvrage — DOCX ou TXT"
+            )
+            self.export_valides_button.clicked.connect(
+                self.exporter_textes_valides
+            )
+
+            actions.addWidget(
+                self.export_valides_button
+            )
+
         actions.addStretch()
 
         layout.addLayout(actions)
@@ -905,10 +927,155 @@ class ReunionWindow(QWidget):
             )
 
         return (
-            "Exportez la transcription corrigée, "
-            "ou les textes validés si la réunion "
-            "appartient à une étude."
+            "Exportez la transcription corrigée"
+            + (
+                ", ou les textes validés de la réunion "
+                "(résumé et reformulations)"
+                if self.rattachee()
+                else ""
+            )
+            + "."
         )
+
+    def exporter_textes_valides(self):
+        """
+        Export de réunion (P18.6f, spec §8.1) :
+        résumé validé en tête + reformulations
+        validées dans l'ordre d'ouvrage — y compris
+        intermédiaire (tous les blocs n'ont pas
+        besoin d'être validés). Trace d'export dans
+        les réglages (étape ⑥ verte).
+        """
+
+        if not self.rattachee():
+            return
+
+        import re as _re
+
+        from services.export_ouvrage import (
+            assembler_reunion,
+            exporter_docx,
+            exporter_txt,
+        )
+
+        from PySide6.QtWidgets import (
+            QFileDialog,
+        )
+        from PySide6.QtGui import (
+            QDesktopServices,
+        )
+        from PySide6.QtCore import QUrl
+
+        ouvrage = assembler_reunion(
+            self.etude,
+            self.nom
+        )
+
+        if not ouvrage["reunions"]:
+
+            QMessageBox.information(
+                self,
+                "Rien à exporter",
+                (
+                    "Aucun texte validé pour cette "
+                    "réunion : validez des "
+                    "reformulations (ou un résumé) "
+                    "avant d'exporter."
+                )
+            )
+
+            return
+
+        nom_defaut = _re.sub(
+            r"[^\w\- ]",
+            "",
+            ouvrage["titre"]
+        ).strip() or "reunion"
+
+        dossier = Path(
+            getattr(
+                self.projet,
+                "project_file",
+                ""
+            )
+        ).parent
+
+        chemin, filtre = QFileDialog.getSaveFileName(
+            self,
+            "Exporter la réunion",
+            str(dossier / f"{nom_defaut}.docx"),
+            "Document Word (*.docx);;"
+            "Texte (*.txt)"
+        )
+
+        if not chemin:
+            return
+
+        try:
+
+            if filtre.startswith("Document"):
+                chemin = exporter_docx(
+                    ouvrage, chemin
+                )
+            else:
+                chemin = exporter_txt(
+                    ouvrage, chemin
+                )
+
+        except Exception as e:
+
+            QMessageBox.critical(
+                self,
+                "Export impossible",
+                str(e)
+            )
+
+            return
+
+        chemin_projet = getattr(
+            self.projet,
+            "project_file",
+            None
+        )
+
+        if chemin_projet:
+            self.settings.enregistrer_export_reunion(
+                chemin_projet
+            )
+
+        message = QMessageBox(self)
+        message.setWindowTitle("Réunion exportée")
+        message.setText(
+            "La réunion a été exportée :\n\n"
+            f"{chemin}"
+        )
+
+        open_file_button = message.addButton(
+            "Ouvrir le fichier",
+            QMessageBox.ButtonRole.AcceptRole
+        )
+
+        message.addButton(
+            "Fermer",
+            QMessageBox.ButtonRole.RejectRole
+        )
+
+        message.exec()
+
+        if (
+            message.clickedButton()
+            is open_file_button
+        ):
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(str(chemin))
+            )
+
+        if self.export_statut_label is not None:
+            self.export_statut_label.setText(
+                self._texte_statut_export()
+            )
+
+        self.maj_stepper()
 
     def exporter_transcription(self):
         """
