@@ -236,7 +236,8 @@ class AppWindow(QMainWindow):
         self,
         projet,
         etude=None,
-        nom=None
+        nom=None,
+        etape=None
     ):
         """
         Page Réunion (P18.6b, spec navigation §3) :
@@ -274,7 +275,12 @@ class AppWindow(QMainWindow):
                 nom=nom
             )
 
-        return self.ouvrir_page(cle, fabrique)
+        page = self.ouvrir_page(cle, fabrique)
+
+        if page is not None and etape is not None:
+            page.changer_etape(etape)
+
+        return page
 
     def ouvrir_correction(self, projet):
         """
@@ -306,6 +312,33 @@ class AppWindow(QMainWindow):
                 settings=self.settings
             )
         )
+
+    def ouvrir_ouvrage(self, etude_ouverte):
+        """
+        Page Ouvrage d'une étude (P18.6, spec
+        navigation §5) : l'assemblage et l'export
+        final s'y font — la page Étude y renvoie.
+        """
+
+        cle = (
+            "ouvrage",
+            str(
+                Path(etude_ouverte.dossier).resolve()
+            ),
+        )
+
+        def fabrique():
+
+            from ui.ouvrage_window import (
+                OuvrageWindow
+            )
+
+            return OuvrageWindow(
+                etude_ouverte,
+                settings=self.settings
+            )
+
+        return self.ouvrir_page(cle, fabrique)
 
     def ouvrir_reformulation(self, etude_ouverte, nom):
         """

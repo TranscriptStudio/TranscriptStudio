@@ -21,8 +21,11 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
+    QFrame,
+    QInputDialog,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
@@ -52,6 +55,7 @@ from services.etude_io import (
 )
 from services.etude_schema import EtudeFormatError
 from services.project_io import load_project
+from services.help import open_user_manual
 from services.settings import SettingsManager
 
 
@@ -223,36 +227,132 @@ class EtudeWindow(QWidget):
         self.maj_synthese()
 
     def build_ui(self):
+        """
+        Page Étude (P18.6c, spec navigation §4) :
+        ruban (titre, thème, nombre de réunions,
+        badge Bible · versification, boutons
+        Modifier l'étude / Accueil / ⚙ / ?), liste
+        des réunions en une colonne (mini-tuiles :
+        titre, rang, date, durée, avancement ①→⑤
+        SANS ⑥, coût, ouverture, réordonnancement),
+        synthèse d'étude (régénérer / éditer),
+        récurrences, renvoi export ouvrage vers la
+        page Ouvrage.
+        """
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 16, 20, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(14, 8, 14, 8)
+        layout.setSpacing(8)
 
         #
-        # Titre.
+        # Ruban.
         #
+        self.ruban = QWidget()
+        self.ruban.setObjectName("ruban_etude")
+
+        ruban_layout = QHBoxLayout(self.ruban)
+        ruban_layout.setContentsMargins(0, 0, 0, 0)
+        ruban_layout.setSpacing(10)
+
+        colonne_titre = QVBoxLayout()
+        colonne_titre.setSpacing(2)
+
         self.titre_label = QLabel(
             self.etude.etude.titre
         )
         self.titre_label.setStyleSheet(
-            "font-size: 20px; font-weight: bold;"
+            "font-size: 18px; font-weight: 600;"
         )
 
-        theme_libelle = {
-            "livre": "Livre biblique",
-            "libre": "Thème libre",
-        }.get(
-            self.etude.etude.theme,
-            self.etude.etude.theme
+        nb_reunions = len(
+            self.etude.etude.ordre_reunions
         )
 
-        self.theme_label = QLabel(theme_libelle)
-        self.theme_label.setStyleSheet(
-            "font-size: 12px; color: #666666;"
+        sous_titre = (
+            f"{nb_reunions} réunion(s)"
         )
 
-        layout.addWidget(self.titre_label)
-        layout.addWidget(self.theme_label)
+        theme_libelle = self._libelle_theme()
+
+        if theme_libelle:
+            sous_titre = (
+                f"{theme_libelle} · {sous_titre}"
+            )
+
+        self.sous_titre_label = QLabel(
+            sous_titre
+        )
+        self.sous_titre_label.setStyleSheet(
+            "font-size: 12px; color: #757575;"
+        )
+
+        colonne_titre.addWidget(self.titre_label)
+        colonne_titre.addWidget(
+            self.sous_titre_label
+        )
+
+        ruban_layout.addLayout(colonne_titre)
+
+        self.badge_bible_label = QLabel(
+            self._texte_badge_bible()
+        )
+        self.badge_bible_label.setStyleSheet(
+            "font-size: 12px; color: #1565C0;"
+        )
+        self.badge_bible_label.setToolTip(
+            "Version de Bible retenue par l'étude "
+            "(paramètres de l'étude) et sa "
+            "versification — un écart de "
+            "versification est une information "
+            "consultable, jamais une décision "
+            "automatique (P18.5)"
+        )
+
+        ruban_layout.addWidget(
+            self.badge_bible_label
+        )
+
+        ruban_layout.addStretch()
+
+        self.modifier_button = QPushButton(
+            "Modifier l'étude"
+        )
+        self.modifier_button.setToolTip(
+            "Modifier le titre et le thème de "
+            "l'étude"
+        )
+        self.modifier_button.clicked.connect(
+            self.modifier_etude
+        )
+
+        self.accueil_button = QPushButton(
+            "Accueil"
+        )
+        self.accueil_button.clicked.connect(
+            self.retour_accueil
+        )
+
+        self.parametres_button = QPushButton(
+            "⚙ Paramètres"
+        )
+        self.parametres_button.clicked.connect(
+            self.ouvrir_parametres
+        )
+
+        self.aide_button = QPushButton("? Aide")
+        self.aide_button.clicked.connect(
+            open_user_manual
+        )
+
+        for bouton in (
+            self.modifier_button,
+            self.accueil_button,
+            self.parametres_button,
+            self.aide_button,
+        ):
+            ruban_layout.addWidget(bouton)
+
+        layout.addWidget(self.ruban)
 
         self.avertissement_label = QLabel("")
         self.avertissement_label.setStyleSheet(
@@ -262,19 +362,21 @@ class EtudeWindow(QWidget):
         layout.addWidget(self.avertissement_label)
 
         #
-        # Réunions.
+        # Réunions : liste en une colonne de
+        # mini-tuiles (même langage que le hub).
         #
         layout.addWidget(QLabel("Réunions"))
 
         self.reunions_liste = QListWidget()
         self.reunions_liste.setToolTip(
-            "Double-clic : correction de transcription "
-            "dans l'éditeur v1 — ou utilisez les "
-            "boutons explicites ci-dessous"
+            "Sélectionnez une réunion : les boutons "
+            "de la mini-tuile ouvrent la page Réunion "
+            "(correction, reformulation, résumé)"
         )
         self.reunions_liste.itemDoubleClicked.connect(
             self.ouvrir_reunion_editeur
         )
+
         layout.addWidget(
             self.reunions_liste,
             stretch=1
@@ -283,22 +385,14 @@ class EtudeWindow(QWidget):
         boutons_reunions = QHBoxLayout()
 
         self.ajouter_button = QPushButton(
-            "Ajouter une réunion..."
+            "＋ Ajouter une réunion…"
+        )
+        self.ajouter_button.setToolTip(
+            "Nouvel audio, ou reprise d'une réunion "
+            "autonome (rattachement)"
         )
         self.ajouter_button.clicked.connect(
             self.ajouter_reunion_ui
-        )
-
-        self.monter_button = QPushButton("Monter")
-        self.monter_button.clicked.connect(
-            self.monter_reunion
-        )
-
-        self.descendre_button = QPushButton(
-            "Descendre"
-        )
-        self.descendre_button.clicked.connect(
-            self.descendre_reunion
         )
 
         self.retirer_button = QPushButton(
@@ -306,44 +400,6 @@ class EtudeWindow(QWidget):
         )
         self.retirer_button.clicked.connect(
             self.retirer_reunion_ui
-        )
-
-        self.ouvrir_button = QPushButton(
-            "Correction de transcription…"
-        )
-        self.ouvrir_button.setToolTip(
-            "Ouvrir la réunion dans l'éditeur de "
-            "correction de transcription (étape de "
-            "correction de l'oral, avant la "
-            "reformulation) — la réunion n'est pas "
-            "modifié par l'étude"
-        )
-        self.ouvrir_button.clicked.connect(
-            self.ouvrir_reunion_editeur
-        )
-
-        self.reformulation_button = QPushButton(
-            "Reformulation littéraire…"
-        )
-        self.reformulation_button.setToolTip(
-            "Ouvrir la page de relecture de la "
-            "reformulation : texte brut en lecture "
-            "seule, bloc reformulé éditable, "
-            "validation par bloc"
-        )
-        self.reformulation_button.clicked.connect(
-            self.ouvrir_reunion_reformulation
-        )
-
-        self.resume_button = QPushButton("Résumé…")
-        self.resume_button.setToolTip(
-            "Ouvrir le résumé de cette réunion "
-            "(P17 : source au choix — reformulations "
-            "validées ou brute corrigée —, éditable, "
-            "validable)"
-        )
-        self.resume_button.clicked.connect(
-            self.ouvrir_reunion_resume
         )
 
         self.relocaliser_button = QPushButton(
@@ -355,12 +411,7 @@ class EtudeWindow(QWidget):
 
         for bouton in (
             self.ajouter_button,
-            self.monter_button,
-            self.descendre_button,
             self.retirer_button,
-            self.ouvrir_button,
-            self.reformulation_button,
-            self.resume_button,
             self.relocaliser_button,
         ):
             boutons_reunions.addWidget(bouton)
@@ -398,6 +449,31 @@ class EtudeWindow(QWidget):
             self.regenerer_synthese
         )
 
+        self.synthese_editer_button = QPushButton(
+            "Éditer"
+        )
+        self.synthese_editer_button.setToolTip(
+            "Éditer la synthèse à la main (saisie "
+            "manuelle, sans LLM — même statut une "
+            "fois sauvegardée)"
+        )
+        self.synthese_editer_button.clicked.connect(
+            self.editer_synthese
+        )
+
+        self.synthese_sauver_button = QPushButton(
+            "Sauvegarder l'édition"
+        )
+        self.synthese_sauver_button.setToolTip(
+            "Enregistrer le texte édité comme "
+            "nouvelle version de la synthèse "
+            "(déclencheur « manuel »)"
+        )
+        self.synthese_sauver_button.clicked.connect(
+            self.sauvegarder_edition_synthese
+        )
+        self.synthese_sauver_button.setVisible(False)
+
         self.recurrences_button = QPushButton(
             "Récurrences…"
         )
@@ -418,58 +494,246 @@ class EtudeWindow(QWidget):
             self.synthese_regenerer_button
         )
         boutons_synthese.addWidget(
+            self.synthese_editer_button
+        )
+        boutons_synthese.addWidget(
+            self.synthese_sauver_button
+        )
+        boutons_synthese.addWidget(
             self.recurrences_button
         )
         boutons_synthese.addWidget(
             self.synthese_statut_label
         )
 
-        #
-        # Export de l'ouvrage (P18.3) : DOCX (ou TXT)
-        # assemblé des textes validés.
-        #
-        self.exporter_ouvrage_button = QPushButton(
-            "📤 Exporter l'ouvrage…"
-        )
-        self.exporter_ouvrage_button.setToolTip(
-            "Assembler les textes validés (résumés en "
-            "tête de section, reformulations dans "
-            "l'ordre d'ouvrage) et exporter en "
-            "document Word ou texte"
-        )
-        self.exporter_ouvrage_button.clicked.connect(
-            self.exporter_ouvrage
-        )
-
-        boutons_synthese.addWidget(
-            self.exporter_ouvrage_button
-        )
         boutons_synthese.addStretch()
 
         layout.addLayout(boutons_synthese)
 
         #
-        # Navigation.
+        # Renvoi export ouvrage vers la page
+        # Ouvrage (spec §4.5 : l'assemblage et
+        # l'export final s'y font).
         #
-        boutons_bas = QHBoxLayout()
+        ouvrage_layout = QHBoxLayout()
 
-        self.accueil_button = QPushButton("Accueil")
-        self.accueil_button.clicked.connect(
-            self.retour_accueil
+        self.ouvrage_button = QPushButton(
+            "Ouvrage…"
+        )
+        self.ouvrage_button.setToolTip(
+            "Ouvrir la page Ouvrage : assemblage des "
+            "textes validés et export final de "
+            "l'étude"
+        )
+        self.ouvrage_button.clicked.connect(
+            self.ouvrir_ouvrage
         )
 
-        boutons_bas.addStretch()
-        boutons_bas.addWidget(self.accueil_button)
+        ouvrage_note = QLabel(
+            "L'assemblage et l'export final de "
+            "l'ouvrage se font sur la page Ouvrage."
+        )
+        ouvrage_note.setStyleSheet(
+            "font-size: 12px; color: #757575;"
+        )
 
-        layout.addLayout(boutons_bas)
+        ouvrage_layout.addWidget(self.ouvrage_button)
+        ouvrage_layout.addWidget(ouvrage_note)
+        ouvrage_layout.addStretch()
+
+        layout.addLayout(ouvrage_layout)
+
+    def _libelle_theme(self) -> str:
+
+        theme = self.etude.etude.theme
+
+        if theme in ("livre", "libre"):
+            return {
+                "livre": "Livre biblique",
+                "libre": "Thème libre",
+            }.get(theme, "")
+
+        return theme
+
+    def _texte_badge_bible(self) -> str:
+
+        from services.bibles import (
+            VERSIONS_BIBLE,
+            version_bible_etude,
+        )
+
+        try:
+
+            version = version_bible_etude(
+                self.etude.parametres
+            )
+
+            infos = VERSIONS_BIBLE[version]
+
+            versification = infos.get(
+                "edition",
+                ""
+            )
+
+            badge = (
+                f"Bible : {infos['nom']}"
+            )
+
+            if versification:
+                badge += (
+                    " · versification : "
+                    + versification
+                )
+
+            return badge
+
+        except Exception:
+            return "Bible : —"
+
+    def ouvrir_parametres(self):
+        """
+        ⚙ Paramètres (dialogue modal existant).
+        """
+
+        from ui.settings_dialog import SettingsDialog
+
+        dialogue = SettingsDialog(
+            self,
+            settings=self.settings
+        )
+
+        if dialogue.exec():
+            self.settings.load()
+
+    def modifier_etude(self):
+        """
+        « Modifier l'étude » : mini-fenêtre titre +
+        thème (extensible — spec §4.1).
+        """
+
+        from ui.modifier_etude_dialog import (
+            ModifierEtudeDialog
+        )
+
+        dialogue = ModifierEtudeDialog(
+            self.etude.etude.titre,
+            self.etude.etude.theme,
+            parent=self
+        )
+
+        if not dialogue.exec():
+            return
+
+        titre, theme = dialogue.resultat()
+
+        if titre:
+            self.etude.etude.titre = titre
+
+        if theme:
+            self.etude.etude.theme = theme
+
+        sauvegarder_etude(self.etude)
+
+        self.titre_label.setText(
+            self.etude.etude.titre
+        )
+        self.sous_titre_label.setText(
+            self._libelle_theme()
+            + " · "
+            + f"{len(self.etude.etude.ordre_reunions)} "
+            "réunion(s)"
+        )
+
+    def editer_synthese(self):
+        """
+        « Éditer » : la synthèse devient éditable à
+        la main (saisie manuelle, sans LLM — le
+        bouton Sauvegarder crée une version
+        « manuel »).
+        """
+
+        self.synthese_edit.setReadOnly(False)
+        self.synthese_sauver_button.setVisible(True)
+        self.synthese_editer_button.setVisible(False)
+
+    def sauvegarder_edition_synthese(self):
+        """
+        Sauvegarde de l'édition manuelle : nouvelle
+        version de la synthèse (déclencheur
+        « manuel »), puis retour en lecture seule.
+        """
+
+        from services.etude_io import (
+            ajouter_version_synthese,
+        )
+
+        texte = (
+            self.synthese_edit.toPlainText().strip()
+        )
+
+        if not texte:
+            QMessageBox.information(
+                self,
+                "Synthèse vide",
+                "La synthèse ne peut pas être vide."
+            )
+            return
+
+        ajouter_version_synthese(
+            self.etude,
+            texte,
+            declencheur="manuel"
+        )
+
+        sauvegarder_etude(self.etude)
+
+        self.synthese_edit.setReadOnly(True)
+        self.synthese_sauver_button.setVisible(False)
+        self.synthese_editer_button.setVisible(True)
+
+        self.maj_synthese()
+
+    def ouvrir_ouvrage(self):
+        """
+        Renvoi vers la page Ouvrage (spec §4.5).
+        """
+
+        navigation = getattr(
+            self,
+            "navigation",
+            None
+        )
+
+        if navigation is not None:
+            navigation.ouvrir_ouvrage(self.etude)
+            return
+
+        from ui.ouvrage_window import OuvrageWindow
+
+        self.fenetre_ouvrage = OuvrageWindow(
+            self.etude,
+            settings=self.settings
+        )
+
+        self.fenetre_ouvrage.show()
 
     def refresh_reunions(self):
         """
-        Reconstitue la liste des réunions dans
-        l'ordre de lecture, avec leur statut.
+        Reconstitue la liste des réunions en une
+        colonne de mini-tuiles (ordre de lecture) :
+        titre, rang, date, durée, avancement ①→⑤
+        SANS ⑥ (invariant §9.4), coût, ouverture,
+        poignée de réordonnancement.
         """
 
         self.reunions_liste.clear()
+
+        from services.avancement import (
+            cout_reunion,
+            etapes_reunion_page_etude,
+        )
+
+        projets = {}
 
         for nom in self.etude.etude.ordre_reunions:
 
@@ -479,30 +743,58 @@ class EtudeWindow(QWidget):
                 nom in self.etude.reunions_introuvables
             )
 
-            libelle = (
-                f"{reunion.numero}. "
-                f"{reunion.titre_1 or nom} "
-                f"({reunion.date})"
+            projet = None
+
+            if not introuvable:
+
+                try:
+                    projet = load_project(
+                        str(
+                            fichier_projet_v1(
+                                self.etude,
+                                nom
+                            )
+                        )
+                    )
+
+                except Exception:
+                    projet = None
+
+            projets[nom] = projet
+
+            etats = etapes_reunion_page_etude(
+                self.etude,
+                nom,
+                projet
             )
 
-            if introuvable:
-                libelle += "  —  introuvable"
+            tuile = self._construire_mini_tuile(
+                nom,
+                reunion,
+                projet,
+                etats,
+                cout_reunion(self.etude, nom),
+                introuvable
+            )
 
-            elif reunion.resume_valide:
-                libelle += "  —  résumé validé"
-
-            item = QListWidgetItem(libelle)
+            item = QListWidgetItem(
+                reunion.titre_1 or nom
+            )
             item.setData(
                 Qt.ItemDataRole.UserRole,
                 nom
             )
 
-            if introuvable:
-                item.setForeground(
-                    Qt.GlobalColor.darkYellow
-                )
-
             self.reunions_liste.addItem(item)
+
+            self.reunions_liste.setItemWidget(
+                item,
+                tuile
+            )
+
+            item.setSizeHint(
+                tuile.sizeHint()
+            )
 
         introuvables = (
             self.etude.reunions_introuvables
@@ -521,6 +813,191 @@ class EtudeWindow(QWidget):
         else:
             self.avertissement_label.setText("")
 
+    def _construire_mini_tuile(
+        self,
+        nom,
+        reunion,
+        projet,
+        etats,
+        cout,
+        introuvable
+    ):
+        """
+        Mini-tuile d'une réunion de l'étude (même
+        langage que le hub) : titre, rang, date,
+        durée ; avancement ①→⑤ sans ⑥ ; coût ;
+        ouverture ; poignée de réordonnancement
+        (l'ordre vaut ordre d'ouvrage).
+        """
+
+        from ui.stepper import StepperBar
+
+        cadre = QFrame()
+        cadre.setObjectName("etude_mini_tuile")
+
+        if introuvable:
+            cadre.setStyleSheet(
+                "QFrame#etude_mini_tuile {"
+                "border: 1px solid #b35900;"
+                "border-radius: 6px;"
+                "}"
+            )
+        else:
+            cadre.setStyleSheet(
+                "QFrame#etude_mini_tuile {"
+                "border: 1px solid #C8C8C8;"
+                "border-radius: 6px;"
+                "}"
+            )
+
+        layout = QVBoxLayout(cadre)
+        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setSpacing(3)
+
+        ligne_titre = QHBoxLayout()
+
+        titre = QLabel(
+            f"{reunion.numero}. "
+            f"{reunion.titre_1 or nom}"
+        )
+        titre.setStyleSheet("font-weight: 600;")
+
+        ligne_titre.addWidget(titre)
+        ligne_titre.addStretch()
+
+        infos = QLabel(reunion.date or "")
+
+        if projet is not None:
+
+            from ui.reunion_window import (
+                formater_duree
+            )
+
+            duree = getattr(
+                projet,
+                "duration_seconds",
+                None
+            )
+
+            if duree:
+                infos.setText(
+                    f"{reunion.date or ''} · "
+                    f"{formater_duree(duree)}"
+                )
+
+        infos.setStyleSheet(
+            "color: #8A8A8A; font-size: 11px;"
+        )
+
+        ligne_titre.addWidget(infos)
+
+        if introuvable:
+            badge = QLabel("introuvable")
+            badge.setStyleSheet(
+                "color: #b35900; font-size: 11px;"
+            )
+            ligne_titre.addWidget(badge)
+
+        layout.addLayout(ligne_titre)
+
+        ligne_stepper = QHBoxLayout()
+
+        stepper = StepperBar(
+            etapes=etats.keys(),
+            cliquable=False,
+            compact=True
+        )
+
+        stepper.definir_etats(etats)
+
+        ligne_stepper.addWidget(stepper)
+        ligne_stepper.addStretch()
+
+        cout_label = QLabel(
+            f"Coût : {cout:.4f} $"
+            if cout
+            else "Coût : —"
+        )
+        cout_label.setStyleSheet(
+            "color: #8A8A8A; font-size: 11px;"
+        )
+
+        ligne_stepper.addWidget(cout_label)
+
+        layout.addLayout(ligne_stepper)
+
+        ligne_actions = QHBoxLayout()
+
+        ouvrir_button = QPushButton("Ouvrir")
+        ouvrir_button.setFixedHeight(26)
+        ouvrir_button.setToolTip(
+            "Ouvrir la page Réunion de cette "
+            "réunion (correction, reformulation, "
+            "résumé, export)"
+        )
+        ouvrir_button.clicked.connect(
+            lambda checked=False, n=nom: (
+                self._ouvrir_reunion(n)
+            )
+        )
+
+        reformulation_button = QPushButton(
+            "Reformulation…"
+        )
+        reformulation_button.setFixedHeight(26)
+        reformulation_button.clicked.connect(
+            lambda checked=False, n=nom: (
+                self._ouvrir_reformulation(n)
+            )
+        )
+
+        resume_button = QPushButton("Résumé…")
+        resume_button.setFixedHeight(26)
+        resume_button.clicked.connect(
+            lambda checked=False, n=nom: (
+                self._ouvrir_resume(n)
+            )
+        )
+
+        monter_button = QPushButton("↑")
+        monter_button.setFixedHeight(26)
+        monter_button.setToolTip(
+            "Réordonner : la réunion monte dans "
+            "l'ordre d'ouvrage"
+        )
+        monter_button.clicked.connect(
+            lambda checked=False, n=nom: (
+                self._deplacer_reunion(n, -1)
+            )
+        )
+
+        descendre_button = QPushButton("↓")
+        descendre_button.setFixedHeight(26)
+        descendre_button.setToolTip(
+            "Réordonner : la réunion descend dans "
+            "l'ordre d'ouvrage"
+        )
+        descendre_button.clicked.connect(
+            lambda checked=False, n=nom: (
+                self._deplacer_reunion(n, 1)
+            )
+        )
+
+        for bouton in (
+            ouvrir_button,
+            reformulation_button,
+            resume_button,
+            monter_button,
+            descendre_button,
+        ):
+            ligne_actions.addWidget(bouton)
+
+        ligne_actions.addStretch()
+
+        layout.addLayout(ligne_actions)
+
+        return cadre
+
     def reunion_selectionnee(self):
         """
         Nom de la réunion sélectionnée, ou None.
@@ -537,82 +1014,47 @@ class EtudeWindow(QWidget):
             Qt.ItemDataRole.UserRole
         )
 
-    def ajouter_reunion_ui(self):
-        """
-        Ajoute un projet v1 existant comme réunion
-        (référence, jamais copie).
-        """
+    def _selectionner(self, nom: str):
 
-        dossier, _ = QFileDialog.getOpenFileName(
-            self,
-            "Choisir une réunion (fichier v1)",
-            self.settings.get_projects_root(),
-            "Réunion (*.sttproj)"
-        )
-
-        if not dossier:
+        if nom not in (
+            self.etude.etude.ordre_reunions
+        ):
             return
-
-        try:
-            nom = ajouter_reunion(
-                self.etude,
-                dossier
-            )
-        except EtudeError as e:
-            QMessageBox.warning(
-                self,
-                "Réunion non ajoutée",
-                str(e)
-            )
-            return
-
-        sauvegarder_etude(self.etude)
-        self.refresh_reunions()
 
         self.reunions_liste.setCurrentRow(
-            self.etude.etude.ordre_reunions.index(nom)
-        )
-
-    def retirer_reunion_ui(self):
-        """
-        Retire la réunion sélectionnée de l'étude :
-        sa référence et ses résultats d'étude ;
-        jamais le projet v1 ni le registre FID.
-        """
-
-        nom = self.reunion_selectionnee()
-
-        if nom is None:
-            return
-
-        resultat = QMessageBox.question(
-            self,
-            "Retirer la réunion",
-            (
-                "Retirer cette réunion de l'étude ?\n\n"
-                "Sa référence et ses résultats d'étude "
-                "seront retirés. La réunion n'est pas "
-                "touché."
+            self.etude.etude.ordre_reunions.index(
+                nom
             )
         )
 
-        if resultat != QMessageBox.StandardButton.Yes:
-            return
-
-        retirer_reunion(self.etude, nom)
-        sauvegarder_etude(self.etude)
-        self.refresh_reunions()
-
-    def deplacer_selection(self, offset: int):
+    def _ouvrir_reunion(self, nom: str):
         """
-        Déplace la réunion sélectionnée dans
-        l'ordre de lecture.
+        Bouton « Ouvrir » d'une mini-tuile : page
+        Réunion de la réunion (objet de premier
+        rang), avec l'étude et le nom connus.
         """
 
-        nom = self.reunion_selectionnee()
+        self._selectionner(nom)
 
-        if nom is None:
-            return
+        self.ouvrir_reunion_editeur(nom)
+
+    def _ouvrir_reformulation(self, nom: str):
+
+        self._selectionner(nom)
+
+        self.ouvrir_reunion_reformulation()
+
+    def _ouvrir_resume(self, nom: str):
+
+        self._selectionner(nom)
+
+        self.ouvrir_reunion_resume()
+
+    def _deplacer_reunion(self, nom: str, offset: int):
+        """
+        Poignée de réordonnancement (l'ordre vaut
+        ordre d'ouvrage, spec §4.2).
+        """
 
         index = (
             self.etude.etude.ordre_reunions.index(nom)
@@ -634,11 +1076,249 @@ class EtudeWindow(QWidget):
             self.etude.etude.ordre_reunions.index(nom)
         )
 
-    def monter_reunion(self):
-        self.deplacer_selection(-1)
+    def ajouter_reunion_ui(self):
+        """
+        « ＋ Ajouter une réunion » (spec §4.3) :
+        nouvel audio, ou reprise d'une réunion
+        autonome (rattachement §6).
+        """
 
-    def descendre_reunion(self):
-        self.deplacer_selection(1)
+        menu = QMenu(self)
+
+        depuis_fichier = menu.addAction(
+            "Depuis un fichier de réunion…"
+        )
+        depuis_fichier.triggered.connect(
+            self.ajouter_reunion_depuis_fichier
+        )
+
+        depuis_autonome = menu.addAction(
+            "Depuis une réunion autonome…"
+        )
+        depuis_autonome.triggered.connect(
+            self.ajouter_reunion_depuis_autonome
+        )
+
+        menu.addSeparator()
+
+        nouvel_audio = menu.addAction(
+            "Nouvel audio…"
+        )
+        nouvel_audio.triggered.connect(
+            self.nouvel_audio
+        )
+
+        menu.exec(
+            self.ajouter_button.mapToGlobal(
+                self.ajouter_button.rect()
+                .bottomLeft()
+            )
+        )
+
+    def ajouter_reunion_depuis_fichier(self):
+        """
+        Ajoute un projet v1 existant comme réunion
+        (référence, jamais copie) — l'exclusivité
+        (une réunion ∈ 0 ou 1 étude) est vérifiée
+        par le service de rattachement.
+        """
+
+        from services.rattachement import (
+            RattachementError,
+            rattacher,
+        )
+
+        dossier, _ = QFileDialog.getOpenFileName(
+            self,
+            "Choisir une réunion (fichier v1)",
+            self.settings.get_projects_root(),
+            "Réunion (*.sttproj)"
+        )
+
+        if not dossier:
+            return
+
+        etudes_connues = (
+            self.settings.cleanup_recent_etudes()
+        )
+
+        try:
+            nom = rattacher(
+                self.etude.dossier,
+                dossier,
+                etudes_connues=etudes_connues
+            )
+        except RattachementError as e:
+
+            QMessageBox.warning(
+                self,
+                "Réunion non ajoutée",
+                str(e)
+            )
+
+            return
+
+        except EtudeError as e:
+
+            QMessageBox.warning(
+                self,
+                "Réunion non ajoutée",
+                str(e)
+            )
+
+            return
+
+        self.refresh_reunions()
+
+        self.reunions_liste.setCurrentRow(
+            self.etude.etude.ordre_reunions.index(nom)
+        )
+
+    def ajouter_reunion_depuis_autonome(self):
+        """
+        Reprise d'une réunion autonome : les
+        réunions récentes n'appartenant à aucune
+        étude sont proposées au rattachement.
+        """
+
+        from services.rattachement import (
+            RattachementError,
+            rattacher,
+            verifier_exclusivite,
+        )
+
+        etudes = (
+            self.settings.cleanup_recent_etudes()
+        )
+
+        autonomes = []
+
+        for chemin in (
+            self.settings.cleanup_recent_projects()
+        ):
+
+            conflit = verifier_exclusivite(
+                chemin,
+                etudes
+            )
+
+            if conflit is None:
+                autonomes.append(chemin)
+
+        if not autonomes:
+
+            QMessageBox.information(
+                self,
+                "Aucune réunion autonome",
+                (
+                    "Aucune réunion récente n'est "
+                    "autonome : les réunions récentes "
+                    "appartiennent déjà toutes à une "
+                    "étude.\n\n"
+                    "Utilisez « Depuis un fichier de "
+                    "réunion… » pour choisir un "
+                    "fichier sur le disque."
+                )
+            )
+
+            return
+
+        libelles = [
+            str(Path(chemin).parent.name)
+            for chemin in autonomes
+        ]
+
+        choix, ok = QInputDialog.getItem(
+            self,
+            "Rattacher une réunion autonome",
+            "Réunion à rattacher à l'étude :",
+            libelles,
+            0,
+            False
+        )
+
+        if not ok:
+            return
+
+        chemin = autonomes[libelles.index(choix)]
+
+        try:
+            nom = rattacher(
+                self.etude.dossier,
+                chemin,
+                etudes_connues=etudes
+            )
+        except Exception as e:
+
+            QMessageBox.warning(
+                self,
+                "Réunion non ajoutée",
+                str(e)
+            )
+
+            return
+
+        self.refresh_reunions()
+
+        self.reunions_liste.setCurrentRow(
+            self.etude.etude.ordre_reunions.index(nom)
+        )
+
+    def nouvel_audio(self):
+        """
+        « Nouvel audio… » : la création d'une
+        réunion (enregistrement → transcription)
+        part du hub (« Nouvelle transcription ») ;
+        une fois créée, la réunion se rattache ici
+        (« Depuis une réunion autonome… ») ou
+        depuis sa page Réunion (« Gestion de
+        l'étude »).
+        """
+
+        QMessageBox.information(
+            self,
+            "Nouvel audio",
+            (
+                "La création d'une réunion part de "
+                "l'accueil : tuile « Nouvelle "
+                "transcription ».\n\n"
+                "Une fois la réunion créée, rattachez-"
+                "la à cette étude : « ＋ Ajouter une "
+                "réunion… » → « Depuis une réunion "
+                "autonome… », ou bouton « Gestion de "
+                "l'étude » de sa page Réunion."
+            )
+        )
+
+    def retirer_reunion_ui(self):
+        """
+        Retire la réunion sélectionnée de l'étude :
+        sa référence et ses résultats d'étude ;
+        jamais le projet v1 ni le registre FID.
+        """
+
+        nom = self.reunion_selectionnee()
+
+        if nom is None:
+            return
+
+        resultat = QMessageBox.question(
+            self,
+            "Retirer la réunion",
+            (
+                "Retirer cette réunion de l'étude ?\n\n"
+                "Sa référence et ses résultats d'étude "
+                "seront retirés. La réunion n'est pas "
+                "touchée."
+            )
+        )
+
+        if resultat != QMessageBox.StandardButton.Yes:
+            return
+
+        retirer_reunion(self.etude, nom)
+        sauvegarder_etude(self.etude)
+        self.refresh_reunions()
 
     def relocaliser_reunion_ui(self):
         """
@@ -683,8 +1363,9 @@ class EtudeWindow(QWidget):
 
     def ouvrir_reunion_editeur(self, *args):
         """
-        Ouvre le projet v1 de la réunion sélectionnée
-        dans l'éditeur existant.
+        Ouvre la page Réunion de la réunion
+        sélectionnée (l'éditeur v1 reste l'étape ③
+        de la page Réunion).
         """
 
         nom = self.reunion_selectionnee()
@@ -714,20 +1395,36 @@ class EtudeWindow(QWidget):
 
         navigation = getattr(self, "navigation", None)
 
-        if navigation is not None:
-            navigation.ouvrir_correction(projet)
+        if (
+            navigation is not None
+            and hasattr(
+                navigation,
+                "ouvrir_reunion"
+            )
+        ):
+            navigation.ouvrir_reunion(
+                projet,
+                etude=self.etude,
+                nom=nom
+            )
             return
 
-        from ui.main_window import MainWindow
+        from ui.reunion_window import ReunionWindow
 
-        self.editor = MainWindow(projet)
+        self.editor = ReunionWindow(
+            projet,
+            settings=self.settings,
+            etude=self.etude,
+            nom=nom
+        )
+
         self.editor.show()
 
     def ouvrir_reunion_reformulation(self):
         """
-        Ouvre la page de traitement Reformulation
-        de la réunion sélectionnée (P16.2) :
-        table de relecture, pastilles, moteur.
+        Ouvre la page Réunion de la réunion
+        sélectionnée, directement à l'étape ④
+        Reformulation (P16.2).
         """
 
         nom = self.reunion_selectionnee()
@@ -752,12 +1449,27 @@ class EtudeWindow(QWidget):
         if not self._assurer_decoupage(nom):
             return
 
+        chemin = fichier_projet_v1(
+            self.etude,
+            nom
+        )
+
+        projet = load_project(str(chemin))
+
         navigation = getattr(self, "navigation", None)
 
-        if navigation is not None:
-            navigation.ouvrir_reformulation(
-                self.etude,
-                nom
+        if (
+            navigation is not None
+            and hasattr(
+                navigation,
+                "ouvrir_reunion"
+            )
+        ):
+            navigation.ouvrir_reunion(
+                projet,
+                etude=self.etude,
+                nom=nom,
+                etape="reformulation"
             )
             return
 
@@ -813,7 +1525,6 @@ class EtudeWindow(QWidget):
         fenetre.exec()
 
         self.maj_synthese()
-
     #
     # Synthèse d'étude (P17.2).
     #
@@ -1029,187 +1740,6 @@ class EtudeWindow(QWidget):
                 + "\n".join(lignes[:20])
             )
         )
-
-    #
-    # Export de l'ouvrage (P18.3).
-    #
-
-    def exporter_ouvrage(self):
-        """
-        « Exporter l'ouvrage… » : assemble les
-        textes validés (résumés en tête de section
-        si souhaité, reformulations dans l'ordre
-        d'ouvrage) et exporte en DOCX (ou TXT).
-        Message de fin avec ouverture du fichier ou
-        du dossier — même flux que l'export v1 (P13).
-        """
-
-        import re as _re
-
-        from services.export_ouvrage import (
-            assembler_ouvrage,
-            exporter_docx,
-            exporter_txt,
-        )
-
-        #
-        # Rien à exporter : au moins un texte validé
-        # est nécessaire (l'ordre d'ouvrage exige un
-        # découpage ; une réunion sans segmentation
-        # est simplement ignorée).
-        #
-        apercu = assembler_ouvrage(
-            self.etude,
-            inclure_resumes=True,
-            en_tetes_reunions=True
-        )
-
-        if not apercu["reunions"]:
-
-            QMessageBox.information(
-                self,
-                "Rien à exporter",
-                (
-                    "Aucun texte validé dans l'étude : "
-                    "validez des reformulations (ou un "
-                    "résumé) avant d'exporter l'ouvrage."
-                )
-            )
-
-            return
-
-        #
-        # Options d'assemblage.
-        #
-        dialogue = QDialog(self)
-        dialogue.setWindowTitle("Exporter l'ouvrage")
-
-        options = QVBoxLayout(dialogue)
-
-        resumes_check = QCheckBox(
-            "Inclure les résumés validés "
-            "en tête de section"
-        )
-        resumes_check.setChecked(True)
-
-        tetes_check = QCheckBox(
-            "Titres de réunion"
-        )
-        tetes_check.setChecked(True)
-
-        options.addWidget(resumes_check)
-        options.addWidget(tetes_check)
-
-        boutons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel
-        )
-
-        boutons.accepted.connect(dialogue.accept)
-        boutons.rejected.connect(dialogue.reject)
-
-        options.addWidget(boutons)
-
-        if dialogue.exec() != (
-            QDialog.DialogCode.Accepted
-        ):
-            return
-
-        #
-        # Fichier de destination.
-        #
-        nom_defaut = _re.sub(
-            r"[^\w\- ]",
-            "",
-            apercu["titre"]
-        ).strip() or "ouvrage"
-
-        chemin, filtre = QFileDialog.getSaveFileName(
-            self,
-            "Exporter l'ouvrage",
-            str(
-                self.etude.dossier
-                / f"{nom_defaut}.docx"
-            ),
-            "Document Word (*.docx);;"
-            "Texte (*.txt)"
-        )
-
-        if not chemin:
-            return
-
-        ouvrage = assembler_ouvrage(
-            self.etude,
-            inclure_resumes=(
-                resumes_check.isChecked()
-            ),
-            en_tetes_reunions=(
-                tetes_check.isChecked()
-            )
-        )
-
-        try:
-
-            if filtre.startswith("Document"):
-                chemin = exporter_docx(
-                    ouvrage,
-                    chemin
-                )
-            else:
-                chemin = exporter_txt(
-                    ouvrage,
-                    chemin
-                )
-
-        except Exception as e:
-
-            QMessageBox.critical(
-                self,
-                "Export impossible",
-                str(e)
-            )
-
-            return
-
-        #
-        # Message de fin (flux P13).
-        #
-        message = QMessageBox(self)
-        message.setWindowTitle("Ouvrage exporté")
-        message.setText(
-            f"L'ouvrage a été exporté :\n\n{chemin}"
-        )
-
-        open_file_button = message.addButton(
-            "Ouvrir le fichier",
-            QMessageBox.ButtonRole.AcceptRole
-        )
-
-        open_folder_button = message.addButton(
-            "Ouvrir le dossier",
-            QMessageBox.ButtonRole.AcceptRole
-        )
-
-        message.addButton(
-            "Fermer",
-            QMessageBox.ButtonRole.RejectRole
-        )
-
-        message.exec()
-
-        clicked = message.clickedButton()
-
-        if clicked is open_file_button:
-            QDesktopServices.openUrl(
-                QUrl.fromLocalFile(str(chemin))
-            )
-
-        elif clicked is open_folder_button:
-            QDesktopServices.openUrl(
-                QUrl.fromLocalFile(
-                    str(Path(chemin).parent)
-                )
-            )
 
     def retour_accueil(self):
         """
