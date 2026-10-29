@@ -1,12 +1,11 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-29 (correctif
-> effort de raisonnement : valeur mémorisée
-> restaurée à l'ouverture des réglages, niveaux
-> complets exposés jusqu'à « Très élevé »,
-> réglage ENFIN transmis à l'API par le moteur,
-> résumé et synthèse — idem « Tokens max » ;
-> 341 tests verts)
+> **Dernière mise à jour** : 2026-10-29 (**P18.6 — refonte de la
+> navigation LIVRÉE** : hub à 3 tuiles, page Réunion ruban +
+> stepper ①→⑥ avec ④⑤ optionnelles, page Étude ①→⑤ sans ⑥,
+> réunion objet de premier rang avec exclusivité 0-1 étude,
+> saisie manuelle, exports à 3 portées, page Ouvrage (destination
+> P19/P20) ; sync documents du 2026-10-29 ; **404 tests verts**)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -48,6 +47,13 @@
 - **P18.5 : LIVRÉ** (téléchargeur de Bibles intégré, version retenue
   par étude, versifications — spec BIBLE_JND_V2_2026-10-28b) —
   334 tests verts.
+- **P18.6 : LIVRÉ** (refonte de la navigation : hub 3 tuiles, page
+  Réunion ruban + stepper ①→⑥ avec ④⑤ optionnelles, page Étude
+  ①→⑤ sans ⑥ + réordonnancement, réunion objet de premier rang
+  avec exclusivité 0-1 étude et changement d'étude option A, saisie
+  manuelle sans IA, exports à 3 portées, page Ouvrage destination
+  P19/P20 — SPEC_NAVIGATION_V2_2026-10-29b fait autorité,
+  ARBITRAGE_EXCLUSIVITE_REUNIONS 2026-10-29) — 404 tests verts.
 - **P16-bis : LIVRÉ** (correctifs de relecture UI, séries 1 à 3 +
   terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
   sur UI_REFORMULATION_V2 pour ses points).
@@ -1438,21 +1444,164 @@ l'enregistrement + réouverture (UI offscreen),
 
 ---
 
+## SESSION 2026-10-29 (P18.6) — REFONTE DE LA NAVIGATION : LIVRÉ
+
+**Synchro atelier spec** (rituel) : 8 documents du 2026-10-29 recopiés dans
+`architecture/spec_v2/` — SPEC_NAVIGATION_V2_2026-10-29b (fait autorité),
+ARBITRAGE_EXCLUSIVITE_REUNIONS_2026-10-29, CONTRAT_FORMAT_ETUDE_V2_2026-10-29
+(invariant 13.5 réécrit : une réunion ∈ 0 ou 1 étude), FEUILLE_DE_ROUTE_V2_2026-10-29
+(phase P18.6a-f insérée avant P19/P20), INDEX_SPECS_2026-10-29c, versions
+intermédiaires conservées conformément au rituel. PROJECT_STATE.md copié vers
+le dossier Drive Synchro (montée + hook post-commit).
+
+### Ce qui a été livré (P18.6a à P18.6f, un commit par étape)
+
+- **P18.6a — Hub** : trois tuiles (« Nouvelle transcription » / « Reprendre
+  une réunion » / « Études »), bandeau app réservé à l'accueil (objectName
+  `bandeau_app`, invariant §9.2 testable), salutation « Bonjour », dernières
+  réunions en une colonne de mini-tuiles (titre, étude ou « Réunion autonome »
+  + lien « rattacher à une étude… », stepper complet ①→⑥ conservé —
+  réunions autonomes, coût). Fondations : `services/avancement.py` (états
+  gris/bleu/vert des 6 étapes, `ETAPES_ETUDE` sans ⑥, ④⑤ optionnelles,
+  `cout_reunion`), `ui/stepper.py` (StepperBar réutilisable, optionnelles en
+  contour pointillé), trace d'export de réunion dans les réglages
+  (`exports_reunions`, jamais dans le projet v1), `services/rattachement.py`
+  (lecture légère des réunions d'une étude, `rattachement_de`,
+  `verifier_exclusivite`, `rattacher`, `detacher_reunion`, `changer_etude`),
+  `ui/rattachement_dialog.py`.
+- **P18.6b — Page Réunion** (`ui/reunion_window.py`) : ruban (titre configurable
+  via `titre_1`, date · durée, badge étude · Bible ou « Réunion autonome »,
+  boutons Gestion de l'étude / Accueil / ⚙ / ?), stepper fixe cliquable,
+  « Étape suivante » précise « (optionnelle) », « passer l'étape › », passage
+  direct ②→⑥ sans invalidation (§9.3 testé) ; contenu par étape reprenant
+  les pages existantes (③ éditeur v1 embarqué, ④ Reformulation, ⑤ Résumé en
+  dialogue P17, ⑥ export) ; adaptateur de navigation pour les pages embarquées ;
+  `AppWindow.ouvrir_reunion` (pile unique, jamais deux fois la même page).
+- **P18.6c — Page Étude** : ruban (titre, thème, nombre de réunions, badge
+  « Bible : [version] · versification : [édition] », boutons Modifier
+  l'étude / Accueil / ⚙ / ?), réunions en mini-tuiles (rang, date, durée,
+  avancement ①→⑤ SANS ⑥ — §9.4 testé au niveau UI, coût, Ouvrir, poignée
+  ↑/↓ = ordre d'ouvrage persisté), « ＋ Ajouter une réunion » en menu,
+  synthèse « Régénérer » / « Éditer » (saisie manuelle = version
+  « manuel »), **renvoi Ouvrage** : `ui/ouvrage_window.py` (destination
+  P19/P20 + export final P18.3 déplacé depuis la page Étude),
+  `ui/modifier_etude_dialog.py`, `AppWindow.ouvrir_ouvrage`.
+- **P18.6d — Exclusivité** (ARBITRAGE_EXCLUSIVITE_REUNIONS) : tous les points
+  d'attachement passent par `services/rattachement.py` ; changement d'étude
+  avec confirmation, **option A** : la référence seule change, découpage,
+  reformulations, résumé et registre FID restent à l'ancienne étude (§9.5
+  testé sur disque) ; détachement avec confirmation ; « Depuis une réunion
+  autonome… » ne propose que les réunions sans étude.
+- **P18.6e — Saisie manuelle** : un résumé est saisissable de zéro sans
+  appel LLM (l'ancien `sauvegarder_edition` exigeait une version
+  préexistante ; source par défaut d'une première saisie : brute corrigée) ;
+  éditions manuelles de résumé tracées « édition manuelle » au journal
+  (comme les blocs) ; invariant §9.6 testé : compilation d'ouvrage
+  strictement identique entre version IA et version manuelle du même texte,
+  aucune provenance dans le document.
+- **P18.6f — Exports à 3 portées** : réunion — `assembler_reunion`
+  (résumé validé en tête + reformulations validées dans l'ordre d'ouvrage,
+  y compris intermédiaire ; seuls les textes VALIDÉS figurent, jamais un
+  brouillon), bouton « Exporter les textes validés… » à l'étape ⑥ (la
+  réunion autonome garde l'export de transcription v1) ; ouvrage — page
+  Ouvrage ; résumé — inclus en tête de l'export de réunion.
+
+### Invariants §9 de la spéc — couverture des tests
+
+1. 0 ou 1 étude par réunion : `test_p18_6a_hub.py` (service) +
+   `test_p18_6d_rattachement.py` (ajout refusé, rien d'écrit, changement
+   confirmé/refusé).
+2. Bandeau app uniquement sur l'accueil : `bandeau_app` présent sur le hub
+   (a), absent des pages Réunion (b), Étude (c).
+3. ④⑤ optionnelles, ②→⑥ direct sans invalidation : `test_p18_6b_reunion.py`
+   (libellés, passage direct, contenus intacts, contour pointillé).
+4. Page Étude sans ⑥ : `test_p18_6a_hub.py` (service) + `test_p18_6c_etude.py`
+   (5 pastilles, pas de « ⑥ Export »).
+5. Changement d'étude = option A : `test_p18_6a_hub.py` (fichiers conservés
+   à l'ancienne étude) + `test_p18_6d_rattachement.py` (idem via le dialogue).
+6. Saisie manuelle validée = résultat IA validé : `test_p18_6e_saisie_manuelle.py`
+   (compilation identique, statut identique, aucune provenance).
+7. Suggestions IA jamais insérées sans validation : dans le périmètre P18.6,
+   garanti par l'assemblage (rien qu'un brouillon n'entre jamais dans un
+   document — `test_p18_6f_exports.py`) ; le test complet (sous-titres,
+   analyse de cohérence) arrive avec P19/P20 qui les définissent.
+8. Pile sans doublon : `test_p18_6b_reunion.py` (réunion) + `test_p18_6c_etude.py`
+   (ouvrage) — clés par chemin résolu.
+
+### Décisions techniques de la session
+
+1. **Définitions du stepper** (documentées dans `services/avancement.py`) :
+   ① vert si journal de prétraitement présent ; ② vert si mots horodatés ;
+   ③ vert si blocs de diarisation (bleu si transcription sans bloc) ;
+   ④ vert si tous les FID actifs ont une version validée (bleu si résultats
+   partiels) ; ⑤ vert si résumé validé (bleu si versions sans validation) ;
+   ⑥ vert si trace d'export dans les réglages.
+2. **Trace d'export dans les réglages** (`exports_reunions`), jamais dans le
+   dossier du projet v1 (le projet v1 reste lisible tel quel, contrat §2).
+3. **Exclusivité vérifiée aux moments de rattachement** (aucun registre
+   global des études n'existe) : les études « connues » sont les études
+   récentes des réglages ; les études existantes non conformes, s'il y en
+   a, ne sont pas migrées (conforme à l'arbitrage).
+4. **Page Réunion = adaptateur de navigation** : l'éditeur v1 et la page
+   Reformulation embarqués appellent `navigation.*` sur la page Réunion
+   (Accueil/Etude remontent à la pile, « Reformulation… » bascule sur
+   l'étape ④ sans doublon de page).
+5. **`ouvrir_correction` conservé** (page Éditeur directe de P16-bis) pour
+   compatibilité ; les parcours utilisateur passent désormais par la page
+   Réunion.
+6. **Ordre d'ouvrage des réunions** : la poignée ↑/↓ de la page Étude
+   réordonne `ordre_reunions` (l'ordre de réunion n'avait qu'une seule
+   liste depuis P14.2 — c'est elle qui vaut ordre d'ouvrage, conforme à
+   la spec §4.2 ; l'ordre d'ouvrage PAR BLOC, lui, reste P14.5).
+
+### Écarts / points à arbitrer par l'atelier
+
+- **« Nouvel audio… » depuis la page Étude** : guidage vers le hub (tuile
+  « Nouvelle transcription ») puis rattachement (« Depuis une réunion
+  autonome… » ou « Gestion de l'étude » de la page Réunion) — le flux de
+  création complet n'a pas été dupliqué dans la page Étude (code additif,
+  pas de refactor du workflow de transcription ; arbitrage bienvenu si
+  l'atelier veut l'entrée directe).
+- **Étapes ① et ② de la page Réunion** : panneaux d'information (état du
+  journal, de la transcription) — relancer un prétraitement ou une
+  transcription depuis la page Réunion n'est pas entré (le hub le permet
+  sur une nouvelle réunion).
+- **Page Ouvrage** : destination de navigation + export final uniquement —
+  l'arborescence, le document compilé éditable et le rapport d'analyse
+  restent P19/P20 (conforme à la consigne : seul le renvoi était concerné).
+- **Invariant §9.7** (suggestions IA) : couvert localement (rien de
+  non validé n'entre jamais dans un document) ; le test complet vient avec
+  P19/P20.
+- **Manuel utilisateur PDF** : non mis à jour (artefact v1 du packaging) ;
+  la section « Études et navigation v2 » du README couvre la navigation,
+  le rattachement et la saisie manuelle — mise à jour du manuel à
+  programmer avec la prochaine livraison visible.
+
+Bilan tests : **404 verts** (341 + 63 nouveaux : 20 P18.6a, 14 P18.6b,
+10 P18.6c, 6 P18.6d, 5 P18.6e, 8 P18.6f). Aucune régression
+P16/P16-bis/P17/P18/P18.5 (tests existants rejoués verts, y compris
+`test_p16bis_*`, `test_p17_integration`).
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P16 (séries 1 à 3), P16-bis, P17, P18 et P18.5 sont LIVRÉS** (334
-tests verts). Restent :
+**P18.6 est LIVRÉ** (404 tests verts). Restent :
 
-1. **Recette P16/P17/P18 par David** (checklist en fin de session
+1. **Recette P16/P17/P18/P18.6 par David** (checklist en fin de session
    P17 ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé,
    jugement humain sur la fidélité, les jonctions de méditation et
    la « mémoire » de la 2ᵉ réunion (synthèse) ; P18 : références
    complétées vérifiables en un clic (Bibles installables depuis
-   les réglages, onglet « Bibles »), export DOCX de l'étude relu
-   sous Word.
-2. **P19/P20 (v2.1)** — page Ouvrage de référence et édition
-   avancée (fusion de pensées, mobilité des paragraphes,
-   sous-titres proposés par IA, export structuré).
+   les réglages, onglet « Bibles »), export DOCX relu sous Word ;
+   P18.6 : parcours hub → réunion → étude (stepper, rattachement,
+   changement d'étude, saisie manuelle, exports 3 portées) contre
+   les maquettes validées.
+2. **P19/P20 (v2.1)** — page Ouvrage complète (arborescence à la Word,
+   document compilé éditable, rapport d'analyse, fusion de pensées,
+   mobilité des paragraphes, sous-titres proposés par IA, export
+   structuré) — la destination de navigation et l'export final sont
+   déjà en place (P18.6).
 
 ---
 

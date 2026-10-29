@@ -75,6 +75,41 @@ Selon le format, les intervenants et les horodatages peuvent être inclus.
 
 La fin de l’export est signalée à l’utilisateur, avec possibilité d’ouvrir directement le fichier créé ou son dossier.
 
+## Études et navigation v2
+
+L’application s’organise en quatre pages : **Accueil**, **Réunion**, **Étude**, **Ouvrage** (la page Ouvrage complète arrive avec P19/P20 ; l’assemblage et l’export final de l’ouvrage s’y font déjà).
+
+### Accueil (hub)
+
+- Trois tuiles : « Nouvelle transcription », « Reprendre une réunion », « Études » — une étude est un regroupement de réunions ayant pour objet un thème spécifique ;
+- bandeau de l’application (logo, version, pastilles de services « Transcription ElevenLabs » et « Service IA » — verte si configuré, grise sinon) : il n’apparaît que sur l’accueil ;
+- « Dernières réunions » : chaque mini-tuile affiche le titre, l’étude de rattachement (ou « Réunion autonome », avec un lien « rattacher à une étude… »), le stepper complet ①→⑥ et le coût des traitements.
+
+### Page Réunion
+
+- Ruban : titre de la réunion (configurable), date · durée, badge d’étude et de Bible (ou « Réunion autonome »), boutons « Gestion de l’étude », « Accueil », « ⚙ », « ? » ;
+- stepper fixe : ① Prétraitement · ② Transcription · ③ Correction · ④ Reformulation · ⑤ Résumé · ⑥ Export. Les étapes **④ Reformulation et ⑤ Résumé sont optionnelles** (contour pointillé) : « passer l’étape › » les saute, et le passage direct ② → ⑥ reste toujours possible sans rien invalider ;
+- ⑥ Export : export de la transcription corrigée (flux v1), ou des **textes validés de la réunion** (résumé validé en tête, reformulations validées dans l’ordre d’ouvrage) — y compris pour une réunion autonome ou un état intermédiaire.
+
+### Réunion : objet de premier rang
+
+- Une réunion existe de façon autonome ou appartient à **exactement une étude** ;
+- « Rattacher à une étude… » est disponible à tout moment, dès le prétraitement (hub, page Réunion) ;
+- changer d’étude demande confirmation : **les traitements déjà réalisés restent à l’ancienne étude** (aucun déplacement, aucune copie) ;
+- détacher une réunion la rend autonome, là aussi sans toucher aux traitements.
+
+### Page Étude
+
+- Ruban : titre, thème, nombre de réunions, badge « Bible : [version] · versification : [édition] », boutons « Modifier l’étude », « Accueil », « ⚙ », « ? » ;
+- liste des réunions en une colonne : titre, rang, date, durée, avancement ①→⑤ (l’export de réunion n’y figure pas : l’objectif d’une étude est l’ouvrage), coût, bouton « Ouvrir », poignée de réordonnancement — l’ordre vaut ordre d’ouvrage ;
+- « ＋ Ajouter une réunion » : depuis un fichier, depuis une réunion autonome, ou nouvel audio ;
+- synthèse d’étude (« Régénérer… » ou « Éditer » à la main) et récurrences ;
+- le bouton « Ouvrage… » renvoie vers la page Ouvrage : l’assemblage et l’export final de l’étude s’y font.
+
+### Saisie manuelle (sans IA)
+
+Tout bloc reformulé et tout résumé peut être **saisi ou collé directement, sans aucun appel LLM** (édition libre → « Sauvegarder » = nouvelle version). Un contenu validé saisi à la main a exactement le même statut qu’un contenu validé après traitement IA : il entre dans la compilation de l’ouvrage au même titre. Toute saisie manuelle est tracée dans le log des opérations (« édition manuelle »).
+
 ## Formats multimédias pris en charge
 
 ### Audio
