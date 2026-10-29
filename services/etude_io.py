@@ -1440,7 +1440,9 @@ def ajouter_version_resume(
     resultat.versions.append(version)
 
     etude_ouverte.journal.ajouter(
-        TYPE_RESUME,
+        TYPE_EDITION_MANUELLE
+        if origine == "edition_manuelle"
+        else TYPE_RESUME,
         fid=None,
         reunion=reunion,
         version=version.numero,

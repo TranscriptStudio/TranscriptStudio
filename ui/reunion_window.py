@@ -740,6 +740,20 @@ class ReunionWindow(QWidget):
 
             actions.addWidget(self.resume_button)
 
+            saisie_note = QLabel(
+                "Saisie manuelle possible : tapez ou "
+                "collez le résumé dans la fenêtre "
+                "« Résumé… », puis « Sauvegarder "
+                "l'édition » — sans aucun appel LLM "
+                "(statut identique une fois validé)."
+            )
+            saisie_note.setWordWrap(True)
+            saisie_note.setStyleSheet(
+                "color: #757575; font-size: 11px;"
+            )
+
+            layout.addWidget(saisie_note)
+
         else:
 
             info = QLabel(

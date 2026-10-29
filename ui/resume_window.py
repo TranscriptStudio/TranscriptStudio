@@ -751,18 +751,30 @@ class ResumeWindow(QDialog):
         """
         Sauvegarde de l'édition : nouvelle version
         edition_manuelle (jamais d'écrasement).
+
+        P18.6e (spec navigation §7) : un résumé est
+        saisissable directement, sans aucun appel
+        LLM — y compris sans version préexistante
+        (la source par défaut est alors la brute
+        corrigée).
         """
 
         derniere = self.derniere_version()
 
-        if not self.non_enregistre or derniere is None:
+        if not self.non_enregistre:
             return
+
+        source = (
+            derniere.source
+            if derniere is not None
+            else SOURCE_BRUTE
+        )
 
         ajouter_version_resume(
             self.etude,
             self.reunion,
             self.resume_edit.toPlainText(),
-            source=derniere.source,
+            source=source,
             stats=None,
             origine="edition_manuelle"
         )
