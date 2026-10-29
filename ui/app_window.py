@@ -232,6 +232,50 @@ class AppWindow(QMainWindow):
 
         return self.ouvrir_page(cle, fabrique)
 
+    def ouvrir_reunion(
+        self,
+        projet,
+        etude=None,
+        nom=None
+    ):
+        """
+        Page Réunion (P18.6b, spec navigation §3) :
+        la réunion, objet de premier rang, a sa
+        propre page — ruban + stepper ①→⑥, étapes
+        ④⑤ optionnelles. Clé : fichier du projet v1
+        résolu (une réunion déjà ouverte est
+        réactivée — jamais de doublon).
+        """
+
+        chemin = getattr(
+            projet,
+            "project_file",
+            None
+        )
+
+        if not chemin:
+            return None
+
+        cle = (
+            "reunion",
+            str(Path(chemin).resolve()),
+        )
+
+        def fabrique():
+
+            from ui.reunion_window import (
+                ReunionWindow
+            )
+
+            return ReunionWindow(
+                projet,
+                settings=self.settings,
+                etude=etude,
+                nom=nom
+            )
+
+        return self.ouvrir_page(cle, fabrique)
+
     def ouvrir_correction(self, projet):
         """
         Page Réunion « Correction de transcription »
