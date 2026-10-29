@@ -87,6 +87,12 @@ class SettingsManager:
 
             "recent_etudes": [],
 
+            # P18.6 : traces d'export de réunion
+            # (étape ⑥ du stepper) — chemins de
+            # projets v1 exportés au moins une fois ;
+            # jamais écrit dans le projet v1 lui-même.
+            "exports_reunions": [],
+
             "theme": "system",
 
             "llm": {
@@ -271,6 +277,50 @@ class SettingsManager:
 
         return self.settings.get(
             "recent_etudes",
+            []
+        )
+
+    def enregistrer_export_reunion(
+        self,
+        project_path
+    ):
+        """
+        P18.6 : enregistre qu'une réunion a été
+        exportée (étape ⑥ du stepper). La trace vit
+        dans les réglages de l'app — le projet v1
+        n'est JAMAIS modifié.
+        """
+
+        exports = (
+            self.settings.setdefault(
+                "exports_reunions",
+                []
+            )
+        )
+
+        chemin = str(
+            Path(project_path).resolve()
+        )
+
+        if chemin not in exports:
+            exports.append(chemin)
+            self.save()
+
+    def a_exporte_reunion(
+        self,
+        project_path
+    ) -> bool:
+        """
+        Une réunion a-t-elle déjà été exportée
+        (étape ⑥ verte) ?
+        """
+
+        chemin = str(
+            Path(project_path).resolve()
+        )
+
+        return chemin in self.settings.get(
+            "exports_reunions",
             []
         )
 

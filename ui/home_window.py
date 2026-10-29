@@ -1,5 +1,3 @@
-import functools
-
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -13,6 +11,8 @@ from PySide6.QtWidgets import (
     QProgressDialog,
     QMenu,
     QInputDialog,
+    QScrollArea,
+    QFrame,
 )
 from PySide6.QtCore import (
     QThread,
@@ -54,9 +54,11 @@ from services.audio_loading_worker import AudioLoadingWorker
 from services.etude_io import (
     EtudeError,
     creer_etude,
+    ouvrir_etude,
 )
 from services.etude_schema import EtudeFormatError
 from ui.etude_window import EtudeWindow
+from ui.stepper import StepperBar
 
 class HomeWindow(QWidget):
 
@@ -90,12 +92,28 @@ class HomeWindow(QWidget):
         self.build_ui()
 
     def build_ui(self):
+        """
+        Hub d'accueil (P18.6a, spec navigation §2) :
+        bandeau app (uniquement ici, invariant §9.2),
+        salutation « Bonjour », trois tuiles, dernières
+        réunions en une colonne de mini-tuiles (stepper
+        complet ①→⑥ conservé — réunions autonomes),
+        études récentes.
+        """
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 16, 20, 14)
         layout.setSpacing(10)
 
-        # En-tete
-        header_layout = QHBoxLayout()
+        #
+        # Bandeau app — n'apparaît QUE sur l'accueil
+        # (spec §1.2, invariant §9.2) : logo, sous-titre,
+        # version, pastilles de services, ⚙, ?.
+        #
+        self.bandeau = QWidget()
+        self.bandeau.setObjectName("bandeau_app")
+
+        header_layout = QHBoxLayout(self.bandeau)
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(14)
 
@@ -103,8 +121,8 @@ class HomeWindow(QWidget):
         pixmap = QPixmap(str(resource_path("icons/logo.png")))
         icon_label.setPixmap(
             pixmap.scaled(
-                120,
-                120,
+                96,
+                96,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
@@ -121,40 +139,61 @@ class HomeWindow(QWidget):
         title_font = QFontDatabase.systemFont(
             QFontDatabase.SystemFont.GeneralFont
         )
-        title_font.setPointSize(28)
+        title_font.setPointSize(26)
         title_font.setWeight(QFont.Weight.Light)
         self.title_label.setFont(title_font)
 
         self.subtitle_label = QLabel(
             "Prétraitement audio et transcription assistée par ElevenLabs"
         )
-        self.version_label = QLabel("Version 1.0\nOctobre 2026")
+        self.version_label = QLabel("Version 1.0 — Octobre 2026")
+
+        #
+        # Pastilles de services (spec §2.2) : verte si
+        # clé configurée, grise sinon, info-bulle au
+        # survol. FFmpeg et Bible n'y figurent pas
+        # (diagnostic uniquement pour FFmpeg ; la version
+        # de Bible est propre à chaque étude).
+        #
+        self.api_pastille = QLabel("● Transcription ElevenLabs")
+        self.llm_pastille = QLabel("● Service IA")
+
+        for pastille in (
+            self.api_pastille,
+            self.llm_pastille,
+        ):
+            pastille.setStyleSheet(
+                "font-size: 12px;"
+            )
+
+        #
+        # Libellés d'état complets conservés (masqués :
+        # le hub affiche des pastilles) — ils portent le
+        # détail « configuré / non configuré » des tests
+        # P16-bis et servent d'info-bulles.
+        #
         self.api_status_label = QLabel("")
         self.api_status_label.setStyleSheet("font-size: 12px; color: #666666;")
+        self.api_status_label.setVisible(False)
 
-        #
-        # Retour relecture P16-bis : état du service IA
-        # de reformulation (noms des fournisseurs dont
-        # la clé est enregistrée, ou fournisseurs
-        # locaux sans clé).
-        #
         self.llm_status_label = QLabel("")
         self.llm_status_label.setStyleSheet("font-size: 12px; color: #666666;")
+        self.llm_status_label.setVisible(False)
 
-        # Les couleurs sont appliquees par une methode separee afin de pouvoir
-        # les recalculer immediatement apres un changement de theme.
-        self.update_header_colors()
-        self.update_api_status()
-        self.maj_statut_llm()
+        pastilles_layout = QHBoxLayout()
+        pastilles_layout.setContentsMargins(0, 0, 0, 0)
+        pastilles_layout.setSpacing(16)
+        pastilles_layout.addWidget(self.api_pastille)
+        pastilles_layout.addWidget(self.llm_pastille)
+        pastilles_layout.addStretch()
 
         title_layout.addWidget(self.title_label)
         title_layout.addSpacing(4)
         title_layout.addWidget(self.subtitle_label)
         title_layout.addSpacing(8)
         title_layout.addWidget(self.version_label)
-        title_layout.addSpacing(4)
-        title_layout.addWidget(self.api_status_label)
-        title_layout.addWidget(self.llm_status_label)
+        title_layout.addSpacing(6)
+        title_layout.addLayout(pastilles_layout)
 
         header_layout.addWidget(
             icon_label,
@@ -162,88 +201,128 @@ class HomeWindow(QWidget):
         )
         header_layout.addLayout(title_layout)
         header_layout.addStretch()
-        layout.addLayout(header_layout)
-        layout.addSpacing(6)
 
-        # Actions principales
-        self.new_transcription_button = QPushButton("Nouvelle réunion")
-        self.open_project_button = QPushButton("Ouvrir une réunion")
+        #
+        # Boutons du bandeau : ⚙ Paramètres et ? Aide.
+        #
+        self.settings_button = QPushButton("⚙ Paramètres")
+        self.settings_button.setIcon(
+            QIcon(str(resource_path("icons/settings.svg")))
+        )
+        self.settings_button.setToolTip("Configurer Transcript Studio")
 
-        self.new_transcription_button.setIcon(
+        self.help_button = QPushButton("? Aide")
+        self.help_button.setIcon(
+            QIcon(str(resource_path("icons/info-square-rounded.svg")))
+        )
+        self.help_button.setToolTip("Ouvrir le manuel utilisateur")
+
+        for button in (
+            self.settings_button,
+            self.help_button,
+        ):
+            button.setFixedSize(140, 34)
+            button.setIconSize(QSize(18, 18))
+
+        header_layout.addWidget(self.settings_button)
+        header_layout.addWidget(self.help_button)
+
+        layout.addWidget(self.bandeau)
+
+        #
+        # Salutation (spec §2.3) : « Bonjour », sans
+        # prénom.
+        #
+        self.salutation_label = QLabel("Bonjour")
+        self.salutation_label.setStyleSheet(
+            "font-size: 18px; font-weight: 600;"
+        )
+        layout.addWidget(self.salutation_label)
+
+        #
+        # Trois tuiles (libellés exacts, spec §2.1).
+        #
+        tuiles_layout = QHBoxLayout()
+        tuiles_layout.setContentsMargins(0, 0, 0, 0)
+        tuiles_layout.setSpacing(12)
+
+        self.tuile_nouvelle = QPushButton(
+            "Nouvelle transcription"
+        )
+        self.tuile_reprendre = QPushButton(
+            "Reprendre une réunion"
+        )
+        self.tuile_etudes = QPushButton("Études")
+
+        self.tuile_nouvelle.setIcon(
             QIcon(str(resource_path("icons/bubble-text.svg")))
         )
-        self.open_project_button.setIcon(
+        self.tuile_reprendre.setIcon(
             QIcon(str(resource_path("icons/folder-open.svg")))
         )
 
-        self.new_transcription_button.setToolTip(
+        self.tuile_nouvelle.setToolTip(
             "Créer une nouvelle réunion "
             "(enregistrement transcrit)"
         )
-        self.open_project_button.setToolTip(
-            "Ouvrir une réunion existante"
+        self.tuile_reprendre.setToolTip(
+            "Ouvrir une réunion existante sur le disque"
+        )
+        self.tuile_etudes.setToolTip(
+            "Une étude est un regroupement de réunions "
+            "ayant pour objet un thème spécifique"
         )
 
-        for button in (
-            self.new_transcription_button,
-            self.open_project_button,
+        for tuile in (
+            self.tuile_nouvelle,
+            self.tuile_reprendre,
+            self.tuile_etudes,
         ):
-            button.setFixedSize(200, 38)
+            tuile.setObjectName("tuile_hub")
+            tuile.setMinimumSize(220, 84)
+            tuile.setIconSize(QSize(24, 24))
+            tuiles_layout.addWidget(tuile)
 
-        main_actions_layout = QHBoxLayout()
-        main_actions_layout.setContentsMargins(0, 0, 0, 0)
-        main_actions_layout.setSpacing(12)
-        main_actions_layout.addStretch()
-        main_actions_layout.addWidget(self.new_transcription_button)
-        main_actions_layout.addWidget(self.open_project_button)
-        main_actions_layout.addStretch()
-        layout.addLayout(main_actions_layout)
+        tuiles_layout.addStretch()
+
+        layout.addLayout(tuiles_layout)
         layout.addSpacing(6)
 
-        # Projets recents
-        recent_label = QLabel("Réunions récentes")
-        layout.addWidget(recent_label)
+        #
+        # Dernières réunions (spec §2.4) : liste en une
+        # colonne de mini-tuiles — titre, étude (ou
+        # « Réunion autonome » + lien « rattacher à une
+        # étude… »), stepper complet ①→⑥, coût.
+        #
+        layout.addWidget(QLabel("Dernières réunions"))
 
-        self.recent_projects = QListWidget()
-        self.recent_projects.setMinimumHeight(160)
-
-        for project in self.settings.cleanup_recent_projects():
-            project_path = Path(project)
-            project_name = project_path.parent.name
-            category_name = project_path.parent.parent.name
-            display_name = f"{category_name} ▸ {project_name}"
-
-            item = QListWidgetItem(display_name)
-            item.setData(
-                Qt.ItemDataRole.UserRole,
-                str(project_path),
-            )
-            item.setToolTip(str(project_path))
-            self.recent_projects.addItem(item)
-
-        self.recent_projects.itemDoubleClicked.connect(
-            self.open_recent_project
+        self.dernieres_scroll = QScrollArea()
+        self.dernieres_scroll.setWidgetResizable(True)
+        self.dernieres_scroll.setFrameShape(
+            QScrollArea.Shape.NoFrame
         )
 
-        # Menu contextuel : ouvrir, ouvrir le
-        # repertoire, retirer de la liste.
-        self.recent_projects.setContextMenuPolicy(
-            Qt.ContextMenuPolicy.CustomContextMenu
+        self.dernieres_conteneur = QWidget()
+        self.dernieres_layout = QVBoxLayout(
+            self.dernieres_conteneur
         )
+        self.dernieres_layout.setContentsMargins(0, 0, 0, 0)
+        self.dernieres_layout.setSpacing(6)
+        self.dernieres_layout.addStretch()
 
-        self.recent_projects.customContextMenuRequested.connect(
-            self.show_recent_project_menu
+        self.dernieres_scroll.setWidget(
+            self.dernieres_conteneur
         )
 
         layout.addWidget(
-            self.recent_projects,
+            self.dernieres_scroll,
             stretch=1,
         )
-        layout.addSpacing(10)
 
-        # Etudes recentes (v2)
-        etudes_label = QLabel("Études")
-        layout.addWidget(etudes_label)
+        #
+        # Études récentes (tuile « Études »).
+        #
+        layout.addWidget(QLabel("Études"))
 
         self.recent_etudes = QListWidget()
         self.recent_etudes.setMinimumHeight(80)
@@ -259,8 +338,7 @@ class HomeWindow(QWidget):
             self.recent_etudes.addItem(item)
 
         self.recent_etudes.setToolTip(
-            "Études récentes — double-clic ou bouton "
-            "« Ouvrir l'étude » pour l'ouvrir"
+            "Études récentes — double-clic pour ouvrir"
         )
 
         self.recent_etudes.itemDoubleClicked.connect(
@@ -269,8 +347,8 @@ class HomeWindow(QWidget):
 
         layout.addWidget(
             self.recent_etudes,
-            stretch=1,
         )
+        layout.addSpacing(6)
 
         etudes_actions_layout = QHBoxLayout()
         etudes_actions_layout.setContentsMargins(0, 0, 0, 0)
@@ -308,7 +386,6 @@ class HomeWindow(QWidget):
             self.ouvrir_etude_dialogue
         )
 
-        etudes_actions_layout.addStretch()
         etudes_actions_layout.addWidget(self.new_etude_button)
         etudes_actions_layout.addWidget(self.open_etude_button)
         etudes_actions_layout.addWidget(
@@ -316,72 +393,433 @@ class HomeWindow(QWidget):
         )
         etudes_actions_layout.addStretch()
         layout.addLayout(etudes_actions_layout)
-        layout.addSpacing(10)
 
-        # Actions secondaires
-        self.settings_button = QPushButton("Paramètres")
-        self.elevenlabs_button = QPushButton("Compte ElevenLabs")
-        self.help_button = QPushButton("Manuel")
-
-        self.settings_button.setIcon(
-            QIcon(str(resource_path("icons/settings.svg")))
-        )
-        self.elevenlabs_button.setIcon(
-            QIcon(str(resource_path("icons/user.svg")))
-        )
-        self.help_button.setIcon(
-            QIcon(str(resource_path("icons/info-square-rounded.svg")))
-        )
-
-        self.settings_button.setToolTip("Configurer Transcript Studio")
-        self.elevenlabs_button.setToolTip(
-            "Afficher les informations du compte ElevenLabs"
-        )
-        self.help_button.setToolTip("Ouvrir le manuel utilisateur")
-
-        for button in (
-            self.settings_button,
-            self.elevenlabs_button,
-            self.help_button,
-        ):
-            button.setFixedSize(150, 36)
-
-        bottom_actions_layout = QHBoxLayout()
-        bottom_actions_layout.setContentsMargins(0, 0, 0, 0)
-        bottom_actions_layout.setSpacing(10)
-        bottom_actions_layout.addStretch()
-        bottom_actions_layout.addWidget(self.settings_button)
-        bottom_actions_layout.addWidget(self.elevenlabs_button)
-        bottom_actions_layout.addWidget(self.help_button)
-        bottom_actions_layout.addStretch()
-        layout.addLayout(bottom_actions_layout)
-
-        # Taille commune des icones
-        button_icon_size = QSize(19, 19)
-        for button in (
-            self.new_transcription_button,
-            self.open_project_button,
-            self.settings_button,
-            self.elevenlabs_button,
-            self.help_button,
-        ):
-            button.setIconSize(button_icon_size)
-
-        # Connexions
-        self.new_transcription_button.clicked.connect(
+        #
+        # Connexions des tuiles.
+        #
+        self.tuile_nouvelle.clicked.connect(
             self.new_transcription
         )
-        self.open_project_button.clicked.connect(
+        self.tuile_reprendre.clicked.connect(
             self.open_project
+        )
+        self.tuile_etudes.clicked.connect(
+            self.focus_etudes
         )
         self.settings_button.clicked.connect(
             self.open_settings
         )
-        self.elevenlabs_button.clicked.connect(
-            self.open_elevenlabs_account
-        )
         self.help_button.clicked.connect(open_user_manual)
 
+        # Couleurs du bandeau (recalculees apres un
+        # changement de theme) et pastilles.
+        self.update_header_colors()
+        self.update_api_status()
+        self.maj_statut_llm()
+
+        # Dernieres reunions.
+        self.refresh_dernieres_reunions()
+
+    def focus_etudes(self):
+        """
+        Tuile « Études » : met le focus sur la section
+        Études du hub.
+        """
+
+        self.recent_etudes.setFocus()
+        self.recent_etudes.setCurrentRow(0)
+
+    # ==================================================
+    # Dernières réunions (mini-tuiles du hub, P18.6a).
+    # ==================================================
+
+    def refresh_dernieres_reunions(self):
+        """
+        Reconstruit les mini-tuiles des dernières
+        réunions (une colonne) : titre, étude ou
+        « Réunion autonome » + lien de rattachement,
+        stepper ①→⑥, coût.
+        """
+
+        while self.dernieres_layout.count() > 1:
+
+            item = self.dernieres_layout.takeAt(0)
+
+            widget = item.widget()
+
+            if widget is not None:
+                widget.deleteLater()
+
+        projets = self.settings.cleanup_recent_projects()
+        etudes = self.settings.cleanup_recent_etudes()
+
+        if not projets:
+
+            vide = QLabel(
+                "Aucune réunion pour l'instant — "
+                "commencez par « Nouvelle transcription »."
+            )
+            vide.setStyleSheet(
+                "color: #8A8A8A; font-style: italic;"
+            )
+
+            self.dernieres_layout.insertWidget(
+                0,
+                vide
+            )
+
+            return
+
+        for chemin in projets:
+
+            tuile = self._construire_mini_tuile(
+                chemin,
+                etudes
+            )
+
+            if tuile is None:
+                continue
+
+            self.dernieres_layout.insertWidget(
+                self.dernieres_layout.count() - 1,
+                tuile
+            )
+
+    def _construire_mini_tuile(
+        self,
+        chemin,
+        etudes
+    ):
+        """
+        Une mini-tuile de réunion : titre, badge d'étude
+        (ou « Réunion autonome » + lien « rattacher à une
+        étude… »), stepper ①→⑥ compact, coût, ouverture.
+
+        Retourne None si le projet est illisible (la
+        liste des récents est déjà nettoyée par les
+        réglages pour les fichiers disparus).
+        """
+
+        chemin = Path(chemin)
+
+        try:
+            projet = load_project(str(chemin))
+        except Exception:
+            return None
+
+        from services.avancement import (
+            cout_reunion,
+            etapes_reunion,
+        )
+        from services.rattachement import (
+            rattachement_de,
+        )
+
+        rattachement = rattachement_de(
+            chemin,
+            etudes
+        )
+
+        etude_ouverte = None
+        nom_reunion = None
+        titre_etude = None
+        cout = 0.0
+
+        if rattachement is not None:
+
+            dossier, nom_reunion = rattachement
+
+            try:
+
+                etude_ouverte = ouvrir_etude(dossier)
+
+                titre_etude = (
+                    etude_ouverte.etude.titre
+                )
+
+                cout = cout_reunion(
+                    etude_ouverte,
+                    nom_reunion
+                )
+
+            except Exception:
+                etude_ouverte = None
+
+        titre = (
+            Path(chemin).parent.name
+        )
+
+        if (
+            etude_ouverte is not None
+            and nom_reunion in etude_ouverte.reunions
+        ):
+
+            titre = (
+                etude_ouverte
+                .reunions[nom_reunion]
+                .titre_1
+                or titre
+            )
+
+        etats = etapes_reunion(
+            projet,
+            etude_ouverte=etude_ouverte,
+            nom=nom_reunion,
+            settings=self.settings,
+            chemin_projet=str(chemin)
+        )
+
+        cadre = QFrame()
+        cadre.setObjectName("hub_mini_tuile")
+        cadre.setStyleSheet(
+            "QFrame#hub_mini_tuile {"
+            "border: 1px solid #C8C8C8;"
+            "border-radius: 6px;"
+            "}"
+        )
+        cadre.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+        cadre.customContextMenuRequested.connect(
+            lambda pos, c=str(chemin): (
+                self.afficher_menu_mini_tuile(cadre, c, pos)
+            )
+        )
+
+        layout = QVBoxLayout(cadre)
+        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setSpacing(3)
+
+        ligne_titre = QHBoxLayout()
+
+        titre_label = QLabel(titre)
+        titre_label.setStyleSheet(
+            "font-weight: 600;"
+        )
+        titre_label.setToolTip(str(chemin))
+
+        ligne_titre.addWidget(titre_label)
+        ligne_titre.addStretch()
+
+        cout_label = QLabel(
+            f"Coût : {cout:.4f} $"
+            if cout
+            else "Coût : —"
+        )
+        cout_label.setStyleSheet(
+            "color: #8A8A8A; font-size: 11px;"
+        )
+        ligne_titre.addWidget(cout_label)
+
+        layout.addLayout(ligne_titre)
+
+        ligne_etude = QHBoxLayout()
+
+        if titre_etude:
+
+            badge = QLabel(f"Étude « {titre_etude} »")
+            badge.setStyleSheet(
+                "color: #1565C0; font-size: 12px;"
+            )
+            ligne_etude.addWidget(badge)
+
+        else:
+
+            autonome = QLabel("Réunion autonome")
+            autonome.setStyleSheet(
+                "color: #8A8A8A; font-size: 12px;"
+            )
+            ligne_etude.addWidget(autonome)
+
+            rattacher_link = QPushButton(
+                "rattacher à une étude…"
+            )
+            rattacher_link.setFlat(True)
+            rattacher_link.setCursor(
+                Qt.CursorShape.PointingHandCursor
+            )
+            rattacher_link.setStyleSheet(
+                "color: #1565C0;"
+                "text-decoration: underline;"
+                "border: none;"
+                "font-size: 12px;"
+                "padding: 0;"
+            )
+            rattacher_link.clicked.connect(
+                lambda checked=False,
+                c=str(chemin): (
+                    self.rattacher_reunion(c)
+                )
+            )
+            ligne_etude.addWidget(rattacher_link)
+
+        ligne_etude.addStretch()
+
+        layout.addLayout(ligne_etude)
+
+        stepper = StepperBar(
+            cliquable=False,
+            compact=True
+        )
+        stepper.definir_etats(etats)
+
+        layout.addWidget(stepper)
+
+        ligne_actions = QHBoxLayout()
+
+        ouvrir_button = QPushButton("Ouvrir")
+        ouvrir_button.setFixedHeight(26)
+        ouvrir_button.clicked.connect(
+            lambda checked=False,
+            c=str(chemin): (
+                self.ouvrir_reunion_depuis_hub(c)
+            )
+        )
+
+        ligne_actions.addWidget(ouvrir_button)
+        ligne_actions.addStretch()
+
+        layout.addLayout(ligne_actions)
+
+        return cadre
+
+    def ouvrir_reunion_depuis_hub(self, chemin):
+        """
+        Ouvre la page Réunion d'une mini-tuile (via la
+        pile de navigation si la destination existe,
+        sinon repli sur la page Correction — lancement
+        autonome et tests).
+        """
+
+        if not Path(chemin).exists():
+            QMessageBox.warning(
+                self,
+                "Réunion introuvable",
+                (
+                    "La réunion\n\n"
+                    f"{chemin}\n\n"
+                    "n'existe plus."
+                )
+            )
+            return
+
+        projet = load_project(str(chemin))
+
+        navigation = getattr(self, "navigation", None)
+
+        if (
+            navigation is not None
+            and hasattr(
+                navigation,
+                "ouvrir_reunion"
+            )
+        ):
+            navigation.ouvrir_reunion(projet)
+            return
+
+        self.ouvrir_correction(projet)
+
+    def rattacher_reunion(self, chemin):
+        """
+        « rattacher à une étude… » d'une mini-tuile
+        autonome (spec §2.4) : disponible à tout
+        moment, dès le prétraitement.
+        """
+
+        from ui.rattachement_dialog import (
+            RattachementDialog
+        )
+
+        if not Path(chemin).exists():
+            QMessageBox.warning(
+                self,
+                "Réunion introuvable",
+                (
+                    "La réunion\n\n"
+                    f"{chemin}\n\n"
+                    "n'existe plus."
+                )
+            )
+            return
+
+        dialogue = RattachementDialog(
+            chemin,
+            self.settings,
+            parent=self
+        )
+
+        dialogue.exec()
+
+        self.refresh_dernieres_reunions()
+
+    def afficher_menu_mini_tuile(
+        self,
+        cadre,
+        chemin,
+        pos
+    ):
+        """
+        Menu contextuel d'une mini-tuile : ouvrir la
+        réunion, ouvrir son répertoire, la retirer de
+        la liste (jamais du disque).
+        """
+
+        menu = QMenu(self)
+
+        ouvrir_action = menu.addAction(
+            "Ouvrir la réunion"
+        )
+        ouvrir_action.triggered.connect(
+            lambda: self.ouvrir_reunion_depuis_hub(
+                chemin
+            )
+        )
+
+        dossier_action = menu.addAction(
+            "Ouvrir le répertoire de la réunion"
+        )
+        dossier_action.triggered.connect(
+            lambda: self._ouvrir_repertoire(chemin)
+        )
+
+        menu.addSeparator()
+
+        retirer_action = menu.addAction(
+            "Retirer de la liste des réunions récentes"
+        )
+        retirer_action.triggered.connect(
+            lambda: self._retirer_recent(chemin)
+        )
+
+        menu.exec(
+            cadre.mapToGlobal(pos)
+        )
+
+    def _ouvrir_repertoire(self, chemin):
+
+        folder = Path(chemin).parent
+
+        if not folder.is_dir():
+            QMessageBox.warning(
+                self,
+                "Répertoire introuvable",
+                (
+                    "Le répertoire\n\n"
+                    f"{folder}\n\n"
+                    "n'existe plus."
+                )
+            )
+            return
+
+        QDesktopServices.openUrl(
+            QUrl.fromLocalFile(str(folder))
+        )
+
+    def _retirer_recent(self, chemin):
+
+        self.settings.remove_recent_project(chemin)
+
+        self.refresh_dernieres_reunions()
 
     def update_header_colors(self):
         theme = self.settings.get_theme()
@@ -429,20 +867,37 @@ class HomeWindow(QWidget):
             self.maj_statut_llm()
                 
     def update_api_status(self):
-        """Met à jour l'affichage de l'état de l'API de transcription."""
+        """
+        Pastille « Transcription ElevenLabs » (spec §2.2)
+        : verte si la clé API est configurée, grise
+        sinon, détail dans l'info-bulle.
+        """
         if has_transcription_api():
-            self.api_status_label.setText("Service de transcription : configuré")
+            self.api_status_label.setText(
+                "Service de transcription : configuré"
+            )
+            self.api_pastille.setStyleSheet(
+                "font-size: 12px; color: #2E7D32;"
+            )
         else:
-            self.api_status_label.setText("Service de transcription : non configuré")
+            self.api_status_label.setText(
+                "Service de transcription : non configuré"
+            )
+            self.api_pastille.setStyleSheet(
+                "font-size: 12px; color: #8A8A8A;"
+            )
+
+        self.api_pastille.setToolTip(
+            self.api_status_label.text()
+        )
 
     def maj_statut_llm(self):
         """
-        Retour relecture P16-bis : état du service IA
-        de reformulation — fournisseurs du catalogue
-        dont la clé est enregistrée dans le
-        CredentialStore (les fournisseurs locaux sans
-        clé comptent comme configurés). Rafraîchi à
-        l'ouverture et après les réglages.
+        Pastille « Service IA » (spec §2.2) : verte si au
+        moins un fournisseur du catalogue a sa clé
+        enregistrée (ou fournisseur local sans clé),
+        grise sinon. Détail (noms des fournisseurs)
+        dans l'info-bulle — retour relecture P16-bis.
         """
 
         from services.credential_store import CredentialStore
@@ -476,10 +931,21 @@ class HomeWindow(QWidget):
                 "Service de reformulation : configuré — "
                 + ", ".join(noms)
             )
+            self.llm_pastille.setStyleSheet(
+                "font-size: 12px; color: #2E7D32;"
+            )
         else:
             self.llm_status_label.setText(
                 "Service de reformulation : non configuré"
             )
+            self.llm_pastille.setStyleSheet(
+                "font-size: 12px; color: #8A8A8A;"
+            )
+
+        self.llm_pastille.setToolTip(
+            self.llm_status_label.text()
+        )
+
     def new_transcription(self):
 
         entry_dialog = (
@@ -582,45 +1048,19 @@ class HomeWindow(QWidget):
             return     
 
     def refresh_recent_projects(self):
-        self.recent_projects.clear()
+        """
+        Les réunions récentes vivent désormais dans les
+        mini-tuiles du hub (P18.6a).
+        """
 
-        for project in (
-            self.settings.cleanup_recent_projects()
-        ):
-            project_path = Path(
-                project
-            )
-
-            project_name = (
-                project_path.parent.name
-            )
-
-            category_name = (
-                project_path.parent.parent.name
-            )
-
-            display_name = (
-                f"{category_name} ▸ {project_name}"
-            )
-
-            item = QListWidgetItem(
-                display_name
-            )
-
-            item.setData(
-                Qt.ItemDataRole.UserRole,
-                str(project_path)
-            )
-
-            item.setToolTip(
-                str(project_path)
-            )
-
-            self.recent_projects.addItem(
-                item
-            )
+        self.refresh_dernieres_reunions()
 
     def open_project(self):
+        """
+        Tuile « Reprendre une réunion » : choix d'un
+        fichier .sttproj sur le disque, ouverture de
+        la page Réunion.
+        """
 
         projects_root = (
             self.settings
@@ -637,160 +1077,7 @@ class HomeWindow(QWidget):
         if not filename:
             return
 
-        project = load_project(
-            filename
-        )
-
-        self.ouvrir_correction(project)
-
-    def open_recent_project(
-        self,
-        item
-    ):
-        filename = item.data(
-            Qt.ItemDataRole.UserRole
-        )
-
-        if not filename:
-            return
-
-        if not Path(
-            filename
-        ).exists():
-            QMessageBox.warning(
-                self,
-                "Réunion introuvable",
-                (
-                    "La réunion\n\n"
-                    f"{filename}\n\n"
-                    "n'existe plus."
-                )
-            )
-            return
-
-        project = load_project(
-            filename
-        )
-
-        self.ouvrir_correction(project)
-
-    def show_recent_project_menu(
-        self,
-        pos
-    ):
-        item = (
-            self.recent_projects
-            .itemAt(pos)
-        )
-
-        if item is None:
-            return
-
-        menu = self.build_recent_project_menu(
-            item
-        )
-
-        menu.exec(
-            self.recent_projects.mapToGlobal(
-                pos
-            )
-        )
-
-    def build_recent_project_menu(
-        self,
-        item
-    ):
-        menu = QMenu(
-            self
-        )
-
-        open_action = menu.addAction(
-            "Ouvrir la réunion"
-        )
-
-        open_action.triggered.connect(
-            functools.partial(
-                self.open_recent_project,
-                item
-            )
-        )
-
-        folder_action = menu.addAction(
-            "Ouvrir le répertoire de la réunion"
-        )
-
-        folder_action.triggered.connect(
-            functools.partial(
-                self.open_recent_project_folder,
-                item
-            )
-        )
-
-        menu.addSeparator()
-
-        remove_action = menu.addAction(
-            "Retirer de la liste des réunions récentes"
-        )
-
-        remove_action.triggered.connect(
-            functools.partial(
-                self.remove_recent_project_from_list,
-                item
-            )
-        )
-
-        return menu
-
-    def open_recent_project_folder(
-        self,
-        item
-    ):
-        filename = item.data(
-            Qt.ItemDataRole.UserRole
-        )
-
-        if not filename:
-            return
-
-        folder = Path(
-            filename
-        ).parent
-
-        if not folder.is_dir():
-            QMessageBox.warning(
-                self,
-                "Répertoire introuvable",
-                (
-                    "Le répertoire\n\n"
-                    f"{folder}\n\n"
-                    "n'existe plus."
-                )
-            )
-            return
-
-        QDesktopServices.openUrl(
-            QUrl.fromLocalFile(
-                str(folder)
-            )
-        )
-
-    def remove_recent_project_from_list(
-        self,
-        item
-    ):
-        filename = item.data(
-            Qt.ItemDataRole.UserRole
-        )
-
-        if not filename:
-            return
-
-        self.settings.remove_recent_project(
-            filename
-        )
-
-        self.refresh_recent_projects()
-
+        self.ouvrir_reunion_depuis_hub(filename)
     #
     # Navigation (P16-bis §11 : pile unique).
     #
