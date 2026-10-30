@@ -1,26 +1,19 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-30 (**P18.6-bis — correctifs
-> de relecture de la navigation LIVRÉS, séries 1 à 4** : séries 1-3
+> de relecture de la navigation LIVRÉS, séries 1 à 5** : séries 1-3
 > (grandes tuiles + « Version 2.0 », badge Bible court, dates de
-> réunion, stepper compact après transcription, bouton unique) et
-> série 4 du 2026-10-30e : tuile « Études » = menu déroulant
-> ouvrant DIRECTEMENT la page Étude (page intermédiaire
-> supprimée), CONTOURS VISIBLES et effet de survol (élévation
-> ~2 px, bleu d'accent #4a7db5, ~120 ms) sur toutes les tuiles,
-> 3 cartes en 3 colonnes ; reprise sur la maquette HTML validée
-> (icônes SVG des 3 tuiles, métriques de carte, panneau déroulant
-> stylisé : en-tête « Vos études », lignes d'études avec pastille
-> de couleur + nom + thème · date de modification + badge
-> « N réunions », séparateur, deux actions ; design des tuiles
-> précisé par David : cartes MOINS LARGES (rapport 3:2),
-> ombre portée vers le bas à 8 % d'opacité au survol,
-> effet PROGRESSIF ~200 ms ; CAUSE RACINE des
-> itérations sans effet visuel corrigée
-> (WA_StyledBackground absent + qdarktheme ne met
-> pas la palette à jour) avec tests sur les
-> PIXELS rendus ; sync documents du
-> 2026-10-30d/e ; **446 tests verts**)
+> réunion, stepper compact après transcription, bouton unique),
+> série 4 (tuile « Études » = menu déroulant ouvrant DIRECTEMENT
+> la page Étude, contours visibles, survol des tuiles) et série 5
+> du 2026-10-30f : accent unique #3b9eff, stepper à couleurs
+> affirmées, hub v4 (plaque métal brossé des pastilles de services,
+> boutons ⚙/? à une seule icône, salutation supprimée, logo 72 px,
+> tuiles-rangées de réunions CLIQUABLES sans bouton « Ouvrir »,
+> une ligne/deux lignes en fenêtre étroite), correctifs techniques
+> (artefact d'angle du menu Études, fonds de page #1e1f24 strict
+> hors tuiles, accueil plein écran par défaut) ; invariants 1 à 13
+> TOUS testés ; sync documents du 2026-10-30d/e/f ; **457 tests verts**)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -1832,9 +1825,86 @@ menu réécrit sur la maquette dans les tests de la série 1).
 
 ---
 
+## SESSION 2026-10-30 (P18.6-bis, séries 4-5 — spec 2026-10-30f) : HUB v4 : LIVRÉ
+
+**Synchro atelier spec** (rituel) : documents du 2026-10-30f recopiés —
+SPEC_NAVIGATION_MODIFS_V2_2026-10-30f (fait autorité, prime sur la 30e et
+toute autre spec UI pour les points traités), INDEX_SPECS_2026-10-30f ;
+feuille de route 2026-10-30d inchangée. Le skill transcriptstudio-spec
+v29 n'est pas accessible via les outils du CLI — le dossier Drive reste
+le canal effectif de la descente.
+
+### Série 5 (§23-27, spec 30f)
+
+- **§23 — Accent unique #3b9eff** : `theme_manager.py::BORD_BLEU_ACCENT`
+  passe de #4a7db5 à #3b9eff ; marque carrée d'accent des tuiles de
+  réunion (halo rgba(59,158,255,90)), survol des boutons ⚙/?, icônes
+  SVG des 3 grandes tuiles regénérées au trait #3b9eff ; plus AUCUNE
+  teinte ardoise/sauge résiduelle dans les sources (test formel).
+- **§24 — Stepper couleurs affirmées** : à faire = fond #33343a /
+  texte #8a8b92 ; en cours = pastille PLEINE #2563eb, texte blanc,
+  lueur discrète rgba(59,158,255,150) ; fait = émeraude #2ec98a sur
+  fond translucide rgba(52,194,135,41), texte #45d695
+  (`theme_manager.py::COULEURS_STEPPER`, stepper reconstruit).
+- **§25 — Hub v4** : pastilles de services regroupées sur une PLAQUE
+  « métal brossé » (dégradé #2e2f35→#27282e, bord #3c3d44) à gauche
+  des boutons ⚙/? — seul le POINT est coloré (ElevenLabs vert si clé /
+  rouge si ko ; IA vert si clé / gris sinon), texte en couleur
+  normale ; boutons ⚙/? à UNE SEULE ICÔNE (38×34, survol au contour
+  d'accent) ; salutation « Bonjour » SUPPRIMÉE ; logo à la taille V1
+  (72 px) ; « Version 2.0 » sous le sous-titre.
+- **§26 — Dernières réunions = tuiles-rangées CLIQUABLES** : plus de
+  bouton « Ouvrir » — le clic sur la tuile ouvre la réunion (menu
+  contextuel conservé : ouvrir, répertoire, retirer de la liste).
+  Une ligne : marque carrée d'accent → titre → étude (ou lien
+  « rattacher à une étude… ») → stepper compact → coût à droite ;
+  DEUX lignes en fenêtre étroite (QStackedLayout, bascule
+  `_basculer_selon_largeur` à 640 px, hauteur adaptative). Nouveau
+  module partagé `ui/tuiles.py` (`TuileReunion`, `activer_survol_anime`,
+  `style_rangee`) : les tuiles-rangées de la page Étude reçoivent
+  désormais l'élévation de survol auparavant omise (écart de la
+  série 4 levé — plus de move() transitoire fiable désormais).
+- **§27 — Correctifs techniques** : (a) artefact d'angle noir du menu
+  déroulant Études corrigé — le panneau de premier niveau est
+  strictement TRANSPARENT (WA_TranslucentBackground seul ne suffit
+  pas, qdarktheme repeignait le fond et noircissait les coins
+  arrondis) ; (b) les zones non-tuile sont strictement au fond de
+  page #1e1f24 en thème sombre — QScrollArea des dernières réunions
+  (hub) et QListWidget des réunions (page Étude) rendus transparents
+  et sans bordure ; (c) accueil ouvert en PLEIN ÉCRAN par défaut
+  (`TranscriptStudio.py` → `window.showMaximized()`).
+
+### Invariants 1 à 13 : TOUS TESTÉS
+
+- 1-9 (séries 1-3, spec 30c) : restés verts dans
+  `test_p18_6bis_s1/s3`, `test_p18_6a_hub`, `test_p18_6` (stepper
+  compact, badge court, dates de réunion, bouton unique, mention
+  réunion non transcrite).
+- 10 : survol animé #3b9eff / ~120 ms / curseur main sur les 3 cartes
+  et les tuiles-rangées (`test_p18_6bis_s4`, `test_p18_6bis_s5`).
+- 11 : aucun bouton « Ouvrir » sur les tuiles de réunion du hub, le
+  clic ouvre (`test_p18_6bis_s5`).
+- 12 : plaque métal brossé, boutons à une icône, aucune salutation
+  (`test_p18_6a_hub`, `test_p18_6bis_s5`).
+- 13 : couleurs du stepper (§24) formelles (`test_p18_6bis_s4`).
+
+### Décisions et écarts à arbitrer par l'atelier
+
+- Pastille ElevenLabs non configurée = ROUGE ko (service requis pour
+  la transcription) vs pastille IA non configurée = GRIS off
+  (reformulation optionnelle) — distinction à arbitrer si l'atelier
+  veut une uniformité.
+- Le stepper est construit PAR PAGE EMPILÉE de la tuile (un widget Qt
+  ne peut appartenir à deux layouts) — fabrique passée en paramètre.
+
+Bilan tests : **457 verts** (446 + 11 : 3 stepper/accent, 4 hub v4
+§25-26, 4 §27 ; ajustements des tests de série 4 au survol animé).
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P18.6 et P18.6-bis (séries 1 à 4) sont LIVRÉS** (442 tests verts).
+**P18.6 et P18.6-bis (séries 1 à 5) sont LIVRÉS** (457 tests verts).
 Restent :
 
 1. **Recette P16/P17/P18/P18.6 par David** (checklist en fin de session
