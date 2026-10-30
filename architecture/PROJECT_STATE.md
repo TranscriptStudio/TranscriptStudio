@@ -12,7 +12,10 @@
 > (icônes SVG des 3 tuiles, métriques de carte, panneau déroulant
 > stylisé : en-tête « Vos études », lignes d'études avec pastille
 > de couleur + nom + thème · date de modification + badge
-> « N réunions », séparateur, deux actions) ; sync documents du
+> « N réunions », séparateur, deux actions ; design des tuiles
+> précisé par David : cartes MOINS LARGES (rapport 3:2),
+> ombre portée vers le bas à 8 % d'opacité au survol,
+> effet PROGRESSIF ~200 ms ; sync documents du
 > 2026-10-30d/e ; **442 tests verts**)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
@@ -1757,6 +1760,23 @@ transcriptstudio.html`) — reprise complète :
   (`MenuEtudes.ouvrir_sous`).
 - Couleurs du panneau : `theme_manager.py::couleurs_menu_etudes`
   (maquette en sombre : #26272d, bord #3d4152, survol #2c2d33).
+
+### Précisions design des tuiles (second retour David du 2026-10-30)
+
+- **Cartes moins larges** : rapport **3:2** (300 × 200 px fixes) — les
+  cartes ne s'étirent plus sur la largeur de la fenêtre ; la rangée des
+  trois cartes est centrée (marges élastiques).
+- **Fond et contour** : fond de tuile légèrement plus clair que le fond
+  de page en thème sombre (#2a2b31 sur #1e1f24), contour fin 1 px gris
+  plus clair (#3a3b42) — inchangés, confirmés.
+- **Survol PROGRESSIF (~200 ms)** : élévation ~2 px, contour glissant du
+  gris vers le bleu d'accent #4a7db5 (`melanger_couleurs`) et OMBRE
+  PORTÉE vers le bas à **8 % d'opacité** montent ENSEMBLE au fil d'une
+  QVariantAnimation (plus de bascule :hover instantanée ni de changement
+  de fond au survol — la maquette ne change que transform/border) ;
+  retour IMMÉDIAT en sortie (carte reposée, contour gris, ombre nulle).
+- **Menu** : cas sans étude = « Aucune étude présente. », actions
+  « ＋ Nouvelle étude » puis « Ouvrir depuis un dossier… ».
 
 ### Invariants — couverture
 

@@ -127,26 +127,41 @@ class TestCouleursTuiles:
 class TestCartesHub:
 
     def test_contour_visible_et_survol(self, hub):
+        """
+        Contour visible au repos ; au terme de
+        l'animation de survol, le contour atteint
+        le bleu d'accent (progressif, pas de
+        bascule instantanée).
+        """
 
         accueil = hub
 
-        style = (
-            accueil.tuile_nouvelle.styleSheet()
-        )
+        tuile = accueil.tuile_nouvelle
 
-        # CONTOUR VISIBLE : bordure 1 px nette.
+        style = tuile.styleSheet()
+
+        # CONTOUR VISIBLE : bordure 1 px fine,
+        # fond de tuile distinct du fond de page.
         assert "border: 1px solid" in style
-
         assert "border-radius" in style
-
-        # Fond de tuile distinct (la tuile se
-        # détache du fond, jamais ne s'y fond).
         assert "background-color" in style
 
-        # SURVOL : contour au bleu d'accent.
-        assert ":hover" in style
+        # Repos : le contour n'est PAS bleu.
+        assert "#4a7db5" not in style
 
-        assert "#4a7db5" in style
+        # Fin d'animation : contour au bleu
+        # d'accent.
+        tuile._appliquer_style(1.0)
+
+        assert "#4a7db5" in (
+            tuile.styleSheet()
+        )
+
+        tuile._appliquer_style(0.0)
+
+        assert "#4a7db5" not in (
+            tuile.styleSheet()
+        )
 
     def test_curseur_main(self, hub):
 
@@ -163,49 +178,80 @@ class TestCartesHub:
                 Qt.CursorShape.PointingHandCursor
             )
 
-    def test_trois_colonnes_egales(self, hub):
+    def test_cartes_rapport_3_sur_2(self, hub):
         """
-        §22 : 3 grandes cartes en 3 COLONNES —
-        stretch identique, pas de colonne résiduelle.
+        Retour David : cartes MOINS LARGES — rapport
+        3:2 (~300 × 200), trois cartes centrées.
         """
 
         accueil = hub
 
         layout = accueil.tuiles_layout
 
-        assert layout.count() == 3
+        # 2 marges élastiques + 3 cartes.
+        assert layout.count() == 5
 
-        for index in range(3):
-            assert layout.stretch(index) == 1
+        for tuile in (
+            accueil.tuile_nouvelle,
+            accueil.tuile_reprendre,
+            accueil.tuile_etudes,
+        ):
+            assert tuile.width() == 300
+            assert tuile.height() == 200
 
-    def test_elevation_au_survol(self, hub):
+            # Rapport largeur/hauteur = 3/2.
+            assert abs(
+                tuile.width() / tuile.height()
+                - 3 / 2
+            ) < 0.01
+
+    def test_elevation_ombre_au_survol(self, hub):
         """
-        §22 : élévation ~2 px animée (~120 ms) à
-        l'entrée, retour IMMÉDIAT en sortie.
+        Retour David : élévation ~2 px + ombre
+        portée vers le bas (8 % d'opacité),
+        PROGRESSIVES (~200 ms) à l'entrée, retour
+        IMMÉDIAT en sortie.
         """
+
+        from PySide6.QtGui import QColor
 
         accueil = hub
 
         tuile = accueil.tuile_nouvelle
 
         assert tuile.ELEVATION_SURVOL == 2
-        assert tuile.DUREE_SURVOL_MS == 120
+        assert tuile.DUREE_SURVOL_MS == 200
+        assert tuile.OPACITE_OMBRE_SURVOL == 0.08
 
         base = tuile.pos()
 
         tuile.enterEvent(evenement_entree())
 
-        # Animation lancée, durée ~120 ms.
+        # Animation lancée, durée ~200 ms,
+        # progression 0 -> 1.
         assert tuile._animation is not None
-        assert tuile._animation.duration() == 120
+        assert tuile._animation.duration() == 200
+        assert tuile._animation.startValue() == 0.0
+        assert tuile._animation.endValue() == 1.0
 
-        # Sortie de survol : retour immédiat.
+        # Terme de l'animation : élévation 2 px,
+        # ombre à 8 % d'opacité, contour bleu.
+        tuile._appliquer_progression(1.0)
+
+        assert tuile.pos().y() == base.y() - 2
+        assert tuile._ombre.color().alpha() == 20
+        assert "#4a7db5" in tuile.styleSheet()
+
+        # Sortie de survol : retour immédiat —
+        # carte reposée, contour gris, ombre nulle.
         tuile.leaveEvent(
             QEvent(QEvent.Type.Leave)
         )
 
         assert tuile._animation is None
         assert tuile.pos() == base
+        assert tuile._ombre.color().alpha() == 0
+        assert "#4a7db5" not in tuile.styleSheet()
 
 
 #

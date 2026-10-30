@@ -290,7 +290,7 @@ class MenuEtudes(QWidget):
     ouvrir_dossier = Signal()
 
     TEXTE_ENTETE = "Vos études"
-    TEXTE_VIDE = "Aucune étude pour le moment"
+    TEXTE_VIDE = "Aucune étude présente."
 
     def __init__(
         self,
@@ -488,7 +488,7 @@ class MenuEtudes(QWidget):
         )
 
         action_nouvelle = LigneAction(
-            "Nouvelle étude…",
+            "Nouvelle étude",
             symbole=LigneAction.SYMBOLE_NOUVELLE
         )
 

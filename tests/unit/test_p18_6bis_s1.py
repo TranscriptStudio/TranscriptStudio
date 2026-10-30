@@ -279,7 +279,7 @@ class TestHubSerie1:
                 )
             ]
 
-            assert "Nouvelle étude…" in actions
+            assert "Nouvelle étude" in actions
             assert (
                 "Ouvrir depuis un dossier…"
                 in actions
@@ -357,7 +357,7 @@ class TestHubSerie1:
             ]
 
             assert (
-                "Aucune étude pour le moment"
+                "Aucune étude présente."
                 in textes
             )
 
@@ -372,7 +372,7 @@ class TestHubSerie1:
                 )
             ]
 
-            assert "Nouvelle étude…" in actions
+            assert "Nouvelle étude" in actions
             assert (
                 "Ouvrir depuis un dossier…"
                 in actions

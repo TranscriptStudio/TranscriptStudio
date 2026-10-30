@@ -620,6 +620,46 @@ def couleurs_menu_etudes(sombre: bool) -> dict:
     return COULEURS_MENU_ETUDES[bool(sombre)]
 
 
+def melanger_couleurs(
+    couleur_1: str,
+    couleur_2: str,
+    progression: float
+) -> str:
+    """
+    Interpolation linéaire entre deux couleurs
+    hexadécimales (#rrggbb), ``progression`` de
+    0.0 (couleur_1) à 1.0 (couleur_2) — transitions
+    progressives des tuiles (P18.6-bis).
+    """
+
+    def composantes(couleur):
+
+        texte = couleur.lstrip("#")
+
+        if len(texte) != 6:
+            return (122, 122, 122)
+
+        try:
+            return (
+                int(texte[0:2], 16),
+                int(texte[2:4], 16),
+                int(texte[4:6], 16),
+            )
+        except ValueError:
+            return (122, 122, 122)
+
+    r1, v1, b1 = composantes(couleur_1)
+    r2, v2, b2 = composantes(couleur_2)
+
+    t = max(0.0, min(1.0, progression))
+
+    r = int(r1 + (r2 - r1) * t)
+    v = int(v1 + (v2 - v1) * t)
+    b = int(b1 + (b2 - b1) * t)
+
+    return f"#{r:02x}{v:02x}{b:02x}"
+
+
 def couleurs_tuiles(sombre: bool) -> dict:
     """
     Couleurs d'une tuile (contour visible, fond,

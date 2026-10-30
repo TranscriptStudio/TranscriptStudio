@@ -67,13 +67,19 @@ class TuileAccueil(QWidget):
     généreuse — le clic sur la tuile déclenche
     l'action.
 
-    §22 : CONTOUR VISIBLE (1 px, gris net sur le
-    fond de page — la tuile se détache du fond,
-    jamais ne s'y fond) et EFFET DE SURVOL
+    §22 : CONTOUR VISIBLE (1 px, gris plus clair
+    que le fond de page — la tuile se détache du
+    fond, jamais ne s'y fond) et EFFET DE SURVOL
     identique aux maquettes : élévation ~2 px,
     contour passant au bleu d'accent (#4a7db5),
-    transition douce (~120 ms), retour immédiat
-    en sortie de survol, curseur main.
+    OMBRE PORTÉE vers le bas (8 % d'opacité) —
+    l'effet est PROGRESSIF (contour, élévation et
+    ombre animés ensemble, ~200 ms), retour
+    immédiat en sortie de survol, curseur main.
+
+    Carte moins large que la rangée : rapport
+    3:2 (~300 × 200 px), la rangée des trois
+    cartes reste centrée.
 
     Icônes : placeholder sobre en attendant
     celles fournies par David.
@@ -82,7 +88,10 @@ class TuileAccueil(QWidget):
     clique = Signal()
 
     ELEVATION_SURVOL = 2
-    DUREE_SURVOL_MS = 120
+    DUREE_SURVOL_MS = 200
+    OPACITE_OMBRE_SURVOL = 0.08
+    LARGEUR_CARTE = 300
+    HAUTEUR_CARTE = 200
 
     def __init__(
         self,
@@ -98,15 +107,40 @@ class TuileAccueil(QWidget):
         self.titre = titre
 
         #
-        # Métriques de la maquette (§22) : carte à
+        # Métriques (§22 + retour David) : carte
+        # moins large — rapport 3:2 (300 × 200),
         # coins arrondis (12 px), marge intérieure
         # généreuse (22/20/18), icône 34 px,
         # titre 16 px, description discrète.
         #
-        self.setMinimumHeight(150)
+        self.setFixedSize(
+            self.LARGEUR_CARTE,
+            self.HAUTEUR_CARTE
+        )
+
         self.setCursor(
             Qt.CursorShape.PointingHandCursor
         )
+
+        #
+        # Ombre portée du survol (vers le bas,
+        # 8 % d'opacité) — alpha animé.
+        #
+        from PySide6.QtGui import QColor
+        from PySide6.QtWidgets import (
+            QGraphicsDropShadowEffect,
+        )
+
+        self._ombre = (
+            QGraphicsDropShadowEffect(self)
+        )
+        self._ombre.setBlurRadius(24)
+        self._ombre.setOffset(0, 8)
+        self._ombre.setColor(
+            QColor(0, 0, 0, 0)
+        )
+
+        self.setGraphicsEffect(self._ombre)
 
         self._appliquer_style()
 
@@ -177,46 +211,55 @@ class TuileAccueil(QWidget):
             est_sombre(self)
         )["description"]
 
-    def _appliquer_style(self):
+    def _appliquer_style(
+        self,
+        progression: float = 0.0
+    ):
         """
-        Contour visible + survol, couleurs du thème
-        courant (§22, maquette) : bord 1 px net,
-        fond de tuile distinct du fond de page,
-        coins arrondis 12 px, survol = contour bleu
-        d'accent.
+        Contour visible + survol PROGRESSIF (retour
+        David) : bord 1 px gris plus clair que le
+        fond, fond de tuile légèrement plus clair
+        que le fond de page, coins arrondis 12 px.
+        Au survol, le contour glisse vers le bleu
+        d'accent au fil de l'animation (plus de
+        bascule :hover instantanée).
         """
 
         from services.theme_manager import (
             BORD_BLEU_ACCENT,
             couleurs_tuiles,
             est_sombre,
+            melanger_couleurs,
         )
 
-        couleurs = couleurs_tuiles(
+        self._couleurs_base = couleurs_tuiles(
             est_sombre(self)
+        )
+
+        bord = melanger_couleurs(
+            self._couleurs_base["bord"],
+            BORD_BLEU_ACCENT,
+            progression
         )
 
         self.setStyleSheet(
             "QWidget#tuile_hub {"
             "border: 1px solid "
-            + couleurs["bord"]
+            + bord
             + ";"
             "border-radius: 12px;"
             "background-color: "
-            + couleurs["fond"]
-            + ";"
-            "}"
-            "QWidget#tuile_hub:hover {"
-            "border: 1px solid "
-            + BORD_BLEU_ACCENT
-            + ";"
-            "background-color: "
-            + couleurs["fond_survol"]
+            + self._couleurs_base["fond"]
             + ";"
             "}"
         )
 
     def enterEvent(self, event):
+        """
+        Entrée de survol : élévation, contour bleu
+        et ombre portée montent ENSEMBLE, de façon
+        PROGRESSIVE (~200 ms).
+        """
 
         from PySide6.QtCore import (
             QVariantAnimation,
@@ -235,33 +278,67 @@ class TuileAccueil(QWidget):
             self.DUREE_SURVOL_MS
         )
 
-        self._animation.setStartValue(0)
-        self._animation.setEndValue(
-            self.ELEVATION_SURVOL
-        )
-
-        def sur_valeur(valeur):
-
-            if self._position_base is None:
-                return
-
-            self.move(
-                self._position_base.x(),
-                self._position_base.y() - valeur,
-            )
+        self._animation.setStartValue(0.0)
+        self._animation.setEndValue(1.0)
 
         self._animation.valueChanged.connect(
-            sur_valeur
+            self._appliquer_progression
         )
 
         self._animation.start()
 
         super().enterEvent(event)
 
+    def _appliquer_progression(
+        self,
+        progression: float
+    ):
+        """
+        Une étape de l'animation de survol :
+        élévation (2 px), contour glissant vers le
+        bleu d'accent, ombre vers le bas (8 %
+        d'opacité au terme).
+        """
+
+        from PySide6.QtGui import QColor
+
+        if self._position_base is None:
+            return
+
+        #
+        # Élévation progressive.
+        #
+        self.move(
+            self._position_base.x(),
+            self._position_base.y() - (
+                self.ELEVATION_SURVOL
+                * progression
+            ),
+        )
+
+        #
+        # Contour progressif (gris -> bleu d'accent).
+        #
+        self._appliquer_style(progression)
+
+        #
+        # Ombre portée progressive (8 % à terme).
+        #
+        alpha = int(
+            255
+            * self.OPACITE_OMBRE_SURVOL
+            * progression
+        )
+
+        self._ombre.setColor(
+            QColor(0, 0, 0, alpha)
+        )
+
     def leaveEvent(self, event):
         """
         Sortie de survol : retour IMMÉDIAT (pas
-        d'animation inverse — spec §22).
+        d'animation inverse — spec §22) : carte
+        reposée, contour gris, ombre effacée.
         """
 
         if self._animation is not None:
@@ -271,6 +348,11 @@ class TuileAccueil(QWidget):
         if self._position_base is not None:
             self.move(self._position_base)
             self._position_base = None
+
+        from PySide6.QtGui import QColor
+
+        self._appliquer_style(0.0)
+        self._ombre.setColor(QColor(0, 0, 0, 0))
 
         super().leaveEvent(event)
 
@@ -506,16 +588,20 @@ class HomeWindow(QWidget):
         )
 
         #
-        # §22 : trois grandes cartes en TROIS
-        # COLONNES égales (stretch identique, pas
-        # de colonne résiduelle).
+        # Retour David : cartes MOINS LARGES —
+        # rapport 3:2, la rangée des trois cartes
+        # reste centrée (marges élastiques).
         #
+        tuiles_layout.addStretch()
+
         for tuile in (
             self.tuile_nouvelle,
             self.tuile_reprendre,
             self.tuile_etudes,
         ):
-            tuiles_layout.addWidget(tuile, 1)
+            tuiles_layout.addWidget(tuile)
+
+        tuiles_layout.addStretch()
 
         layout.addLayout(tuiles_layout)
         layout.addSpacing(6)
