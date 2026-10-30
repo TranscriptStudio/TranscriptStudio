@@ -227,3 +227,184 @@ class TestTuilesReunionV4:
         assert "#3b9eff" not in (
             tuile.styleSheet()
         )
+
+
+class TestCorrectifsTechniquesS27:
+    """
+    Spec 30f §27 : artefact d'angle noir du menu
+    déroulant Études, fonds des zones non-tuile
+    identiques au fond de page #1e1f24, accueil
+    ouvert en plein écran par défaut.
+    """
+
+    def test_menu_etudes_sans_artefact_coin(
+        self,
+        qapp,
+        tmp_path
+    ):
+        """
+        §27a : le panneau de premier niveau du menu
+        Études est strictement TRANSPARENT (sans
+        lui, qdarktheme repeint son fond et noircit
+        les coins arrondis du conteneur).
+        """
+
+        from ui.menu_etudes import MenuEtudes
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        menu = MenuEtudes(settings)
+
+        assert (
+            "background: transparent"
+            in menu.styleSheet()
+        )
+
+        # Coins arrondis du conteneur.
+        assert "border-radius: 12px" in (
+            menu.conteneur.styleSheet()
+        )
+
+    def test_hub_zone_dernieres_au_fond_de_page(
+        self,
+        qapp,
+        tmp_path
+    ):
+        """
+        §27b : le QScrollArea des dernières
+        réunions (zone non-tuile) est TRANSPARENT
+        — le fond affiché reste strictement le
+        fond de page #1e1f24, aucune teinte
+        qdarktheme intermédiaire.
+        """
+
+        from services.llm.catalogue import (
+            catalogue_par_defaut,
+        )
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
+        from ui.home_window import HomeWindow
+
+        ThemeManager.apply_theme(
+            qapp,
+            ThemeManager.DARK
+        )
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        try:
+
+            with patch(
+                "services.llm.catalogue"
+                ".charger_catalogue",
+                return_value=catalogue_par_defaut(),
+            ):
+                accueil = HomeWindow(
+                    settings=settings
+                )
+
+            feuille = accueil.styleSheet()
+
+            assert "#1e1f24" in feuille
+
+            assert (
+                "QScrollArea {"
+                "background: transparent;"
+                in feuille.replace("\n", "")
+                or (
+                    "QScrollArea" in feuille
+                    and "transparent" in feuille
+                )
+            )
+
+            assert (
+                accueil.dernieres_scroll
+                .styleSheet()
+                == ""
+            )
+
+        finally:
+
+            accueil.close()
+
+            reinitialiser_theme_actif()
+
+    def test_etude_liste_au_fond_de_page(
+        self,
+        qapp,
+        tmp_path
+    ):
+        """
+        §27b : la QListWidget des réunions de la
+        page Étude est TRANSPARENTE — même fond de
+        page #1e1f24 que le reste de la page.
+        """
+
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
+        from ui.etude_window import EtudeWindow
+
+        construire_etude_test(tmp_path)
+
+        ThemeManager.apply_theme(
+            qapp,
+            ThemeManager.DARK
+        )
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        try:
+
+            etude_fenetre = EtudeWindow(
+                str(tmp_path / "Etude"),
+                settings=settings
+            )
+
+            feuille = etude_fenetre.styleSheet()
+
+            assert "#1e1f24" in feuille
+
+            assert "QListWidget" in feuille
+
+            assert "background: transparent" in (
+                feuille
+            )
+
+        finally:
+
+            etude_fenetre.close()
+
+            reinitialiser_theme_actif()
+
+    def test_accueil_plein_ecran_par_defaut(
+        self,
+    ):
+        """
+        §27c : le point d'entrée ouvre l'accueil
+        en PLEIN ÉCRAN (showMaximized), plus une
+        fenêtre 550x500.
+        """
+
+        from pathlib import Path
+
+        source = Path(
+            __file__
+        ).parents[2].joinpath(
+            "TranscriptStudio.py"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+        assert "showMaximized()" in source
+
+        assert "window.show()" not in source

@@ -755,6 +755,14 @@ class HomeWindow(QWidget):
         self.refresh_dernieres_reunions()
 
     def _appliquer_fond_page(self):
+        """
+        Thème sombre : fond de page des maquettes
+        (#1e1f24) sur la fenêtre ET sur les zones
+        de contenu non-tuile (spec 30f §27) —
+        qdarktheme peint sinon le viewport du
+        QScrollArea des dernières réunions d'une
+        teinte différente du fond de page.
+        """
 
         from services.theme_manager import (
             FOND_PAGE_SOMBRE,
@@ -772,6 +780,14 @@ class HomeWindow(QWidget):
                 "background-color: "
                 + FOND_PAGE_SOMBRE
                 + ";"
+                "}"
+                "QScrollArea {"
+                "background: transparent;"
+                "border: none;"
+                "}"
+                "QScrollArea > QWidget > QWidget {"
+                "background: transparent;"
+                "border: none;"
                 "}"
             )
 

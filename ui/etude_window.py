@@ -567,6 +567,13 @@ class EtudeWindow(QWidget):
         self._appliquer_fond_page()
 
     def _appliquer_fond_page(self):
+        """
+        Thème sombre : fond de page des maquettes
+        (#1e1f24) sur la fenêtre ET sur la liste
+        des réunions (spec 30f §27) — qdarktheme
+        peint sinon le viewport de la QListWidget
+        d'une teinte différente du fond de page.
+        """
 
         from services.theme_manager import (
             FOND_PAGE_SOMBRE,
@@ -584,6 +591,14 @@ class EtudeWindow(QWidget):
                 "background-color: "
                 + FOND_PAGE_SOMBRE
                 + ";"
+                "}"
+                "QListWidget {"
+                "background: transparent;"
+                "border: none;"
+                "}"
+                "QListWidget::item {"
+                "background: transparent;"
+                "border: none;"
                 "}"
             )
 

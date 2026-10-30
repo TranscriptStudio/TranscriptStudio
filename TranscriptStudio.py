@@ -89,6 +89,8 @@ if not settings.is_initial_setup_completed():
 # unique, pages empilees Accueil -> Etude -> Reunion.
 window = AppWindow()
 
-window.show()
+# P18.6-bis (spec 30f 27) : accueil ouvert en
+# PLEIN ÉCRAN par défaut.
+window.showMaximized()
 
 app.exec()

@@ -324,6 +324,21 @@ class MenuEtudes(QWidget):
             Qt.WidgetAttribute.WA_TranslucentBackground
         )
 
+        #
+        # Spec 30f §27 : AUCUN ARTEFACT D'ANGLE —
+        # le panneau de premier niveau est
+        # strictement transparent (WA_TranslucentBackground
+        # seul ne suffit pas : la feuille qdarktheme
+        # repeint son fond, noircissant les coins
+        # arrondis du conteneur).
+        #
+        self.setStyleSheet(
+            "MenuEtudes {"
+            "background: transparent;"
+            "border: none;"
+            "}"
+        )
+
         self.setFixedWidth(LARGEUR_MENU)
 
         self.lignes = []
