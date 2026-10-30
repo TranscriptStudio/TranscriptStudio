@@ -217,11 +217,14 @@ class TestStepper:
 
         fenetre = reunion[0]
 
-        # ③ Correction → ④ Reformulation.
-        assert "(optionnelle)" in (
-            fenetre
-            .etape_suivante_button
-            .text()
+        # ③ Correction → ④ Reformulation : libellé
+        # « Étape suivante : ④ Reformulation
+        # (optionnelle) › » (§20 : nom de l'étape
+        # qui vient).
+        assert (
+            fenetre.etape_suivante_button.text()
+            == "Étape suivante : ④ Reformulation "
+            "(optionnelle) ›"
         )
 
         fenetre.etape_courante = "transcription"
@@ -285,22 +288,40 @@ class TestStepper:
             resultat.versions[-1].validation is None
         )
 
-        # ④ reste optionnelle, non invalidée.
-        assert fenetre.stepper.boutons[
-            "reformulation"
-        ].styleSheet().count("dashed") == 1
+        # ④ reste optionnelle, non invalidée —
+        # et AUCUNE pastille n'est pointillée
+        # (P18.6-bis, invariant complémentaire 6).
+        assert "dashed" not in (
+            fenetre
+            .stepper
+            .boutons["reformulation"]
+            .styleSheet()
+        )
 
-    def test_passer_etape_ne_touche_rien(
+    def test_pastille_suivante_sautable(
         self,
         reunion
     ):
+        """
+        P18.6-bis (§20) : plus de « passer l'étape › »
+        — le saut se fait par clic direct sur une
+        pastille (toutes navigables).
+        """
 
         fenetre = reunion[0]
 
-        fenetre.passer_etape()
+        assert not hasattr(
+            fenetre,
+            "passer_button"
+        )
 
-        # ③ → ④ : l'étape est optionnelle, le
-        # passage ne change aucune donnée.
+        assert not hasattr(
+            fenetre,
+            "passer_etape"
+        )
+
+        fenetre.changer_etape("reformulation")
+
         assert (
             fenetre.etape_courante
             == "reformulation"

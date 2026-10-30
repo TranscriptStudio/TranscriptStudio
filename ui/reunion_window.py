@@ -215,8 +215,12 @@ class ReunionWindow(QWidget):
         )
 
         #
-        # « Étape suivante » / « passer l'étape › »
-        # (spec §3.3).
+        # Bouton UNIQUE « Étape suivante : [nom] › »
+        # (P18.6-bis, spec correctifs §20) : plus
+        # de « passer l'étape › » — pour sauter une
+        # étape optionnelle, on clique directement
+        # la pastille suivante du stepper (toutes
+        # les pastilles restent navigables).
         #
         barre_bas = QHBoxLayout()
 
@@ -227,21 +231,9 @@ class ReunionWindow(QWidget):
             self.aller_etape_suivante
         )
 
-        self.passer_button = QPushButton(
-            "passer l'étape ›"
-        )
-        self.passer_button.setToolTip(
-            "Passer directement à l'étape suivante "
-            "sans rien faire de celle-ci"
-        )
-        self.passer_button.clicked.connect(
-            self.passer_etape
-        )
-
         barre_bas.addWidget(
             self.etape_suivante_button
         )
-        barre_bas.addWidget(self.passer_button)
         barre_bas.addStretch()
 
         layout.addLayout(barre_bas)
@@ -1160,7 +1152,7 @@ class ReunionWindow(QWidget):
         )
 
         self.etape_suivante_button.setText(
-            "Étape suivante "
+            "Étape suivante : "
             f"{LIBELLES_ETAPES[suivante]} "
             + ("(optionnelle) ›" if optionnelle
                else "›")
@@ -1178,15 +1170,6 @@ class ReunionWindow(QWidget):
         self.changer_etape(
             ETAPES_REUNION[index + 1]
         )
-
-    def passer_etape(self):
-        """
-        « passer l'étape › » : saute l'étape courante
-        SANS rien invalider (invariant §9.3 — les
-        contenus existants sont conservés tels quels).
-        """
-
-        self.aller_etape_suivante()
 
     def maj_stepper(self):
         """

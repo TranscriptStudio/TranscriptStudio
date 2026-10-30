@@ -6,15 +6,18 @@ spec navigation §3.2) : ① Prétraitement ·
 ⑤ Résumé · ⑥ Export.
 
 Couleurs : gris (à faire) / bleu (en cours) /
-vert (terminé). Les étapes optionnelles (④ et ⑤,
-spec §3.3) portent un contour pointillé.
+vert (terminé). P18.6-bis (spec correctifs §18) :
+PLUS AUCUN contour pointillé — aucune différence
+visuelle entre étapes obligatoires et
+optionnelles ; l'optionnalité ne se lit que dans
+le bouton « Étape suivante : … (optionnelle) »
+et l'info-bulle au survol.
 
 Réutilisé par :
 - la page Réunion (stepper fixe, cliquable) ;
 - la page Étude (avancement ①→⑤ sans ⑥,
   invariant §9.4) ;
-- les mini-tuiles du hub (stepper compact ①→⑥,
-  spec §2.4).
+- les mini-tuiles du hub et de la page Étude.
 """
 
 from PySide6.QtCore import Signal
@@ -93,6 +96,11 @@ class StepperBar(QWidget):
                 LIBELLES_ETAPES[etape]
             )
 
+            if etape in self.optionnelles:
+                bouton.setToolTip(
+                    "Étape optionnelle"
+                )
+
             bouton.setFlat(True)
             bouton.setCursor(self.cursor())
 
@@ -132,20 +140,14 @@ class StepperBar(QWidget):
     ) -> str:
         """
         Feuille de style d'une pastille : couleur
-        d'état, contour pointillé pour les étapes
-        optionnelles.
+        d'état. Toutes les pastilles ont le même
+        contour (spec correctifs §18).
         """
 
         style = STYLES_ETATS.get(
             etat,
             STYLES_ETATS[A_FAIRE]
         )
-
-        if etape in self.optionnelles:
-            style = style.replace(
-                "border: 1px solid",
-                "border: 1px dashed"
-            )
 
         return (
             style

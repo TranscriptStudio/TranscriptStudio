@@ -387,28 +387,42 @@ class TestStepperBar:
             for b in barre.boutons.values()
         ]
 
-    def test_optionnelles_pointillees(self, qapp):
+    def test_aucun_contour_pointille(self, qapp):
+        """
+        P18.6-bis (spec correctifs §18, invariant
+        complémentaire 6) : aucune pastille n'a de
+        contour pointillé ; l'optionnalité ne se
+        lit que dans l'info-bulle.
+        """
 
         from ui.stepper import StepperBar
 
         barre = StepperBar()
 
-        for etape in ("reformulation", "resume"):
-            assert "dashed" in (
-                barre.boutons[etape]
-                .styleSheet()
-            )
-
-        for etape in (
-            "pretraitement",
-            "transcription",
-            "correction",
-            "export"
+        for etape, bouton in (
+            barre.boutons.items()
         ):
             assert "dashed" not in (
-                barre.boutons[etape]
-                .styleSheet()
-            )
+                bouton.styleSheet()
+            ), etape
+
+        # Optionnalité : info-bulle uniquement.
+        assert (
+            barre.boutons["reformulation"]
+            .toolTip()
+            == "Étape optionnelle"
+        )
+
+        assert (
+            barre.boutons["resume"]
+            .toolTip()
+            == "Étape optionnelle"
+        )
+
+        assert not (
+            barre.boutons["export"]
+            .toolTip()
+        )
 
     def test_couleurs_etats(self, qapp):
 
