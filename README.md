@@ -81,15 +81,18 @@ L’application s’organise en quatre pages : **Accueil**, **Réunion**, **Étu
 
 ### Accueil (hub)
 
-- Trois tuiles : « Nouvelle transcription », « Reprendre une réunion », « Études » — une étude est un regroupement de réunions ayant pour objet un thème spécifique ;
-- bandeau de l’application (logo, version, pastilles de services « Transcription ElevenLabs » et « Service IA » — verte si configuré, grise sinon) : il n’apparaît que sur l’accueil ;
-- « Dernières réunions » : chaque mini-tuile affiche le titre, l’étude de rattachement (ou « Réunion autonome », avec un lien « rattacher à une étude… »), le stepper complet ①→⑥ et le coût des traitements.
+- Trois grandes tuiles : « Nouvelle transcription », « Reprendre une réunion », « Études » — une étude est un regroupement de réunions ayant pour objet un thème spécifique ;
+- bandeau de l’application (logo, « Version 2.0 », pastilles de services « Transcription ElevenLabs » et « Service IA » — verte si configuré, grise sinon) : il n’apparaît que sur l’accueil ;
+- « Dernières réunions » : chaque mini-tuile affiche le titre, l’étude de rattachement (ou « Réunion autonome », avec un lien « rattacher à une étude… »), le stepper compact et le coût des traitements ;
+- la tuile « Études » ouvre une vue dédiée (liste des études, « Nouvelle étude », « Ouvrir depuis un dossier… ») — le hub reste épuré.
 
 ### Page Réunion
 
-- Ruban : titre de la réunion (configurable), date · durée, badge d’étude et de Bible (ou « Réunion autonome »), boutons « Gestion de l’étude », « Accueil », « ⚙ », « ? » ;
-- stepper fixe : ① Prétraitement · ② Transcription · ③ Correction · ④ Reformulation · ⑤ Résumé · ⑥ Export. Les étapes **④ Reformulation et ⑤ Résumé sont optionnelles** (contour pointillé) : « passer l’étape › » les saute, et le passage direct ② → ⑥ reste toujours possible sans rien invalider ;
-- ⑥ Export : export de la transcription corrigée (flux v1), ou des **textes validés de la réunion** (résumé validé en tête, reformulations validées dans l’ordre d’ouvrage) — y compris pour une réunion autonome ou un état intermédiaire.
+- Ruban : titre de la réunion (configurable), date · durée, badge d’étude et de Bible au nom court (ou « Réunion autonome »), boutons « Gestion de l’étude », « Accueil », « ⚙ », « ? » ;
+- **stepper compact, uniquement une fois la transcription réalisée** : ① Transcription · ② Reformulation · ③ Résumé · ④ Export. Les étapes **② Reformulation et ③ Résumé sont optionnelles** : le bouton unique « Étape suivante : … (optionnelle) › » les annonce, et le saut d’étape se fait par clic direct sur une pastille ;
+- la pastille « Transcription » ouvre l’**éditeur de correction** : bleue tant que la correction est en cours, verte une fois la diarisation validée ;
+- une réunion non transcrite n’affiche pas de stepper (mention « transcription en attente ») ; la fenêtre de préparation audio reste linéaire, et transcrire un audio **déjà prétraité** lors d’une session précédente revient à une transcription directe ;
+- ④ Export : export de la transcription corrigée (flux v1), ou des **textes validés de la réunion** (résumé validé en tête, reformulations validées dans l’ordre d’ouvrage) — y compris pour une réunion autonome ou un état intermédiaire.
 
 ### Réunion : objet de premier rang
 
@@ -100,9 +103,9 @@ L’application s’organise en quatre pages : **Accueil**, **Réunion**, **Étu
 
 ### Page Étude
 
-- Ruban : titre, thème, nombre de réunions, badge « Bible : [version] · versification : [édition] », boutons « Modifier l’étude », « Accueil », « ⚙ », « ? » ;
-- liste des réunions en une colonne : titre, rang, date, durée, avancement ①→⑤ (l’export de réunion n’y figure pas : l’objectif d’une étude est l’ouvrage), coût, bouton « Ouvrir », poignée de réordonnancement — l’ordre vaut ordre d’ouvrage ;
-- « ＋ Ajouter une réunion » : depuis un fichier, depuis une réunion autonome, ou nouvel audio ;
+- Ruban : titre, thème, nombre de réunions, badge court « Bible : Darby révisée · versification : Darby », boutons « Modifier l’étude », « Accueil », « ⚙ », « ? » ;
+- liste des réunions en une colonne : titre lisible, rang (Réunion 1, 2, …), date de réunion (date de l’audio), durée, avancement Transcription → Reformulation → Résumé (l’export de réunion n’y figure pas : l’objectif d’une étude est l’ouvrage), coût, bouton « Ouvrir », poignée de réordonnancement — l’ordre vaut ordre d’ouvrage ;
+- « ＋ Ajouter une réunion » (en tête de liste, à côté du titre « Réunions de l’étude ») : depuis un fichier, depuis une réunion autonome, ou nouvel audio ;
 - synthèse d’étude (« Régénérer… » ou « Éditer » à la main) et récurrences ;
 - le bouton « Ouvrage… » renvoie vers la page Ouvrage : l’assemblage et l’export final de l’étude s’y font.
 

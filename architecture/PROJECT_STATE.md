@@ -1,11 +1,15 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-29 (**P18.6 — refonte de la
-> navigation LIVRÉE** : hub à 3 tuiles, page Réunion ruban +
-> stepper ①→⑥ avec ④⑤ optionnelles, page Étude ①→⑤ sans ⑥,
-> réunion objet de premier rang avec exclusivité 0-1 étude,
-> saisie manuelle, exports à 3 portées, page Ouvrage (destination
-> P19/P20) ; sync documents du 2026-10-29 ; **404 tests verts**)
+> **Dernière mise à jour** : 2026-10-30 (**P18.6-bis — correctifs
+> de relecture de la navigation LIVRÉS, séries 1 à 3** : grandes
+> tuiles du hub + vue Études dédiée + « Version 2.0 », badge
+> Bible au nom court, dates de réunion (audio), page Réunion sans
+> bandeau/onglets/« Retour à l'étude », plus de contour pointillé,
+> bouton unique « Étape suivante », stepper compact
+> Transcription→Reformulation→Résumé→Export uniquement après
+> transcription, mention pour les non transcrites, transcription
+> directe d'un audio déjà préparé ; sync documents du 2026-10-30 ;
+> **428 tests verts**)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -57,6 +61,10 @@
 - **P16-bis : LIVRÉ** (correctifs de relecture UI, séries 1 à 3 +
   terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
   sur UI_REFORMULATION_V2 pour ses points).
+- **P18.6-bis : LIVRÉ** (correctifs de relecture de la navigation,
+  séries 1 à 3 — SPEC_NAVIGATION_MODIFS_V2_2026-10-30c fait
+  autorité et prime sur SPEC_NAVIGATION_V2 pour ses points ;
+  9 invariants complémentaires testés) — 428 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -1584,6 +1592,107 @@ P16/P16-bis/P17/P18/P18.5 (tests existants rejoués verts, y compris
 
 ---
 
+## SESSION 2026-10-30 (P18.6-bis) — CORRECTIFS DE RELECTURE DE LA NAVIGATION : LIVRÉ
+
+**Synchro atelier spec** (rituel) : 9 documents du 2026-10-30 recopiés dans
+`architecture/spec_v2/` — SPEC_NAVIGATION_MODIFS_V2_2026-10-30c (fait autorité,
+prime sur SPEC_NAVIGATION_V2 pour ses points), FEUILLE_DE_ROUTE_V2_2026-10-30c,
+INDEX_SPECS_2026-10-30c, versions intermédiaires 30 et 30b conservées. Les
+captures de relecture de David (2026-10-30) ont été prises après livraison
+P18.6.
+
+### Série 1 (§1-17) — hub, badges, page Étude
+
+- **Hub** : trois GRANDES tuiles (classe `TuileAccueil` : icône + titre exact +
+  paragraphe descriptif exact, textes de la spec ; clic = action) ;
+  sous-titre « Prétraitement audio, transcription et reformulation assistés » ;
+  « Version 2.0 » sans date ; **section Études retirée du hub** (invariant 1) —
+  la tuile ouvre la **vue dédiée** `ui/etudes_window.py` (liste des études,
+  Nouvelle étude, Ouvrir depuis un dossier… ; `AppWindow.ouvrir_etudes`).
+- **Page Réunion** : aucun bandeau app ni rangée d'onglets (invariant 2, testé
+  par QTabBar) ; bouton « Retour à l'étude » supprimé de l'éditeur v1 et de la
+  page Reformulation (remplacé par « Gestion de l'étude » du ruban) ; badge
+  au nom court de Bible (invariant 3 : Darby / Darby révisée / Segond 1910 —
+  `services/bibles.py::nom_court_bible`).
+- **Page Étude** : badge « Bible : Darby révisée · versification : Darby »
+  (`versification_bible` — la Darby révisée garde la versification Darby) ;
+  dates affichées = dates de RÉUNION (mtime de l'audio, `avancement.py::
+  date_reunion`/`date_audio_projet` ; `rattacher` stocke la date de l'audio,
+  invariant 4) ; titres de tuiles lisibles sans numérotation, rang
+  « Réunion n » en annexe ; boutons par tuile Reformulation/Résumé retirés
+  (Ouvrir + poignée de réordonnancement seulement, clic de tuile = ouvrir) ;
+  pluriels propres ; en-tête « Réunions de l'étude » avec « ＋ Ajouter une
+  réunion » à côté, en tête de liste.
+
+### Série 2 (§18, §20) — stepper et actions
+
+- **Plus aucun contour pointillé** (invariant 6) : aucune différence visuelle
+  entre étapes obligatoires et optionnelles ; l'optionnalité ne se lit que dans
+  le bouton « Étape suivante : … (optionnelle) » et l'info-bulle
+  « Étape optionnelle ».
+- **Bouton unique « Étape suivante : [nom] › »** (invariant 7) : « passer
+  l'étape › » supprimé — le saut se fait par clic direct sur une pastille
+  (toutes navigables).
+
+### Série 3 (§19 réécrit) — stepper compact après transcription
+
+- **Modèle compact** (invariant 5) : Transcription → Reformulation → Résumé →
+  Export (①→④) ; les étapes Prétraitement / Transcription / Correction
+  n'apparaissent plus séparément. La pastille « Transcription » fusionnée
+  ouvre TOUJOURS l'éditeur de correction (invariant 8) ; **bleue** pendant la
+  correction (transcription sans diarisation), **verte** quand la diarisation
+  est validée (définition retenue pour « transcription corrigée validée »,
+  documentée dans `services/avancement.py::etat_etape_transcription`).
+- **Pas de stepper avant la transcription** (invariant 9) : mention discrète
+  « transcription en attente » sur le hub, la page Étude et la page Réunion
+  (la fenêtre de préparation audio reste linéaire, aucun stepper) ; la
+  mention « transcription en cours » n'a pas de cas statique distinct (la
+  transcription active est couverte par le dialogue de progression du hub) —
+  à arbitrer si l'atelier veut une mention dédiée.
+- **Transcrire un audio déjà prétraité = transcription directe** :
+  `ProjectManager.trouver_projet_prepare` retrouve un dossier (copie de
+  l'audio + audio_processed.wav + journal, sans .sttproj) ; confirmation puis
+  transcription directe de l'audio traité, sans nouvelle étape de
+  prétraitement.
+- Page Étude : stepper Transcription → Reformulation → Résumé (jamais
+  Export, invariant §9.4 maintenu).
+
+### Invariants complémentaires 1-9 — couverture
+
+1. Hub sans liste d'études : `test_p18_6bis_s1` (attributs + vue dédiée).
+2. Pas de bandeau hors accueil, pas d'onglets : s1 (QTabBar) + s1 réunion.
+3. Noms courts : s1 (`nom_court_bible`, badges réunion/étude).
+4. Dates de réunion : s1 (`date_reunion` préfère l'audio, stockée au
+   rattachement).
+5. Stepper compact, page Étude sans Export : s3 + tests P18.6 ajustés.
+6. Aucun pointillé : s2 + tests P18.6 ajustés.
+7. Action unique : s2 (« passer » absent, libellé exact).
+8. Pastille Transcription = éditeur : s3 (depuis toute étape).
+9. Non transcrite = jamais de stepper : s3 (réunion, hub, page Étude).
+
+### Décisions et écarts
+
+- « Transcription corrigée validée » (pastille verte) = **diarisation
+  validée** (blocs de parole présents) : le format v1 n'a pas de marqueur de
+  validation de correction ; la diarisation validée est l'aboutissement
+  documenté de la correction (à arbitrer si l'atelier veut un marqueur
+  explicite).
+- La détection « audio déjà prétraité » se fonde sur les traces sur disque
+  (copie de l'audio + audio_processed.wav + journal, sans .sttproj) ; elle
+  ne remonte pas au-delà des dossiers existants (les projets transcrits sont
+  exclus).
+- Les invariants §9 de SPEC_NAVIGATION_V2 restent verts (bandeau, pile,
+  exclusivité, optionnalité, saisie manuelle, suggestion) — la feuille de
+  correctifs ne fait que resserrer le visuel et le stepper.
+- Manuel PDF toujours en attente de mise à jour (report existant) ; la
+  section README « Études et navigation v2 » a été mise à jour (stepper
+  compact, vue Études, dates, Version 2.0).
+
+Bilan tests : **428 verts** (404 + 24 nouveaux : 13 série 1, 2 série 2,
+9 série 3 — moins les tests P16-bis/P18.6 ajustés aux correctifs).
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
 **P18.6 est LIVRÉ** (404 tests verts). Restent :
@@ -1594,9 +1703,10 @@ P16/P16-bis/P17/P18/P18.5 (tests existants rejoués verts, y compris
    la « mémoire » de la 2ᵉ réunion (synthèse) ; P18 : références
    complétées vérifiables en un clic (Bibles installables depuis
    les réglages, onglet « Bibles »), export DOCX relu sous Word ;
-   P18.6 : parcours hub → réunion → étude (stepper, rattachement,
-   changement d'étude, saisie manuelle, exports 3 portées) contre
-   les maquettes validées.
+   P18.6/P18.6-bis : parcours hub → réunion → étude (stepper
+   compact, rattachement, changement d'étude, saisie manuelle,
+   exports 3 portées, vue Études, dates de réunion) contre les
+   maquettes validées mises à jour.
 2. **P19/P20 (v2.1)** — page Ouvrage complète (arborescence à la Word,
    document compilé éditable, rapport d'analyse, fusion de pensées,
    mobilité des paragraphes, sous-titres proposés par IA, export
