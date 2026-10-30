@@ -552,6 +552,41 @@ COULEUR_SURLIGNAGE_MOT_SOMBRE = "#6B5300"
 COULEUR_BLOC_JOUE_CLAIR = "#2196F3"
 COULEUR_BLOC_JOUE_SOMBRE = "#64B5F6"
 
+#
+# P18.6-bis série 4 (spec correctifs §22) : tuiles
+# — CONTOURS VISIBLES (la tuile se détache du
+# fond, jamais ne s'y fond) et effet de survol.
+# Couleurs des maquettes validées pour le thème
+# sombre (fond de tuile #2a2b31, bord 1 px
+# #3a3b42 sur fond de page #1e1f24) ; équivalent
+# sobre pour le thème clair.
+#
+
+BORD_BLEU_ACCENT = "#4a7db5"
+FOND_PAGE_SOMBRE = "#1e1f24"
+
+COULEURS_TUILES = {
+    True: {  # thème sombre (maquettes)
+        "fond": "#2a2b31",
+        "fond_survol": "#32333a",
+        "bord": "#3a3b42",
+    },
+    False: {  # thème clair
+        "fond": "#ffffff",
+        "fond_survol": "#f2f6fb",
+        "bord": "#b9bcc2",
+    },
+}
+
+
+def couleurs_tuiles(sombre: bool) -> dict:
+    """
+    Couleurs d'une tuile (contour visible, fond,
+    fond de survol) selon le thème.
+    """
+
+    return COULEURS_TUILES[bool(sombre)]
+
 
 def est_sombre(widget) -> bool:
     """

@@ -559,6 +559,29 @@ class EtudeWindow(QWidget):
 
         layout.addLayout(ouvrage_layout)
 
+        #
+        # §22 : les tuiles se détachent du fond de
+        # page — en thème sombre, fond de page des
+        # maquettes (#1e1f24).
+        #
+        self._appliquer_fond_page()
+
+    def _appliquer_fond_page(self):
+
+        from services.theme_manager import (
+            FOND_PAGE_SOMBRE,
+            est_sombre,
+        )
+
+        if est_sombre(self):
+            self.setStyleSheet(
+                "EtudeWindow {"
+                "background-color: "
+                + FOND_PAGE_SOMBRE
+                + ";"
+                "}"
+            )
+
     def _libelle_theme(self) -> str:
 
         theme = self.etude.etude.theme
@@ -870,20 +893,46 @@ class EtudeWindow(QWidget):
         cadre = QFrame()
         cadre.setObjectName("etude_mini_tuile")
 
-        if introuvable:
-            cadre.setStyleSheet(
-                "QFrame#etude_mini_tuile {"
-                "border: 1px solid #b35900;"
-                "border-radius: 6px;"
-                "}"
-            )
-        else:
-            cadre.setStyleSheet(
-                "QFrame#etude_mini_tuile {"
-                "border: 1px solid #C8C8C8;"
-                "border-radius: 6px;"
-                "}"
-            )
+        #
+        # §22 : CONTOUR VISIBLE (1 px, la tuile se
+        # détache du fond de page) + survol (contour
+        # au bleu d'accent) ; réunion introuvable =
+        # contour avertisseur.
+        #
+        from services.theme_manager import (
+            BORD_BLEU_ACCENT,
+            couleurs_tuiles,
+            est_sombre,
+        )
+
+        couleurs = couleurs_tuiles(
+            est_sombre(self)
+        )
+
+        bord = (
+            "#b35900" if introuvable
+            else couleurs["bord"]
+        )
+
+        cadre.setStyleSheet(
+            "QFrame#etude_mini_tuile {"
+            "border: 1px solid "
+            + bord
+            + ";"
+            "border-radius: 6px;"
+            "background-color: "
+            + couleurs["fond"]
+            + ";"
+            "}"
+            "QFrame#etude_mini_tuile:hover {"
+            "border: 1px solid "
+            + BORD_BLEU_ACCENT
+            + ";"
+            "background-color: "
+            + couleurs["fond_survol"]
+            + ";"
+            "}"
+        )
 
         layout = QVBoxLayout(cadre)
         layout.setContentsMargins(10, 6, 10, 6)

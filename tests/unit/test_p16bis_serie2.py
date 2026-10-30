@@ -753,23 +753,22 @@ class TestInvariance6OuvrirDepuisDossier:
 
         avec_etude = tmp_path / "Etude"
 
-        vue_etudes = fenetre_app.ouvrir_etudes()
-
         with patch(
-            "ui.etudes_window.QFileDialog"
+            "ui.home_window.QFileDialog"
             ".getExistingDirectory",
             return_value=str(mauvais),
         ), patch(
-            "ui.etudes_window.QMessageBox.warning"
+            "ui.home_window.QMessageBox.warning"
         ) as avertissement:
 
-            vue_etudes.ouvrir_etude_dialogue()
+            fenetre_app.accueil.ouvrir_etude_dialogue()
 
-        # Message clair, rien ne s'ouvre : on reste
-        # sur la vue Études, aucune page Étude.
+        # Message clair, rien ne s'ouvre.
         assert avertissement.called
 
-        assert fenetre_app.page_active() is vue_etudes
+        assert fenetre_app.page_active() is (
+            fenetre_app.accueil
+        )
 
         assert not fenetre_app.page_est_ouverte(
             (
@@ -778,14 +777,16 @@ class TestInvariance6OuvrirDepuisDossier:
             )
         )
 
-        # Le dossier valide s'ouvre, lui.
+        # Le dossier valide s'ouvre, lui — la page
+        # Étude s'ouvre DIRECTEMENT (P18.6-bis
+        # série 4 §21).
         with patch(
-            "ui.etudes_window.QFileDialog"
+            "ui.home_window.QFileDialog"
             ".getExistingDirectory",
             return_value=str(avec_etude),
         ):
 
-            vue_etudes.ouvrir_etude_dialogue()
+            fenetre_app.accueil.ouvrir_etude_dialogue()
 
         assert fenetre_app.page_active() is not (
             fenetre_app.accueil

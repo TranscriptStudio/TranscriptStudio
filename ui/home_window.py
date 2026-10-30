@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMessageBox,
     QProgressDialog,
+    QInputDialog,
     QMenu,
     QScrollArea,
     QFrame,
@@ -50,20 +51,38 @@ from services.resources import resource_path
 from services.transcription_worker import TranscriptionWorker
 from services.project_io import save_project
 from services.audio_loading_worker import AudioLoadingWorker
-from services.etude_io import ouvrir_etude
+from services.etude_io import (
+    EtudeError,
+    creer_etude,
+    ouvrir_etude,
+)
 from ui.stepper import StepperBar
 
 
 class TuileAccueil(QWidget):
     """
-    Grande tuile du hub (P18.6-bis, spec correctifs
-    §1) : icône, titre exact, paragraphe
-    descriptif — le clic sur la tuile déclenche
-    l'action. Icônes : placeholder sobre en
-    attendant celles fournies par David.
+    Grande carte du hub (P18.6-bis, spec correctifs
+    §1 et §22) : icône, titre exact, paragraphe
+    descriptif, coins arrondis, marge intérieure
+    généreuse — le clic sur la tuile déclenche
+    l'action.
+
+    §22 : CONTOUR VISIBLE (1 px, gris net sur le
+    fond de page — la tuile se détache du fond,
+    jamais ne s'y fond) et EFFET DE SURVOL
+    identique aux maquettes : élévation ~2 px,
+    contour passant au bleu d'accent (#4a7db5),
+    transition douce (~120 ms), retour immédiat
+    en sortie de survol, curseur main.
+
+    Icônes : placeholder sobre en attendant
+    celles fournies par David.
     """
 
     clique = Signal()
+
+    ELEVATION_SURVOL = 2
+    DUREE_SURVOL_MS = 120
 
     def __init__(
         self,
@@ -78,25 +97,20 @@ class TuileAccueil(QWidget):
 
         self.titre = titre
 
-        self.setMinimumSize(240, 120)
+        self.setMinimumHeight(130)
+        self.setSizePolicy(
+            self.sizePolicy().horizontalPolicy(),
+            self.sizePolicy().verticalPolicy(),
+        )
         self.setCursor(
             Qt.CursorShape.PointingHandCursor
         )
 
-        self.setStyleSheet(
-            "QWidget#tuile_hub {"
-            "border: 1px solid #C8C8C8;"
-            "border-radius: 8px;"
-            "background: rgba(128, 128, 128, 0.04);"
-            "}"
-            "QWidget#tuile_hub:hover {"
-            "border: 1px solid #2196F3;"
-            "}"
-        )
+        self._appliquer_style()
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 10, 14, 10)
-        layout.setSpacing(4)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setSpacing(6)
 
         if icone is not None:
 
@@ -104,8 +118,8 @@ class TuileAccueil(QWidget):
             pixmap = QPixmap(str(icone))
             icone_label.setPixmap(
                 pixmap.scaled(
-                    28,
-                    28,
+                    30,
+                    30,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
@@ -115,7 +129,7 @@ class TuileAccueil(QWidget):
 
         titre_label = QLabel(titre)
         titre_label.setStyleSheet(
-            "font-size: 14px; font-weight: 600;"
+            "font-size: 15px; font-weight: 600;"
             "border: none;"
         )
 
@@ -124,7 +138,7 @@ class TuileAccueil(QWidget):
         description_label = QLabel(description)
         description_label.setWordWrap(True)
         description_label.setStyleSheet(
-            "font-size: 11px; color: #555555;"
+            "font-size: 11px; color: #757575;"
             "border: none;"
         )
 
@@ -134,6 +148,109 @@ class TuileAccueil(QWidget):
         )
 
         layout.addStretch()
+
+        #
+        # Animation d'élévation au survol (~120 ms),
+        # retour immédiat en sortie.
+        #
+        self._position_base = None
+        self._animation = None
+
+    def _appliquer_style(self):
+        """
+        Contour visible + survol, couleurs du thème
+        courant (§22) : bord 1 px net, fond de tuile
+        distinct du fond de page, survol = contour
+        bleu d'accent.
+        """
+
+        from services.theme_manager import (
+            BORD_BLEU_ACCENT,
+            couleurs_tuiles,
+            est_sombre,
+        )
+
+        couleurs = couleurs_tuiles(
+            est_sombre(self)
+        )
+
+        self.setStyleSheet(
+            "QWidget#tuile_hub {"
+            "border: 1px solid "
+            + couleurs["bord"]
+            + ";"
+            "border-radius: 10px;"
+            "background-color: "
+            + couleurs["fond"]
+            + ";"
+            "}"
+            "QWidget#tuile_hub:hover {"
+            "border: 1px solid "
+            + BORD_BLEU_ACCENT
+            + ";"
+            "background-color: "
+            + couleurs["fond_survol"]
+            + ";"
+            "}"
+        )
+
+    def enterEvent(self, event):
+
+        from PySide6.QtCore import (
+            QVariantAnimation,
+        )
+
+        self._position_base = self.pos()
+
+        if self._animation is not None:
+            self._animation.stop()
+
+        self._animation = QVariantAnimation(
+            self
+        )
+
+        self._animation.setDuration(
+            self.DUREE_SURVOL_MS
+        )
+
+        self._animation.setStartValue(0)
+        self._animation.setEndValue(
+            self.ELEVATION_SURVOL
+        )
+
+        def sur_valeur(valeur):
+
+            if self._position_base is None:
+                return
+
+            self.move(
+                self._position_base.x(),
+                self._position_base.y() - valeur,
+            )
+
+        self._animation.valueChanged.connect(
+            sur_valeur
+        )
+
+        self._animation.start()
+
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        """
+        Sortie de survol : retour IMMÉDIAT (pas
+        d'animation inverse — spec §22).
+        """
+
+        if self._animation is not None:
+            self._animation.stop()
+            self._animation = None
+
+        if self._position_base is not None:
+            self.move(self._position_base)
+            self._position_base = None
+
+        super().leaveEvent(event)
 
     def mousePressEvent(self, event):
 
@@ -329,7 +446,8 @@ class HomeWindow(QWidget):
         # Icônes : placeholder sobre en attendant
         # celles de David.
         #
-        tuiles_layout = QHBoxLayout()
+        self.tuiles_layout = QHBoxLayout()
+        tuiles_layout = self.tuiles_layout
         tuiles_layout.setContentsMargins(0, 0, 0, 0)
         tuiles_layout.setSpacing(12)
 
@@ -362,14 +480,17 @@ class HomeWindow(QWidget):
             "objet un thème spécifique.",
         )
 
+        #
+        # §22 : trois grandes cartes en TROIS
+        # COLONNES égales (stretch identique, pas
+        # de colonne résiduelle).
+        #
         for tuile in (
             self.tuile_nouvelle,
             self.tuile_reprendre,
             self.tuile_etudes,
         ):
-            tuiles_layout.addWidget(tuile)
-
-        tuiles_layout.addStretch()
+            tuiles_layout.addWidget(tuile, 1)
 
         layout.addLayout(tuiles_layout)
         layout.addSpacing(6)
@@ -415,7 +536,7 @@ class HomeWindow(QWidget):
             self.open_project
         )
         self.tuile_etudes.clique.connect(
-            self.ouvrir_vue_etudes
+            self.ouvrir_menu_etudes
         )
         self.settings_button.clicked.connect(
             self.open_settings
@@ -428,35 +549,305 @@ class HomeWindow(QWidget):
         self.update_api_status()
         self.maj_statut_llm()
 
+        #
+        # §22 : les tuiles se détachent du fond de
+        # page — en thème sombre, fond de page des
+        # maquettes (#1e1f24).
+        #
+        self._appliquer_fond_page()
+
         # Dernieres reunions.
         self.refresh_dernieres_reunions()
 
-    def ouvrir_vue_etudes(self):
-        """
-        Tuile « Études » : vue dédiée des études via
-        la pile de navigation (spec correctifs §4 —
-        le hub n'affiche jamais la liste des études).
-        """
+    def _appliquer_fond_page(self):
 
-        navigation = getattr(self, "navigation", None)
-
-        if (
-            navigation is not None
-            and hasattr(
-                navigation,
-                "ouvrir_etudes"
-            )
-        ):
-            navigation.ouvrir_etudes()
-            return
-
-        from ui.etudes_window import EtudesWindow
-
-        self.vue_etudes = EtudesWindow(
-            settings=self.settings
+        from services.theme_manager import (
+            FOND_PAGE_SOMBRE,
+            est_sombre,
         )
 
-        self.vue_etudes.show()
+        if est_sombre(self):
+            self.setStyleSheet(
+                "HomeWindow {"
+                "background-color: "
+                + FOND_PAGE_SOMBRE
+                + ";"
+                "}"
+            )
+
+    #
+    # ==================================================
+    # Tuile « Études » : menu déroulant (P18.6-bis
+    # série 4, spec correctifs §21 — la page
+    # intermédiaire de choix est supprimée).
+    # ==================================================
+    #
+
+    def ouvrir_menu_etudes(self):
+        """
+        Tuile « Études » : MENU DÉROULANT ancré à la
+        tuile — liste des études (nom, nombre de
+        réunions), « ＋ Nouvelle étude »,
+        « Ouvrir depuis un dossier… ». Choisir une
+        étude ouvre DIRECTEMENT la page Étude.
+        Échap ou clic extérieur referment le menu
+        (comportement natif du QMenu).
+        """
+
+        menu = self._construire_menu_etudes()
+
+        menu.exec(
+            self.tuile_etudes.mapToGlobal(
+                self.tuile_etudes.rect()
+                .bottomLeft()
+            )
+        )
+
+    def _construire_menu_etudes(self):
+        """
+        Construction du menu (séparée pour les
+        tests). Sans étude, le menu l'indique et
+        propose création ou import.
+        """
+
+        from services.rattachement import (
+            reunions_des_etudes,
+        )
+
+        menu = QMenu(self)
+        menu.setObjectName("menu_etudes")
+
+        etudes = (
+            self.settings.cleanup_recent_etudes()
+        )
+
+        if not etudes:
+
+            vide = menu.addAction(
+                "Aucune étude pour l'instant"
+            )
+            vide.setEnabled(False)
+
+        else:
+
+            for dossier in etudes:
+
+                nb = len(
+                    reunions_des_etudes(dossier)
+                )
+
+                pluriel = (
+                    "s" if nb > 1 else ""
+                )
+
+                action = menu.addAction(
+                    f"{Path(dossier).name} — "
+                    f"{nb} réunion{pluriel}"
+                )
+
+                action.triggered.connect(
+                    lambda checked=False,
+                    d=str(dossier): (
+                        self.ouvrir_etude(d)
+                    )
+                )
+
+        menu.addSeparator()
+
+        nouvelle = menu.addAction(
+            "＋ Nouvelle étude"
+        )
+        nouvelle.triggered.connect(
+            self.creer_etude_ui
+        )
+
+        ouvrir_dossier = menu.addAction(
+            "Ouvrir depuis un dossier…"
+        )
+        ouvrir_dossier.triggered.connect(
+            self.ouvrir_etude_dialogue
+        )
+
+        return menu
+
+    def ouvrir_etude(self, dossier):
+        """
+        Ouvre la page Étude DIRECTEMENT (menu de la
+        tuile « Études ») via la pile de navigation
+        (repli : fenêtre autonome pour les tests et
+        le lancement direct).
+        """
+
+        navigation = getattr(
+            self,
+            "navigation",
+            None
+        )
+
+        if navigation is not None:
+            navigation.ouvrir_etude(dossier)
+            return
+
+        from services.etude_schema import (
+            EtudeFormatError
+        )
+        from ui.etude_window import EtudeWindow
+
+        try:
+            self.fenetre_etude = EtudeWindow(
+                dossier,
+                settings=self.settings
+            )
+        except EtudeFormatError:
+            return
+
+        self.fenetre_etude.show()
+
+    def creer_etude_ui(self):
+        """
+        Crée une étude : choix du dossier, titre,
+        structure complète du format étude.
+
+        Dossier non vide autorisé avec confirmation
+        explicite ; dossier déjà étude : refus dur
+        avec ouverture proposée
+        (ARBITRAGE_CREATION_ETUDE).
+        """
+
+        dossier = QFileDialog.getExistingDirectory(
+            self,
+            "Dossier de la nouvelle étude",
+            self.settings.get_projects_root()
+        )
+
+        if not dossier:
+            return
+
+        dossier = Path(dossier)
+
+        #
+        # Dossier déjà étude : jamais d'écrasement —
+        # proposer l'ouverture.
+        #
+        if (dossier / "etude.json").is_file():
+
+            reponse = QMessageBox.question(
+                self,
+                "Dossier déjà étude",
+                (
+                    "Ce dossier est déjà une étude "
+                    "(etude.json présent).\n\n"
+                    "L'ouvrir plutôt ?\n\n"
+                    "Pour créer une nouvelle étude, "
+                    "saisissez plutôt un nom de nouveau "
+                    "dossier pour la créer dedans."
+                )
+            )
+
+            if reponse == QMessageBox.StandardButton.Yes:
+                self.ouvrir_etude(dossier)
+
+            return
+
+        #
+        # Dossier non vide : confirmation explicite
+        # (l'étude s'ajoute à côté, rien d'existant
+        # n'est modifié ni supprimé).
+        #
+        if dossier.exists():
+
+            elements = len(list(dossier.iterdir()))
+
+            if elements:
+
+                reponse = QMessageBox.question(
+                    self,
+                    "Dossier non vide",
+                    (
+                        "Ce dossier contient déjà "
+                        f"{elements} élément(s). "
+                        "Créer l'étude ici quand même ?\n\n"
+                        "Aucun fichier existant ne sera "
+                        "modifié ni supprimé : l'étude "
+                        "s'ajoute à côté (etude.json et "
+                        "ses sous-dossiers)."
+                    )
+                )
+
+                if reponse != QMessageBox.StandardButton.Yes:
+                    return
+
+        titre, ok = QInputDialog.getText(
+            self,
+            "Nouvelle étude",
+            (
+                "Titre de l'étude\n"
+                "(un livre biblique par défaut, "
+                "ou un thème libre) :"
+            )
+        )
+
+        if not ok:
+            return
+
+        titre = titre.strip()
+
+        if not titre:
+            QMessageBox.warning(
+                self,
+                "Titre requis",
+                "Une étude porte obligatoirement un titre."
+            )
+            return
+
+        try:
+            creer_etude(dossier, titre)
+        except EtudeError as e:
+            QMessageBox.warning(
+                self,
+                "Étude non créée",
+                str(e)
+            )
+            return
+
+        self.ouvrir_etude(dossier)
+
+    def ouvrir_etude_dialogue(self):
+        """
+        « Ouvrir depuis un dossier… » : sélection
+        d'un dossier, validation de la présence d'un
+        etude.json (sinon message clair, rien ne
+        s'ouvre), ouverture DIRECTE de la page
+        Étude.
+        """
+
+        dossier = QFileDialog.getExistingDirectory(
+            self,
+            "Ouvrir une étude depuis un dossier",
+            self.settings.get_projects_root()
+        )
+
+        if not dossier:
+            return
+
+        dossier = Path(dossier)
+
+        if not (dossier / "etude.json").is_file():
+            QMessageBox.warning(
+                self,
+                "Ce dossier n'est pas une étude",
+                (
+                    "Le dossier\n\n"
+                    f"{dossier}\n\n"
+                    "ne contient pas de etude.json : "
+                    "ce n'est pas une étude.\n\n"
+                    "Les études sont créées depuis "
+                    "« ＋ Nouvelle étude »."
+                )
+            )
+            return
+
+        self.ouvrir_etude(dossier)
 
     # ==================================================
     # Dernières réunions (mini-tuiles du hub, P18.6a).

@@ -145,9 +145,10 @@ class TestHubSerie1:
 
     def test_hub_sans_section_etudes(self, hub):
         """
-        Invariant 1 : le hub n'affiche JAMAIS la
-        liste des études — la tuile « Études »
-        ouvre une vue dédiée.
+        Invariant 1 (réécrit, P18.6-bis série 4) :
+        le hub n'affiche JAMAIS de section Études ;
+        la tuile « Études » ouvre un MENU DÉROULANT,
+        jamais une page intermédiaire de choix.
         """
 
         accueil, _s = hub
@@ -162,23 +163,39 @@ class TestHubSerie1:
             "new_etude_button"
         )
 
-        from ui.etudes_window import EtudesWindow
-
-        assert not (
-            accueil
-            .findChildren(EtudesWindow)
+        # Plus de vue intermédiaire.
+        assert not hasattr(
+            accueil,
+            "ouvrir_vue_etudes"
         )
 
-    def test_vue_etudes_dediee(
+        assert not hasattr(
+            accueil,
+            "vue_etudes"
+        )
+
+        # La tuile ouvre un menu déroulant.
+        assert hasattr(
+            accueil,
+            "ouvrir_menu_etudes"
+        )
+
+    def test_menu_deroulant_etudes(
         self,
         qapp,
         tmp_path
     ):
         """
-        La tuile « Études » ouvre la vue dédiée via
-        la pile : liste, « Nouvelle étude »,
-        « Ouvrir depuis un dossier… ».
+        §21 : la tuile « Études » ouvre un MENU
+        DÉROULANT ancré à la tuile — liste des
+        études (nom, nombre de réunions), « ＋
+        Nouvelle étude », « Ouvrir depuis un
+        dossier… » ; choisir une étude ouvre
+        DIRECTEMENT la page Étude (jamais de page
+        intermédiaire).
         """
+
+        from PySide6.QtWidgets import QMenu
 
         from ui.app_window import AppWindow
 
@@ -200,39 +217,111 @@ class TestHubSerie1:
 
             accueil = fenetre_app.accueil
 
-            accueil.ouvrir_vue_etudes()
+            menu = accueil._construire_menu_etudes()
 
-            from ui.etudes_window import (
-                EtudesWindow
+            assert isinstance(menu, QMenu)
+
+            actions = [
+                a.text() for a in menu.actions()
+            ]
+
+            # L'étude récente y figure, avec son
+            # nombre de réunions (pluriel propre).
+            assert (
+                "Etude — 1 réunion" in actions
             )
 
-            vue = fenetre_app.page_active()
+            # Création et import proposés.
+            assert "＋ Nouvelle étude" in actions
+            assert (
+                "Ouvrir depuis un dossier…"
+                in actions
+            )
 
-            assert isinstance(vue, EtudesWindow)
+            # Choisir l'étude ouvre DIRECTEMENT la
+            # page Étude — la pile ne contient aucune
+            # page intermédiaire « etudes ».
+            accueil.ouvrir_etude(
+                str(tmp_path / "Etude")
+            )
 
-            boutons = [
-                b.text()
-                for b in (
-                    vue.findChildren(QPushButton)
+            from ui.etude_window import EtudeWindow
+
+            assert isinstance(
+                fenetre_app.page_active(),
+                EtudeWindow
+            )
+
+            cles = [
+                cle[0] for cle in (
+                    fenetre_app.cles_ouvertes()
                 )
             ]
 
-            assert "Nouvelle étude" in boutons
-            assert (
-                "Ouvrir depuis un dossier…"
-                in boutons
-            )
+            assert "etudes" not in cles
 
-            assert (
-                "Ouvrir l'étude sélectionnée"
-                in boutons
+            assert not hasattr(
+                fenetre_app,
+                "ouvrir_etudes"
             )
-
-            # L'étude récente y figure.
-            assert vue.liste_etudes.count() == 1
 
         finally:
             fenetre_app.close()
+
+    def test_menu_sans_etude(
+        self,
+        qapp,
+        tmp_path
+    ):
+        """
+        §21 : sans aucune étude, le menu l'indique
+        et propose création ou import.
+        """
+
+        from ui.home_window import HomeWindow
+        from services.llm.catalogue import (
+            catalogue_par_defaut,
+        )
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        with patch(
+            "services.llm.catalogue"
+            ".charger_catalogue",
+            return_value=catalogue_par_defaut(),
+        ):
+            accueil = HomeWindow(settings=settings)
+
+        try:
+
+            menu = accueil._construire_menu_etudes()
+
+            actions = [
+                a.text() for a in menu.actions()
+            ]
+
+            assert (
+                "Aucune étude pour l'instant"
+                in actions
+            )
+
+            assert "＋ Nouvelle étude" in actions
+            assert (
+                "Ouvrir depuis un dossier…"
+                in actions
+            )
+
+            # L'indication n'est pas actionnable.
+            for action in menu.actions():
+                if action.text() == (
+                    "Aucune étude pour l'instant"
+                ):
+                    assert not action.isEnabled()
+
+        finally:
+            accueil.close()
 
 
 #

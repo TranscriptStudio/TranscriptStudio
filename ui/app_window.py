@@ -195,28 +195,6 @@ class AppWindow(QMainWindow):
             lambda: self.accueil
         )
 
-    def ouvrir_etudes(self):
-        """
-        Vue Études (P18.6-bis, spec correctifs §4) :
-        la tuile « Études » du hub ouvre cette vue
-        dédiée — le hub n'affiche jamais la liste
-        des études. Clé unique : une seule vue.
-        """
-
-        cle = ("etudes",)
-
-        def fabrique():
-
-            from ui.etudes_window import (
-                EtudesWindow
-            )
-
-            return EtudesWindow(
-                settings=self.settings
-            )
-
-        return self.ouvrir_page(cle, fabrique)
-
     def ouvrir_etude(self, dossier):
         """
         Page Étude d'un dossier d'étude (clé : chemin
