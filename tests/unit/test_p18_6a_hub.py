@@ -458,12 +458,19 @@ class TestStepperBar:
             "reformulation": EN_COURS,
         })
 
-        assert "#4CAF50" in (
+        # Série 5 (spec 30f §24) : fait = émeraude
+        # translucide, en cours = bleu plein.
+        assert "#2ec98a" in (
             barre.boutons["transcription"]
             .styleSheet()
         )
 
-        assert "#2196F3" in (
+        assert "#2563eb" in (
+            barre.boutons["reformulation"]
+            .styleSheet()
+        )
+
+        assert "#ffffff" in (
             barre.boutons["reformulation"]
             .styleSheet()
         )

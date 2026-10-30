@@ -51,7 +51,7 @@ LARGEUR_MENU = 320
 # n'est stockée).
 #
 PALETTE_PASTILLES = (
-    "#4a7db5",
+    "#3b9eff",
     "#b57a4a",
     "#5aa06e",
     "#8d6fb5",

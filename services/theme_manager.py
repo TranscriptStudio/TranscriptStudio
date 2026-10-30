@@ -566,8 +566,36 @@ COULEUR_BLOC_JOUE_SOMBRE = "#64B5F6"
 # sobre pour le thème clair.
 #
 
-BORD_BLEU_ACCENT = "#4a7db5"
+#
+# Série 5 (spec 30f §23) : couleur d'accent
+# UNIQUE, bleu vif — fin des teintes ardoise
+# et sauge. Utilisée partout : contour
+# au survol des tuiles, marque carrée des tuiles
+# de réunion, survol des boutons ⚙/?, icônes des
+# grandes tuiles du hub.
+#
+BORD_BLEU_ACCENT = "#3b9eff"
 FOND_PAGE_SOMBRE = "#1e1f24"
+
+#
+# Série 5 (spec 30f §24) : stepper — couleurs
+# affirmées, identiques dans les deux thèmes
+# (maquette hub v4) :
+# - à faire : pastille grise discrète ;
+# - en cours : pastille PLEINE bleue, texte
+#   blanc, lueur discrète ;
+# - fait : émeraude sur fond translucide.
+#
+COULEURS_STEPPER = {
+    "a_faire_fond": "#33343a",
+    "a_faire_texte": "#8a8b92",
+    "en_cours_fond": "#2563eb",
+    "en_cours_texte": "#ffffff",
+    "en_cours_lueur": "rgba(59,158,255,150)",
+    "fait_fond": "rgba(52,194,135,41)",
+    "fait_contour": "#2ec98a",
+    "fait_texte": "#45d695",
+}
 
 COULEURS_TUILES = {
     True: {  # thème sombre (maquettes)

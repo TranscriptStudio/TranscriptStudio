@@ -5,9 +5,12 @@ spec navigation §3.2) : ① Prétraitement ·
 ② Transcription · ③ Correction · ④ Reformulation ·
 ⑤ Résumé · ⑥ Export.
 
-Couleurs : gris (à faire) / bleu (en cours) /
-vert (terminé). P18.6-bis (spec correctifs §18) :
-PLUS AUCUN contour pointillé — aucune différence
+Couleurs affirmées (P18.6-bis série 5, spec 30f
+§24, maquette hub v4) : à faire = gris discret ;
+en cours = pastille pleine bleue à texte blanc,
+lueur discrète ; fait = émeraude sur fond
+translucide. P18.6-bis (§18) : PLUS AUCUN contour
+pointillé — aucune différence
 visuelle entre étapes obligatoires et
 optionnelles ; l'optionnalité ne se lit que dans
 le bouton « Étape suivante : … (optionnelle) »
@@ -36,21 +39,51 @@ from services.avancement import (
     TERMINE,
 )
 
+#
+# Série 5 (spec 30f §24, maquette hub v4) :
+# couleurs affirmées, identiques dans les deux
+# thèmes — en cours = pastille PLEINE bleue à
+# texte blanc avec lueur discrète ; fait =
+# émeraude sur fond translucide ; à faire =
+# gris discret.
+#
+from services.theme_manager import (
+    COULEURS_STEPPER as _COULEURS_STEPPER,
+)
+
 STYLES_ETATS = {
     A_FAIRE: (
-        "border: 1px solid #9E9E9E;"
-        "color: #8A8A8A;"
-        "background: transparent;"
+        "border: 1px solid "
+        + _COULEURS_STEPPER["a_faire_fond"]
+        + ";"
+        "color: "
+        + _COULEURS_STEPPER["a_faire_texte"]
+        + ";"
+        "background-color: "
+        + _COULEURS_STEPPER["a_faire_fond"]
+        + ";"
     ),
     EN_COURS: (
-        "border: 1px solid #2196F3;"
-        "color: #1565C0;"
-        "background: rgba(33, 150, 243, 0.08);"
+        "border: 1px solid "
+        + _COULEURS_STEPPER["en_cours_lueur"]
+        + ";"
+        "color: "
+        + _COULEURS_STEPPER["en_cours_texte"]
+        + ";"
+        "background-color: "
+        + _COULEURS_STEPPER["en_cours_fond"]
+        + ";"
     ),
     TERMINE: (
-        "border: 1px solid #4CAF50;"
-        "color: #2E7D32;"
-        "background: rgba(76, 175, 80, 0.08);"
+        "border: 1px solid "
+        + _COULEURS_STEPPER["fait_contour"]
+        + ";"
+        "color: "
+        + _COULEURS_STEPPER["fait_texte"]
+        + ";"
+        "background-color: "
+        + _COULEURS_STEPPER["fait_fond"]
+        + ";"
     ),
 }
 

@@ -71,7 +71,7 @@ class TuileAccueil(QWidget):
     que le fond de page — la tuile se détache du
     fond, jamais ne s'y fond) et EFFET DE SURVOL
     identique aux maquettes : élévation ~2 px,
-    contour passant au bleu d'accent (#4a7db5),
+    contour passant au bleu d'accent (#3b9eff — série 5, spec 30f §23),
     OMBRE PORTÉE vers le bas (8 % d'opacité) —
     l'effet est PROGRESSIF (contour, élévation et
     ombre animés ensemble, ~120 ms — spec 30f

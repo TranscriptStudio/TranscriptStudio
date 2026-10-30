@@ -7,7 +7,7 @@ intermédiaire — invariant 1 réécrit), tuiles en
 conformité avec les maquettes : CONTOURS
 VISIBLES sur toutes les tuiles, effet de survol
 (élévation ~2 px, contour au bleu d'accent
-#4a7db5, transition ~120 ms, retour immédiat,
+#3b9eff (série 5), transition ~120 ms, retour immédiat,
 curseur main), 3 grandes cartes en 3 colonnes.
 """
 
@@ -93,7 +93,7 @@ class TestCouleursTuiles:
         Thème sombre : couleurs EXACTES des
         maquettes (fond de tuile #2a2b31, bord
         1 px #3a3b42, fond de page #1e1f24) ; bleu
-        d'accent #4a7db5 au survol.
+        d'accent #3b9eff au survol (série 5).
         """
 
         from services.theme_manager import (
@@ -102,7 +102,9 @@ class TestCouleursTuiles:
             couleurs_tuiles,
         )
 
-        assert BORD_BLEU_ACCENT == "#4a7db5"
+        # Série 5 (spec 30f §23) : accent unique
+        # bleu vif.
+        assert BORD_BLEU_ACCENT == "#3b9eff"
         assert FOND_PAGE_SOMBRE == "#1e1f24"
 
         sombre = couleurs_tuiles(True)
@@ -151,19 +153,19 @@ class TestCartesHub:
         assert "background-color" in style
 
         # Repos : le contour n'est PAS bleu.
-        assert "#4a7db5" not in style
+        assert "#3b9eff" not in style
 
         # Fin d'animation : contour au bleu
         # d'accent.
         tuile._appliquer_style(1.0)
 
-        assert "#4a7db5" in (
+        assert "#3b9eff" in (
             tuile.styleSheet()
         )
 
         tuile._appliquer_style(0.0)
 
-        assert "#4a7db5" not in (
+        assert "#3b9eff" not in (
             tuile.styleSheet()
         )
 
@@ -244,7 +246,7 @@ class TestCartesHub:
 
         assert tuile.pos().y() == base.y() - 2
         assert tuile._ombre.color().alpha() == 20
-        assert "#4a7db5" in tuile.styleSheet()
+        assert "#3b9eff" in tuile.styleSheet()
 
         # Sortie de survol : retour immédiat —
         # carte reposée, contour gris, ombre nulle.
@@ -255,7 +257,7 @@ class TestCartesHub:
         assert tuile._animation is None
         assert tuile.pos() == base
         assert tuile._ombre.color().alpha() == 0
-        assert "#4a7db5" not in tuile.styleSheet()
+        assert "#3b9eff" not in tuile.styleSheet()
 
 
 #
@@ -301,9 +303,10 @@ class TestTuilesEtude:
             assert "border: 1px solid" in style
             assert "background-color" in style
 
-            # Survol : contour au bleu d'accent.
+            # Survol : contour au bleu d'accent
+            # (série 5).
             assert ":hover" in style
-            assert "#4a7db5" in style
+            assert "#3b9eff" in style
 
             # Curseur main (cliquable).
             from PySide6.QtCore import Qt
@@ -605,7 +608,7 @@ class TestRenduPixels:
         """
         Au terme de l'animation de survol, le
         contour BLEU D'ACCENT apparaît dans les
-        pixels rendus (#4a7db5) — pas seulement
+        pixels rendus — pas seulement
         dans le texte de la feuille de style.
         """
 
@@ -621,10 +624,10 @@ class TestRenduPixels:
 
         bord = image.pixelColor(0, 100)
 
-        # #4a7db5 = (74, 125, 181).
-        assert abs(bord.red() - 74) <= 1
-        assert abs(bord.green() - 125) <= 1
-        assert abs(bord.blue() - 181) <= 1
+        # #3b9eff = (59, 158, 255).
+        assert abs(bord.red() - 59) <= 1
+        assert abs(bord.green() - 158) <= 1
+        assert abs(bord.blue() - 255) <= 1
 
         # Retour au repos : contour gris.
         tuile._appliquer_progression(0.0)
@@ -736,7 +739,8 @@ class TestRenduPixels:
                 bord.blue(),
             ) == (58, 59, 66)
 
-            # Survol : contour bleu d'accent rendu.
+            # Survol : contour bleu d'accent rendu
+            # (#3b9eff, série 5).
             tuile._position_base = tuile.pos()
 
             tuile._appliquer_progression(1.0)
@@ -745,9 +749,9 @@ class TestRenduPixels:
 
             bord = image.pixelColor(0, 100)
 
-            assert abs(bord.red() - 74) <= 1
-            assert abs(bord.green() - 125) <= 1
-            assert abs(bord.blue() - 181) <= 1
+            assert abs(bord.red() - 59) <= 1
+            assert abs(bord.green() - 158) <= 1
+            assert abs(bord.blue() - 255) <= 1
 
         finally:
 
@@ -761,3 +765,129 @@ class TestRenduPixels:
             )
 
             reinitialiser_theme_actif()
+
+
+#
+# ==================================================
+# Série 5 (spec 30f §23-24) — accent unique,
+# stepper affirmé, aucune teinte résiduelle.
+# ==================================================
+#
+
+class TestSerie5Couleurs:
+
+    def test_aucune_teinte_residuelle(self):
+        """
+        Invariant 10 (fin) : aucune teinte
+        ardoise/sauge résiduelle dans les modules
+        de navigation.
+        """
+
+        from pathlib import Path
+
+        fichiers = [
+            "services/theme_manager.py",
+            "ui/stepper.py",
+            "ui/home_window.py",
+            "ui/menu_etudes.py",
+            "ui/etude_window.py",
+            "ui/reunion_window.py",
+            "icons/tuile-nouvelle-transcription.svg",
+            "icons/tuile-reprendre.svg",
+            "icons/tuile-etudes.svg",
+        ]
+
+        residuelles = [
+            "#4a7db5",
+            "#5a7d9e",
+            "#6a8f6e",
+            "#3a5c46",
+            "#6ea0d8",
+        ]
+
+        for nom in fichiers:
+
+            contenu = Path(nom).read_text(
+                encoding="utf-8"
+            )
+
+            for teinte in residuelles:
+                assert teinte not in contenu, (
+                    f"{teinte} résiduelle dans {nom}"
+                )
+
+    def test_stepper_couleurs_affirmees(self):
+        """
+        Invariant 13 : en cours = #2563eb plein à
+        texte blanc avec lueur ; fait = émeraude
+        #2ec98a sur fond translucide, texte
+        #45d695 ; à faire = gris #33343a/#8a8b92.
+        Toujours, quel que soit le thème.
+        """
+
+        from services.avancement import (
+            EN_COURS,
+            TERMINE,
+        )
+        from ui.stepper import StepperBar
+
+        barre = StepperBar()
+
+        barre.definir_etats({
+            "transcription": TERMINE,
+            "reformulation": EN_COURS,
+        })
+
+        en_cours = (
+            barre.boutons["reformulation"]
+            .styleSheet()
+        )
+
+        assert "background-color: #2563eb" in (
+            en_cours
+        )
+
+        assert "color: #ffffff" in en_cours
+
+        fait = (
+            barre.boutons["transcription"]
+            .styleSheet()
+        )
+
+        assert "#2ec98a" in fait
+        assert "#45d695" in fait
+        assert "rgba(52,194,135" in fait
+
+        barre.definir_etats({
+            "reformulation": "a_faire",
+        })
+
+        a_faire = (
+            barre.boutons["reformulation"]
+            .styleSheet()
+        )
+
+        assert "background-color: #33343a" in (
+            a_faire
+        )
+
+        assert "color: #8a8b92" in a_faire
+
+    def test_icones_tuiles_accent(self):
+        """
+        §23 : les icônes des 3 grandes tuiles sont
+        à la couleur d'accent #3b9eff.
+        """
+
+        from pathlib import Path
+
+        for nom in [
+            "tuile-nouvelle-transcription.svg",
+            "tuile-reprendre.svg",
+            "tuile-etudes.svg",
+        ]:
+            contenu = Path("icons", nom).read_text(
+                encoding="utf-8"
+            )
+
+            assert "#3b9eff" in contenu, nom
