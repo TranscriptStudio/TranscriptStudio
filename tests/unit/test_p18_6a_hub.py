@@ -727,12 +727,19 @@ def catalogue_defaut():
 
 class TestHub:
 
-    def test_bandeau_tuiles_salutation(
+    def test_bandeau_hub_v4(
         self,
         qapp,
         tmp_path,
         catalogue_defaut
     ):
+        """
+        Hub v4 (spec 30f §25, invariant 12) : pas
+        de salutation, pastilles de services sur
+        la plaque métal brossé, boutons ⚙/? à une
+        seule icône, « Version 2.0 » sous le
+        sous-titre.
+        """
 
         from ui.home_window import HomeWindow
 
@@ -748,20 +755,18 @@ class TestHub:
 
         try:
             # Bandeau app : uniquement sur l'accueil
-            # (invariant §9.2 — l'objet bandeau_app
-            # existe ici et nulle part ailleurs).
+            # (invariant §9.2).
             assert accueil.bandeau.objectName() == (
                 "bandeau_app"
             )
 
-            # Salutation « Bonjour », sans prénom.
-            assert (
-                accueil.salutation_label.text()
-                == "Bonjour"
+            # Invariant 12 : AUCUNE salutation.
+            assert not hasattr(
+                accueil,
+                "salutation_label"
             )
 
-            # Trois GRANDES tuiles, titres exacts
-            # (P18.6-bis, spec correctifs §1).
+            # Trois GRANDES tuiles, titres exacts.
             tuiles = [
                 accueil.tuile_nouvelle.titre,
                 accueil.tuile_reprendre.titre,
@@ -774,15 +779,32 @@ class TestHub:
                 "Études",
             ]
 
-            # Pastilles de services présentes.
-            assert (
-                accueil.api_pastille.text()
-                == "● Transcription ElevenLabs"
+            # Plaque métal brossé des services.
+            assert accueil.plaque_services                 .objectName() == "plaque_services"
+
+            style = (
+                accueil
+                .plaque_services
+                .styleSheet()
             )
 
+            assert "#2e2f35" in style
+            assert "#27282e" in style
+            assert "#3c3d44" in style
+
+            # Boutons ⚙/? : une seule icône, pas de
+            # texte.
+            assert not accueil.settings_button.text()
+            assert not accueil.help_button.text()
+
+            assert accueil.settings_button.icon()                 .isNull() is False
+
+            assert accueil.help_button.icon()                 .isNull() is False
+
+            # « Version 2.0 » sous le sous-titre.
             assert (
-                accueil.llm_pastille.text()
-                == "● Service IA"
+                accueil.version_label.text()
+                == "Version 2.0"
             )
 
         finally:
@@ -836,21 +858,30 @@ class TestHub:
             accueil = HomeWindow(settings=settings)
 
         try:
-            cadres = [
-                w for w in (
-                    accueil
-                    .dernieres_conteneur
-                    .findChildren(
-                        QPushButton
-                    )
+            from ui.tuiles import TuileReunion
+
+            tuiles = (
+                accueil
+                .dernieres_conteneur
+                .findChildren(TuileReunion)
+            )
+
+            assert tuiles, (
+                "la tuile-rangée de la réunion récente "
+                "doit exister"
+            )
+
+            # Invariant 11 : AUCUN bouton « Ouvrir »
+            # sur les tuiles de réunion du hub — le
+            # clic sur la tuile ouvre la réunion.
+            boutons = [
+                b.text()
+                for b in (
+                    accueil.findChildren(QPushButton)
                 )
-                if w.text() == "Ouvrir"
             ]
 
-            assert cadres, (
-                "la mini-tuile de la réunion récente "
-                "doit exister avec son bouton Ouvrir"
-            )
+            assert "Ouvrir" not in boutons
 
             libelles = [
                 w.text()
@@ -860,6 +891,18 @@ class TestHub:
             assert (
                 "rattacher à une étude…" in libelles
             )
+
+            # Le clic (signal de la tuile) ouvre la
+            # réunion.
+            ouverts = []
+
+            tuiles[0].ouvrir_demandee.connect(
+                ouverts.append
+            )
+
+            tuiles[0].mousePressEvent(None)
+
+            assert ouverts == [tuiles[0].chemin]
 
             # La réunion étant autonome, aucun badge
             # d'étude ne s'affiche.
@@ -920,9 +963,10 @@ class TestHub:
                 if l.text().startswith("Étude «")
             ]
 
-            # Rattachée : badge d'étude, pas de lien
-            # de rattachement.
-            assert len(etudes_badge) == 1
+            # Rattachée : badge d'étude (présent sur
+            # chacune des deux pages empilées de la
+            # tuile), pas de lien de rattachement.
+            assert len(etudes_badge) >= 1
 
             from ui.stepper import StepperBar
 
@@ -934,8 +978,12 @@ class TestHub:
 
             # Stepper COMPACT ①→④ sur le hub, une
             # fois la transcription faite (P18.6-bis
-            # §19, invariant complémentaire 5).
-            assert len(steppers[0].boutons) == 4
+            # §19, invariant complémentaire 5) — la
+            # page « une ligne » a le sien.
+            assert all(
+                len(s.boutons) == 4
+                for s in steppers
+            )
 
         finally:
             accueil.close()
@@ -963,8 +1011,8 @@ class TestHub:
             accueil = HomeWindow(settings=settings)
 
         try:
-            # Aucune clé : pastille grise.
-            assert "#8A8A8A" in (
+            # Aucune clé : point GRIS (off).
+            assert "#8a8b92" in (
                 accueil.llm_pastille.styleSheet()
             )
 
@@ -979,8 +1027,8 @@ class TestHub:
 
             accueil.maj_statut_llm()
 
-            # Clé enregistrée : pastille verte.
-            assert "#2E7D32" in (
+            # Clé enregistrée : point VERT (ok).
+            assert "#3fa66c" in (
                 accueil.llm_pastille.styleSheet()
             )
 

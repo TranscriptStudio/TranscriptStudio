@@ -303,10 +303,23 @@ class TestTuilesEtude:
             assert "border: 1px solid" in style
             assert "background-color" in style
 
-            # Survol : contour au bleu d'accent
-            # (série 5).
-            assert ":hover" in style
-            assert "#3b9eff" in style
+            # Repos : pas d'accent.
+            assert "#3b9eff" not in style
+
+            # Survol (invariant 10) : le contour
+            # glisse vers l'accent — animé, plus de
+            # bascule :hover.
+            tuiles[0]._appliquer_style(1.0)
+
+            assert "#3b9eff" in (
+                tuiles[0].styleSheet()
+            )
+
+            tuiles[0]._appliquer_style(0.0)
+
+            assert "#3b9eff" not in (
+                tuiles[0].styleSheet()
+            )
 
             # Curseur main (cliquable).
             from PySide6.QtCore import Qt

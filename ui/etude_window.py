@@ -919,28 +919,42 @@ class EtudeWindow(QWidget):
             else couleurs["bord"]
         )
 
-        cadre.setStyleSheet(
-            "QFrame#etude_mini_tuile {"
-            "border: 1px solid "
-            + bord
-            + ";"
-            "border-radius: 6px;"
-            "background-color: "
-            + couleurs["fond"]
-            + ";"
-            "}"
-            "QFrame#etude_mini_tuile:hover {"
-            "border: 1px solid "
-            + BORD_BLEU_ACCENT
-            + ";"
-            "background-color: "
-            + couleurs["fond_survol"]
-            + ";"
-            "}"
-            "QFrame#etude_mini_tuile QLabel {"
-            "background-color: transparent;"
-            "border: none;"
-            "}"
+        #
+        # Survol animé (spec 30f §22-§23, invariant
+        # 10) : contour glissant du gris (ou de
+        # l'orange d'avertissement) vers l'accent
+        # #3b9eff, élévation ~2 px, ombre portée,
+        # transition ~120 ms — partagé avec les
+        # cartes du hub via ui/tuiles.py.
+        #
+        from ui.tuiles import (
+            activer_survol_anime,
+            style_rangee,
+        )
+
+        bord_base = bord
+
+        def appliquer_style(progression):
+            cadre.setStyleSheet(
+                style_rangee(
+                    cadre,
+                    "etude_mini_tuile",
+                    bord_base,
+                    couleurs["fond"],
+                    couleurs["fond_survol"],
+                    progression,
+                )
+            )
+
+        appliquer_style(0.0)
+
+        # Référence conservée pour les tests
+        # (pixels rendus au terme du survol).
+        cadre._appliquer_style = appliquer_style
+
+        activer_survol_anime(
+            cadre,
+            appliquer_style
         )
 
         layout = QVBoxLayout(cadre)

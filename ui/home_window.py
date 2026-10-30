@@ -448,8 +448,8 @@ class HomeWindow(QWidget):
         pixmap = QPixmap(str(resource_path("icons/logo.png")))
         icon_label.setPixmap(
             pixmap.scaled(
-                96,
-                96,
+                72,
+                72,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
@@ -476,28 +476,102 @@ class HomeWindow(QWidget):
         )
         self.version_label = QLabel("Version 2.0")
 
-        #
-        # Pastilles de services (spec §2.2) : verte si
-        # clé configurée, grise sinon, info-bulle au
-        # survol. FFmpeg et Bible n'y figurent pas
-        # (diagnostic uniquement pour FFmpeg ; la version
-        # de Bible est propre à chaque étude).
-        #
-        self.api_pastille = QLabel("● Transcription ElevenLabs")
-        self.llm_pastille = QLabel("● Service IA")
+        title_layout.addWidget(self.title_label)
+        title_layout.addSpacing(4)
+        title_layout.addWidget(self.subtitle_label)
+        title_layout.addSpacing(4)
+        title_layout.addWidget(self.version_label)
 
-        for pastille in (
-            self.api_pastille,
-            self.llm_pastille,
-        ):
-            pastille.setStyleSheet(
-                "font-size: 12px;"
+        header_layout.addWidget(
+            icon_label,
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
+        header_layout.addLayout(title_layout)
+        header_layout.addStretch()
+
+        #
+        # Pastilles de services sur PLAQUE « métal
+        # brossé » (spec 30f §25a), placée à gauche
+        # des boutons ⚙/? : seul le POINT est
+        # coloré (vert ok / rouge ko / gris off), le
+        # texte reste en couleur normale. FFmpeg et
+        # Bible n'y figurent pas (diagnostic
+        # uniquement pour FFmpeg ; la version de
+        # Bible est propre à chaque étude).
+        #
+        from services.theme_manager import (
+            BORD_BLEU_ACCENT,
+            couleurs_menu_etudes,
+            est_sombre as _est_sombre,
+        )
+
+        _menu_couleurs = couleurs_menu_etudes(
+            _est_sombre(self)
+        )
+
+        self.plaque_services = QFrame()
+        self.plaque_services.setObjectName(
+            "plaque_services"
+        )
+
+        self.plaque_services.setStyleSheet(
+            "QFrame#plaque_services {"
+            "background-color: qlineargradient("
+            "x1:0, y1:0, x2:0, y2:1,"
+            " stop:0 #2e2f35,"
+            " stop:1 #27282e"
+            ");"
+            "border: 1px solid #3c3d44;"
+            "border-radius: 8px;"
+            "}"
+            "QFrame#plaque_services QLabel {"
+            "background: transparent;"
+            "border: none;"
+            "}"
+        )
+
+        plaque_layout = QVBoxLayout(self.plaque_services)
+        plaque_layout.setContentsMargins(10, 6, 12, 6)
+        plaque_layout.setSpacing(3)
+
+        def ligne_service(texte):
+            ligne = QHBoxLayout()
+            ligne.setSpacing(8)
+
+            point = QLabel()
+            point.setFixedSize(9, 9)
+            point.setStyleSheet(
+                "border-radius: 4px;"
+                "background-color: #8a8b92;"
             )
 
+            libelle = QLabel(texte)
+            libelle.setStyleSheet(
+                "font-size: 11px;"
+                + ("color: #d7d8dc;" if _est_sombre(self)
+                   else "color: #404248;")
+            )
+
+            ligne.addWidget(point)
+            ligne.addWidget(libelle)
+            ligne.addStretch()
+
+            plaque_layout.addLayout(ligne)
+
+            return point
+
+        self.api_pastille = ligne_service(
+            "Transcription ElevenLabs"
+        )
+
+        self.llm_pastille = ligne_service(
+            "Service IA"
+        )
+
         #
-        # Libellés d'état complets conservés (masqués :
-        # le hub affiche des pastilles) — ils portent le
-        # détail « configuré / non configuré » des tests
+        # Libellés d'état complets conservés
+        # (masqués) — ils portent le détail
+        # « configuré / non configuré » des tests
         # P16-bis et servent d'info-bulles.
         #
         self.api_status_label = QLabel("")
@@ -508,38 +582,33 @@ class HomeWindow(QWidget):
         self.llm_status_label.setStyleSheet("font-size: 12px; color: #666666;")
         self.llm_status_label.setVisible(False)
 
-        pastilles_layout = QHBoxLayout()
-        pastilles_layout.setContentsMargins(0, 0, 0, 0)
-        pastilles_layout.setSpacing(16)
-        pastilles_layout.addWidget(self.api_pastille)
-        pastilles_layout.addWidget(self.llm_pastille)
-        pastilles_layout.addStretch()
+        header_layout.addWidget(self.plaque_services)
 
-        title_layout.addWidget(self.title_label)
-        title_layout.addSpacing(4)
-        title_layout.addWidget(self.subtitle_label)
-        title_layout.addSpacing(8)
-        title_layout.addWidget(self.version_label)
-        title_layout.addSpacing(6)
-        title_layout.addLayout(pastilles_layout)
-
-        header_layout.addWidget(
-            icon_label,
-            alignment=Qt.AlignmentFlag.AlignVCenter,
+        #
+        # Boutons du bandeau (§25b) : UNE SEULE
+        # ICÔNE chacun, pas de texte ; survol au
+        # contour d'accent (§23).
+        #
+        style_bouton = (
+            "QPushButton {"
+            "border: 1px solid transparent;"
+            "border-radius: 8px;"
+            "background: transparent;"
+            "}"
+            "QPushButton:hover {"
+            "border: 1px solid "
+            + BORD_BLEU_ACCENT
+            + ";"
+            "}"
         )
-        header_layout.addLayout(title_layout)
-        header_layout.addStretch()
 
-        #
-        # Boutons du bandeau : ⚙ Paramètres et ? Aide.
-        #
-        self.settings_button = QPushButton("⚙ Paramètres")
+        self.settings_button = QPushButton()
         self.settings_button.setIcon(
             QIcon(str(resource_path("icons/settings.svg")))
         )
         self.settings_button.setToolTip("Configurer Transcript Studio")
 
-        self.help_button = QPushButton("? Aide")
+        self.help_button = QPushButton()
         self.help_button.setIcon(
             QIcon(str(resource_path("icons/info-square-rounded.svg")))
         )
@@ -549,23 +618,14 @@ class HomeWindow(QWidget):
             self.settings_button,
             self.help_button,
         ):
-            button.setFixedSize(140, 34)
-            button.setIconSize(QSize(18, 18))
+            button.setFixedSize(38, 34)
+            button.setIconSize(QSize(19, 19))
+            button.setStyleSheet(style_bouton)
 
         header_layout.addWidget(self.settings_button)
         header_layout.addWidget(self.help_button)
 
         layout.addWidget(self.bandeau)
-
-        #
-        # Salutation (spec §2.3) : « Bonjour », sans
-        # prénom.
-        #
-        self.salutation_label = QLabel("Bonjour")
-        self.salutation_label.setStyleSheet(
-            "font-size: 18px; font-weight: 600;"
-        )
-        layout.addWidget(self.salutation_label)
 
         #
         # Trois GRANDES tuiles (spec correctifs §1) :
@@ -1001,13 +1061,17 @@ class HomeWindow(QWidget):
         etudes
     ):
         """
-        Une mini-tuile de réunion : titre, badge d'étude
-        (ou « Réunion autonome » + lien « rattacher à une
-        étude… »), stepper ①→⑥ compact, coût, ouverture.
+        Tuile-rangée de réunion (spec 30f §26) :
+        CLIQUABLE, sans bouton « Ouvrir » —
+        marque carrée d'accent, titre, étude (ou
+        lien « rattacher à une étude… »), stepper
+        compact (ou mention si non transcrite),
+        coût à droite ; UNE ligne, DEUX lignes en
+        fenêtre étroite.
 
-        Retourne None si le projet est illisible (la
-        liste des récents est déjà nettoyée par les
-        réglages pour les fichiers disparus).
+        Retourne None si le projet est illisible
+        (la liste des récents est déjà nettoyée par
+        les réglages pour les fichiers disparus).
         """
 
         chemin = Path(chemin)
@@ -1024,6 +1088,7 @@ class HomeWindow(QWidget):
         from services.rattachement import (
             rattachement_de,
         )
+        from ui.tuiles import TuileReunion
 
         rattachement = rattachement_de(
             chemin,
@@ -1032,7 +1097,7 @@ class HomeWindow(QWidget):
 
         etude_ouverte = None
         nom_reunion = None
-        titre_etude = None
+        texte_etude = None
         cout = 0.0
 
         if rattachement is not None:
@@ -1047,6 +1112,10 @@ class HomeWindow(QWidget):
                     etude_ouverte.etude.titre
                 )
 
+                texte_etude = (
+                    f"Étude « {titre_etude} »"
+                )
+
                 cout = cout_reunion(
                     etude_ouverte,
                     nom_reunion
@@ -1055,9 +1124,7 @@ class HomeWindow(QWidget):
             except Exception:
                 etude_ouverte = None
 
-        titre = (
-            Path(chemin).parent.name
-        )
+        titre = Path(chemin).parent.name
 
         if (
             etude_ouverte is not None
@@ -1079,135 +1146,67 @@ class HomeWindow(QWidget):
             chemin_projet=str(chemin)
         )
 
+        if etats is None:
 
-        cadre = QFrame()
-        cadre.setObjectName("hub_mini_tuile")
-        cadre.setStyleSheet(
-            "QFrame#hub_mini_tuile {"
-            "border: 1px solid #C8C8C8;"
-            "border-radius: 6px;"
-            "}"
-        )
-        cadre.setContextMenuPolicy(
-            Qt.ContextMenuPolicy.CustomContextMenu
-        )
-        cadre.customContextMenuRequested.connect(
-            lambda pos, c=str(chemin): (
-                self.afficher_menu_mini_tuile(cadre, c, pos)
+            fabrique_stepper = None
+
+            mention_non_transcrite = (
+                "transcription en attente"
             )
-        )
 
-        layout = QVBoxLayout(cadre)
-        layout.setContentsMargins(10, 6, 10, 6)
-        layout.setSpacing(3)
+        else:
 
-        ligne_titre = QHBoxLayout()
+            def fabrique_stepper():
+                stepper = StepperBar(
+                    cliquable=False,
+                    compact=True
+                )
+                stepper.definir_etats(etats)
+                return stepper
 
-        titre_label = QLabel(titre)
-        titre_label.setStyleSheet(
-            "font-weight: 600;"
-        )
-        titre_label.setToolTip(str(chemin))
+            mention_non_transcrite = None
 
-        ligne_titre.addWidget(titre_label)
-        ligne_titre.addStretch()
-
-        cout_label = QLabel(
+        cout_libelle = (
             f"Coût : {cout:.4f} $"
             if cout
             else "Coût : —"
         )
-        cout_label.setStyleSheet(
-            "color: #8A8A8A; font-size: 11px;"
+
+        tuile = TuileReunion(
+            str(chemin),
+            titre,
+            texte_etude,
+            lien_rattachement=(
+                texte_etude is None
+            ),
+            fabrique_stepper=fabrique_stepper,
+            cout=cout_libelle,
+            mention_non_transcrite=(
+                mention_non_transcrite
+            ),
         )
-        ligne_titre.addWidget(cout_label)
 
-        layout.addLayout(ligne_titre)
+        tuile.setToolTip(str(chemin))
 
-        ligne_etude = QHBoxLayout()
+        tuile.ouvrir_demandee.connect(
+            self.ouvrir_reunion_depuis_hub
+        )
 
-        if titre_etude:
+        tuile.rattacher_demande.connect(
+            self.rattacher_reunion
+        )
 
-            badge = QLabel(f"Étude « {titre_etude} »")
-            badge.setStyleSheet(
-                "color: #1565C0; font-size: 12px;"
-            )
-            ligne_etude.addWidget(badge)
+        tuile.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
 
-        else:
-
-            autonome = QLabel("Réunion autonome")
-            autonome.setStyleSheet(
-                "color: #8A8A8A; font-size: 12px;"
-            )
-            ligne_etude.addWidget(autonome)
-
-            rattacher_link = QPushButton(
-                "rattacher à une étude…"
-            )
-            rattacher_link.setFlat(True)
-            rattacher_link.setCursor(
-                Qt.CursorShape.PointingHandCursor
-            )
-            rattacher_link.setStyleSheet(
-                "color: #1565C0;"
-                "text-decoration: underline;"
-                "border: none;"
-                "font-size: 12px;"
-                "padding: 0;"
-            )
-            rattacher_link.clicked.connect(
-                lambda checked=False,
-                c=str(chemin): (
-                    self.rattacher_reunion(c)
-                )
-            )
-            ligne_etude.addWidget(rattacher_link)
-
-        ligne_etude.addStretch()
-
-        layout.addLayout(ligne_etude)
-
-        if etats is None:
-
-            mention = QLabel(
-                "transcription en attente"
-            )
-            mention.setStyleSheet(
-                "color: #8A8A8A;"
-                "font-style: italic;"
-                "font-size: 11px;"
-            )
-
-            layout.addWidget(mention)
-
-        else:
-
-            stepper = StepperBar(
-                cliquable=False,
-                compact=True
-            )
-            stepper.definir_etats(etats)
-
-            layout.addWidget(stepper)
-
-        ligne_actions = QHBoxLayout()
-
-        ouvrir_button = QPushButton("Ouvrir")
-        ouvrir_button.setFixedHeight(26)
-        ouvrir_button.clicked.connect(
-            lambda checked=False,
-            c=str(chemin): (
-                self.ouvrir_reunion_depuis_hub(c)
+        tuile.customContextMenuRequested.connect(
+            lambda pos, c=str(chemin): (
+                self.afficher_menu_mini_tuile(tuile, c, pos)
             )
         )
 
-        ligne_actions.addWidget(ouvrir_button)
-        ligne_actions.addStretch()
-
-        layout.addLayout(ligne_actions)
-
-        return cadre
+        return tuile
 
     def ouvrir_reunion_depuis_hub(self, chemin):
         """
@@ -1394,26 +1393,31 @@ class HomeWindow(QWidget):
                 
     def update_api_status(self):
         """
-        Pastille « Transcription ElevenLabs » (spec §2.2)
-        : verte si la clé API est configurée, grise
-        sinon, détail dans l'info-bulle.
+        Point « Transcription ElevenLabs » de la
+        plaque (spec 30f §25a) : vert si ok, rouge
+        si ko (le service requis n'est pas
+        configuré), détail dans l'info-bulle de la
+        plaque.
         """
         if has_transcription_api():
             self.api_status_label.setText(
                 "Service de transcription : configuré"
             )
-            self.api_pastille.setStyleSheet(
-                "font-size: 12px; color: #2E7D32;"
-            )
+            couleur = "#3fa66c"
         else:
             self.api_status_label.setText(
                 "Service de transcription : non configuré"
             )
-            self.api_pastille.setStyleSheet(
-                "font-size: 12px; color: #8A8A8A;"
-            )
+            couleur = "#c0533f"
 
-        self.api_pastille.setToolTip(
+        self.api_pastille.setStyleSheet(
+            "border-radius: 4px;"
+            "background-color: "
+            + couleur
+            + ";"
+        )
+
+        self.plaque_services.setToolTip(
             self.api_status_label.text()
         )
 
@@ -1457,16 +1461,19 @@ class HomeWindow(QWidget):
                 "Service de reformulation : configuré — "
                 + ", ".join(noms)
             )
-            self.llm_pastille.setStyleSheet(
-                "font-size: 12px; color: #2E7D32;"
-            )
+            couleur = "#3fa66c"
         else:
             self.llm_status_label.setText(
                 "Service de reformulation : non configuré"
             )
-            self.llm_pastille.setStyleSheet(
-                "font-size: 12px; color: #8A8A8A;"
-            )
+            couleur = "#8a8b92"
+
+        self.llm_pastille.setStyleSheet(
+            "border-radius: 4px;"
+            "background-color: "
+            + couleur
+            + ";"
+        )
 
         self.llm_pastille.setToolTip(
             self.llm_status_label.text()
