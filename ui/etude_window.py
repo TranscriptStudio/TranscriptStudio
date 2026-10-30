@@ -268,8 +268,8 @@ class EtudeWindow(QWidget):
             self.etude.etude.ordre_reunions
         )
 
-        sous_titre = (
-            f"{nb_reunions} réunion(s)"
+        sous_titre = self._libelle_nb_reunions(
+            nb_reunions
         )
 
         theme_libelle = self._libelle_theme()
@@ -364,8 +364,36 @@ class EtudeWindow(QWidget):
         #
         # Réunions : liste en une colonne de
         # mini-tuiles (même langage que le hub).
+        # « ＋ Ajouter une réunion » en tête de
+        # liste, à côté du titre de section
+        # (spec correctifs §16).
         #
-        layout.addWidget(QLabel("Réunions"))
+        entete_reunions = QHBoxLayout()
+
+        titre_section = QLabel(
+            "Réunions de l'étude"
+        )
+        titre_section.setStyleSheet(
+            "font-size: 14px; font-weight: 600;"
+        )
+
+        entete_reunions.addWidget(titre_section)
+
+        self.ajouter_button = QPushButton(
+            "＋ Ajouter une réunion…"
+        )
+        self.ajouter_button.setToolTip(
+            "Nouvel audio, ou reprise d'une réunion "
+            "autonome (rattachement)"
+        )
+        self.ajouter_button.clicked.connect(
+            self.ajouter_reunion_ui
+        )
+
+        entete_reunions.addStretch()
+        entete_reunions.addWidget(self.ajouter_button)
+
+        layout.addLayout(entete_reunions)
 
         self.reunions_liste = QListWidget()
         self.reunions_liste.setToolTip(
@@ -384,17 +412,6 @@ class EtudeWindow(QWidget):
 
         boutons_reunions = QHBoxLayout()
 
-        self.ajouter_button = QPushButton(
-            "＋ Ajouter une réunion…"
-        )
-        self.ajouter_button.setToolTip(
-            "Nouvel audio, ou reprise d'une réunion "
-            "autonome (rattachement)"
-        )
-        self.ajouter_button.clicked.connect(
-            self.ajouter_reunion_ui
-        )
-
         self.retirer_button = QPushButton(
             "Retirer la réunion"
         )
@@ -410,7 +427,6 @@ class EtudeWindow(QWidget):
         )
 
         for bouton in (
-            self.ajouter_button,
             self.retirer_button,
             self.relocaliser_button,
         ):
@@ -555,11 +571,31 @@ class EtudeWindow(QWidget):
 
         return theme
 
+    @staticmethod
+    def _libelle_nb_reunions(nombre: int) -> str:
+        """
+        Pluriel propre (spec correctifs §15) :
+        « 1 réunion », « 2 réunions ».
+        """
+
+        if nombre > 1:
+            return f"{nombre} réunions"
+
+        return f"{nombre} réunion"
+
     def _texte_badge_bible(self) -> str:
+        """
+        Badge COURT (P18.6-bis, spec correctifs §11) :
+        « Bible : Darby révisée · versification :
+        Darby » — les détails d'édition restent
+        consultables dans les réglages, jamais
+        affichés dans le ruban.
+        """
 
         from services.bibles import (
-            VERSIONS_BIBLE,
+            nom_court_bible,
             version_bible_etude,
+            versification_bible,
         )
 
         try:
@@ -568,24 +604,12 @@ class EtudeWindow(QWidget):
                 self.etude.parametres
             )
 
-            infos = VERSIONS_BIBLE[version]
-
-            versification = infos.get(
-                "edition",
-                ""
+            return (
+                "Bible : "
+                + nom_court_bible(version)
+                + " · versification : "
+                + versification_bible(version)
             )
-
-            badge = (
-                f"Bible : {infos['nom']}"
-            )
-
-            if versification:
-                badge += (
-                    " · versification : "
-                    + versification
-                )
-
-            return badge
 
         except Exception:
             return "Bible : —"
@@ -640,8 +664,11 @@ class EtudeWindow(QWidget):
         self.sous_titre_label.setText(
             self._libelle_theme()
             + " · "
-            + f"{len(self.etude.etude.ordre_reunions)} "
-            "réunion(s)"
+            + self._libelle_nb_reunions(
+                len(
+                    self.etude.etude.ordre_reunions
+                )
+            )
         )
 
     def editer_synthese(self):
@@ -803,7 +830,10 @@ class EtudeWindow(QWidget):
         if introuvables:
             self.avertissement_label.setText(
                 "Mode dégradé : "
-                f"{len(introuvables)} réunion(s) "
+                + self._libelle_nb_reunions(
+                    len(introuvables)
+                )
+                + " "
                 "ont une réunion introuvable. "
                 "Les autres réunions restent "
                 "utilisables ; utilisez "
@@ -824,10 +854,15 @@ class EtudeWindow(QWidget):
     ):
         """
         Mini-tuile d'une réunion de l'étude (même
-        langage que le hub) : titre, rang, date,
-        durée ; avancement ①→⑤ sans ⑥ ; coût ;
-        ouverture ; poignée de réordonnancement
-        (l'ordre vaut ordre d'ouvrage).
+        langage que le hub) : titre lisible de la
+        réunion (pas de numérotation ni de nom de
+        fichier brut), rang en information annexe,
+        DATE DE RÉUNION (audio, jamais la date
+        technique de rattachement), durée ;
+        avancement ; coût ; « Ouvrir » et la
+        poignée de réordonnancement (l'ordre vaut
+        ordre d'ouvrage). Le clic sur la tuile ouvre
+        la page Réunion (spec correctifs §12-§14).
         """
 
         from ui.stepper import StepperBar
@@ -857,15 +892,36 @@ class EtudeWindow(QWidget):
         ligne_titre = QHBoxLayout()
 
         titre = QLabel(
-            f"{reunion.numero}. "
-            f"{reunion.titre_1 or nom}"
+            reunion.titre_1
+            or (
+                getattr(projet, "name", None)
+                if projet is not None
+                else None
+            )
+            or nom
         )
         titre.setStyleSheet("font-weight: 600;")
 
         ligne_titre.addWidget(titre)
+
+        rang = QLabel(f"Réunion {reunion.numero}")
+        rang.setStyleSheet(
+            "color: #8A8A8A; font-size: 11px;"
+        )
+
+        ligne_titre.addWidget(rang)
         ligne_titre.addStretch()
 
-        infos = QLabel(reunion.date or "")
+        from services.avancement import (
+            date_reunion,
+        )
+
+        date_affichee = date_reunion(
+            projet,
+            reunion
+        )
+
+        infos = QLabel(date_affichee)
 
         if projet is not None:
 
@@ -880,10 +936,15 @@ class EtudeWindow(QWidget):
             )
 
             if duree:
-                infos.setText(
-                    f"{reunion.date or ''} · "
+
+                texte = (
+                    f"{date_affichee} · "
                     f"{formater_duree(duree)}"
+                    if date_affichee
+                    else formater_duree(duree)
                 )
+
+                infos.setText(texte)
 
         infos.setStyleSheet(
             "color: #8A8A8A; font-size: 11px;"
@@ -941,24 +1002,6 @@ class EtudeWindow(QWidget):
             )
         )
 
-        reformulation_button = QPushButton(
-            "Reformulation…"
-        )
-        reformulation_button.setFixedHeight(26)
-        reformulation_button.clicked.connect(
-            lambda checked=False, n=nom: (
-                self._ouvrir_reformulation(n)
-            )
-        )
-
-        resume_button = QPushButton("Résumé…")
-        resume_button.setFixedHeight(26)
-        resume_button.clicked.connect(
-            lambda checked=False, n=nom: (
-                self._ouvrir_resume(n)
-            )
-        )
-
         monter_button = QPushButton("↑")
         monter_button.setFixedHeight(26)
         monter_button.setToolTip(
@@ -985,8 +1028,6 @@ class EtudeWindow(QWidget):
 
         for bouton in (
             ouvrir_button,
-            reformulation_button,
-            resume_button,
             monter_button,
             descendre_button,
         ):
@@ -995,6 +1036,16 @@ class EtudeWindow(QWidget):
         ligne_actions.addStretch()
 
         layout.addLayout(ligne_actions)
+
+        cadre.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+
+        cadre.mousePressEvent = (
+            lambda event, n=nom: (
+                self._ouvrir_reunion(n)
+            )
+        )
 
         return cadre
 

@@ -720,11 +720,12 @@ class TestHub:
                 == "Bonjour"
             )
 
-            # Trois tuiles, libellés exacts (spec §2.1).
+            # Trois GRANDES tuiles, titres exacts
+            # (P18.6-bis, spec correctifs §1).
             tuiles = [
-                accueil.tuile_nouvelle.text(),
-                accueil.tuile_reprendre.text(),
-                accueil.tuile_etudes.text(),
+                accueil.tuile_nouvelle.titre,
+                accueil.tuile_reprendre.titre,
+                accueil.tuile_etudes.titre,
             ]
 
             assert tuiles == [

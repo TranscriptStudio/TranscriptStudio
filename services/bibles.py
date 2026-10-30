@@ -99,6 +99,56 @@ VERSIONS_BIBLE = {
 
 VERSION_BIBLE_DEFAUT = "darbyR"
 
+#
+# P18.6-bis (spec correctifs §9, §11, invariant
+# complémentaire 3) : libellés COURTS pour les
+# rubans et badges — les détails (nom complet,
+# éditeur, édition, licence) restent consultables
+# dans les réglages, jamais affichés dans le ruban.
+#
+NOMS_COURTS = {
+    "darby": "Darby",
+    "darbyR": "Darby révisée",
+    "segond1910": "Segond 1910",
+}
+
+#
+# Versification de chaque version (P18.5 : une
+# information consultable). La Darby révisée garde
+# la versification Darby (le texte est révisé, pas
+# le découpage des versets).
+#
+VERSIFICATIONS = {
+    "darby": "Darby",
+    "darbyR": "Darby",
+    "segond1910": "Segond 1910",
+}
+
+
+def nom_court_bible(version: str) -> str:
+    """
+    Nom court d'une version de Bible pour les
+    badges (darby = « Darby », darbyR = « Darby
+    révisée », segond1910 = « Segond 1910 »).
+    """
+
+    return NOMS_COURTS.get(
+        version,
+        version or "—"
+    )
+
+
+def versification_bible(version: str) -> str:
+    """
+    Versification d'une version (nom court).
+    """
+
+    return VERSIFICATIONS.get(
+        version,
+        version or "—"
+    )
+
+
 _TAILLE_BLOC = 64 * 1024
 
 

@@ -668,13 +668,20 @@ class TestInvariance5Navigation:
             fenetre_app.accueil
         )
 
-    def test_retour_a_l_etude(self, app, tmp_path):
+    def test_plus_de_bouton_retour_a_l_etude(
+        self,
+        app,
+        tmp_path
+    ):
+        """
+        P18.6-bis (spec correctifs §8) : « Retour à
+        l'étude » est supprimé — remplacé par
+        « Gestion de l'étude » du ruban de la page
+        Réunion. Les barres d'outils n'exposent plus
+        ce bouton.
+        """
 
         fenetre_app, projet, projet_v1, etude, nom = app
-
-        page_etude = fenetre_app.ouvrir_etude(
-            tmp_path / "Etude"
-        )
 
         etude_ouverte = ouvrir_etude(
             tmp_path / "Etude"
@@ -685,11 +692,30 @@ class TestInvariance5Navigation:
             nom
         )
 
-        ref.retour_a_l_etude()
+        assert not hasattr(
+            ref,
+            "retour_etude_button"
+        )
 
-        assert fenetre_app.page_active() is page_etude
+        assert not hasattr(
+            ref,
+            "retour_a_l_etude"
+        )
 
-    def test_editeur_retour_a_l_etude(self, app, tmp_path):
+        # Le retour à l'étude passe par le ruban de
+        # la page Réunion (Gestion de l'étude) ou
+        # « Accueil ».
+        assert hasattr(ref, "retour_accueil")
+
+    def test_editeur_sans_bouton_retour_a_l_etude(
+        self,
+        app,
+        tmp_path
+    ):
+        """
+        P18.6-bis (spec correctifs §8) : l'éditeur
+        n'expose plus « Retour à l'étude ».
+        """
 
         fenetre_app, projet, projet_v1, etude, nom = app
 
@@ -697,25 +723,14 @@ class TestInvariance5Navigation:
             projet_v1
         )
 
-        # La réunion appartient à une étude : le
-        # bouton est visible.
-        assert not editeur.retour_etude_button.isHidden()
+        assert not hasattr(
+            editeur,
+            "retour_etude_button"
+        )
 
-        editeur.retour_a_l_etude()
-
-        from ui.etude_window import EtudeWindow
-
-        page = fenetre_app.page_active()
-
-        assert isinstance(page, EtudeWindow)
-        assert page is not editeur
-
-        # La page Étude est bien celle de l'étude.
-        assert fenetre_app.page_est_ouverte(
-            (
-                "etude",
-                str((tmp_path / "Etude").resolve()),
-            )
+        assert not hasattr(
+            editeur,
+            "retour_a_l_etude"
         )
 
 
@@ -738,22 +753,23 @@ class TestInvariance6OuvrirDepuisDossier:
 
         avec_etude = tmp_path / "Etude"
 
+        vue_etudes = fenetre_app.ouvrir_etudes()
+
         with patch(
-            "ui.home_window.QFileDialog"
+            "ui.etudes_window.QFileDialog"
             ".getExistingDirectory",
             return_value=str(mauvais),
         ), patch(
-            "ui.home_window.QMessageBox.warning"
+            "ui.etudes_window.QMessageBox.warning"
         ) as avertissement:
 
-            fenetre_app.accueil.ouvrir_etude_dialogue()
+            vue_etudes.ouvrir_etude_dialogue()
 
-        # Message clair, rien ne s'ouvre.
+        # Message clair, rien ne s'ouvre : on reste
+        # sur la vue Études, aucune page Étude.
         assert avertissement.called
 
-        assert fenetre_app.page_active() is (
-            fenetre_app.accueil
-        )
+        assert fenetre_app.page_active() is vue_etudes
 
         assert not fenetre_app.page_est_ouverte(
             (
@@ -764,12 +780,12 @@ class TestInvariance6OuvrirDepuisDossier:
 
         # Le dossier valide s'ouvre, lui.
         with patch(
-            "ui.home_window.QFileDialog"
+            "ui.etudes_window.QFileDialog"
             ".getExistingDirectory",
             return_value=str(avec_etude),
         ):
 
-            fenetre_app.accueil.ouvrir_etude_dialogue()
+            vue_etudes.ouvrir_etude_dialogue()
 
         assert fenetre_app.page_active() is not (
             fenetre_app.accueil

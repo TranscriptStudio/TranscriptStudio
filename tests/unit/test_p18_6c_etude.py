@@ -89,8 +89,13 @@ class TestRuban:
             "Évangile de Luc"
         )
 
-        # Thème + nombre de réunions.
-        assert "1 réunion(s)" in (
+        # Thème + nombre de réunions (pluriel
+        # propre, spec correctifs §15).
+        assert "1 réunion" in (
+            fenetre.sous_titre_label.text()
+        )
+
+        assert "réunion(s)" not in (
             fenetre.sous_titre_label.text()
         )
 
@@ -234,8 +239,12 @@ class TestListeReunions:
         ]
 
         assert "Ouvrir" in boutons
-        assert "Reformulation…" in boutons
-        assert "Résumé…" in boutons
+
+        # Boutons par tuile supprimés (spec
+        # correctifs §14) : seul « Ouvrir » reste,
+        # avec la poignée de réordonnancement.
+        assert "Reformulation…" not in boutons
+        assert "Résumé…" not in boutons
 
         # Poignée de réordonnancement.
         assert "↑" in boutons

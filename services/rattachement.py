@@ -263,10 +263,21 @@ def rattacher(
 
     etude_ouverte = ouvrir_etude(dossier_etude)
 
+    #
+    # P18.6-bis (spec correctifs §12) : la date
+    # stockée est la date de RÉUNION (date de
+    # l'audio), jamais la date technique de
+    # rattachement.
+    #
+    from services.avancement import (
+        date_audio_projet,
+    )
+
     nom = ajouter_reunion(
         etude_ouverte,
         chemin_projet,
-        titre_1=titre_1
+        titre_1=titre_1,
+        date=date_audio_projet(chemin_projet)
     )
 
     sauvegarder_etude(etude_ouverte)

@@ -299,25 +299,6 @@ class MainWindow(QMainWindow):
             "Retour à l'accueil"
         )
 
-        #
-        # P16-bis (spec correctifs §11.2) : « Retour à
-        # l'étude » — visible si la réunion courante
-        # appartient à une étude.
-        #
-        self.retour_etude_button = QPushButton(
-            "↩ Retour à l'étude"
-        )
-        self.retour_etude_button.setToolTip(
-            "Revenir à la page de l'étude contenant "
-            "cette réunion"
-        )
-        self.retour_etude_button.clicked.connect(
-            self.retour_a_l_etude
-        )
-        self.retour_etude_button.setVisible(
-            bool(self.etudes_referencant_projet())
-        )
-
         self.save_button.setToolTip(
             "Enregistrer la réunion"
         )
@@ -345,10 +326,6 @@ class MainWindow(QMainWindow):
 
         action_layout.addWidget(
             self.home_button
-        )
-
-        action_layout.addWidget(
-            self.retour_etude_button
         )
 
         action_layout.addWidget(
@@ -1803,37 +1780,6 @@ class MainWindow(QMainWindow):
         #
         self.close()
 
-    def retour_a_l_etude(self):
-        """
-        « Retour à l'étude » (spec correctifs §11.2) :
-        revient à la page Étude de l'étude la plus
-        récente référençant cette réunion (la même
-        que celle du bouton « Reformulation… »).
-        """
-
-        etudes = self.etudes_referencant_projet()
-
-        if not etudes:
-            return
-
-        dossier, _nom, _titre = etudes[0]
-
-        navigation = getattr(self, "navigation", None)
-
-        if navigation is not None:
-            navigation.ouvrir_etude(dossier)
-            return
-
-        from ui.etude_window import EtudeWindow
-        from services.etude_schema import EtudeFormatError
-
-        try:
-            self.etude_window = EtudeWindow(dossier)
-        except EtudeFormatError:
-            return
-
-        self.etude_window.show()
-        
     def on_timeline_seek(
         self,
         position

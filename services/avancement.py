@@ -86,6 +86,107 @@ FICHIER_JOURNAL_PRETRAITEMENT = (
 )
 
 
+def date_audio_projet(chemin_projet):
+    """
+    Date de l'audio d'un projet v1 (P18.6-bis,
+    spec correctifs §12, invariant complémentaire
+    4) : lecture légère du .sttproj, résolution du
+    fichier audio, date = mtime de l'audio au
+    format ``AAAA-MM-JJ``.
+
+    Retourne None si la date n'est pas déterminable
+    (pas d'audio, fichier absent).
+    """
+
+    import json
+    import os
+
+    chemin = Path(chemin_projet)
+
+    if chemin.is_dir():
+        chemin = chemin / "project.sttproj"
+
+    if not chemin.is_file():
+        return None
+
+    try:
+
+        with open(
+            chemin,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            data = json.load(f)
+
+    except (OSError, ValueError):
+        return None
+
+    audio = data.get("audio_file")
+
+    if not audio:
+        return None
+
+    dossier = chemin.parent
+
+    fichier = Path(audio)
+
+    if not fichier.is_absolute():
+        fichier = dossier / fichier
+
+    if not fichier.is_file():
+        return None
+
+    try:
+        mtime = os.path.getmtime(fichier)
+    except OSError:
+        return None
+
+    import datetime
+
+    return datetime.datetime.fromtimestamp(
+        mtime
+    ).strftime("%Y-%m-%d")
+
+
+def date_reunion(
+    projet,
+    reunion=None
+) -> str:
+    """
+    Date de réunion AFFICHÉE : toujours la date de
+    l'audio (date de réunion), jamais une date
+    technique de rattachement. Repli : date stockée
+    de la réunion (elle-même alimentée à la date de
+    l'audio depuis P18.6-bis), sinon chaîne vide.
+    """
+
+    chemin = getattr(
+        projet,
+        "project_file",
+        None
+    )
+
+    if chemin:
+
+        audio = date_audio_projet(chemin)
+
+        if audio:
+            return audio
+
+    if reunion is not None:
+
+        date_stockee = getattr(
+            reunion,
+            "date",
+            ""
+        )
+
+        if date_stockee:
+            return date_stockee
+
+    return ""
+
+
 def etat_pretraitement(projet) -> str:
     """
     ① Prétraitement : vert si le dossier du projet

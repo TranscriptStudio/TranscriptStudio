@@ -3,14 +3,12 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
-    QListWidget,
-    QListWidgetItem,
+
     QLabel,
     QFileDialog,
     QMessageBox,
     QProgressDialog,
     QMenu,
-    QInputDialog,
     QScrollArea,
     QFrame,
 )
@@ -19,6 +17,7 @@ from PySide6.QtCore import (
     Qt,
     QSize,
     QUrl,
+    Signal,
 )
 from PySide6.QtGui import (
     QPixmap,
@@ -51,14 +50,97 @@ from services.resources import resource_path
 from services.transcription_worker import TranscriptionWorker
 from services.project_io import save_project
 from services.audio_loading_worker import AudioLoadingWorker
-from services.etude_io import (
-    EtudeError,
-    creer_etude,
-    ouvrir_etude,
-)
-from services.etude_schema import EtudeFormatError
-from ui.etude_window import EtudeWindow
+from services.etude_io import ouvrir_etude
 from ui.stepper import StepperBar
+
+
+class TuileAccueil(QWidget):
+    """
+    Grande tuile du hub (P18.6-bis, spec correctifs
+    §1) : icône, titre exact, paragraphe
+    descriptif — le clic sur la tuile déclenche
+    l'action. Icônes : placeholder sobre en
+    attendant celles fournies par David.
+    """
+
+    clique = Signal()
+
+    def __init__(
+        self,
+        titre: str,
+        description: str,
+        icone=None,
+        parent=None
+    ):
+        super().__init__(parent)
+
+        self.setObjectName("tuile_hub")
+
+        self.titre = titre
+
+        self.setMinimumSize(240, 120)
+        self.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+
+        self.setStyleSheet(
+            "QWidget#tuile_hub {"
+            "border: 1px solid #C8C8C8;"
+            "border-radius: 8px;"
+            "background: rgba(128, 128, 128, 0.04);"
+            "}"
+            "QWidget#tuile_hub:hover {"
+            "border: 1px solid #2196F3;"
+            "}"
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(4)
+
+        if icone is not None:
+
+            icone_label = QLabel()
+            pixmap = QPixmap(str(icone))
+            icone_label.setPixmap(
+                pixmap.scaled(
+                    28,
+                    28,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+
+            layout.addWidget(icone_label)
+
+        titre_label = QLabel(titre)
+        titre_label.setStyleSheet(
+            "font-size: 14px; font-weight: 600;"
+            "border: none;"
+        )
+
+        layout.addWidget(titre_label)
+
+        description_label = QLabel(description)
+        description_label.setWordWrap(True)
+        description_label.setStyleSheet(
+            "font-size: 11px; color: #555555;"
+            "border: none;"
+        )
+
+        layout.addWidget(
+            description_label,
+            stretch=1
+        )
+
+        layout.addStretch()
+
+    def mousePressEvent(self, event):
+
+        self.clique.emit()
+
+        super().mousePressEvent(event)
+
 
 class HomeWindow(QWidget):
 
@@ -144,9 +226,10 @@ class HomeWindow(QWidget):
         self.title_label.setFont(title_font)
 
         self.subtitle_label = QLabel(
-            "Prétraitement audio et transcription assistée par ElevenLabs"
+            "Prétraitement audio, transcription et "
+            "reformulation assistés"
         )
-        self.version_label = QLabel("Version 1.0 — Octobre 2026")
+        self.version_label = QLabel("Version 2.0")
 
         #
         # Pastilles de services (spec §2.2) : verte si
@@ -240,37 +323,43 @@ class HomeWindow(QWidget):
         layout.addWidget(self.salutation_label)
 
         #
-        # Trois tuiles (libellés exacts, spec §2.1).
+        # Trois GRANDES tuiles (spec correctifs §1) :
+        # icône, titre exact, paragraphe descriptif —
+        # le clic sur la tuile déclenche l'action.
+        # Icônes : placeholder sobre en attendant
+        # celles de David.
         #
         tuiles_layout = QHBoxLayout()
         tuiles_layout.setContentsMargins(0, 0, 0, 0)
         tuiles_layout.setSpacing(12)
 
-        self.tuile_nouvelle = QPushButton(
-            "Nouvelle transcription"
-        )
-        self.tuile_reprendre = QPushButton(
-            "Reprendre une réunion"
-        )
-        self.tuile_etudes = QPushButton("Études")
-
-        self.tuile_nouvelle.setIcon(
-            QIcon(str(resource_path("icons/bubble-text.svg")))
-        )
-        self.tuile_reprendre.setIcon(
-            QIcon(str(resource_path("icons/folder-open.svg")))
+        self.tuile_nouvelle = TuileAccueil(
+            "Nouvelle transcription",
+            "Prétraiter un audio (optionnel), lancer "
+            "la transcription et éventuellement "
+            "poursuivre le processus (reformulation, "
+            "etc.).",
+            icone=resource_path(
+                "icons/bubble-text.svg"
+            ),
         )
 
-        self.tuile_nouvelle.setToolTip(
-            "Créer une nouvelle réunion "
-            "(enregistrement transcrit)"
+        self.tuile_reprendre = TuileAccueil(
+            "Reprendre une réunion",
+            "Reprendre le travail où vous l'avez "
+            "laissé : correction de transcription, "
+            "reformulation, résumé, etc.",
+            icone=resource_path(
+                "icons/folder-open.svg"
+            ),
         )
-        self.tuile_reprendre.setToolTip(
-            "Ouvrir une réunion existante sur le disque"
-        )
-        self.tuile_etudes.setToolTip(
-            "Une étude est un regroupement de réunions "
-            "ayant pour objet un thème spécifique"
+
+        self.tuile_etudes = TuileAccueil(
+            "Études",
+            "Créer une étude, ouvrir et gérer une "
+            "étude existante. Une étude est un "
+            "regroupement de réunions ayant pour "
+            "objet un thème spécifique.",
         )
 
         for tuile in (
@@ -278,9 +367,6 @@ class HomeWindow(QWidget):
             self.tuile_reprendre,
             self.tuile_etudes,
         ):
-            tuile.setObjectName("tuile_hub")
-            tuile.setMinimumSize(220, 84)
-            tuile.setIconSize(QSize(24, 24))
             tuiles_layout.addWidget(tuile)
 
         tuiles_layout.addStretch()
@@ -320,91 +406,16 @@ class HomeWindow(QWidget):
         )
 
         #
-        # Études récentes (tuile « Études »).
-        #
-        layout.addWidget(QLabel("Études"))
-
-        self.recent_etudes = QListWidget()
-        self.recent_etudes.setMinimumHeight(80)
-
-        for etude_folder in self.settings.cleanup_recent_etudes():
-            dossier = Path(etude_folder)
-            item = QListWidgetItem(dossier.name)
-            item.setData(
-                Qt.ItemDataRole.UserRole,
-                str(dossier),
-            )
-            item.setToolTip(str(dossier))
-            self.recent_etudes.addItem(item)
-
-        self.recent_etudes.setToolTip(
-            "Études récentes — double-clic pour ouvrir"
-        )
-
-        self.recent_etudes.itemDoubleClicked.connect(
-            self.ouvrir_etude_recente
-        )
-
-        layout.addWidget(
-            self.recent_etudes,
-        )
-        layout.addSpacing(6)
-
-        etudes_actions_layout = QHBoxLayout()
-        etudes_actions_layout.setContentsMargins(0, 0, 0, 0)
-        etudes_actions_layout.setSpacing(10)
-
-        self.new_etude_button = QPushButton("Nouvelle étude")
-        self.open_etude_button = QPushButton(
-            "Ouvrir depuis un dossier…"
-        )
-
-        self.ouvrir_etude_selection_button = QPushButton(
-            "Ouvrir l'étude sélectionnée"
-        )
-        self.ouvrir_etude_selection_button.setToolTip(
-            "Ouvrir l'étude sélectionnée dans la liste "
-            "ci-dessus : réunions, reformulation "
-            "littéraire, résumé, synthèse"
-        )
-        self.ouvrir_etude_selection_button.clicked.connect(
-            self.ouvrir_etude_selection
-        )
-
-        self.new_etude_button.setToolTip(
-            "Créer une étude regroupant des réunions"
-        )
-        self.open_etude_button.setToolTip(
-            "Choisir un dossier étude sur le disque "
-            "(il doit contenir un etude.json)"
-        )
-
-        self.new_etude_button.clicked.connect(
-            self.creer_etude_ui
-        )
-        self.open_etude_button.clicked.connect(
-            self.ouvrir_etude_dialogue
-        )
-
-        etudes_actions_layout.addWidget(self.new_etude_button)
-        etudes_actions_layout.addWidget(self.open_etude_button)
-        etudes_actions_layout.addWidget(
-            self.ouvrir_etude_selection_button
-        )
-        etudes_actions_layout.addStretch()
-        layout.addLayout(etudes_actions_layout)
-
-        #
         # Connexions des tuiles.
         #
-        self.tuile_nouvelle.clicked.connect(
+        self.tuile_nouvelle.clique.connect(
             self.new_transcription
         )
-        self.tuile_reprendre.clicked.connect(
+        self.tuile_reprendre.clique.connect(
             self.open_project
         )
-        self.tuile_etudes.clicked.connect(
-            self.focus_etudes
+        self.tuile_etudes.clique.connect(
+            self.ouvrir_vue_etudes
         )
         self.settings_button.clicked.connect(
             self.open_settings
@@ -420,14 +431,32 @@ class HomeWindow(QWidget):
         # Dernieres reunions.
         self.refresh_dernieres_reunions()
 
-    def focus_etudes(self):
+    def ouvrir_vue_etudes(self):
         """
-        Tuile « Études » : met le focus sur la section
-        Études du hub.
+        Tuile « Études » : vue dédiée des études via
+        la pile de navigation (spec correctifs §4 —
+        le hub n'affiche jamais la liste des études).
         """
 
-        self.recent_etudes.setFocus()
-        self.recent_etudes.setCurrentRow(0)
+        navigation = getattr(self, "navigation", None)
+
+        if (
+            navigation is not None
+            and hasattr(
+                navigation,
+                "ouvrir_etudes"
+            )
+        ):
+            navigation.ouvrir_etudes()
+            return
+
+        from ui.etudes_window import EtudesWindow
+
+        self.vue_etudes = EtudesWindow(
+            settings=self.settings
+        )
+
+        self.vue_etudes.show()
 
     # ==================================================
     # Dernières réunions (mini-tuiles du hub, P18.6a).
@@ -1103,252 +1132,6 @@ class HomeWindow(QWidget):
         self.editor.show()
 
         self.close()
-
-    #
-    # Etudes (v2 - P14.3)
-    #
-
-    def creer_etude_ui(self):
-        """
-        Crée une étude : choix du dossier, titre,
-        structure complète du format étude.
-
-        Dossier non vide autorisé avec confirmation
-        explicite ; dossier déjà étude : refus dur
-        avec ouverture proposée (ARBITRAGE_CREATION_ETUDE).
-        """
-
-        dossier = QFileDialog.getExistingDirectory(
-            self,
-            "Dossier de la nouvelle étude",
-            self.settings.get_projects_root()
-        )
-
-        if not dossier:
-            return
-
-        dossier = Path(dossier)
-
-        #
-        # Dossier déjà étude : jamais d'écrasement —
-        # proposer l'ouverture.
-        #
-        if (dossier / "etude.json").is_file():
-
-            reponse = QMessageBox.question(
-                self,
-                "Dossier déjà étude",
-                (
-                    "Ce dossier est déjà une étude "
-                    "(etude.json présent).\n\n"
-                    "L'ouvrir plutôt ?\n\n"
-                    "Pour créer une nouvelle étude, "
-                    "saisissez plutôt un nom de nouveau "
-                    "dossier pour la créer dedans."
-                )
-            )
-
-            if reponse == QMessageBox.StandardButton.Yes:
-                self.ouvrir_etude(dossier)
-
-            return
-
-        #
-        # Dossier non vide : confirmation explicite
-        # (l'étude s'ajoute à côté, rien d'existant
-        # n'est modifié ni supprimé).
-        #
-        if dossier.exists():
-
-            elements = len(list(dossier.iterdir()))
-
-            if elements:
-
-                reponse = QMessageBox.question(
-                    self,
-                    "Dossier non vide",
-                    (
-                        "Ce dossier contient déjà "
-                        f"{elements} élément(s). "
-                        "Créer l'étude ici quand même ?\n\n"
-                        "Aucun fichier existant ne sera "
-                        "modifié ni supprimé : l'étude "
-                        "s'ajoute à côté (etude.json et "
-                        "ses sous-dossiers)."
-                    )
-                )
-
-                if reponse != QMessageBox.StandardButton.Yes:
-                    return
-
-        titre, ok = QInputDialog.getText(
-            self,
-            "Nouvelle étude",
-            (
-                "Titre de l'étude\n"
-                "(un livre biblique par défaut, "
-                "ou un thème libre) :"
-            )
-        )
-
-        if not ok:
-            return
-
-        titre = titre.strip()
-
-        if not titre:
-            QMessageBox.warning(
-                self,
-                "Titre requis",
-                "Une étude porte obligatoirement un titre."
-            )
-            return
-
-        try:
-            creer_etude(dossier, titre)
-        except EtudeError as e:
-            QMessageBox.warning(
-                self,
-                "Étude non créée",
-                str(e)
-            )
-            return
-
-        self.ouvrir_etude(dossier)
-
-    def ouvrir_etude_dialogue(self):
-        """
-        « Ouvrir depuis un dossier… » (spec correctifs
-        §12) : sélection d'un dossier, validation de
-        la présence d'un etude.json (sinon message
-        clair, rien ne s'ouvre), ouverture.
-        """
-
-        dossier = QFileDialog.getExistingDirectory(
-            self,
-            "Ouvrir une étude depuis un dossier",
-            self.settings.get_projects_root()
-        )
-
-        if not dossier:
-            return
-
-        dossier = Path(dossier)
-
-        if not (dossier / "etude.json").is_file():
-            QMessageBox.warning(
-                self,
-                "Ce dossier n'est pas une étude",
-                (
-                    "Le dossier\n\n"
-                    f"{dossier}\n\n"
-                    "ne contient pas de etude.json : "
-                    "ce n'est pas une étude.\n\n"
-                    "Les études sont créées depuis "
-                    "« Nouvelle étude »."
-                )
-            )
-            return
-
-        self.ouvrir_etude(dossier)
-
-    def ouvrir_etude_recente(
-        self,
-        item
-    ):
-        """
-        Ouvre l'étude double-cliquée dans la liste.
-        """
-
-        dossier = item.data(
-            Qt.ItemDataRole.UserRole
-        )
-
-        if not dossier:
-            return
-
-        if not Path(dossier).is_dir():
-            QMessageBox.warning(
-                self,
-                "Étude introuvable",
-                (
-                    "Le dossier\n\n"
-                    f"{dossier}\n\n"
-                    "n'existe plus."
-                )
-            )
-            self.settings.remove_recent_etude(dossier)
-            self.refresh_recent_etudes()
-            return
-
-        self.ouvrir_etude(dossier)
-
-    def ouvrir_etude_selection(self):
-        """
-        Ouvre l'étude sélectionnée dans la liste des
-        études récentes (bouton explicite, en plus
-        du double-clic).
-        """
-
-        item = (
-            self.recent_etudes.currentItem()
-        )
-
-        if item is None:
-            QMessageBox.information(
-                self,
-                "Aucune étude sélectionnée",
-                "Sélectionnez d'abord une étude dans "
-                "la liste."
-            )
-            return
-
-        self.ouvrir_etude_recente(item)
-
-    def ouvrir_etude(self, dossier):
-        """
-        Ouvre la page Étude ; en cas de projet v1
-        introuvable, la page s'affiche en mode
-        dégradé sans bloquer. Navigation à pile
-        unique : une étude déjà ouverte est réactivée.
-        """
-
-        navigation = getattr(self, "navigation", None)
-
-        if navigation is not None:
-
-            navigation.ouvrir_etude(dossier)
-
-            self.refresh_recent_etudes()
-
-            return
-
-        try:
-            self.etude_window = EtudeWindow(dossier)
-        except EtudeFormatError:
-            return
-
-        self.etude_window.show()
-        self.refresh_recent_etudes()
-
-        self.close()
-
-    def refresh_recent_etudes(self):
-        """
-        Recharge la liste des études récentes.
-        """
-
-        self.recent_etudes.clear()
-
-        for etude_folder in self.settings.cleanup_recent_etudes():
-            dossier = Path(etude_folder)
-            item = QListWidgetItem(dossier.name)
-            item.setData(
-                Qt.ItemDataRole.UserRole,
-                str(dossier),
-            )
-            item.setToolTip(str(dossier))
-            self.recent_etudes.addItem(item)
 
     def transcription_finished(
         self,

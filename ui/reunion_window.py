@@ -375,12 +375,24 @@ class ReunionWindow(QWidget):
 
         if self.rattachee():
 
+            from services.avancement import (
+                date_reunion,
+            )
+
             reunion = (
                 self.etude.reunions.get(self.nom)
             )
 
-            if reunion and reunion.date:
-                parties.append(reunion.date)
+            # Date de RÉUNION (audio), jamais la
+            # date technique de rattachement
+            # (spec correctifs §12, invariant 4).
+            date = date_reunion(
+                self.projet,
+                reunion
+            )
+
+            if date:
+                parties.append(date)
 
         duree = getattr(
             self.projet,
@@ -409,7 +421,7 @@ class ReunionWindow(QWidget):
         try:
 
             from services.bibles import (
-                VERSIONS_BIBLE,
+                nom_court_bible,
                 version_bible_etude,
             )
 
@@ -417,8 +429,11 @@ class ReunionWindow(QWidget):
                 self.etude.parametres
             )
 
+            # Nom COURT (spec correctifs §9) :
+            # « Bible : Darby révisée », pas de
+            # doublon « Bible : Bible ».
             bible = " · Bible : " + (
-                VERSIONS_BIBLE[version]["nom"]
+                nom_court_bible(version)
             )
 
         except Exception:

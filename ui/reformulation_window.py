@@ -625,18 +625,6 @@ class ReformulationWindow(QWidget):
             "(réunions et études récentes)"
         )
 
-        #
-        # « Retour à l'étude » (spec correctifs §11.2)
-        # : la page Étude de l'étude courante —
-        # distinct du bouton Accueil.
-        #
-        self.retour_etude_button = QPushButton(
-            "↩ Retour à l'étude"
-        )
-        self.retour_etude_button.setToolTip(
-            "Revenir à la page de l'étude courante"
-        )
-
         self.traiter_button = QPushButton(
             "▶ Traiter les blocs non validés"
         )
@@ -683,7 +671,6 @@ class ReformulationWindow(QWidget):
             self.sauvegarder_button,
             self.aide_button,
             self.accueil_button,
-            self.retour_etude_button,
             self.traiter_button,
             self.couts_button,
             self.annuler_button,
@@ -813,10 +800,6 @@ class ReformulationWindow(QWidget):
 
         self.accueil_button.clicked.connect(
             self.retour_accueil
-        )
-
-        self.retour_etude_button.clicked.connect(
-            self.retour_a_l_etude
         )
 
         self.traiter_button.clicked.connect(
@@ -2983,36 +2966,6 @@ class ReformulationWindow(QWidget):
             navigation.ouvrir_accueil()
 
             return
-
-        self.close()
-
-    def retour_a_l_etude(self):
-        """
-        « Retour à l'étude » (spec correctifs §11.2) :
-        revient à la page Étude de l'étude courante.
-        """
-
-        self.sauvegarder_etude()
-
-        self._quitter_page()
-
-        navigation = getattr(self, "navigation", None)
-
-        if navigation is not None:
-
-            navigation.ouvrir_etude(
-                self.etude.dossier
-            )
-
-            return
-
-        from ui.etude_window import EtudeWindow
-
-        self.etude_window = EtudeWindow(
-            self.etude.dossier
-        )
-
-        self.etude_window.show()
 
         self.close()
 
