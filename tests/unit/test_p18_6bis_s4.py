@@ -38,6 +38,10 @@ def evenement_entree() -> QEnterEvent:
     )
 
 from services.settings import SettingsManager
+from services.theme_manager import (
+    couleurs_tuiles,
+    est_sombre,
+)
 from tests.unit.test_reformulation_ui import (
     construire_etude_test,
 )
@@ -514,3 +518,246 @@ class TestMaquette:
         clair = couleurs_menu_etudes(False)
 
         assert clair["fond"] != sombre["fond"]
+
+
+#
+# ==================================================
+# RENDU RÉEL des tuiles (pixels) — un style écrit
+# mais non rendu est invisible : une sous-classe de
+# QWidget n'affiche sa feuille de style QUE si
+# WA_StyledBackground est posé (cause racine des
+# itérations sans effet visuel).
+# ==================================================
+#
+
+class TestRenduPixels:
+
+    def test_carte_reellement_rendue(self, hub):
+        """
+        Le fond, le contour et les coins arrondis de
+        la carte apparaissent dans les PIXELS rendus.
+        """
+
+        from PySide6.QtCore import Qt
+
+        accueil = hub
+
+        tuile = accueil.tuile_nouvelle
+
+        # Attribut de rendu (sans lui : rien ne
+        # s'affiche, quel que soit le style).
+        assert tuile.testAttribute(
+            Qt.WidgetAttribute
+            .WA_StyledBackground
+        )
+
+        image = tuile.grab().toImage()
+
+        # Couleurs attendues selon le thème
+        # EFFECTIF au moment du rendu (la suite
+        # complète peut avoir appliqué le thème
+        # sombre).
+        sombre = est_sombre(tuile)
+
+        fond = couleurs_tuiles(sombre)["fond"]
+
+        attendu = (
+            int(fond[1:3], 16),
+            int(fond[3:5], 16),
+            int(fond[5:7], 16),
+        )
+
+        # Centre de la carte = fond de tuile.
+        centre = image.pixelColor(150, 100)
+
+        assert (
+            centre.red(),
+            centre.green(),
+            centre.blue(),
+        ) == attendu
+
+        # Coin arrondi = transparent.
+        coin = image.pixelColor(1, 1)
+
+        assert coin.alpha() == 0
+
+        # Bord gauche = contour gris (fin, 1 px).
+        bord = image.pixelColor(0, 100)
+
+        bord_attendu = couleurs_tuiles(sombre)[
+            "bord"
+        ]
+
+        assert abs(
+            bord.red()
+            - int(bord_attendu[1:3], 16)
+        ) <= 1
+
+        assert abs(
+            bord.green()
+            - int(bord_attendu[3:5], 16)
+        ) <= 1
+
+    def test_contour_bleu_rendu_au_survol(
+        self,
+        hub
+    ):
+        """
+        Au terme de l'animation de survol, le
+        contour BLEU D'ACCENT apparaît dans les
+        pixels rendus (#4a7db5) — pas seulement
+        dans le texte de la feuille de style.
+        """
+
+        accueil = hub
+
+        tuile = accueil.tuile_nouvelle
+
+        tuile._position_base = tuile.pos()
+
+        tuile._appliquer_progression(1.0)
+
+        image = tuile.grab().toImage()
+
+        bord = image.pixelColor(0, 100)
+
+        # #4a7db5 = (74, 125, 181).
+        assert abs(bord.red() - 74) <= 1
+        assert abs(bord.green() - 125) <= 1
+        assert abs(bord.blue() - 181) <= 1
+
+        # Retour au repos : contour gris.
+        tuile._appliquer_progression(0.0)
+
+        image = tuile.grab().toImage()
+
+        bord = image.pixelColor(0, 100)
+
+        bord_attendu = couleurs_tuiles(
+            est_sombre(tuile)
+        )["bord"]
+
+        assert abs(
+            bord.red()
+            - int(bord_attendu[1:3], 16)
+        ) <= 1
+
+    def test_lignes_menu_rendues(self, qapp, tmp_path):
+        """
+        Les lignes du menu déroulant rendent leur
+        survol (WA_StyledBackground).
+        """
+
+        from PySide6.QtCore import Qt
+
+        from ui.menu_etudes import LigneAction
+
+        ligne = LigneAction("Nouvelle étude")
+
+        assert ligne.testAttribute(
+            Qt.WidgetAttribute
+            .WA_StyledBackground
+        )
+
+
+    def test_rendu_theme_sombre_applique(
+        self,
+        qapp,
+        tmp_path
+    ):
+        """
+        Cause racine des itérations sans effet : un
+        thème sombre appliqué par qdarktheme ne met
+        PAS la palette à jour — est_sombre doit
+        suivre le thème APPLIQUÉ, et la carte doit
+        rendre ses couleurs SOMBRES (#2a2b31 sur
+        page #1e1f24).
+        """
+
+        from services.llm.catalogue import (
+            catalogue_par_defaut,
+        )
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
+        from ui.home_window import HomeWindow
+
+        ThemeManager.apply_theme(
+            qapp,
+            ThemeManager.DARK
+        )
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        try:
+
+            with patch(
+                "services.llm.catalogue"
+                ".charger_catalogue",
+                return_value=(
+                    catalogue_par_defaut()
+                ),
+            ):
+                accueil = HomeWindow(
+                    settings=settings
+                )
+
+            tuile = accueil.tuile_nouvelle
+
+            # Le thème appliqué se lit « sombre ».
+            assert est_sombre(tuile)
+
+            # Fond de page sombre (maquette #1e1f24).
+            assert "#1e1f24" in (
+                accueil.styleSheet()
+            )
+
+            # Carte rendue avec le fond sombre
+            # de la maquette (#2a2b31).
+            image = tuile.grab().toImage()
+
+            centre = image.pixelColor(150, 100)
+
+            assert (
+                centre.red(),
+                centre.green(),
+                centre.blue(),
+            ) == (42, 43, 49)
+
+            # Contour sombre fin (#3a3b42).
+            bord = image.pixelColor(0, 100)
+
+            assert (
+                bord.red(),
+                bord.green(),
+                bord.blue(),
+            ) == (58, 59, 66)
+
+            # Survol : contour bleu d'accent rendu.
+            tuile._position_base = tuile.pos()
+
+            tuile._appliquer_progression(1.0)
+
+            image = tuile.grab().toImage()
+
+            bord = image.pixelColor(0, 100)
+
+            assert abs(bord.red() - 74) <= 1
+            assert abs(bord.green() - 125) <= 1
+            assert abs(bord.blue() - 181) <= 1
+
+        finally:
+
+            accueil.close()
+
+            # Isoler la suite : revenir au thème clair
+            # et oublier le thème retenu.
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.LIGHT
+            )
+
+            reinitialiser_theme_actif()

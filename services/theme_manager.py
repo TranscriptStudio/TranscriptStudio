@@ -186,6 +186,8 @@ class ThemeManager:
         """
         Applique le theme sombre utilisant qdarktheme.
         """
+        retenir_theme("dark")
+
         if QDARKTHEME_AVAILABLE:
             # Utiliser qdarktheme pour un theme sombre moderne
             app.setStyle("Fusion")
@@ -203,6 +205,8 @@ class ThemeManager:
         """
         Applique le theme clair utilisant qdarktheme.
         """
+        retenir_theme("light")
+
         if QDARKTHEME_AVAILABLE:
             # Utiliser qdarktheme pour un theme clair moderne
             app.setStyle("Fusion")
@@ -669,14 +673,64 @@ def couleurs_tuiles(sombre: bool) -> dict:
     return COULEURS_TUILES[bool(sombre)]
 
 
+#
+# Thème effectif de l'application, retenu lors
+# de l'application d'un thème par ThemeManager.
+# qdarktheme travaille par FEUILLE DE STYLE et ne
+# met PAS la QPalette à jour : la luminosité de
+# la palette seule est donc trompeuse sous un
+# thème sombre appliqué (les couleurs
+# thème-dépendantes calculaient « clair »).
+#
+_THEME_ACTIF = None
+
+
+def theme_actif():
+    """
+    Thème appliqué via ThemeManager (« dark » ou
+    « light »), ou None si aucun thème n'a été
+    appliqué (repli sur la palette).
+    """
+
+    return _THEME_ACTIF
+
+
+def retenir_theme(theme):
+    """
+    Retient le thème appliqué (usage interne de
+    ThemeManager).
+    """
+
+    global _THEME_ACTIF
+
+    _THEME_ACTIF = theme
+
+
+def reinitialiser_theme_actif():
+    """
+    Oublie le thème retenu (tests : isolement des
+    sessions).
+    """
+
+    global _THEME_ACTIF
+
+    _THEME_ACTIF = None
+
+
 def est_sombre(widget) -> bool:
     """
-    Résout le thème effectif d'un widget : le
-    réglage « system » suit la luminosité de la
-    palette courante (recalculée à chaque appel —
-    un changement de thème est immédiatement
-    pris en compte).
+    Résout le thème effectif d'un widget :
+
+    - thème APPLIQUÉ via ThemeManager (qdarktheme
+      ne met pas la palette à jour — sans cela,
+      un thème sombre appliqué se lisait
+      « clair ») ;
+    - repli : luminosité de la palette courante
+      (recalculée à chaque appel).
     """
+
+    if _THEME_ACTIF is not None:
+        return _THEME_ACTIF == "dark"
 
     if widget is None:
         return False

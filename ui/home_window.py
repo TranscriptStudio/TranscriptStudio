@@ -123,6 +123,20 @@ class TuileAccueil(QWidget):
         )
 
         #
+        # CRITIQUE : une sous-classe de QWidget
+        # n'affiche PAS sa feuille de style (fond,
+        # bordure, coins arrondis) sans cet
+        # attribut — sans lui, la carte est
+        # invisible (aucun fond, aucun contour),
+        # quel que soit le style écrit.
+        #
+        self.setAttribute(
+            Qt.WidgetAttribute
+            .WA_StyledBackground,
+            True
+        )
+
+        #
         # Ombre portée du survol (vers le bas,
         # 8 % d'opacité) — alpha animé.
         #
@@ -251,6 +265,15 @@ class TuileAccueil(QWidget):
             "background-color: "
             + self._couleurs_base["fond"]
             + ";"
+            "}"
+            # Les enfants (icône, titre, description)
+            # restent TRANSPARENTS : sans cette règle,
+            # la feuille qdarktheme les repeint de la
+            # couleur du thème et masque le fond de la
+            # carte.
+            "QWidget#tuile_hub QLabel {"
+            "background-color: transparent;"
+            "border: none;"
             "}"
         )
 
@@ -678,6 +701,11 @@ class HomeWindow(QWidget):
         )
 
         if est_sombre(self):
+            self.setAttribute(
+                Qt.WidgetAttribute
+                .WA_StyledBackground,
+                True
+            )
             self.setStyleSheet(
                 "HomeWindow {"
                 "background-color: "

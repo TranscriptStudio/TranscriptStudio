@@ -142,6 +142,15 @@ class LigneEtude(QWidget):
             Qt.CursorShape.PointingHandCursor
         )
 
+        # Sous-classe de QWidget : sans cet
+        # attribut, le survol :hover (fond de
+        # ligne) ne se rend jamais.
+        self.setAttribute(
+            Qt.WidgetAttribute
+            .WA_StyledBackground,
+            True
+        )
+
         layout = QHBoxLayout(self)
         layout.setContentsMargins(14, 10, 14, 10)
         layout.setSpacing(12)
@@ -225,6 +234,12 @@ class LigneAction(QWidget):
 
         self.setCursor(
             Qt.CursorShape.PointingHandCursor
+        )
+
+        self.setAttribute(
+            Qt.WidgetAttribute
+            .WA_StyledBackground,
+            True
         )
 
         self.libelle = libelle
@@ -356,6 +371,10 @@ class MenuEtudes(QWidget):
             "QLabel {"
             "border: none;"
             "background: transparent;"
+            "}"
+            "QWidget#menu_etudes_item QLabel {"
+            "border: none;"
+            "background-color: transparent;"
             "}"
         )
 

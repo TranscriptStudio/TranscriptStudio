@@ -574,6 +574,11 @@ class EtudeWindow(QWidget):
         )
 
         if est_sombre(self):
+            self.setAttribute(
+                Qt.WidgetAttribute
+                .WA_StyledBackground,
+                True
+            )
             self.setStyleSheet(
                 "EtudeWindow {"
                 "background-color: "
@@ -931,6 +936,10 @@ class EtudeWindow(QWidget):
             "background-color: "
             + couleurs["fond_survol"]
             + ";"
+            "}"
+            "QFrame#etude_mini_tuile QLabel {"
+            "background-color: transparent;"
+            "border: none;"
             "}"
         )
 

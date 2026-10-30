@@ -15,8 +15,12 @@
 > « N réunions », séparateur, deux actions ; design des tuiles
 > précisé par David : cartes MOINS LARGES (rapport 3:2),
 > ombre portée vers le bas à 8 % d'opacité au survol,
-> effet PROGRESSIF ~200 ms ; sync documents du
-> 2026-10-30d/e ; **442 tests verts**)
+> effet PROGRESSIF ~200 ms ; CAUSE RACINE des
+> itérations sans effet visuel corrigée
+> (WA_StyledBackground absent + qdarktheme ne met
+> pas la palette à jour) avec tests sur les
+> PIXELS rendus ; sync documents du
+> 2026-10-30d/e ; **446 tests verts**)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -1777,6 +1781,34 @@ transcriptstudio.html`) — reprise complète :
   retour IMMÉDIAT en sortie (carte reposée, contour gris, ombre nulle).
 - **Menu** : cas sans étude = « Aucune étude présente. », actions
   « ＋ Nouvelle étude » puis « Ouvrir depuis un dossier… ».
+
+### Cause racine des itérations sans effet visuel (troisième retour David)
+
+David voyait AUCUN changement visuel malgré les styles écrits — deux
+causes, toutes deux corrigées :
+
+1. **`WA_StyledBackground` absent** : une sous-classe de QWidget
+   (TuileAccueil, LigneEtude, LigneAction, HomeWindow, EtudeWindow)
+   n'affiche PAS sa feuille de style (fond, bordure, coins arrondis)
+   sans `setAttribute(Qt.WA_StyledBackground, True)` — les cartes
+   étaient donc rendues SANS fond ni contour, quel que soit le style.
+   Attribut posé partout.
+2. **qdarktheme ne met pas la QPalette à jour** : `est_sombre` se fiait
+   à la luminosité de la palette, restée claire sous un thème sombre
+   appliqué → les tuiles calculaient des couleurs CLAIRES rendues sur
+   un thème sombre. `theme_manager` retient désormais le thème APPLIQUÉ
+   (`retenir_theme`/`theme_actif`/`reinitialiser_theme_actif`) et
+   `est_sombre` le consulte en premier. De plus, les enfants QLabel des
+   tuiles sont explicitement transparents (règle
+   `QWidget#tuile_hub QLabel { background-color: transparent; }`) : la
+   feuille qdarktheme les repeignait de la couleur du thème et masquait
+   le fond de la carte.
+
+**Tests sur les PIXELS rendus** (pas seulement le texte du style) :
+`TestRenduPixels` — centre de la carte = couleur du fond, coin arrondi
+transparent, contour exact au repos ET au survol (#4a7db5),
+attributs de rendu, thème sombre réellement appliqué (carte #2a2b31
+sur page #1e1f24, contour #3a3b42, survol bleu rendu).
 
 ### Invariants — couverture
 
