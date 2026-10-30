@@ -97,11 +97,13 @@ class TuileAccueil(QWidget):
 
         self.titre = titre
 
-        self.setMinimumHeight(130)
-        self.setSizePolicy(
-            self.sizePolicy().horizontalPolicy(),
-            self.sizePolicy().verticalPolicy(),
-        )
+        #
+        # Métriques de la maquette (§22) : carte à
+        # coins arrondis (12 px), marge intérieure
+        # généreuse (22/20/18), icône 34 px,
+        # titre 16 px, description discrète.
+        #
+        self.setMinimumHeight(150)
         self.setCursor(
             Qt.CursorShape.PointingHandCursor
         )
@@ -109,8 +111,8 @@ class TuileAccueil(QWidget):
         self._appliquer_style()
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 14, 18, 14)
-        layout.setSpacing(6)
+        layout.setContentsMargins(20, 22, 20, 18)
+        layout.setSpacing(0)
 
         if icone is not None:
 
@@ -118,27 +120,31 @@ class TuileAccueil(QWidget):
             pixmap = QPixmap(str(icone))
             icone_label.setPixmap(
                 pixmap.scaled(
-                    30,
-                    30,
+                    34,
+                    34,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
 
             layout.addWidget(icone_label)
+            layout.addSpacing(10)
 
         titre_label = QLabel(titre)
         titre_label.setStyleSheet(
-            "font-size: 15px; font-weight: 600;"
+            "font-size: 16px; font-weight: 600;"
             "border: none;"
         )
 
         layout.addWidget(titre_label)
+        layout.addSpacing(6)
 
         description_label = QLabel(description)
         description_label.setWordWrap(True)
         description_label.setStyleSheet(
-            "font-size: 11px; color: #757575;"
+            "font-size: 12px; color: "
+            + self._couleur_description()
+            + ";"
             "border: none;"
         )
 
@@ -156,12 +162,28 @@ class TuileAccueil(QWidget):
         self._position_base = None
         self._animation = None
 
+    def _couleur_description(self) -> str:
+        """
+        Couleur du paragraphe descriptif (maquette :
+        #a6a7ae en thème sombre).
+        """
+
+        from services.theme_manager import (
+            couleurs_tuiles,
+            est_sombre,
+        )
+
+        return couleurs_tuiles(
+            est_sombre(self)
+        )["description"]
+
     def _appliquer_style(self):
         """
         Contour visible + survol, couleurs du thème
-        courant (§22) : bord 1 px net, fond de tuile
-        distinct du fond de page, survol = contour
-        bleu d'accent.
+        courant (§22, maquette) : bord 1 px net,
+        fond de tuile distinct du fond de page,
+        coins arrondis 12 px, survol = contour bleu
+        d'accent.
         """
 
         from services.theme_manager import (
@@ -179,7 +201,7 @@ class TuileAccueil(QWidget):
             "border: 1px solid "
             + couleurs["bord"]
             + ";"
-            "border-radius: 10px;"
+            "border-radius: 12px;"
             "background-color: "
             + couleurs["fond"]
             + ";"
@@ -458,7 +480,7 @@ class HomeWindow(QWidget):
             "poursuivre le processus (reformulation, "
             "etc.).",
             icone=resource_path(
-                "icons/bubble-text.svg"
+                "icons/tuile-nouvelle-transcription.svg"
             ),
         )
 
@@ -468,7 +490,7 @@ class HomeWindow(QWidget):
             "laissé : correction de transcription, "
             "reformulation, résumé, etc.",
             icone=resource_path(
-                "icons/folder-open.svg"
+                "icons/tuile-reprendre.svg"
             ),
         )
 
@@ -478,6 +500,9 @@ class HomeWindow(QWidget):
             "étude existante. Une étude est un "
             "regroupement de réunions ayant pour "
             "objet un thème spécifique.",
+            icone=resource_path(
+                "icons/tuile-etudes.svg"
+            ),
         )
 
         #
@@ -585,90 +610,40 @@ class HomeWindow(QWidget):
 
     def ouvrir_menu_etudes(self):
         """
-        Tuile « Études » : MENU DÉROULANT ancré à la
-        tuile — liste des études (nom, nombre de
-        réunions), « ＋ Nouvelle étude »,
+        Tuile « Études » : PANNEAU DÉROULANT ancré
+        sous la tuile (maquette P18.6-bis série 4)
+        — en-tête « Vos études », une ligne par
+        étude (pastille de couleur, nom, thème ·
+        date de modification, badge « N réunions »),
+        séparateur, « ＋ Nouvelle étude… » et
         « Ouvrir depuis un dossier… ». Choisir une
-        étude ouvre DIRECTEMENT la page Étude.
-        Échap ou clic extérieur referment le menu
-        (comportement natif du QMenu).
+        étude ouvre DIRECTEMENT la page Étude ;
+        Échap ou clic extérieur referment le
+        panneau (Qt.Popup + touche Échap).
         """
 
-        menu = self._construire_menu_etudes()
+        from ui.menu_etudes import MenuEtudes
 
-        menu.exec(
-            self.tuile_etudes.mapToGlobal(
-                self.tuile_etudes.rect()
-                .bottomLeft()
-            )
+        self.menu_etudes = MenuEtudes(
+            self.settings,
+            parent=self
         )
 
-    def _construire_menu_etudes(self):
-        """
-        Construction du menu (séparée pour les
-        tests). Sans étude, le menu l'indique et
-        propose création ou import.
-        """
-
-        from services.rattachement import (
-            reunions_des_etudes,
+        self.menu_etudes.etude_choisie.connect(
+            self.ouvrir_etude
         )
 
-        menu = QMenu(self)
-        menu.setObjectName("menu_etudes")
-
-        etudes = (
-            self.settings.cleanup_recent_etudes()
-        )
-
-        if not etudes:
-
-            vide = menu.addAction(
-                "Aucune étude pour l'instant"
-            )
-            vide.setEnabled(False)
-
-        else:
-
-            for dossier in etudes:
-
-                nb = len(
-                    reunions_des_etudes(dossier)
-                )
-
-                pluriel = (
-                    "s" if nb > 1 else ""
-                )
-
-                action = menu.addAction(
-                    f"{Path(dossier).name} — "
-                    f"{nb} réunion{pluriel}"
-                )
-
-                action.triggered.connect(
-                    lambda checked=False,
-                    d=str(dossier): (
-                        self.ouvrir_etude(d)
-                    )
-                )
-
-        menu.addSeparator()
-
-        nouvelle = menu.addAction(
-            "＋ Nouvelle étude"
-        )
-        nouvelle.triggered.connect(
+        self.menu_etudes.nouvelle_etude.connect(
             self.creer_etude_ui
         )
 
-        ouvrir_dossier = menu.addAction(
-            "Ouvrir depuis un dossier…"
-        )
-        ouvrir_dossier.triggered.connect(
+        self.menu_etudes.ouvrir_dossier.connect(
             self.ouvrir_etude_dialogue
         )
 
-        return menu
+        self.menu_etudes.ouvrir_sous(
+            self.tuile_etudes
+        )
 
     def ouvrir_etude(self, dossier):
         """

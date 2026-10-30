@@ -180,24 +180,28 @@ class TestHubSerie1:
             "ouvrir_menu_etudes"
         )
 
-    def test_menu_deroulant_etudes(
+    def test_menu_deroulant_maquette(
         self,
         qapp,
         tmp_path
     ):
         """
-        §21 : la tuile « Études » ouvre un MENU
-        DÉROULANT ancré à la tuile — liste des
-        études (nom, nombre de réunions), « ＋
-        Nouvelle étude », « Ouvrir depuis un
-        dossier… » ; choisir une étude ouvre
-        DIRECTEMENT la page Étude (jamais de page
-        intermédiaire).
+        §21 + maquette : la tuile « Études » ouvre
+        un PANNEAU DÉROULANT ancré sous la tuile —
+        en-tête « Vos études », une ligne par étude
+        (pastille de couleur, nom, thème · date de
+        modification, badge « N réunions »),
+        séparateur, actions « Nouvelle étude… » et
+        « Ouvrir depuis un dossier… » ; choisir une
+        étude ouvre DIRECTEMENT la page Étude.
         """
 
-        from PySide6.QtWidgets import QMenu
-
         from ui.app_window import AppWindow
+        from ui.menu_etudes import (
+            LigneAction,
+            LigneEtude,
+            MenuEtudes,
+        )
 
         _p, _pv, _e, _n = (
             construire_etude_test(tmp_path)
@@ -217,22 +221,65 @@ class TestHubSerie1:
 
             accueil = fenetre_app.accueil
 
-            menu = accueil._construire_menu_etudes()
+            accueil.ouvrir_menu_etudes()
 
-            assert isinstance(menu, QMenu)
+            menu = accueil.menu_etudes
 
-            actions = [
-                a.text() for a in menu.actions()
+            assert isinstance(menu, MenuEtudes)
+
+            # Largeur du panneau (maquette : 320 px).
+            assert menu.width() == 320
+
+            # En-tête « Vos études ».
+            textes = [
+                l.text()
+                for l in (
+                    menu.findChildren(QLabel)
+                )
             ]
 
-            # L'étude récente y figure, avec son
-            # nombre de réunions (pluriel propre).
+            assert "Vos études" in textes
+
+            # Une ligne par étude, avec nom, détail
+            # (thème · date de modification) et
+            # badge « N réunions ».
+            lignes = menu.lignes
+
+            assert len(lignes) == 1
+
+            ligne = lignes[0]
+
+            assert isinstance(ligne, LigneEtude)
+
             assert (
-                "Etude — 1 réunion" in actions
+                ligne.nom_label.text()
+                == "Évangile de Luc"
             )
 
-            # Création et import proposés.
-            assert "＋ Nouvelle étude" in actions
+            assert (
+                "Livre biblique"
+                in ligne.detail_label.text()
+            )
+
+            assert (
+                "modifiée le"
+                in ligne.detail_label.text()
+            )
+
+            assert (
+                ligne.badge_label.text()
+                == "1 réunion"
+            )
+
+            # Actions de création et d'import.
+            actions = [
+                a.libelle
+                for a in (
+                    menu.findChildren(LigneAction)
+                )
+            ]
+
+            assert "Nouvelle étude…" in actions
             assert (
                 "Ouvrir depuis un dossier…"
                 in actions
@@ -241,7 +288,7 @@ class TestHubSerie1:
             # Choisir l'étude ouvre DIRECTEMENT la
             # page Étude — la pile ne contient aucune
             # page intermédiaire « etudes ».
-            accueil.ouvrir_etude(
+            menu.etude_choisie.emit(
                 str(tmp_path / "Etude")
             )
 
@@ -274,9 +321,78 @@ class TestHubSerie1:
         tmp_path
     ):
         """
-        §21 : sans aucune étude, le menu l'indique
-        et propose création ou import.
+        §21 : sans aucune étude, le panneau affiche
+        « Aucune étude pour le moment » suivi des
+        deux actions.
         """
+
+        from ui.home_window import HomeWindow
+        from ui.menu_etudes import LigneAction
+        from services.llm.catalogue import (
+            catalogue_par_defaut,
+        )
+
+        settings = SettingsManager(
+            str(tmp_path / "reglages")
+        )
+
+        with patch(
+            "services.llm.catalogue"
+            ".charger_catalogue",
+            return_value=catalogue_par_defaut(),
+        ):
+            accueil = HomeWindow(settings=settings)
+
+        try:
+
+            accueil.ouvrir_menu_etudes()
+
+            menu = accueil.menu_etudes
+
+            textes = [
+                l.text()
+                for l in (
+                    menu.findChildren(QLabel)
+                )
+            ]
+
+            assert (
+                "Aucune étude pour le moment"
+                in textes
+            )
+
+            # Aucune ligne d'étude.
+            assert menu.lignes == []
+
+            # Les deux actions restent proposées.
+            actions = [
+                a.libelle
+                for a in (
+                    menu.findChildren(LigneAction)
+                )
+            ]
+
+            assert "Nouvelle étude…" in actions
+            assert (
+                "Ouvrir depuis un dossier…"
+                in actions
+            )
+
+        finally:
+            accueil.close()
+
+    def test_menu_echap_referme(
+        self,
+        qapp,
+        tmp_path
+    ):
+        """
+        §21 : Échap referme le panneau (clic
+        extérieur : comportement natif du Qt.Popup).
+        """
+
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QKeyEvent
 
         from ui.home_window import HomeWindow
         from services.llm.catalogue import (
@@ -296,29 +412,19 @@ class TestHubSerie1:
 
         try:
 
-            menu = accueil._construire_menu_etudes()
+            accueil.ouvrir_menu_etudes()
 
-            actions = [
-                a.text() for a in menu.actions()
-            ]
+            menu = accueil.menu_etudes
 
-            assert (
-                "Aucune étude pour l'instant"
-                in actions
+            touche = QKeyEvent(
+                QKeyEvent.Type.KeyPress,
+                Qt.Key.Key_Escape,
+                Qt.KeyboardModifier.NoModifier
             )
 
-            assert "＋ Nouvelle étude" in actions
-            assert (
-                "Ouvrir depuis un dossier…"
-                in actions
-            )
+            menu.keyPressEvent(touche)
 
-            # L'indication n'est pas actionnable.
-            for action in menu.actions():
-                if action.text() == (
-                    "Aucune étude pour l'instant"
-                ):
-                    assert not action.isEnabled()
+            assert not menu.isVisible()
 
         finally:
             accueil.close()

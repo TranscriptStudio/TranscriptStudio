@@ -49,6 +49,44 @@ class RattachementError(Exception):
     """
 
 
+def lire_etude_legere(dossier_etude):
+    """
+    Métadonnées légères d'une étude (P18.6-bis
+    série 4, menu déroulant du hub) : ``titre``,
+    ``theme`` et ``modification`` lus directement
+    d'etude.json — SANS charger le registre FID,
+    les traitements ni les réunions.
+
+    Retourne None si le dossier n'est pas une
+    étude lisible.
+    """
+
+    fichier = Path(dossier_etude) / "etude.json"
+
+    if not fichier.is_file():
+        return None
+
+    try:
+
+        with open(
+            fichier,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            data = json.load(f)
+
+    except (OSError, ValueError):
+        return None
+
+    return {
+        "titre": data.get("titre", ""),
+        "theme": data.get("theme", ""),
+        "modification": data.get(
+            "modification", ""
+        ),
+    }
+
+
 def reunions_des_etudes(dossier_etude) -> dict:
     """
     Lecture légère d'une étude : {nom de réunion

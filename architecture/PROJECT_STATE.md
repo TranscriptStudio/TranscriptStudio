@@ -8,8 +8,12 @@
 > ouvrant DIRECTEMENT la page Étude (page intermédiaire
 > supprimée), CONTOURS VISIBLES et effet de survol (élévation
 > ~2 px, bleu d'accent #4a7db5, ~120 ms) sur toutes les tuiles,
-> 3 cartes en 3 colonnes ; sync documents du 2026-10-30d/e ;
-> **436 tests verts**)
+> 3 cartes en 3 colonnes ; reprise sur la maquette HTML validée
+> (icônes SVG des 3 tuiles, métriques de carte, panneau déroulant
+> stylisé : en-tête « Vos études », lignes d'études avec pastille
+> de couleur + nom + thème · date de modification + badge
+> « N réunions », séparateur, deux actions) ; sync documents du
+> 2026-10-30d/e ; **442 tests verts**)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -1724,6 +1728,36 @@ SPEC_NAVIGATION_MODIFS_V2_2026-10-30e (fait autorité, prime sur la version
   QListWidget dont le déplacement n'est pas fiable — écart documenté).
   Les 3 grandes cartes occupent 3 COLONNES égales (stretch identique).
 
+### Reprise sur la maquette HTML (retour David du 2026-10-30)
+
+La première passe du menu (QMenu brut) ne correspondait pas à la maquette
+validée (`architecture/spec_v2/maquette-tuile-études-et-menu-déroulant-
+transcriptstudio.html`) — reprise complète :
+
+- **Icônes des tuiles** : les 3 SVG de la maquette (micro, dossier, livre
+  ouvert — trait 1.6, bleu #6ea0d8, 34 px) créés dans `icons/`
+  (`tuile-nouvelle-transcription.svg`, `tuile-reprendre.svg`,
+  `tuile-etudes.svg`) ; plus aucune tuile sans icône.
+- **Métriques de carte** : rayon 12 px, marges 22/20/18, icône 34 px avec
+  10 px d'écart, titre 16 px, description 12 px à la couleur de la
+  maquette (#a6a7ae en sombre — `couleurs_tuiles()["description"]`).
+- **Menu = panneau déroulant** (`ui/menu_etudes.py`, `MenuEtudes`,
+  Qt.Popup translucide de 320 px, ombre portée, rayon 12) — plus de QMenu :
+  en-tête « VOS ÉTUDES » (majuscules espacées via QFont.setLetterSpacing) ;
+  une ligne par étude (`LigneEtude`) : pastille de couleur stable par
+  dossier (`couleur_pastille`, palette de la maquette), nom (le TITRE de
+  l'étude, pas le nom de dossier — `rattachement.py::lire_etude_legere`
+  lit titre/thème/modification d'etude.json sans charger l'étude),
+  « [thème] · modifiée le 27 oct. 2026 » (`formater_date_modification`),
+  badge « N réunions » (pastille #2b3444) ; séparateur ; actions
+  « ＋ Nouvelle étude… » et « Ouvrir depuis un dossier… » (glyphe SVG) ;
+  sans étude : « Aucune étude pour le moment » + les deux actions ;
+  Échap referme (keyPressEvent), clic extérieur aussi (Qt.Popup natif) ;
+  ancrage sous la tuile, aligné à gauche, 8 px d'écart
+  (`MenuEtudes.ouvrir_sous`).
+- Couleurs du panneau : `theme_manager.py::couleurs_menu_etudes`
+  (maquette en sombre : #26272d, bord #3d4152, survol #2c2d33).
+
 ### Invariants — couverture
 
 - Invariant 1 RÉÉCRIT (menu déroulant, jamais de page intermédiaire) :
@@ -1732,18 +1766,23 @@ SPEC_NAVIGATION_MODIFS_V2_2026-10-30e (fait autorité, prime sur la version
 - §22 : `test_p18_6bis_s4` (couleurs exactes des maquettes, contour +
   survol + curseur main des cartes et tuiles-rangées, 3 colonnes égales,
   élévation 120 ms avec retour immédiat, un seul bouton « Ouvrir » +
-  poignée ⠿ préservée).
+  poignée ⠿ préservée, icônes des 3 tuiles, date française, pastille
+  stable, lecture légère, couleurs du panneau).
+- Invariant 1 / panneau de la maquette : `test_p18_6bis_s1` (panneau
+  320 px, en-tête « Vos études », ligne d'étude avec titre/thème·date/
+  badge, actions, ouverture directe, cas sans étude, Échap referme).
 - Les 9 invariants complémentaires restent verts (séries 1-3), ainsi que
   les invariants §9 de SPEC_NAVIGATION_V2 ; aucune régression (436 verts).
 
-Bilan tests : **436 verts** (429 + 7 nouveaux série 4, tests P16-bis et
-P18.6-bis ajustés au menu déroulant).
+Bilan tests : **442 verts** (436 + 6 nouveaux : icônes des tuiles, date
+française, pastille stable, lecture légère, couleurs du panneau, Échap ;
+menu réécrit sur la maquette dans les tests de la série 1).
 
 ---
 
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P18.6 et P18.6-bis (séries 1 à 4) sont LIVRÉS** (436 tests verts).
+**P18.6 et P18.6-bis (séries 1 à 4) sont LIVRÉS** (442 tests verts).
 Restent :
 
 1. **Recette P16/P17/P18/P18.6 par David** (checklist en fin de session

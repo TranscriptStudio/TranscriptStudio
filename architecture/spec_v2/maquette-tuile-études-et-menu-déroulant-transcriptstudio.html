@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Maquette — Tuile Études et menu déroulant TranscriptStudio</title>
+<style>
+  :root { font-family: "Segoe UI", system-ui, sans-serif; background: #1e1f24; color: #e8e9ec; }
+  body { margin: 0; background: #1e1f24; }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 28px 22px 40px; }
+  h1 { font-size: 21px; margin: 0 0 4px; }
+  .sous { color: #9a9ba3; font-size: 13px; margin: 0 0 26px; }
+
+  .portes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .porte {
+    background: #2a2b31; border: 1px solid #3a3b42; border-radius: 12px;
+    padding: 22px 20px 18px; cursor: pointer; transition: transform .12s, border-color .12s;
+  }
+  .porte:hover { transform: translateY(-2px); border-color: #4a7db5; }
+  .porte .ic { font-size: 30px; margin-bottom: 10px; display: block; }
+  .porte h2 { font-size: 16px; margin: 0 0 6px; }
+  .porte p { font-size: 12.5px; color: #a6a7ae; margin: 0; line-height: 1.45; }
+
+  /* ---- Tuile Études en état survolé (élévation + contour bleu) ---- */
+  .porte.survolee { transform: translateY(-2px); border-color: #4a7db5; position: relative; }
+
+  /* ---- Menu déroulant ancré à la tuile ---- */
+  .menu {
+    position: absolute; top: calc(100% + 8px); left: 0; width: 320px; z-index: 10;
+    background: #26272d; border: 1px solid #3d4152; border-radius: 12px;
+    box-shadow: 0 10px 26px rgba(0,0,0,.45); overflow: hidden;
+  }
+  .menu .entete { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #8a8b92; padding: 10px 14px 6px; }
+  .item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer;
+  }
+  .item:hover { background: #2c2d33; }
+  .item .marque { width: 10px; height: 10px; border-radius: 3px; background: #4a7db5; flex: none; }
+  .item .textes { flex: 1; min-width: 0; }
+  .item .nom { font-size: 13px; font-weight: 600; }
+  .item .detail { font-size: 11px; color: #8a8b92; margin-top: 1px; }
+  .item .nb { font-size: 10.5px; color: #9fb4cc; background: #2b3444; border: 1px solid #3d4152; border-radius: 12px; padding: 2px 8px; white-space: nowrap; }
+  .sep { height: 1px; background: #34353b; margin: 6px 0; }
+  .item.action { color: #c2d0e2; }
+  .item.action .sym { font-size: 14px; width: 10px; text-align: center; flex: none; }
+  .item.action .nom { font-weight: 500; }
+  .vide { font-size: 12px; color: #8a8b92; padding: 10px 14px; line-height: 1.5; }
+
+  .note { margin-top: 34px; font-size: 11.5px; color: #7c7d84; border-top: 1px dashed #3c3d44; padding-top: 12px; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Bonjour</h1>
+    <div class="sous">Maquette : tuile « Études » et son menu déroulant (état survolé, menu ouvert).</div>
+
+    <div class="portes">
+      <div class="porte">
+        <svg class="ic" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#6ea0d8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 10.5a7 7 0 0 0 14 0"/><line x1="12" y1="17.5" x2="12" y2="21"/><line x1="8.5" y1="21" x2="15.5" y2="21"/>
+        </svg>
+        <h2>Nouvelle transcription</h2>
+        <p>Prétraiter un audio (optionnel), lancer la transcription et éventuellement poursuivre le processus (reformulation, etc.).</p>
+      </div>
+      <div class="porte">
+        <svg class="ic" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#6ea0d8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6.5a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>
+        </svg>
+        <h2>Reprendre une réunion</h2>
+        <p>Reprendre le travail où vous l'avez laissé : correction de transcription, reformulation, résumé, etc.</p>
+      </div>
+      <div class="porte survolee">
+        <svg class="ic" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#6ea0d8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H11a1.5 1.5 0 0 1 1.5 1.5V20a1.5 1.5 0 0 0-1.5-1.5H5.5A1.5 1.5 0 0 1 4 17Z"/>
+          <path d="M20 4.5A1.5 1.5 0 0 0 18.5 3H13a1.5 1.5 0 0 0-1.5 1.5V20a1.5 1.5 0 0 1 1.5-1.5h5.5A1.5 1.5 0 0 0 20 17Z"/>
+        </svg>
+        <h2>Études</h2>
+        <p>Créer une étude, ouvrir et gérer une étude existante. Une étude est un regroupement de réunions ayant pour objet un thème spécifique.</p>
+
+        <!-- Menu déroulant -->
+        <div class="menu">
+          <div class="entete">Vos études</div>
+          <div class="item">
+            <span class="marque"></span>
+            <span class="textes">
+              <span class="nom">Évangile selon Luc</span>
+              <span class="detail">Livre biblique · modifiée le 27 oct. 2026</span>
+            </span>
+            <span class="nb">2 réunions</span>
+          </div>
+          <div class="item">
+            <span class="marque" style="background:#b57a4a"></span>
+            <span class="textes">
+              <span class="nom">Épître aux Romains</span>
+              <span class="detail">Livre biblique · modifiée le 5 oct. 2026</span>
+            </span>
+            <span class="nb">1 réunion</span>
+          </div>
+          <div class="sep"></div>
+          <div class="item action">
+            <span class="sym">＋</span>
+            <span class="textes"><span class="nom">Nouvelle étude…</span></span>
+          </div>
+          <div class="item action">
+            <span class="sym">📂</span>
+            <span class="textes"><span class="nom">Ouvrir depuis un dossier…</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      Maquette d'intention (thème sombre). La tuile « Études » est représentée en état survolé : élévation de 2 px, contour bleu d'accent (#4a7db5),
+      transition ~120 ms — identique aux autres tuiles. Le clic ouvre le menu déroulant ancré à la tuile : liste des études (pastille de couleur,
+      nom, thème, date de dernière modification, nombre de réunions), séparateur, « ＋ Nouvelle étude… » (mini-fenêtre titre + thème) et
+      « Ouvrir depuis un dossier… ». Choisir une étude ouvre directement la page Étude. S'il n'existe aucune étude, le menu affiche
+      « Aucune étude pour le moment » suivi des deux actions. Échap ou clic extérieur referme le menu. À titre d'illustration, la liste
+      montre une seconde étude fictive (« Épître aux Romains ») pour rendre visible le comportement multi-études.
+    </div>
+  </div>
+</body>
+</html>

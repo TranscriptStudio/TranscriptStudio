@@ -26,6 +26,7 @@ from PySide6.QtGui import QEnterEvent
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
+    QLabel,
 )
 
 
@@ -325,3 +326,145 @@ class TestTuilesEtude:
 
         finally:
             page.close()
+
+
+#
+# ==================================================
+# Conformité à la maquette (icônes, lignes du
+# menu, date française, pastille stable).
+# ==================================================
+#
+
+class TestMaquette:
+
+    def test_icones_des_tuiles(self, hub):
+        """
+        Maquette : chaque grande carte porte SON
+        icône SVG (micro, dossier, livre ouvert),
+        teinte bleu d'accent — plus de tuile sans
+        icône.
+        """
+
+        accueil = hub
+
+        for tuile in (
+            accueil.tuile_nouvelle,
+            accueil.tuile_reprendre,
+            accueil.tuile_etudes,
+        ):
+            pixmaps = [
+                l for l in (
+                    tuile.findChildren(QLabel)
+                )
+                if not l.pixmap().isNull()
+            ]
+
+            assert pixmaps, (
+                "la tuile « "
+                + tuile.titre
+                + " » doit porter une icône"
+            )
+
+    def test_date_francaise(self):
+        """
+        « modifiée le 27 oct. 2026 » à partir du
+        champ modification d'etude.json.
+        """
+
+        from ui.menu_etudes import (
+            formater_date_modification,
+        )
+
+        assert formater_date_modification(
+            "2026-10-27T21:12:51"
+        ) == "modifiée le 27 oct. 2026"
+
+        assert formater_date_modification(
+            "2026-01-05T08:00:00"
+        ) == "modifiée le 5 janv. 2026"
+
+        assert formater_date_modification("") == ""
+        assert (
+            formater_date_modification("pas une date")
+            == ""
+        )
+
+    def test_pastille_stable(self):
+        """
+        La pastille d'une étude garde la même
+        couleur d'un affichage à l'autre
+        (déterminée par le dossier).
+        """
+
+        from ui.menu_etudes import (
+            PALETTE_PASTILLES,
+            couleur_pastille,
+        )
+
+        dossier = "C:/etudes/Evangile"
+
+        assert couleur_pastille(dossier) == (
+            couleur_pastille(dossier)
+        )
+
+        assert (
+            couleur_pastille(dossier)
+            in PALETTE_PASTILLES
+        )
+
+        # Des études différentes peuvent différer.
+        assert len({
+            couleur_pastille("etude-a"),
+            couleur_pastille("etude-b"),
+            couleur_pastille("etude-c"),
+        }) > 1
+
+    def test_lire_etude_legere(self, tmp_path):
+        """
+        Lecture légère des métadonnées (titre,
+        thème, modification) sans charger l'étude.
+        """
+
+        _p, _pv, _e, _n = (
+            construire_etude_test(tmp_path)
+        )
+
+        from services.rattachement import (
+            lire_etude_legere,
+        )
+
+        infos = lire_etude_legere(
+            tmp_path / "Etude"
+        )
+
+        assert infos["titre"] == (
+            "Évangile de Luc"
+        )
+
+        assert infos["theme"] == "livre"
+
+        assert infos["modification"]
+
+        assert lire_etude_legere(
+            tmp_path / "inexistant"
+        ) is None
+
+    def test_couleurs_menu_maquette(self):
+        """
+        Couleurs exactes du panneau (thème sombre,
+        maquette) : fond #26272d, bord #3d4152.
+        """
+
+        from services.theme_manager import (
+            couleurs_menu_etudes,
+        )
+
+        sombre = couleurs_menu_etudes(True)
+
+        assert sombre["fond"] == "#26272d"
+        assert sombre["bord"] == "#3d4152"
+        assert sombre["survol_item"] == "#2c2d33"
+
+        clair = couleurs_menu_etudes(False)
+
+        assert clair["fond"] != sombre["fond"]

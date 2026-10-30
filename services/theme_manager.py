@@ -570,13 +570,54 @@ COULEURS_TUILES = {
         "fond": "#2a2b31",
         "fond_survol": "#32333a",
         "bord": "#3a3b42",
+        "description": "#a6a7ae",
     },
     False: {  # thème clair
         "fond": "#ffffff",
         "fond_survol": "#f2f6fb",
         "bord": "#b9bcc2",
+        "description": "#555555",
     },
 }
+
+#
+# Couleurs du menu déroulant des études (maquette :
+# panneau #26272d, bord #3d4152, survol d'item
+# #2c2d33, badge #2b3444/#3d4152).
+#
+COULEURS_MENU_ETUDES = {
+    True: {
+        "fond": "#26272d",
+        "bord": "#3d4152",
+        "survol_item": "#2c2d33",
+        "entete": "#8a8b92",
+        "detail": "#8a8b92",
+        "badge_fond": "#2b3444",
+        "badge_bord": "#3d4152",
+        "badge_texte": "#9fb4cc",
+        "separateur": "#34353b",
+    },
+    False: {
+        "fond": "#ffffff",
+        "bord": "#c4c7cf",
+        "survol_item": "#eef2f7",
+        "entete": "#6b6c73",
+        "detail": "#6b6c73",
+        "badge_fond": "#eef2f7",
+        "badge_bord": "#c4c7cf",
+        "badge_texte": "#3d5a78",
+        "separateur": "#e3e5ea",
+    },
+}
+
+
+def couleurs_menu_etudes(sombre: bool) -> dict:
+    """
+    Couleurs du menu déroulant des études selon le
+    thème (maquette P18.6-bis série 4).
+    """
+
+    return COULEURS_MENU_ETUDES[bool(sombre)]
 
 
 def couleurs_tuiles(sombre: bool) -> dict:
