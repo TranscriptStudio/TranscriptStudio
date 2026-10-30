@@ -1,15 +1,15 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
 > **Dernière mise à jour** : 2026-10-30 (**P18.6-bis — correctifs
-> de relecture de la navigation LIVRÉS, séries 1 à 3** : grandes
-> tuiles du hub + vue Études dédiée + « Version 2.0 », badge
-> Bible au nom court, dates de réunion (audio), page Réunion sans
-> bandeau/onglets/« Retour à l'étude », plus de contour pointillé,
-> bouton unique « Étape suivante », stepper compact
-> Transcription→Reformulation→Résumé→Export uniquement après
-> transcription, mention pour les non transcrites, transcription
-> directe d'un audio déjà préparé ; sync documents du 2026-10-30 ;
-> **428 tests verts**)
+> de relecture de la navigation LIVRÉS, séries 1 à 4** : séries 1-3
+> (grandes tuiles + « Version 2.0 », badge Bible court, dates de
+> réunion, stepper compact après transcription, bouton unique) et
+> série 4 du 2026-10-30e : tuile « Études » = menu déroulant
+> ouvrant DIRECTEMENT la page Étude (page intermédiaire
+> supprimée), CONTOURS VISIBLES et effet de survol (élévation
+> ~2 px, bleu d'accent #4a7db5, ~120 ms) sur toutes les tuiles,
+> 3 cartes en 3 colonnes ; sync documents du 2026-10-30d/e ;
+> **436 tests verts**)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -62,9 +62,10 @@
   terminologie — UI_REFORMULATION_MODIFS_V2_2026-10-27d.md prime
   sur UI_REFORMULATION_V2 pour ses points).
 - **P18.6-bis : LIVRÉ** (correctifs de relecture de la navigation,
-  séries 1 à 3 — SPEC_NAVIGATION_MODIFS_V2_2026-10-30c fait
-  autorité et prime sur SPEC_NAVIGATION_V2 pour ses points ;
-  9 invariants complémentaires testés) — 428 tests verts.
+  séries 1 à 4 — SPEC_NAVIGATION_MODIFS_V2_2026-10-30e fait
+  autorité et prime sur SPEC_NAVIGATION_V2 et la version 30c
+  pour ses points ; invariant 1 réécrit + 9 invariants
+  complémentaires testés) — 436 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -1693,9 +1694,57 @@ Bilan tests : **428 verts** (404 + 24 nouveaux : 13 série 1, 2 série 2,
 
 ---
 
+## SESSION 2026-10-30 (P18.6-bis, série 4) — TUILE ÉTUDES + TUILES : LIVRÉ
+
+**Synchro atelier spec** (rituel) : 5 documents du 2026-10-30d/e recopiés —
+SPEC_NAVIGATION_MODIFS_V2_2026-10-30e (fait autorité, prime sur la version
+30c), INDEX_SPECS_2026-10-30e, versions 30d conservées, feuille de route
+2026-10-30d inchangée.
+
+### Série 4 (§21-22, spec 2026-10-30e)
+
+- **§21 — Tuile « Études » = menu déroulant** : la page intermédiaire de
+  choix (vue Études de la série 1) est SUPPRIMÉE (`ui/etudes_window.py`,
+  `AppWindow.ouvrir_etudes`). Le menu, ancré à la tuile, liste les études
+  (nom, nombre de réunions, pluriel propre), puis « ＋ Nouvelle étude » et
+  « Ouvrir depuis un dossier… » ; choisir une étude ouvre DIRECTEMENT la
+  page Étude ; sans étude, le menu l'indique et propose création/import ;
+  Échap ou clic extérieur referment le menu (natif QMenu). Création et
+  import revivent dans le hub (`creer_etude_ui`, `ouvrir_etude_dialogue`).
+- **§22 — Tuiles conformes aux maquettes** : CONTOURS VISIBLES sur toutes
+  les tuiles (bord 1 px net, fond de tuile distinct du fond de page) —
+  couleurs EXACTES des maquettes en thème sombre (fond de tuile #2a2b31,
+  bord #3a3b42, fond de page #1e1f24 appliqué au hub et à la page Étude,
+  `theme_manager.py::couleurs_tuiles/BORD_BLEU_ACCENT/FOND_PAGE_SOMBRE`),
+  équivalent sobre en thème clair. **Effet de survol** : élévation ~2 px
+  animée (~120 ms, QVariantAnimation), contour au bleu d'accent #4a7db5,
+  retour immédiat en sortie, curseur main — sur les 3 grandes cartes du
+  hub ; les tuiles-rangées de la page Étude reçoivent contour + survol
+  bleu + curseur main (l'élévation y est omise : widgets d'item d'une
+  QListWidget dont le déplacement n'est pas fiable — écart documenté).
+  Les 3 grandes cartes occupent 3 COLONNES égales (stretch identique).
+
+### Invariants — couverture
+
+- Invariant 1 RÉÉCRIT (menu déroulant, jamais de page intermédiaire) :
+  `test_p18_6bis_s1` (menu avec compte de réunions, ouverture directe,
+  page « etudes » absente de la pile ; menu sans étude).
+- §22 : `test_p18_6bis_s4` (couleurs exactes des maquettes, contour +
+  survol + curseur main des cartes et tuiles-rangées, 3 colonnes égales,
+  élévation 120 ms avec retour immédiat, un seul bouton « Ouvrir » +
+  poignée ⠿ préservée).
+- Les 9 invariants complémentaires restent verts (séries 1-3), ainsi que
+  les invariants §9 de SPEC_NAVIGATION_V2 ; aucune régression (436 verts).
+
+Bilan tests : **436 verts** (429 + 7 nouveaux série 4, tests P16-bis et
+P18.6-bis ajustés au menu déroulant).
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P18.6 est LIVRÉ** (404 tests verts). Restent :
+**P18.6 et P18.6-bis (séries 1 à 4) sont LIVRÉS** (436 tests verts).
+Restent :
 
 1. **Recette P16/P17/P18/P18.6 par David** (checklist en fin de session
    P17 ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé,
@@ -1705,8 +1754,8 @@ Bilan tests : **428 verts** (404 + 24 nouveaux : 13 série 1, 2 série 2,
    les réglages, onglet « Bibles »), export DOCX relu sous Word ;
    P18.6/P18.6-bis : parcours hub → réunion → étude (stepper
    compact, rattachement, changement d'étude, saisie manuelle,
-   exports 3 portées, vue Études, dates de réunion) contre les
-   maquettes validées mises à jour.
+   exports 3 portées, menu déroulant des études, tuiles et
+   survol) contre les maquettes validées mises à jour.
 2. **P19/P20 (v2.1)** — page Ouvrage complète (arborescence à la Word,
    document compilé éditable, rapport d'analyse, fusion de pensées,
    mobilité des paragraphes, sous-titres proposés par IA, export

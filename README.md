@@ -84,7 +84,7 @@ L’application s’organise en quatre pages : **Accueil**, **Réunion**, **Étu
 - Trois grandes tuiles : « Nouvelle transcription », « Reprendre une réunion », « Études » — une étude est un regroupement de réunions ayant pour objet un thème spécifique ;
 - bandeau de l’application (logo, « Version 2.0 », pastilles de services « Transcription ElevenLabs » et « Service IA » — verte si configuré, grise sinon) : il n’apparaît que sur l’accueil ;
 - « Dernières réunions » : chaque mini-tuile affiche le titre, l’étude de rattachement (ou « Réunion autonome », avec un lien « rattacher à une étude… »), le stepper compact et le coût des traitements ;
-- la tuile « Études » ouvre une vue dédiée (liste des études, « Nouvelle étude », « Ouvrir depuis un dossier… ») — le hub reste épuré.
+- la tuile « Études » ouvre un **menu déroulant** (études récentes avec leur nombre de réunions, « ＋ Nouvelle étude », « Ouvrir depuis un dossier… ») qui ouvre directement la page Étude — le hub reste épuré, sans page intermédiaire.
 
 ### Page Réunion
 
