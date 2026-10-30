@@ -74,8 +74,9 @@ class TuileAccueil(QWidget):
     contour passant au bleu d'accent (#4a7db5),
     OMBRE PORTÉE vers le bas (8 % d'opacité) —
     l'effet est PROGRESSIF (contour, élévation et
-    ombre animés ensemble, ~200 ms), retour
-    immédiat en sortie de survol, curseur main.
+    ombre animés ensemble, ~120 ms — spec 30f
+    §22/invariant 10), retour immédiat en sortie
+    de survol, curseur main.
 
     Carte moins large que la rangée : rapport
     3:2 (~300 × 200 px), la rangée des trois
@@ -88,7 +89,7 @@ class TuileAccueil(QWidget):
     clique = Signal()
 
     ELEVATION_SURVOL = 2
-    DUREE_SURVOL_MS = 200
+    DUREE_SURVOL_MS = 120
     OPACITE_OMBRE_SURVOL = 0.08
     LARGEUR_CARTE = 300
     HAUTEUR_CARTE = 200

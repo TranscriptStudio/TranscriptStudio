@@ -213,8 +213,8 @@ class TestCartesHub:
         """
         Retour David : élévation ~2 px + ombre
         portée vers le bas (8 % d'opacité),
-        PROGRESSIVES (~200 ms) à l'entrée, retour
-        IMMÉDIAT en sortie.
+        PROGRESSIVES (~120 ms — spec 30f) à
+        l'entrée, retour IMMÉDIAT en sortie.
         """
 
         from PySide6.QtGui import QColor
@@ -224,7 +224,7 @@ class TestCartesHub:
         tuile = accueil.tuile_nouvelle
 
         assert tuile.ELEVATION_SURVOL == 2
-        assert tuile.DUREE_SURVOL_MS == 200
+        assert tuile.DUREE_SURVOL_MS == 120
         assert tuile.OPACITE_OMBRE_SURVOL == 0.08
 
         base = tuile.pos()
@@ -234,7 +234,7 @@ class TestCartesHub:
         # Animation lancée, durée ~200 ms,
         # progression 0 -> 1.
         assert tuile._animation is not None
-        assert tuile._animation.duration() == 200
+        assert tuile._animation.duration() == 120
         assert tuile._animation.startValue() == 0.0
         assert tuile._animation.endValue() == 1.0
 
