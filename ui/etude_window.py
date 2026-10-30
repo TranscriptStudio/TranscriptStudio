@@ -963,15 +963,34 @@ class EtudeWindow(QWidget):
 
         ligne_stepper = QHBoxLayout()
 
-        stepper = StepperBar(
-            etapes=etats.keys(),
-            cliquable=False,
-            compact=True
-        )
+        if etats is None:
 
-        stepper.definir_etats(etats)
+            # Réunion non transcrite : AUCUN
+            # stepper, mention discrète
+            # (P18.6-bis §19, invariant 9).
+            mention = QLabel(
+                "transcription en attente"
+            )
+            mention.setStyleSheet(
+                "color: #8A8A8A;"
+                "font-style: italic;"
+                "font-size: 11px;"
+            )
 
-        ligne_stepper.addWidget(stepper)
+            ligne_stepper.addWidget(mention)
+
+        else:
+
+            stepper = StepperBar(
+                etapes=etats.keys(),
+                cliquable=False,
+                compact=True
+            )
+
+            stepper.definir_etats(etats)
+
+            ligne_stepper.addWidget(stepper)
+
         ligne_stepper.addStretch()
 
         cout_label = QLabel(

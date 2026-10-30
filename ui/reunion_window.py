@@ -10,9 +10,9 @@ date · durée, badge « Étude "…" · Bible : [version] »
 ou « Réunion autonome », boutons Gestion de
 l'étude, Accueil, ⚙, ?.
 
-Stepper fixe en haut : ① Prétraitement ·
-② Transcription · ③ Correction · ④ Reformulation ·
-⑤ Résumé · ⑥ Export — ④ et ⑤ OPTIONNELLES
+Stepper compact (P18.6-bis, spec correctifs §19)
+: ① Transcription · ② Reformulation · ③ Résumé ·
+④ Export — ② et ③ OPTIONNELLES
 (contour pointillé) : « Étape suivante » précise
 « (optionnelle) » le cas échéant, « passer
 l'étape › » les saute ; le passage direct
@@ -126,11 +126,11 @@ class ReunionWindow(QWidget):
         self.fenetre_correction = None
         self.fenetre_reformulation = None
 
-        self.etape_courante = "correction"
+        self.etape_courante = "transcription"
 
         self.build_ui()
 
-        self.changer_etape("correction")
+        self.changer_etape("transcription")
 
     # ==================================================
     # Rattachement (0 ou 1 étude).
@@ -192,7 +192,12 @@ class ReunionWindow(QWidget):
         )
 
         #
-        # Stepper fixe en haut (spec §3.2), cliquable.
+        # Stepper compact en haut (P18.6-bis, spec
+        # correctifs §19), cliquable — VISIBLE
+        # uniquement si la transcription est faite.
+        # Une réunion non transcrite n'affiche
+        # JAMAIS de stepper : mention discrète à la
+        # place (invariant complémentaire 9).
         #
         self.stepper = StepperBar(cliquable=True)
 
@@ -201,6 +206,18 @@ class ReunionWindow(QWidget):
         )
 
         layout.addWidget(self.stepper)
+
+        self.mention_label = QLabel(
+            "transcription en attente"
+        )
+        self.mention_label.setStyleSheet(
+            "color: #8A8A8A;"
+            "font-style: italic;"
+            "font-size: 12px;"
+        )
+        self.mention_label.setVisible(False)
+
+        layout.addWidget(self.mention_label)
 
         self.contenu = QStackedWidget()
 
@@ -469,14 +486,15 @@ class ReunionWindow(QWidget):
         self.maj_stepper()
 
     def _construire_page_etape(self, etape):
-
-        if etape == "pretraitement":
-            return self._page_pretraitement()
+        """
+        P18.6-bis (spec correctifs §19) : les étapes
+        Prétraitement / Transcription / Correction
+        n'existent plus séparément — la pastille
+        « Transcription » ouvre l'éditeur de
+        correction (invariant complémentaire 8).
+        """
 
         if etape == "transcription":
-            return self._page_transcription()
-
-        if etape == "correction":
             return self._page_correction()
 
         if etape == "reformulation":
@@ -526,93 +544,6 @@ class ReunionWindow(QWidget):
         layout.addStretch()
 
         return panneau
-
-    def _page_pretraitement(self):
-
-        from services.avancement import (
-            etat_pretraitement,
-        )
-
-        dossier = Path(
-            getattr(
-                self.projet,
-                "project_file",
-                ""
-            )
-        ).parent
-
-        journal = (
-            dossier / "journal_operations.json"
-        ).is_file()
-
-        lignes = []
-
-        if journal:
-            lignes.append(
-                "Le prétraitement de l'audio a été "
-                "réalisé (journal des opérations "
-                "présent)."
-            )
-        else:
-            lignes.append(
-                "Aucun journal de prétraitement : "
-                "l'audio a été importé sans "
-                "prétraitement (ou transcrit "
-                "directement)."
-            )
-
-        audio = getattr(
-            self.projet,
-            "audio_file",
-            None
-        )
-
-        if audio:
-            lignes.append(
-                "Fichier audio : " + str(audio)
-            )
-
-        return self._page_information(
-            "① Prétraitement",
-            lignes
-        )
-
-    def _page_transcription(self):
-
-        mots = getattr(
-            self.projet,
-            "words",
-            []
-        )
-
-        mots = [
-            m for m in mots
-            if getattr(
-                m,
-                "item_type",
-                "word"
-            ) == "word"
-        ]
-
-        lignes = [
-            f"Transcription : {len(mots)} mot(s) "
-            "horodaté(s).",
-            (
-                "Langue : "
-                + str(
-                    getattr(
-                        self.projet,
-                        "language_code",
-                        "—"
-                    )
-                )
-            ),
-        ]
-
-        return self._page_information(
-            "② Transcription",
-            lignes
-        )
 
     def _page_correction(self):
         """
@@ -1186,6 +1117,18 @@ class ReunionWindow(QWidget):
             settings=self.settings,
         )
 
+        if etats is None:
+
+            # Réunion non transcrite : AUCUN
+            # stepper, mention discrète (§19).
+            self.stepper.setVisible(False)
+            self.mention_label.setVisible(True)
+
+            return
+
+        self.stepper.setVisible(True)
+        self.mention_label.setVisible(False)
+
         self.stepper.definir_etats(etats)
 
     # ==================================================
@@ -1285,7 +1228,7 @@ class ReunionWindow(QWidget):
             self._ligne_infos()
         )
 
-        self.changer_etape("correction")
+        self.changer_etape("transcription")
 
     def rattacher_ui(self):
 

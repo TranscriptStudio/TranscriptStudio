@@ -133,6 +133,71 @@ class ProjectManager:
 
         return folder
 
+    def trouver_projet_prepare(self, audio_file):
+        """
+        P18.6-bis (spec correctifs §19) : cherche un
+        dossier projet où cet audio a DÉJÀ été
+        prétraité lors d'une session précédente —
+        copie de l'audio présente, audio finalisé
+        (``audio_processed.wav``) et journal de
+        prétraitement, SANS transcription
+        (project.sttproj absent).
+
+        Retour : chemin du dossier (la transcription
+        directe de l'audio traité s'y poursuit), ou
+        None.
+        """
+
+        from pathlib import Path as _Path
+
+        source = _Path(audio_file)
+
+        if not self.root or not source.name:
+            return None
+
+        for categorie in sorted(
+            _Path(self.root).iterdir()
+        ):
+
+            if not categorie.is_dir():
+                continue
+
+            for dossier in sorted(
+                categorie.iterdir()
+            ):
+
+                if not dossier.is_dir():
+                    continue
+
+                if not (
+                    dossier / source.name
+                ).is_file():
+                    continue
+
+                if not (
+                    dossier
+                    / "audio_processed.wav"
+                ).is_file():
+                    continue
+
+                if not (
+                    dossier
+                    / "journal_operations.json"
+                ).is_file():
+                    continue
+
+                if (
+                    dossier
+                    / "project.sttproj"
+                ).is_file():
+                    # Déjà transcrit : ce n'est pas un
+                    # audio « en attente ».
+                    continue
+
+                return dossier
+
+        return None
+
     def create_project_folder(
         self,
         audio_file,

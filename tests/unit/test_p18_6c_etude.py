@@ -215,9 +215,12 @@ class TestListeReunions:
                 for b in stepper.boutons.values()
             ]
 
-            assert "⑥ Export" not in libelles
+            assert "④ Export" not in libelles
 
-            assert len(libelles) == 5
+            # Page Étude : Transcription →
+            # Reformulation → Résumé (3 pastilles,
+            # P18.6-bis §19).
+            assert len(libelles) == 3
 
     def test_mini_tuile_infos(self, page):
 

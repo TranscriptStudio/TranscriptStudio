@@ -53,33 +53,57 @@ ETAPE_REFORMULATION = "reformulation"
 ETAPE_RESUME = "resume"
 ETAPE_EXPORT = "export"
 
+#
+# Modèle COMPACT (P18.6-bis, spec correctifs §19) :
+# le stepper n'apparaît qu'UNE FOIS LA
+# TRANSCRIPTION RÉALISÉE — Transcription →
+# Reformulation → Résumé → Export (①→④). Les
+# étapes Prétraitement / Transcription /
+# Correction n'apparaissent PLUS séparément : la
+# pastille « Transcription » fusionne
+# transcription + correction et OUVRE l'éditeur
+# de correction (invariants complémentaires 5 et
+# 8). Une réunion non transcrite n'affiche
+# JAMAIS de stepper (invariant 9) : mention
+# discrète à la place.
+#
 ETAPES_REUNION = (
-    ETAPE_PRETRAITEMENT,
     ETAPE_TRANSCRIPTION,
-    ETAPE_CORRECTION,
     ETAPE_REFORMULATION,
     ETAPE_RESUME,
     ETAPE_EXPORT,
 )
 
-# Page Étude : avancement ①→⑤ sans ⑥ (spec §4.2).
-ETAPES_ETUDE = ETAPES_REUNION[:5]
+# Page Étude : avancement SANS Export (l'objectif
+# final d'une étude est l'export global de
+# l'ouvrage, spec §4.2).
+ETAPES_ETUDE = (
+    ETAPE_TRANSCRIPTION,
+    ETAPE_REFORMULATION,
+    ETAPE_RESUME,
+)
 
-# ④ et ⑤ sont optionnelles (spec §3.3) : contour
-# pointillé, passage direct ②→⑥ toujours possible.
+# Reformulation et Résumé restent optionnelles :
+# l'optionnalité ne se lit que dans le bouton
+# « Étape suivante : … (optionnelle) » et
+# l'info-bulle (P18.6-bis §18).
 ETAPES_OPTIONNELLES = (
     ETAPE_REFORMULATION,
     ETAPE_RESUME,
 )
 
 LIBELLES_ETAPES = {
-    ETAPE_PRETRAITEMENT: "① Prétraitement",
-    ETAPE_TRANSCRIPTION: "② Transcription",
-    ETAPE_CORRECTION: "③ Correction",
-    ETAPE_REFORMULATION: "④ Reformulation",
-    ETAPE_RESUME: "⑤ Résumé",
-    ETAPE_EXPORT: "⑥ Export",
+    ETAPE_TRANSCRIPTION: "① Transcription",
+    ETAPE_REFORMULATION: "② Reformulation",
+    ETAPE_RESUME: "③ Résumé",
+    ETAPE_EXPORT: "④ Export",
 }
+
+# Mention discrète d'une réunion non transcrite
+# (stepper absent, spec correctifs §19 ; la
+# transcription active est couverte par le
+# dialogue de progression du hub).
+MENTION_NON_TRANCRITE = "transcription en attente"
 
 FICHIER_JOURNAL_PRETRAITEMENT = (
     "journal_operations.json"
@@ -343,7 +367,43 @@ def etat_export(chemin_projet, settings=None) -> str:
     return A_FAIRE
 
 
-def etapes_reunion(
+def transcrite(projet) -> bool:
+    """
+    La transcription de la réunion est-elle
+    réalisée (mots horodatés présents) ?
+
+    P18.6-bis (spec correctifs §19) : une réunion
+    sans transcription est un audio préparé non
+    transcrit — elle n'affiche JAMAIS de stepper
+    (invariant complémentaire 9), le déroulement
+    de préparation audio est linéaire.
+    """
+
+    return bool(
+        getattr(projet, "words", None)
+    )
+
+
+def etat_etape_transcription(projet) -> str:
+    """
+    État de la pastille « Transcription » (fusion
+    transcription + correction, spec correctifs
+    §19) :
+
+    - VERTE quand la transcription corrigée est
+      validée — concrètement : la diarisation est
+      validée (blocs de parole présents, aboutissement
+      de la correction dans l'éditeur) ;
+    - BLEUE tant que la correction est en cours
+      (transcription sans blocs) ;
+    - grise sinon (pas de stepper du tout dans ce
+      cas, la réunion n'est pas transcrite).
+    """
+
+    return etat_correction(projet)
+
+
+def etats_compacts(
     projet,
     etude_ouverte=None,
     nom=None,
@@ -351,10 +411,18 @@ def etapes_reunion(
     chemin_projet=None
 ) -> dict:
     """
-    États des six étapes d'une réunion (hub et page
-    Réunion — le stepper complet ①→⑥ y figure,
-    spec §2.4 et §3.2).
+    États des QUATRE étapes compactes d'une réunion
+    TRANSCRITE (hub et page Réunion, spec
+    correctifs §19) : ① Transcription →
+    ② Reformulation → ③ Résumé → ④ Export.
+
+    Pour une réunion NON transcrite, retourne
+    None : aucun stepper (invariant 9 — mention
+    discrète à la place).
     """
+
+    if not transcrite(projet):
+        return None
 
     if chemin_projet is None:
         chemin_projet = getattr(
@@ -364,14 +432,8 @@ def etapes_reunion(
         )
 
     return {
-        ETAPE_PRETRAITEMENT: (
-            etat_pretraitement(projet)
-        ),
         ETAPE_TRANSCRIPTION: (
-            etat_transcription(projet)
-        ),
-        ETAPE_CORRECTION: (
-            etat_correction(projet)
+            etat_etape_transcription(projet)
         ),
         ETAPE_REFORMULATION: (
             etat_reformulation(etude_ouverte, nom)
@@ -385,6 +447,29 @@ def etapes_reunion(
     }
 
 
+def etapes_reunion(
+    projet,
+    etude_ouverte=None,
+    nom=None,
+    settings=None,
+    chemin_projet=None
+) -> dict:
+    """
+    Alias historique : états du stepper compact de
+    la page Réunion (P18.6-bis §19). Retourne None
+    pour une réunion non transcrite (aucun
+    stepper).
+    """
+
+    return etats_compacts(
+        projet,
+        etude_ouverte=etude_ouverte,
+        nom=nom,
+        settings=settings,
+        chemin_projet=chemin_projet
+    )
+
+
 def etapes_reunion_page_etude(
     etude_ouverte,
     nom,
@@ -392,9 +477,12 @@ def etapes_reunion_page_etude(
 ) -> dict:
     """
     États d'avancement d'une réunion AFFICHÉS SUR
-    LA PAGE ÉTUDE : ①→⑤, jamais ⑥ (invariant
-    §9.4 — l'objectif d'une étude est l'export
-    global de l'ouvrage, pas l'export de réunion).
+    LA PAGE ÉTUDE : Transcription → Reformulation
+    → Résumé, JAMAIS Export (invariant §9.4 —
+    l'objectif d'une étude est l'export global de
+    l'ouvrage, pas l'export de réunion). Retourne
+    None pour une réunion non transcrite (aucun
+    stepper, invariant complémentaire 9).
     """
 
     etats = etapes_reunion(
@@ -403,6 +491,9 @@ def etapes_reunion_page_etude(
         nom=nom,
         settings=None,
     )
+
+    if etats is None:
+        return None
 
     etats.pop(ETAPE_EXPORT)
 

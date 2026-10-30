@@ -323,8 +323,20 @@ class TestAvancement:
             settings=settings
         )
 
-        # Six étapes, ④ et ⑤ optionnelles.
+        # Stepper COMPACT (P18.6-bis §19) :
+        # ① Transcription → ② Reformulation →
+        # ③ Résumé → ④ Export ; ② et ③
+        # optionnelles ; les étapes Prétraitement /
+        # Transcription / Correction n'apparaissent
+        # plus séparément.
         assert tuple(etats.keys()) == ETAPES_REUNION
+
+        assert ETAPES_REUNION == (
+            "transcription",
+            "reformulation",
+            "resume",
+            "export"
+        )
 
         assert ETAPES_OPTIONNELLES == (
             "reformulation",
@@ -341,7 +353,7 @@ class TestAvancement:
             )
         )
 
-        assert ETAPES_ETUDE == ETAPES_REUNION[:5]
+        assert ETAPES_ETUDE == ETAPES_REUNION[:3]
 
 
 #
@@ -352,13 +364,18 @@ class TestAvancement:
 
 class TestStepperBar:
 
-    def test_six_etapes_reunion(self, qapp):
+    def test_quatre_etapes_reunion(self, qapp):
+        """
+        Stepper compact (P18.6-bis §19, invariant
+        complémentaire 5) : Transcription →
+        Reformulation → Résumé → Export.
+        """
 
         from ui.stepper import StepperBar
 
         barre = StepperBar()
 
-        assert len(barre.boutons) == 6
+        assert len(barre.boutons) == 4
 
         libelles = [
             bouton.text()
@@ -366,23 +383,25 @@ class TestStepperBar:
         ]
 
         assert libelles == [
-            "① Prétraitement",
-            "② Transcription",
-            "③ Correction",
-            "④ Reformulation",
-            "⑤ Résumé",
-            "⑥ Export",
+            "① Transcription",
+            "② Reformulation",
+            "③ Résumé",
+            "④ Export",
         ]
 
-    def test_cinq_etudes_page_etude(self, qapp):
+    def test_trois_etapes_page_etude(self, qapp):
+        """
+        Page Étude : Transcription → Reformulation →
+        Résumé, JAMAIS Export (invariant §9.4).
+        """
 
         from ui.stepper import StepperBar
 
         barre = StepperBar(etapes=ETAPES_ETUDE)
 
-        assert len(barre.boutons) == 5
+        assert len(barre.boutons) == 3
 
-        assert "⑥ Export" not in [
+        assert "④ Export" not in [
             b.text()
             for b in barre.boutons.values()
         ]
@@ -435,17 +454,17 @@ class TestStepperBar:
         barre = StepperBar()
 
         barre.definir_etats({
-            "pretraitement": TERMINE,
-            "transcription": EN_COURS,
+            "transcription": TERMINE,
+            "reformulation": EN_COURS,
         })
 
         assert "#4CAF50" in (
-            barre.boutons["pretraitement"]
+            barre.boutons["transcription"]
             .styleSheet()
         )
 
         assert "#2196F3" in (
-            barre.boutons["transcription"]
+            barre.boutons["reformulation"]
             .styleSheet()
         )
 
@@ -906,9 +925,10 @@ class TestHub:
 
             assert steppers
 
-            # Stepper complet ①→⑥ conservé sur le hub
-            # (spec §2.4 — réunions autonomes).
-            assert len(steppers[0].boutons) == 6
+            # Stepper COMPACT ①→④ sur le hub, une
+            # fois la transcription faite (P18.6-bis
+            # §19, invariant complémentaire 5).
+            assert len(steppers[0].boutons) == 4
 
         finally:
             accueil.close()

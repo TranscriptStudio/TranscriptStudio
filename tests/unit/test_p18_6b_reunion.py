@@ -197,13 +197,35 @@ class TestRuban:
 
 class TestStepper:
 
-    def test_six_etapes_fixes(self, reunion):
+    def test_quatre_etapes_compactes(self, reunion):
+        """
+        P18.6-bis §19 : stepper compact Transcription
+        → Reformulation → Résumé → Export (jamais
+        Prétraitement / Correction séparés).
+        """
 
         fenetre = reunion[0]
 
-        assert len(fenetre.stepper.boutons) == 6
+        assert len(fenetre.stepper.boutons) == 4
 
-        assert fenetre.etape_courante == "correction"
+        libelles = [
+            b.text()
+            for b in (
+                fenetre.stepper.boutons.values()
+            )
+        ]
+
+        assert libelles == [
+            "① Transcription",
+            "② Reformulation",
+            "③ Résumé",
+            "④ Export",
+        ]
+
+        assert (
+            fenetre.etape_courante
+            == "transcription"
+        )
 
     def test_etape_suivante_optionnelle(
         self,
@@ -217,21 +239,32 @@ class TestStepper:
 
         fenetre = reunion[0]
 
-        # ③ Correction → ④ Reformulation : libellé
-        # « Étape suivante : ④ Reformulation
+        # ① Transcription → ② Reformulation :
+        # libellé « Étape suivante : ② Reformulation
         # (optionnelle) › » (§20 : nom de l'étape
         # qui vient).
         assert (
             fenetre.etape_suivante_button.text()
-            == "Étape suivante : ④ Reformulation "
+            == "Étape suivante : ② Reformulation "
             "(optionnelle) ›"
         )
 
-        fenetre.etape_courante = "transcription"
+        fenetre.etape_courante = "reformulation"
 
         fenetre.maj_boutons_etape()
 
-        # ② → ③ : pas optionnelle.
+        # ② → ③ Résumé : optionnelle aussi.
+        assert "(optionnelle)" in (
+            fenetre
+            .etape_suivante_button
+            .text()
+        )
+
+        fenetre.etape_courante = "resume"
+
+        fenetre.maj_boutons_etape()
+
+        # ③ → ④ Export : pas optionnelle.
         assert "(optionnelle)" not in (
             fenetre
             .etape_suivante_button
@@ -269,7 +302,7 @@ class TestStepper:
             "Contenu existant, jamais invalidé."
         )
 
-        fenetre.changer_etape("transcription")
+        fenetre.changer_etape("reformulation")
         fenetre.changer_etape("export")
 
         assert (

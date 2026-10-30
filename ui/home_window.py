@@ -598,6 +598,7 @@ class HomeWindow(QWidget):
             chemin_projet=str(chemin)
         )
 
+
         cadre = QFrame()
         cadre.setObjectName("hub_mini_tuile")
         cadre.setStyleSheet(
@@ -686,13 +687,28 @@ class HomeWindow(QWidget):
 
         layout.addLayout(ligne_etude)
 
-        stepper = StepperBar(
-            cliquable=False,
-            compact=True
-        )
-        stepper.definir_etats(etats)
+        if etats is None:
 
-        layout.addWidget(stepper)
+            mention = QLabel(
+                "transcription en attente"
+            )
+            mention.setStyleSheet(
+                "color: #8A8A8A;"
+                "font-style: italic;"
+                "font-size: 11px;"
+            )
+
+            layout.addWidget(mention)
+
+        else:
+
+            stepper = StepperBar(
+                cliquable=False,
+                compact=True
+            )
+            stepper.definir_etats(etats)
+
+            layout.addWidget(stepper)
 
         ligne_actions = QHBoxLayout()
 
@@ -1002,6 +1018,67 @@ class HomeWindow(QWidget):
             result["category"]
         )
         manager = ProjectManager()
+
+        #
+        # P18.6-bis (spec correctifs §19) : transcrire
+        # un audio DÉJÀ PRÉTRAITÉ lors d'une session
+        # précédente revient à une transcription
+        # DIRECTE — le prétraitement déjà réalisé
+        # n'ouvre aucune étape supplémentaire.
+        #
+        deja_prepare = manager.trouver_projet_prepare(
+            audio_file
+        )
+
+        if deja_prepare is not None:
+
+            audio_traite = (
+                deja_prepare
+                / "audio_processed.wav"
+            )
+
+            reponse = QMessageBox.question(
+                self,
+                "Audio déjà préparé",
+                (
+                    "Un prétraitement de cet audio a "
+                    "déjà été finalisé :\n\n"
+                    f"{deja_prepare}\n\n"
+                    "Transcrire directement l'audio "
+                    "préparé (sans nouveau "
+                    "prétraitement) ?"
+                )
+            )
+
+            if reponse != (
+                QMessageBox.StandardButton.Yes
+            ):
+                return
+
+            dialog = NewTranscriptionDialog(
+                str(audio_traite),
+                self
+            )
+
+            if not dialog.exec():
+                return
+
+            options = dialog.get_options()
+
+            self.current_project_folder = (
+                deja_prepare
+            )
+
+            self.current_audio_file = (
+                audio_traite
+            )
+
+            self.start_transcription(
+                audio_traite,
+                options
+            )
+
+            return
 
         project_folder = (
             manager.create_project_folder(
