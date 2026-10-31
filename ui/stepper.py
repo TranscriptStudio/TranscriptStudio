@@ -28,6 +28,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
+    QSizePolicy,
     QWidget,
 )
 
@@ -183,6 +184,22 @@ class StepperBar(QWidget):
             self.boutons[etape] = bouton
 
         layout.addStretch()
+
+        #
+        # P18.6-bis série 7 (retour David : steppers
+        # ALIGNÉS) : l'étirement interne de la
+        # barre se PROPAGE à sa politique de taille
+        # (le layout rend le widget EXPANSIF) —
+        # placée dans une rangée, la barre volait
+        # alors l'élasticité et sa colonne glissait
+        # selon le contenu. Taille VERROUILLÉE : la
+        # barre ne dépasse jamais ses pastilles
+        # (Maximum), la hauteur est fixe.
+        #
+        self.setSizePolicy(
+            QSizePolicy.Policy.Maximum,
+            QSizePolicy.Policy.Fixed,
+        )
 
     def _style(
         self,

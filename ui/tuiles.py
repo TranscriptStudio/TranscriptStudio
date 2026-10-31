@@ -420,14 +420,25 @@ class TuileReunion(QWidget):
     def _zone_infos(
         self,
         fabrique_stepper,
-        cout,
-        aligne_droite: bool
+        cout
     ):
         """
-        Stepper compact + coût (alignés à droite).
-        Chaque page empilée construit SON stepper
-        (un même widget ne peut appartenir à deux
-        layouts).
+        Coût + stepper compact, POUSSÉS À DROITE et
+        surtout STEPPER COLLÉ AU BORD DROIT : sa
+        colonne est IDENTIQUE d'une réunion à
+        l'autre, quelle que soit la largeur du
+        coût affiché (retour David : « les
+        steppers ne sont pas alignés »).
+
+        La rangée donne à cette zone toute la
+        place restante (stretch) : l'élasticité
+        VIT À L'INTÉRIEUR (entre le contenu de
+        gauche et le coût) — le stepper, ajouté
+        AVEC alignement, ne s'étire jamais
+        (l'étirement interne de sa barre ne lui
+        permet pas de voler l'élasticité de la
+        rangée, ce qui décalait sa colonne selon
+        le contenu de gauche).
         """
 
         zone = QWidget()
@@ -435,8 +446,7 @@ class TuileReunion(QWidget):
         ligne.setContentsMargins(0, 0, 0, 0)
         ligne.setSpacing(12)
 
-        if fabrique_stepper is not None:
-            ligne.addWidget(fabrique_stepper())
+        ligne.addStretch()
 
         cout_label = QLabel(cout)
 
@@ -448,10 +458,18 @@ class TuileReunion(QWidget):
             "color: #8a8b92;"
         )
 
-        if aligne_droite:
-            ligne.addStretch()
-
         ligne.addWidget(cout_label)
+
+        if fabrique_stepper is not None:
+            ligne.addWidget(
+                fabrique_stepper(),
+                0,
+                (
+                    Qt.AlignmentFlag.AlignRight
+                    | Qt.AlignmentFlag
+                    .AlignVCenter
+                ),
+            )
 
         self.cout_label = cout_label
 
@@ -495,10 +513,11 @@ class TuileReunion(QWidget):
             ligne.addSpacing(4)
             ligne.addWidget(secondaire)
 
-        ligne.addStretch()
-
+        # La zone d'infos étire la rangée :
+        # l'élasticité est interne à la zone.
         ligne.addWidget(
-            self._zone_infos(fabrique_stepper, cout, False)
+            self._zone_infos(fabrique_stepper, cout),
+            stretch=1,
         )
 
         return page
@@ -551,9 +570,10 @@ class TuileReunion(QWidget):
 
         deuxieme = QHBoxLayout()
         deuxieme.setSpacing(0)
-        deuxieme.addStretch()
+
         deuxieme.addWidget(
-            self._zone_infos(fabrique_stepper, cout, False)
+            self._zone_infos(fabrique_stepper, cout),
+            stretch=1,
         )
 
         colonne.addLayout(deuxieme)

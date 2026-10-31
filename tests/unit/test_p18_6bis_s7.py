@@ -595,6 +595,112 @@ class TestSteppersAlignes:
         finally:
             accueil.close()
 
+    def test_colonne_constante_meme_largeur_de_cout(
+        self,
+        qapp
+    ):
+        """
+        MÉCANISME de l'alignement (cause du bug) :
+        le stepper, collé au bord droit de sa
+        zone, garde la MÊME colonne quelle que
+        soit la largeur du coût affiché
+        (« Coût : 12.3456 $ » vs « Coût : — ») ;
+        sa politique de taille est VERROUILLÉE
+        (Maximum — l'étirement interne de la
+        barre ne la rend plus expansive, il ne
+        volait l'élasticité de la rangée et
+        décalait sa colonne selon le contenu).
+        """
+
+        from PySide6.QtWidgets import QSizePolicy
+
+        from ui.stepper import StepperBar
+        from ui.tuiles import TuileReunion
+
+        def fabrique():
+            barre = StepperBar(
+                cliquable=False,
+                compact=True
+            )
+
+            barre.definir_etats({
+                "transcription": "termine",
+                "reformulation": "en_cours",
+                "resume": "a_faire",
+                "export": "a_faire",
+            })
+
+            return barre
+
+        # Politique de taille verrouillée : la
+        # barre ne dépasse jamais ses pastilles.
+        barre = fabrique()
+
+        assert (
+            barre.sizePolicy()
+            .horizontalPolicy()
+            == QSizePolicy.Policy.Maximum
+        )
+
+        barre.close()
+
+        # Coût LARGE vs court : même colonne.
+        large = TuileReunion(
+            "c1",
+            "Titre long de réunion",
+            "Étude « Évangile selon Luc »",
+            fabrique_stepper=fabrique,
+            cout="Coût : 12.3456 $",
+        )
+
+        court = TuileReunion(
+            "c2",
+            "Autre",
+            None,
+            fabrique_stepper=fabrique,
+            cout="Coût : —",
+        )
+
+        try:
+
+            # Dans le hub, toutes les tuiles partagent
+            # la largeur de la fenêtre : la largeur
+            # d'essai dépasse le minimum du contenu
+            # le plus large (une tuile top-level ne
+            # descend jamais sous son minimum).
+            largeur = max(
+                tuile
+                .minimumSizeHint()
+                .width()
+                for tuile in (large, court)
+            ) + 200
+
+            for tuile in (large, court):
+                tuile.resize(largeur, 40)
+                tuile._basculer_selon_largeur(largeur)
+                tuile.grab()
+
+            colonnes = set()
+
+            for tuile in (large, court):
+                page = tuile.pile.currentWidget()
+
+                stepper = page.findChildren(
+                    StepperBar
+                )[0]
+
+                colonnes.add(
+                    stepper
+                    .mapTo(tuile, QPoint(0, 0))
+                    .x()
+                )
+
+            assert len(colonnes) == 1
+
+        finally:
+            large.close()
+            court.close()
+
 
 #
 # ==================================================
