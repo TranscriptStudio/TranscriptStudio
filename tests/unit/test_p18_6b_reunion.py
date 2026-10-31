@@ -401,19 +401,92 @@ class TestContenu:
             is not None
         )
 
-    def test_reformulation_sans_etude(
+    def test_reformulation_autonome(
         self,
         reunion_autonome
     ):
         """
-        Réunion autonome : l'étape ④ explique le
-        rattachement au lieu d'ouvrir la page
-        Reformulation.
+        P20 (retour David 31/10, UI reformulation
+        point 1) : une réunion AUTONOME reçoit la
+        reformulation — portée par son étude
+        INTERNE dans le dossier du projet
+        (sous-dossier « _traitements »), SANS
+        rattachement. La segmentation est générée
+        depuis la diarisation validée.
         """
+
+        from unittest.mock import patch
+
+        from PySide6.QtWidgets import QMessageBox
+
+        fenetre, projet_v1, _s = reunion_autonome
+
+        with patch.object(
+            QMessageBox,
+            "question",
+            staticmethod(
+                lambda *a, **k:
+                QMessageBox.StandardButton.Yes
+            )
+        ):
+            fenetre.changer_etape("reformulation")
+
+        from ui.reformulation_window import (
+            ReformulationWindow
+        )
+
+        page = fenetre.pages_etape["reformulation"]
+
+        assert isinstance(
+            page,
+            ReformulationWindow
+        )
+
+        from pathlib import Path
+
+        dossier = (
+            Path(projet_v1.project_file).parent
+            / "_traitements"
+        )
+
+        assert (
+            dossier / "etude.json"
+        ).exists()
+
+        assert page.etude.dossier == dossier
+
+        #
+        # La table de relecture est construite sur
+        # la segmentation générée.
+        #
+        assert page.lignes
+
+        assert not fenetre.rattachee()
+
+    def test_reformulation_autonome_refus_segmentation(
+        self,
+        reunion_autonome
+    ):
+        """
+        Refuser la segmentation : page d'information
+        (aucun crash), la réunion reste autonome.
+        """
+
+        from unittest.mock import patch
+
+        from PySide6.QtWidgets import QMessageBox
 
         fenetre, _p, _s = reunion_autonome
 
-        fenetre.changer_etape("reformulation")
+        with patch.object(
+            QMessageBox,
+            "question",
+            staticmethod(
+                lambda *a, **k:
+                QMessageBox.StandardButton.No
+            )
+        ):
+            fenetre.changer_etape("reformulation")
 
         page = fenetre.pages_etape["reformulation"]
 
@@ -423,28 +496,48 @@ class TestContenu:
         ]
 
         assert any(
-            "autonome" in t for t in textes
+            "segmentation" in t for t in textes
         )
 
-    def test_resume_sans_etude(
+    def test_resume_autonome(
         self,
         reunion_autonome
     ):
+        """
+        P20 : le RÉSUMÉ aussi appartient au
+        processus réunion — la page ⑤ d'une réunion
+        autonome offre le bouton « Résumé… ».
+        """
+
+        from unittest.mock import patch
+
+        from PySide6.QtWidgets import (
+            QMessageBox,
+            QPushButton,
+        )
 
         fenetre, _p, _s = reunion_autonome
+
+        with patch.object(
+            QMessageBox,
+            "question",
+            staticmethod(
+                lambda *a, **k:
+                QMessageBox.StandardButton.Yes
+            )
+        ):
+            fenetre.changer_etape("reformulation")
 
         fenetre.changer_etape("resume")
 
         page = fenetre.pages_etape["resume"]
 
-        textes = [
-            l.text()
-            for l in page.findChildren(QLabel)
+        boutons = [
+            b.text()
+            for b in page.findChildren(QPushButton)
         ]
 
-        assert any(
-            "autonome" in t for t in textes
-        )
+        assert "Résumé…" in boutons
 
 
 #

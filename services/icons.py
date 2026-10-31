@@ -2,8 +2,11 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import (
+    QColor,
+    QFont,
     QIcon,
     QPainter,
+    QPen,
     QPixmap,
     QGuiApplication,
 )
@@ -17,6 +20,63 @@ from services.resources import resource_path
 TEXT_COLOR_LIGHT_THEME = "#191919"
 
 TEXT_COLOR_DARK_THEME = "#F0F0F0"
+
+#
+# Signe + / - des icones A+/A- : bleu, dans les
+# DEUX themes (retour David 31/10, UI
+# reformulation point 2 : les icones A+/A- y
+# sont EXACTEMENT celles de la page
+# transcription).
+#
+COULEUR_SIGNE_TEXTE = "#2A7DDC"
+
+
+def make_text_size_icon(symbol) -> QIcon:
+    """
+    Icone A+/A- partagee (pages Transcription et
+    Reformulation) : « A » a la couleur du texte
+    du theme APPLIQUE, signe +/− en bleu.
+    """
+
+    pixmap = QPixmap(32, 32)
+
+    pixmap.fill(Qt.GlobalColor.transparent)
+
+    painter = QPainter(pixmap)
+
+    painter.setRenderHint(
+        QPainter.RenderHint.Antialiasing
+    )
+
+    text_color = QColor(
+        text_color_effectif()
+    )
+
+    painter.setPen(QPen(text_color))
+
+    font = QFont()
+    font.setPixelSize(18)
+    font.setWeight(QFont.Weight.DemiBold)
+
+    painter.setFont(font)
+
+    painter.drawText(2, 23, "A")
+
+    painter.setPen(
+        QPen(QColor(COULEUR_SIGNE_TEXTE))
+    )
+
+    symbol_font = QFont()
+    symbol_font.setPixelSize(16)
+    symbol_font.setWeight(QFont.Weight.Bold)
+
+    painter.setFont(symbol_font)
+
+    painter.drawText(18, 17, symbol)
+
+    painter.end()
+
+    return QIcon(pixmap)
 
 
 def make_theme_text_color(theme, app=None):

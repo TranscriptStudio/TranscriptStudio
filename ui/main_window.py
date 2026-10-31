@@ -26,11 +26,6 @@ from PySide6.QtGui import (
     QDesktopServices,
     QShortcut,
     QKeySequence,
-    QPixmap,
-    QPainter,
-    QPen,
-    QColor,
-    QFont,
     QIcon,
 )
 from pathlib import Path
@@ -48,6 +43,7 @@ from services.exporter import (TranscriptExporter)
 from services.help import open_user_manual
 from services.icons import (
     make_tinted_icon,
+    make_text_size_icon,
     make_button_height_css,
     ICON_BUTTON_WIDTH,
     ICON_BUTTON_HEIGHT,
@@ -278,11 +274,11 @@ class MainWindow(QMainWindow):
         self.text_larger_button = QPushButton()
 
         self.text_smaller_button.setIcon(
-            self.create_text_size_icon("−")
+            make_text_size_icon("−")
         )
 
         self.text_larger_button.setIcon(
-            self.create_text_size_icon("+")
+            make_text_size_icon("+")
         )
 
         self.text_smaller_button.setIconSize(
@@ -1003,11 +999,11 @@ class MainWindow(QMainWindow):
         """
 
         self.text_smaller_button.setIcon(
-            self.create_text_size_icon("−")
+            make_text_size_icon("−")
         )
 
         self.text_larger_button.setIcon(
-            self.create_text_size_icon("+")
+            make_text_size_icon("+")
         )
 
         self.update_play_button(
@@ -1984,88 +1980,3 @@ class MainWindow(QMainWindow):
             )
 
 
-    def create_text_size_icon(
-        self,
-        symbol
-    ):
-        pixmap = QPixmap(
-            32,
-            32
-        )
-
-        pixmap.fill(
-            Qt.GlobalColor.transparent
-        )
-
-        painter = QPainter(
-            pixmap
-        )
-
-        painter.setRenderHint(
-            QPainter.RenderHint.Antialiasing
-        )
-
-        #
-        # Lettre A dans la couleur normale
-        # du texte de l'interface.
-        #
-        from services.icons import (
-            text_color_effectif,
-        )
-
-        text_color = QColor(
-            text_color_effectif()
-        )
-
-        painter.setPen(
-            QPen(text_color)
-        )
-
-        font = QFont()
-        font.setPixelSize(18)
-        font.setWeight(
-            QFont.Weight.DemiBold
-        )
-
-        painter.setFont(
-            font
-        )
-
-        painter.drawText(
-            2,
-            23,
-            "A"
-        )
-
-        #
-        # + ou - en bleu.
-        #
-        painter.setPen(
-            QPen(
-                QColor("#2A7DDC")
-            )
-        )
-
-        symbol_font = QFont()
-        symbol_font.setPixelSize(16)
-        symbol_font.setWeight(
-            QFont.Weight.Bold
-        )
-
-        painter.setFont(
-            symbol_font
-        )
-
-        painter.drawText(
-            18,
-            17,
-            symbol
-        )
-
-        painter.end()
-
-        return QIcon(
-            pixmap
-        )
-
-   

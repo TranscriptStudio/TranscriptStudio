@@ -1,25 +1,39 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**série 8-quater — LA panne des couleurs
-> sombre/clair enfin à sa vraie racine**). **CAUSE RÉELLE** (pourquoi la 8-ter « ne changeait
-> rien » sur la machine de David) : le broadcast de changement de thème ne parcourait que
-> les fenêtres DE PREMIER NIVEAU — or dans l'application réelle la page Réunion (éditeur,
-> stepper, A+/A−) est EMBARQUÉE dans le QStackedWidget d'AppWindow : le broadcast ne
-> l'atteignait JAMAIS. Les couleurs peintes à la main restaient figées au thème de leur
-> CONSTRUCTION et ne se corrigeaient qu'au survol (d'où tous les allers-retours). En tests
-> la page était orpheline (top-level) → tout passait sans que le réel soit réparé.
-> **CORRECTIF** : diffuser_changement_theme parcourt désormais TOUS les widgets VISIBLES
-> (QApplication.allWidgets() + isVisible — un enfant n'est visible que si toute sa chaîne
-> d'ancêtres l'est : la page courante d'une app ouverte est rafraîchie, les fenêtres
-> fermées/cachées ne paient rien) ; ReunionWindow.sur_changement_theme ne propage plus
-> manuellement (l'éditeur embarqué reçoit le broadcast directement, plus de double travail).
-> **TEST DE RÉGRESSION (TestBroadcastEmbarque)** reproduisant le RÉEL : page Réunion dans
-> une pile d'une fenêtre montrée, bascule clair→sombre — icônes A+/A−, texte des blocs et
-> pastilles du stepper se rafraîchissent. Série 8-ter conservée (timeline et intervenants
-> peignent via le thème appliqué, est_sombre ne lit plus jamais la palette, verrous
-> palette-opposée). **552 tests verts**. Aussi livrés ce jour : séries 8/8-bis, série 7
-> (invariant 16), catalogue LLM v3 + effort de raisonnement, P19.1-P19.3, P16-bis 4ᵉ série,
-> P18.6-bis séries 6-7-bis.
+> **Dernière mise à jour** : 2026-10-31 (**P20 livré — UI REFORMULATION, retour David
+> 31/10 points 1-9**). (1) RÉUNION AUTONOME : la reformulation ET le résumé appartiennent au
+> processus RÉUNION — une réunion autonome reçoit tous les traitements du stepper (hors
+> ouvrage) via une étude INTERNE persistée dans le dossier du projet v1
+> (sous-dossier « _traitements », créée/ouverte par ReunionWindow._etude_interne, creer=False
+> pour les états du stepper sans effet de bord) ; segmentation générée depuis la diarisation
+> validée (assurer_decoupage) ; le stepper comptabilise les traitements de l'étude interne.
+> (2) icônes A+/A− : générateur PARTAGÉ avec la page transcription
+> (services.icons.make_text_size_icon — « A » au texte du thème appliqué, signe bleu
+> #2A7DDC ; main_window.create_text_size_icon supprimé). (3) TIMELINE SUPPRIMÉE de la page
+> reformulation (le pointage du mot lu dans le bloc d'origine suffit ; plus de composants
+> TimelineWidget/TimelineSpeakerPanel/QToolTip résiduels). (4) BARRE ÉPURÉE : plus de
+> boutons Sauvegarder/Aide/Accueil/Timeline ; la barre (Traiter, Coûts, Annuler, A+/A−,
+> Audio, Log) vit dans barre_outils remparenté sur la ligne du STEPPER de la page Réunion
+> (registre _barres_pages, la page active place sa barre). (5) BLOCS SANS BORDURE :
+> feuilles « border: none » partout ; survol = voile translucide progressif ~100 ms
+> (_SurvolBloc) ; le bloc en lecture est surbrillé par son FOND (couleurs_surlignage) — le
+> border-left de sur_position_audio remplacé par un COMPOSITEUR unique
+> (_appliquer_fond_ligne : jamais deux feuilles concurrentes). (6) EN-TÊTES : « Orateur »
+> (aligné à gauche, même retrait que les noms), « Transcription d'origine », « version
+> reformulée ». (7) AUDIO : bouton icône seule, mêmes SVG teintés que la page transcription
+> (play/pause via maj_icone_lecture, état _lecture_en_cours). (8) DÉFILEMENT FIN ET LISSE :
+> ScrollPerPixel + _MoletteDouce (1-2 lignes de texte par crant, animation ~140 ms OutCubic,
+> cible RECALÉE depuis la cible courante — non cumulable, défilement rapide possible).
+> (9) INFO-BULLES : nouveau module ui/info_bulle.py — InfoBulle au thème APPLIQUÉ (fond,
+> texte, bord par thème), police de l'app, MULTI-LIGNE (largeur plafonnée 260 px) ;
+> pastille et indicateur de version (devenu QLabel wordwrap) ; messages contextuels via
+> _montrer_message. Sur_changement_theme sur ReformulationWindow (broadcast de thème).
+> **569 tests verts** (19 nouveaux dans test_p20_ui_reformulation.py + 3 tests autonomes
+> dans test_p18_6b_reunion.py ; tests timeline réécrits en absence dans
+> test_reformulation_ui/test_p16bis_serie2/test_p16bis_serie3). Précédemment livrés ce
+> jour : séries 8/8-bis/8-ter/8-quater (couleurs thème appliqué, broadcast aux widgets
+> embarqués visibles), série 7 (invariant 16), catalogue LLM v3 + effort de raisonnement,
+> P19.1-P19.3, P16-bis 4ᵉ série, P18.6-bis séries 6-7-bis.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)

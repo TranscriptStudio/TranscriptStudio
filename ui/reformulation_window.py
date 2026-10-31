@@ -2,6 +2,21 @@
 """
 Page Traitement / Reformulation (P16.2, P16.2b).
 
+P20 (retour David 31/10, UI reformulation,
+points 2-9) : la timeline a DISPARU de la page
+(le pointage du mot lu dans le bloc d'origine
+suffit) ; barre d'outils épurée (plus de
+Sauvegarder / Aide / Accueil / Timeline), placée
+sur la ligne du stepper de la page Réunion ;
+icônes A+/A− et Audio IDENTIQUES à la page
+transcription ; blocs sans AUCUNE bordure, voile
+de survol progressif ~100 ms ; en-têtes « Orateur
+», « Transcription d'origine », « version
+reformulée » ; défilement FIN et LISSE (une à
+deux lignes par crant de molette, animation
+~140 ms non cumulable) ; info-bulles de la
+colonne droite au thème de l'app, multi-lignes.
+
 Spécifications de référence :
 - UI_REFORMULATION_V2.md (fait autorité) ;
 - UI_REFORMULATION_MODIFS_V2_2026-10-27.md (correctifs
@@ -74,10 +89,13 @@ import re
 import time
 
 from PySide6.QtCore import (
+    QEasingCurve,
     QObject,
+    QSize,
     Qt,
     QThread,
     QTimer,
+    QVariantAnimation,
     Signal,
     Slot,
 )
@@ -96,11 +114,9 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
-    QScrollArea,
     QTableWidget,
     QTextEdit,
     QToolButton,
-    QToolTip,
     QVBoxLayout,
     QWidget,
     QHBoxLayout,
@@ -115,6 +131,14 @@ from services.etude_io import (
     valider_version_reformulation,
 )
 from services.etude_schema import EtudeFormatError
+from services.icons import (
+    ICON_BUTTON_HEIGHT,
+    ICON_BUTTON_WIDTH,
+    make_button_height_css,
+    make_text_size_icon,
+    make_tinted_icon,
+    text_color_effectif,
+)
 from services.project_io import load_project
 from services.settings import SettingsManager
 from services.theme_manager import (
@@ -129,10 +153,7 @@ from services.traitements.moteur import (
     MoteurTraitements,
 )
 from services.playback import PlaybackManager
-from ui.timeline_widget import TimelineWidget
-from ui.timeline_speaker_panel import (
-    TimelineSpeakerPanel
-)
+from ui.info_bulle import InfoBulle
 
 from pathlib import Path
 
@@ -275,6 +296,164 @@ class ReformulationBlocWorker(QObject):
             self.erreur.emit(self.fid, str(e))
 
 
+class _MoletteDouce(QObject):
+    """
+    P20 (retour David 31/10, UI reformulation
+    point 8) : défilement vertical FIN et LISSE.
+
+    - granularité : une à deux lignes de texte par
+      crant de molette (plus JAMAIS un bloc
+      entier — le mode ScrollPerItem sautait les
+      cellules) ;
+    - lissage : le défilement est ANIMÉ (~140 ms,
+      courbe OutCubic) — pas de rupture brutale ;
+    - latence NON cumulable : un crant pendant
+      l'animation RECALA la cible depuis la cible
+      courante (défilement rapide possible, aucun
+      retard qui s'empile).
+    """
+
+    DUREE_MS = 140
+    LIGNES_PAR_CRANT = 2
+
+    def __init__(self, table, parent=None):
+
+        super().__init__(parent)
+
+        self._table = table
+        self._cible = None
+
+        self._animation = QVariantAnimation(self)
+        self._animation.setDuration(self.DUREE_MS)
+        self._animation.setEasingCurve(
+            QEasingCurve.Type.OutCubic
+        )
+        self._animation.valueChanged.connect(
+            self._table.verticalScrollBar().setValue
+        )
+
+    def eventFilter(self, objet, event):
+
+        if event.type() != event.Type.Wheel:
+            return False
+
+        barre = (
+            self._table.verticalScrollBar()
+        )
+
+        crant = event.angleDelta().y() / 120
+
+        ligne_px = max(
+            14,
+            int(
+                self._table.font().pointSize()
+                * 1.7
+            )
+        )
+
+        #
+        # Base = la CIBLE courante (pas la position
+        # affichée) : les crants successifs se
+        # suivent sans s'annuler ni s'empiler.
+        #
+        base = (
+            self._cible
+            if self._cible is not None
+            else barre.value()
+        )
+
+        cible = (
+            base
+            - crant * ligne_px
+            * self.LIGNES_PAR_CRANT
+        )
+
+        cible = max(
+            barre.minimum(),
+            min(barre.maximum(), cible)
+        )
+
+        self._cible = cible
+
+        self._animation.stop()
+
+        self._animation.setStartValue(
+            barre.value()
+        )
+
+        self._animation.setEndValue(cible)
+
+        self._animation.start()
+
+        return True
+
+
+class _SurvolBloc(QObject):
+    """
+    P20 (retour David 31/10, UI reformulation
+    point 5) : plus AUCUNE bordure sur les blocs
+    (fin des « cellules Excel ») ; au survol d'un
+    bloc, un voile de fond TRÈS léger s'applique
+    PROGRESSIVEMENT (~100 ms) et s'efface tout
+    aussi progressivement.
+    """
+
+    DUREE_MS = 100
+    ALPHA_MAX = 14
+
+    def __init__(self, fenetre, ligne, parent=None):
+
+        super().__init__(parent)
+
+        self._fenetre = fenetre
+        self._ligne = ligne
+        self._valeur = 0.0
+
+        self._animation = QVariantAnimation(self)
+        self._animation.setDuration(self.DUREE_MS)
+        self._animation.setEasingCurve(
+            QEasingCurve.Type.OutCubic
+        )
+        self._animation.valueChanged.connect(
+            self._appliquer
+        )
+
+    def entrer(self):
+
+        self._animer(self.ALPHA_MAX)
+
+    def sortir(self):
+
+        self._animer(0)
+
+    def _animer(self, cible: int):
+
+        self._animation.stop()
+
+        self._animation.setStartValue(
+            self._valeur
+        )
+
+        self._animation.setEndValue(cible)
+
+        self._animation.start()
+
+    def _appliquer(self, valeur):
+
+        self._valeur = valeur
+
+        self._ligne._voile = int(valeur)
+
+        #
+        # La composition (bloc joué + voile) vit
+        # dans la fenêtre : UNE seule feuille de
+        # style par widget, jamais de conflit.
+        #
+        self._fenetre._appliquer_fond_ligne(
+            self._ligne
+        )
+
+
 class LigneBloc:
     """
     Une ligne de la table de relecture : nom(s) du
@@ -304,9 +483,19 @@ class LigneBloc:
         self.filtration_locuteur = True
 
         #
-        # Colonne locuteurs : le(s) nom(s) du bloc
-        # (« / » pour un bloc fusionné
+        # P20, points 3-5 : bloc en lecture (fond
+        # de surlignage SANS bordure) et voile de
+        # survol courant (alpha 0-14).
+        #
+        self.jouee = False
+        self._voile = 0
+
+        #
+        # Colonne orateur (P20, point 6 : « Orateur »,
+        # même retrait que l'en-tête) : le(s) nom(s)
+        # du bloc (« / » pour un bloc fusionné
         # multi-locuteurs) — spec correctifs §2.1.
+        # AUCUNE bordure, fond transparent (point 5).
         #
         self.label_locuteurs = QLabel(
             " / ".join(bloc.locuteurs)
@@ -316,6 +505,15 @@ class LigneBloc:
             Qt.AlignmentFlag.AlignTop
             | Qt.AlignmentFlag.AlignLeft
         )
+        self.label_locuteurs.setContentsMargins(
+            4, 0, 0, 0
+        )
+        self.label_locuteurs.setStyleSheet(
+            "QLabel {"
+            "border: none;"
+            "background: transparent;"
+            "}"
+        )
 
         #
         # Texte brut corrigé : référence de
@@ -323,18 +521,26 @@ class LigneBloc:
         # (règles 1 et 2 : aucun menu, aucune
         # modification).
         #
-        #
         # QTextEdit (et non QPlainTextEdit) : la
         # hauteur de contenu rendue par le layout
         # du document est exacte, ce qui permet
         # d'ajuster la hauteur de ligne sans
         # défilement interne.
         #
+        # P20, point 5 : AUCUNE bordure, fond
+        # transparent — plus de « cellule Excel ».
+        #
         self.cellule_brute = QTextEdit()
         self.cellule_brute.setAcceptRichText(False)
         self.cellule_brute.setReadOnly(True)
         self.cellule_brute.setPlainText(bloc.source)
         self.cellule_brute.setTabChangesFocus(True)
+        self.cellule_brute.setStyleSheet(
+            "QTextEdit {"
+            "border: none;"
+            "background: transparent;"
+            "}"
+        )
         self._sans_defilement_interne(
             self.cellule_brute
         )
@@ -348,6 +554,12 @@ class LigneBloc:
         self.cellule_reformee.setTabChangesFocus(
             True
         )
+        self.cellule_reformee.setStyleSheet(
+            "QTextEdit {"
+            "border: none;"
+            "background: transparent;"
+            "}"
+        )
         self._sans_defilement_interne(
             self.cellule_reformee
         )
@@ -355,6 +567,13 @@ class LigneBloc:
         #
         # Pastille d'état + indicateur de version
         # (spec §5), à droite de la ligne.
+        #
+        # P20, point 9 : l'indicateur de version est
+        # un QLabel MULTI-LIGNE (le libellé « v3 ·
+        # 29s · 3.4k→2.4k · 0.02 € » ne tient pas
+        # sur une ligne de 130 px) ; les info-bulles
+        # de la colonne suivent le thème de l'app
+        # (ui.info_bulle.InfoBulle).
         #
         self.colonne_droite = QWidget()
 
@@ -369,11 +588,28 @@ class LigneBloc:
         self.pastille = QToolButton()
         self.pastille.setText("●")
         self.pastille.setFixedSize(26, 26)
-        self.pastille.setToolTip("État du bloc")
 
-        self.version_label = QPushButton("—")
-        self.version_label.setFixedWidth(130)
-        self.version_label.setToolTip(
+        self.bulle_pastille = InfoBulle(self.pastille)
+        self.bulle_pastille.definir_texte("État du bloc")
+
+        self.version_label = QLabel("—")
+        self.version_label.setWordWrap(True)
+        self.version_label.setMaximumWidth(130)
+        self.version_label.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+        self.version_label.setStyleSheet(
+            "QLabel {"
+            "border: none;"
+            "background: transparent;"
+            "color: #2a7ddc;"
+            "}"
+        )
+
+        self.bulle_versions = InfoBulle(
+            self.version_label
+        )
+        self.bulle_versions.definir_texte(
             "Versions du bloc (clic pour consulter)"
         )
 
@@ -600,6 +836,12 @@ class ReformulationWindow(QWidget):
         #
         self.derniere_position = 0.0
 
+        #
+        # P20, point 7 : l'état de lecture porte
+        # l'icône (pause = lecture en cours).
+        #
+        self._lecture_en_cours = False
+
         self.build_ui(prefs)
 
         self.construire_lignes()
@@ -619,30 +861,18 @@ class ReformulationWindow(QWidget):
         layout.setSpacing(8)
 
         #
-        # Barre supérieure.
+        # Barre supérieure (P20, retour David 31/10,
+        # UI reformulation points 2-4-7) : plus de
+        # boutons Sauvegarder / Aide / Accueil /
+        # Timeline (doublons du bandeau du haut ou
+        # timeline supprimée) ; la barre vit dans
+        # un conteneur REMPARENTABLE — la page
+        # Réunion la place sur la ligne du stepper.
         #
-        barre = QHBoxLayout()
+        self.barre_outils = QWidget()
+        barre = QHBoxLayout(self.barre_outils)
+        barre.setContentsMargins(0, 0, 0, 0)
         barre.setSpacing(8)
-
-        self.sauvegarder_button = QPushButton(
-            "💾 Sauvegarder"
-        )
-        self.sauvegarder_button.setToolTip(
-            "Sauvegarder l'étude"
-        )
-
-        self.aide_button = QPushButton("❓ Aide")
-        self.aide_button.setToolTip(
-            "Ouvrir le manuel utilisateur"
-        )
-
-        self.accueil_button = QPushButton(
-            "🏠 Accueil"
-        )
-        self.accueil_button.setToolTip(
-            "Revenir à l'accueil de l'application "
-            "(réunions et études récentes)"
-        )
 
         self.traiter_button = QPushButton(
             "▶ Traiter les blocs non validés"
@@ -666,30 +896,53 @@ class ReformulationWindow(QWidget):
             "produit est conservé"
         )
 
-        self.augmenter_button = QPushButton("A+")
-        self.diminuer_button = QPushButton("A−")
-
-        self.log_button = QPushButton("📋 Log")
-        self.log_button.setToolTip(
-            "Log des opérations de l'étude (lecture seule)"
+        #
+        # A+/A− : EXACTEMENT les icônes de la page
+        # transcription (point 2) — « A » à la
+        # couleur du texte du thème appliqué, signe
+        # en bleu (services.icons.make_text_size_icon).
+        #
+        self.augmenter_button = QPushButton()
+        self.augmenter_button.setIcon(
+            make_text_size_icon("+")
+        )
+        self.augmenter_button.setIconSize(QSize(32, 32))
+        self.augmenter_button.setToolTip(
+            "Augmenter la taille du texte"
         )
 
-        self.timeline_button = QPushButton("⏱ Timeline")
-        self.timeline_button.setCheckable(True)
-        self.timeline_button.setChecked(True)
-        self.timeline_button.setToolTip(
-            "Afficher ou masquer la timeline"
+        self.diminuer_button = QPushButton()
+        self.diminuer_button.setIcon(
+            make_text_size_icon("−")
+        )
+        self.diminuer_button.setIconSize(QSize(32, 32))
+        self.diminuer_button.setToolTip(
+            "Réduire la taille du texte"
         )
 
-        self.jouer_button = QPushButton("▶ Audio")
+        #
+        # Audio (point 7) : les MÊMES icônes SVG
+        # teintées que la page transcription.
+        #
+        self.jouer_button = QPushButton()
+        self.jouer_button.setIcon(
+            make_tinted_icon(
+                text_color_effectif(),
+                "icons/player-play.svg",
+                22,
+                self.jouer_button.devicePixelRatioF()
+            )
+        )
         self.jouer_button.setToolTip(
             "Lire / mettre en pause l'audio de la réunion"
         )
 
+        self.log_button = QPushButton("📋 Log")
+        self.log_button.setToolTip(
+            "Log des opérations (lecture seule)"
+        )
+
         for bouton in (
-            self.sauvegarder_button,
-            self.aide_button,
-            self.accueil_button,
             self.traiter_button,
             self.couts_button,
             self.annuler_button,
@@ -702,12 +955,11 @@ class ReformulationWindow(QWidget):
             self.augmenter_button,
             self.diminuer_button,
             self.jouer_button,
-            self.timeline_button,
             self.log_button,
         ):
             barre.addWidget(bouton)
 
-        layout.addLayout(barre)
+        layout.addWidget(self.barre_outils)
 
         #
         # Zone de progression de la passe (P16-bis
@@ -779,87 +1031,16 @@ class ReformulationWindow(QWidget):
         # seule barre de défilement verticale pour
         # toute la table, colonnes redimensionnables).
         #
+        # P20 (retour David 31/10, UI reformulation
+        # point 3) : la timeline a DISPARU — elle
+        # servait la correction de transcription ;
+        # en relecture, le pointage du mot lu dans le
+        # bloc d'origine suffit.
+        #
         self.table = QTableWidget(0, 4)
         self._configurer_table(prefs)
 
         layout.addWidget(self.table, stretch=1)
-
-        #
-        # Timeline v1 (composant inchangé, ancré en
-        # bas, masquable — règle 3).
-        #
-        self.conteneur_timeline = QWidget()
-
-        timeline_layout = QHBoxLayout(
-            self.conteneur_timeline
-        )
-        timeline_layout.setContentsMargins(0, 0, 0, 0)
-        timeline_layout.setSpacing(0)
-
-        if self.projet_v1 is not None:
-
-            self.timeline = TimelineWidget(
-                self.projet_v1
-            )
-
-            self.timeline_speakers = (
-                TimelineSpeakerPanel(self.projet_v1)
-            )
-
-            #
-            # Gouttière gauche de la timeline =
-            # exactement la largeur de la colonne
-            # locuteurs (spec correctifs §10.1) — le
-            # bord gauche de la timeline s'aligne sur
-            # les colonnes de texte.
-            #
-            self.timeline_speakers.setFixedWidth(
-                self.table.columnWidth(0)
-            )
-
-            #
-            # Seule la timeline défile : les pistes
-            # s'étendent jusqu'au bord droit de la
-            # fenêtre (§10.2), sans gouttière à
-            # droite.
-            #
-            self.zone_timeline = QScrollArea()
-            self.zone_timeline.setWidgetResizable(True)
-            self.zone_timeline.setFixedHeight(160)
-            self.zone_timeline.setHorizontalScrollBarPolicy(
-                Qt.ScrollBarPolicy.ScrollBarAlwaysOn
-            )
-
-            self.zone_timeline.setWidget(self.timeline)
-
-            #
-            # Les pistes réétalent leur largeur quand
-            # la zone défilante est redimensionnée
-            # (spec correctifs §10.2 : jusqu'au bord
-            # droit, sans marge).
-            #
-            self.zone_timeline.viewport(
-            ).installEventFilter(self)
-
-            #
-            # Le composant v1 suit son curseur via
-            # cette zone (défilement horizontal du
-            # segment en lecture, §8.1).
-            #
-            self.timeline.timeline_scroll = (
-                self.zone_timeline
-            )
-
-            timeline_layout.addWidget(
-                self.timeline_speakers
-            )
-
-            timeline_layout.addWidget(
-                self.zone_timeline,
-                stretch=1
-            )
-
-        layout.addWidget(self.conteneur_timeline)
 
         #
         # Barre d'état : étude · réunion · validés /
@@ -872,20 +1053,6 @@ class ReformulationWindow(QWidget):
         #
         # Connexions.
         #
-        self.sauvegarder_button.clicked.connect(
-            self.sauvegarder_etude
-        )
-
-        from services.help import open_user_manual
-
-        self.aide_button.clicked.connect(
-            open_user_manual
-        )
-
-        self.accueil_button.clicked.connect(
-            self.retour_accueil
-        )
-
         self.traiter_button.clicked.connect(
             self.lancer_traitement
         )
@@ -910,12 +1077,38 @@ class ReformulationWindow(QWidget):
             self.ouvrir_log
         )
 
-        self.timeline_button.toggled.connect(
-            self.conteneur_timeline.setVisible
-        )
-
         self.jouer_button.clicked.connect(
             self.basculer_lecture
+        )
+
+        self.playback.playing_changed.connect(
+            self.maj_icone_lecture
+        )
+
+        self._retailler_boutons_icones()
+
+        #
+        # P20, point 8 : défilement FIN (une à deux
+        # lignes de texte par crant de molette, plus
+        # JAMAIS un bloc entier) + lissage animé.
+        #
+        self.table.setVerticalScrollMode(
+            QAbstractItemView.ScrollMode
+            .ScrollPerPixel
+        )
+
+        self.table.verticalScrollBar(
+        ).setSingleStep(
+            max(16, int(self.taille_texte * 1.6))
+        )
+
+        self._molette = _MoletteDouce(
+            self.table,
+            self
+        )
+
+        self.table.viewport().installEventFilter(
+            self._molette
         )
 
     def _configurer_table(self, prefs: dict):
@@ -929,12 +1122,27 @@ class ReformulationWindow(QWidget):
         dont les largeurs sont mémorisées.
         """
 
+        #
+        # P20, point 6 : libellés épurés —
+        # « Orateur » (aligné à gauche, même retrait
+        # que les noms en dessous), « Transcription
+        # d'origine », « version reformulée ».
+        #
         self.table.setHorizontalHeaderLabels([
-            "Locuteurs",
-            "Texte brut corrigé (v1)",
-            "Bloc reformulé (LLM)",
+            "Orateur",
+            "Transcription d'origine",
+            "version reformulée",
             "",
         ])
+
+        entete_orateur = (
+            self.table.horizontalHeaderItem(0)
+        )
+
+        entete_orateur.setTextAlignment(
+            Qt.AlignmentFlag.AlignLeft
+            | Qt.AlignmentFlag.AlignVCenter
+        )
 
         self.table.verticalHeader().setVisible(False)
 
@@ -1000,26 +1208,12 @@ class ReformulationWindow(QWidget):
         nouvelle: int
     ):
         """
-        Redimensionnement d'une colonne : la zone
-        gauche de la timeline suit la colonne
-        locuteurs (spec correctifs §3) ; les lignes
-        se réétalent au nouveau retour à la ligne
-        (§1.4).
+        Redimensionnement d'une colonne : les
+        lignes se réétalent au nouveau retour à la
+        ligne (§1.4).
         """
 
-        if index == 0:
-
-            if (
-                getattr(
-                    self, "timeline_speakers", None
-                )
-                is not None
-            ):
-                self.timeline_speakers.setFixedWidth(
-                    int(nouvelle)
-                )
-
-        elif index in (1, 2):
+        if index in (0, 1, 2):
 
             for fid in self.lignes:
                 self._ajuster_hauteur_ligne(fid)
@@ -1222,12 +1416,56 @@ class ReformulationWindow(QWidget):
             lambda: self.ouvrir_menu_pastille(fid)
         )
 
-        ligne.version_label.clicked.connect(
-            lambda: self.ouvrir_menu_versions(fid)
+        ligne.version_label.mousePressEvent = (
+            lambda event: self.ouvrir_menu_versions(fid)
         )
 
         ligne.cellule_reformee.textChanged.connect(
             lambda: self.sur_texte_change(fid)
+        )
+
+        #
+        # Survol du BLOC (P20, point 5) : voile de
+        # fond très léger, application progressive
+        # ~100 ms — aucune bordure. La pastille et
+        # l'indicateur de version montrent AUSSI
+        # leur info-bulle au même survol.
+        #
+        survol = _SurvolBloc(self, ligne, parent=self)
+
+        for widget in (
+            ligne.label_locuteurs,
+            ligne.cellule_brute,
+            ligne.cellule_reformee,
+            ligne.colonne_droite,
+        ):
+
+            widget.enterEvent = (
+                lambda event, s=survol: s.entrer()
+            )
+
+            widget.leaveEvent = (
+                lambda event, s=survol: s.sortir()
+            )
+
+        ligne.pastille.enterEvent = (
+            lambda event, s=survol, b=ligne.bulle_pastille:
+            (s.entrer(), b.montrer())
+        )
+
+        ligne.pastille.leaveEvent = (
+            lambda event, s=survol, b=ligne.bulle_pastille:
+            (s.sortir(), b.cacher())
+        )
+
+        ligne.version_label.enterEvent = (
+            lambda event, s=survol, b=ligne.bulle_versions:
+            (s.entrer(), b.montrer())
+        )
+
+        ligne.version_label.leaveEvent = (
+            lambda event, s=survol, b=ligne.bulle_versions:
+            (s.sortir(), b.cacher())
         )
 
         #
@@ -1246,10 +1484,9 @@ class ReformulationWindow(QWidget):
         )
 
         #
-        # Synchronisation timeline ↔ blocs (spec
-        # correctifs §8.1) : cliquer le bloc —
-        # colonne locuteurs ou pastille aussi —
-        # positionne le curseur audio à son début.
+        # Cliquer le bloc — colonne orateur ou
+        # pastille aussi — positionne le curseur
+        # audio à son début.
         #
         ligne.label_locuteurs.mousePressEvent = (
             lambda event, _ligne=ligne:
@@ -1331,13 +1568,6 @@ class ReformulationWindow(QWidget):
         self.playback.set_position(position)
 
         #
-        # La timeline s'illumine et défile pour
-        # rendre le segment visible (§8.1).
-        #
-        if getattr(self, "timeline", None) is not None:
-            self.timeline.set_current_time(position)
-
-        #
         # P16-bis 3ᵉ série (spec correctifs §16) :
         # un clic positionne le curseur et
         # sélectionne — il ne déclenche JAMAIS la
@@ -1416,6 +1646,29 @@ class ReformulationWindow(QWidget):
 
         return str(tokens)
 
+    def _montrer_message(
+        self,
+        ligne: LigneBloc,
+        texte: str
+    ):
+        """
+        Message contextuel de la colonne droite
+        (P20, point 9) : info-bulle au thème de
+        l'app, multi-ligne, auto-masquée.
+        """
+
+        bulle = getattr(ligne, "bulle_message", None)
+
+        if bulle is None:
+            bulle = InfoBulle(ligne.pastille)
+            ligne.bulle_message = bulle
+
+        bulle.definir_texte(texte)
+
+        bulle.montrer()
+
+        QTimer.singleShot(2500, bulle.cacher)
+
     def rafraichir_ligne(self, fid: int):
         """
         Met à jour pastille, indicateur de version,
@@ -1451,12 +1704,33 @@ class ReformulationWindow(QWidget):
         if ligne.non_enregistre:
             libelle = (
                 LIBELLES_ETAT[etat]
-                + " — modifications non enregistrées"
+                + "\nmodifications non enregistrées"
             )
         else:
             libelle = LIBELLES_ETAT[etat]
 
-        ligne.pastille.setToolTip(libelle)
+        #
+        # P20, point 9 : info-bulle au thème de
+        # l'app (ui.info_bulle), MULTI-LIGNE — plus
+        # d'info-bulle native noire à police
+        # système.
+        #
+        lignes_bulle = [libelle]
+
+        if derniere is not None:
+
+            lignes_bulle.append(
+                ""
+            )
+
+            lignes_bulle.append(
+                self.libelle_version(derniere)
+                .replace(" · ", "\n")
+            )
+
+        ligne.bulle_pastille.definir_texte(
+            "\n".join(lignes_bulle)
+        )
 
         #
         # Indicateur de version (affichage
@@ -1722,11 +1996,9 @@ class ReformulationWindow(QWidget):
         versions = self.versions_bloc(fid)
 
         if not versions:
-            QToolTip.showText(
-                ligne.version_label.mapToGlobal(
-                    ligne.version_label.rect().bottomLeft()
-                ),
-                "Aucune version.",
+            self._montrer_message(
+                ligne,
+                "Aucune version."
             )
             return
 
@@ -2831,11 +3103,9 @@ class ReformulationWindow(QWidget):
         resultat = self.derniere_version(fid)
 
         if resultat is None:
-            QToolTip.showText(
-                ligne.pastille.mapToGlobal(
-                    ligne.pastille.rect().bottomLeft()
-                ),
-                "Aucun résultat à contrôler.",
+            self._montrer_message(
+                ligne,
+                "Aucun résultat à contrôler."
             )
             return
 
@@ -2857,12 +3127,7 @@ class ReformulationWindow(QWidget):
             + controles["message_references"]
         )
 
-        QToolTip.showText(
-            ligne.pastille.mapToGlobal(
-                ligne.pastille.rect().bottomLeft()
-            ),
-            message
-        )
+        self._montrer_message(ligne, message)
 
     def _bible_jnd(self):
         """
@@ -3085,46 +3350,19 @@ class ReformulationWindow(QWidget):
             self.sur_erreur_audio
         )
 
-        #
-        # Synchronisation timeline ↔ blocs (§8) :
-        # le curseur de la timeline suit la lecture ;
-        # un clic dessus sélectionne le bloc
-        # correspondant (même en pause).
-        #
-        self.playback.position_changed.connect(
-            self.timeline.set_current_time
-        )
-
-        self.timeline.seek_requested.connect(
-            self.sur_clic_timeline
-        )
-
-        self.timeline.block_clicked.connect(
-            self.sur_bloc_timeline_clic
-        )
-
     def sur_erreur_audio(self, message: str):
         """
         Erreur du périphérique audio (§15.3) :
-        signalée dans la barre d'état.
+        signalée dans la barre d'état ; l'icône
+        revient à « lecture » (aucune lecture en
+        cours).
         """
+
+        self.maj_icone_lecture(False)
 
         self.barre_etat.setText(
             "Lecture audio impossible : " + message
         )
-
-        self.jouer_button.setText("▶ Audio")
-
-    def sur_clic_timeline(self, position: float):
-        """
-        Clic sur la timeline (§8.2) : le curseur se
-        positionne et le bloc contenant la position
-        devient le bloc courant de la table.
-        """
-
-        self.playback.set_position(position)
-
-        self.sur_position_audio(position)
 
     def jouer_audio_si_charge(self):
         """
@@ -3142,12 +3380,146 @@ class ReformulationWindow(QWidget):
         if self.playback is None:
             return
 
-        if self.jouer_button.text() == "▶ Audio":
-            self.playback.play()
-            self.jouer_button.setText("⏸ Pause")
-        else:
+        if self._lecture_en_cours:
             self.playback.pause()
-            self.jouer_button.setText("▶ Audio")
+            self.maj_icone_lecture(False)
+        else:
+            self.playback.play()
+            self.maj_icone_lecture(True)
+
+    def maj_icone_lecture(self, playing: bool):
+        """
+        P20, point 7 : l'icône Audio est EXACTEMENT
+        celle de la page transcription (SVG teinté
+        à la couleur du texte du thème appliqué —
+        lecture = triangle, pause = deux barres).
+        """
+
+        self._lecture_en_cours = bool(playing)
+
+        chemin = (
+            "icons/player-pause.svg"
+            if playing
+            else "icons/player-play.svg"
+        )
+
+        self.jouer_button.setIcon(
+            make_tinted_icon(
+                text_color_effectif(),
+                chemin,
+                22,
+                self.jouer_button.devicePixelRatioF()
+            )
+        )
+
+    def _retailler_boutons_icones(self):
+        """
+        Boutons d'icônes (A+/A−, Audio) : même
+        gabarit que la page transcription
+        (ICON_BUTTON_WIDTH × ICON_BUTTON_HEIGHT).
+        """
+
+        for bouton in (
+            self.augmenter_button,
+            self.diminuer_button,
+            self.jouer_button,
+        ):
+
+            bouton.setFixedSize(
+                ICON_BUTTON_WIDTH,
+                ICON_BUTTON_HEIGHT
+            )
+
+            bouton.setStyleSheet(f"""
+                QPushButton {{
+                    border: none;
+                    {make_button_height_css(
+                        ICON_BUTTON_HEIGHT
+                    )}
+                }}
+
+                QPushButton:hover {{
+                    background-color: rgba(
+                        128, 128, 128, 45
+                    );
+                    border-radius: 5px;
+                }}
+            """)
+
+    def sur_changement_theme(self):
+        """
+        Broadcast de ThemeManager : re-teinte les
+        icônes peintes à la main (A+/A−, Audio) et
+        re-stylise les info-bulles (elles suivent
+        le thème à chaque définition).
+        """
+
+        self.augmenter_button.setIcon(
+            make_text_size_icon("+")
+        )
+
+        self.diminuer_button.setIcon(
+            make_text_size_icon("−")
+        )
+
+        self.maj_icone_lecture(
+            getattr(
+                self,
+                "_lecture_en_cours",
+                False
+            )
+        )
+
+    def _appliquer_fond_ligne(
+        self,
+        ligne: LigneBloc
+    ):
+        """
+        P20, points 3 et 5 : composition UNIE du
+        fond d'une ligne — AUCUNE bordure, jamais
+        deux feuilles de style concurrentes.
+
+        - cellule brute : fond de surlignage si le
+          bloc est en lecture (couleurs_surlignage,
+          contraste AA), sinon le voile de survol ;
+        - autres widgets : voile de survol seul.
+        """
+
+        voile = getattr(ligne, "_voile", 0)
+
+        fond_voile = (
+            f"rgba(59,158,255,{voile})"
+            if voile
+            else "transparent"
+        )
+
+        fond_brute = (
+            couleurs_surlignage(
+                est_sombre(self)
+            )["bloc"]
+            if ligne.jouee
+            else fond_voile
+        )
+
+        ligne.cellule_brute.setStyleSheet(
+            "QTextEdit {"
+            "border: none;"
+            f"background-color: {fond_brute};"
+            "}"
+        )
+
+        for widget in (
+            ligne.cellule_reformee,
+            ligne.label_locuteurs,
+            ligne.colonne_droite,
+        ):
+
+            widget.setStyleSheet(
+                f"{type(widget).__name__} {{"
+                "border: none;"
+                f"background-color: {fond_voile};"
+                "}"
+            )
 
     def sur_position_audio(self, position: float):
         """
@@ -3155,7 +3527,9 @@ class ReformulationWindow(QWidget):
         surbrille le bloc joué (E1.3, spec §3) —
         couleurs du thème courant (spec correctifs
         §9 : contraste AA, aucun jaune clair sur
-        fond sombre).
+        fond sombre). Le bloc joué est surbrillé
+        par son FOND, jamais par une bordure (P20,
+        point 5).
         """
 
         couleurs = couleurs_surlignage(
@@ -3170,15 +3544,9 @@ class ReformulationWindow(QWidget):
 
             jouee = fid == bloc_courant
 
-            ligne.cellule_brute.setStyleSheet(
-                "border-left: 3px solid "
-                + (
-                    couleurs["bloc"]
-                    if jouee
-                    else "transparent"
-                )
-                + ";"
-            )
+            ligne.jouee = jouee
+
+            self._appliquer_fond_ligne(ligne)
 
             if not jouee:
                 ligne.surligner_mot(None)
@@ -3295,42 +3663,6 @@ class ReformulationWindow(QWidget):
             QAbstractItemView.ScrollHint
             .PositionAtCenter,
         )
-
-    def sur_bloc_timeline_clic(self, block_id: int):
-        """
-        La timeline v1 signale un bloc par son id
-        v1 : positionner l'audio au début du bloc.
-        """
-
-        if self.projet_v1 is None:
-            return
-
-        bloc_v1 = self.projet_v1.get_block_by_id(
-            block_id
-        )
-
-        if bloc_v1 is None:
-            return
-
-        mots = self.projet_v1.get_block_items(bloc_v1)
-
-        if mots:
-
-            premier = mots[0]
-
-            if premier.start is not None:
-                self.playback.set_position(
-                    float(premier.start)
-                )
-                return
-
-        debut = min(
-            mot.start
-            for mot in mots
-            if mot.start is not None
-        ) if mots else 0.0
-
-        self.playback.set_position(float(debut))
 
     #
     # ==================================================
@@ -3449,8 +3781,6 @@ class ReformulationWindow(QWidget):
         self.playback.stop()
         self.playback.unload()
 
-        self.jouer_button.setText("▶ Audio")
-
     def sur_navigation_sortante(self):
         """
         Appelé par la fenêtre principale quand une
@@ -3504,40 +3834,3 @@ class ReformulationWindow(QWidget):
 
             self.jouer_button.setEnabled(False)
 
-    def resizeEvent(self, event):
-        """
-        Au redimensionnement, les pistes de la
-        timeline réétalent leur largeur pour
-        continuer de s'étendre jusqu'au bord droit
-        (spec correctifs §10.2).
-        """
-
-        super().resizeEvent(event)
-
-        timeline = getattr(self, "timeline", None)
-
-        if timeline is not None:
-            timeline.update_timeline_width()
-
-    def eventFilter(self, objet, event):
-        """
-        Redimensionnement du viewport de la zone
-        timeline : les pistes s'étendent jusqu'au
-        nouveau bord droit (spec correctifs §10.2).
-        """
-
-        if (
-            getattr(self, "zone_timeline", None)
-            is not None
-            and objet is (
-                self.zone_timeline.viewport()
-            )
-            and event.type() == event.Type.Resize
-        ):
-
-            timeline = getattr(self, "timeline", None)
-
-            if timeline is not None:
-                timeline.update_timeline_width()
-
-        return super().eventFilter(objet, event)

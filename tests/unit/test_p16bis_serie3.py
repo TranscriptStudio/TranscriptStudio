@@ -210,9 +210,11 @@ class TestSection15Lecteur:
             fenetre.barre_etat.text()
         )
 
-        assert (
-            fenetre.jouer_button.text() == "▶ Audio"
-        )
+        # P20 : le bouton Audio est une ICÔNE —
+        # l'état de lecture est porté par
+        # _lecture_en_cours (False, l'erreur n'a
+        # jamais lancé la lecture).
+        assert not fenetre._lecture_en_cours
 
     def test_pile_appelle_entrante_au_retour(self, app, tmp_path):
 
@@ -264,21 +266,18 @@ class TestSection16PasDeLectureAuto:
             0
         )
 
-        # Clic sur la timeline.
-        fenetre.sur_clic_timeline(21.0)
-
-        # Clic sur un bloc de la timeline v1.
-        fenetre.sur_bloc_timeline_clic(1)
+        # P20 : la timeline a disparu — le seul
+        # « clic de position » restant est le clic
+        # dans le bloc d'origine.
+        fenetre.sur_position_audio(21.0)
 
         QApplication.processEvents()
 
         assert not fenetre.playback.a_joue()
 
-        assert (
-            fenetre.jouer_button.text() == "▶ Audio"
-        )
+        assert not fenetre._lecture_en_cours
 
-        # Le clic timeline a bien sélectionné le
+        # Le positionnement a bien sélectionné le
         # bloc courant — sans déclencher l'audio.
         assert fenetre.bloc_courant == 3
 
@@ -288,9 +287,9 @@ class TestSection16PasDeLectureAuto:
 
         assert fenetre.playback.a_joue()
 
-        assert (
-            fenetre.jouer_button.text() == "⏸ Pause"
-        )
+        # P20 : icône de lecture — l'état est porté
+        # par _lecture_en_cours.
+        assert fenetre._lecture_en_cours
 
 
 #

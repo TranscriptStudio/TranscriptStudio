@@ -234,12 +234,37 @@ def app(qapp, tmp_path):
 
 @pytest.mark.qt
 class TestInvariance1TimelineBlocs:
+    """
+    P20 (retour David 31/10, UI reformulation
+    point 3) : la timeline a DISPARU. Les
+    invariants survivants : le clic dans le bloc
+    d'origine positionne le curseur ; le bloc en
+    lecture est surbrillé par son FOND, jamais par
+    une bordure (point 5).
+    """
+
+    def test_timeline_absente(self, fenetre_longue):
+
+        for attribut in (
+            "timeline",
+            "timeline_speakers",
+            "conteneur_timeline",
+            "zone_timeline",
+        ):
+            assert not hasattr(
+                fenetre_longue,
+                attribut
+            )
 
     def test_clic_bloc_positionne_le_curseur(self, fenetre_longue):
 
-        # Le bloc 3 commence à ~20 s (positions de
-        # l'audio traité, contrat §6).
         ligne = fenetre_longue.lignes[3]
+
+        positions = []
+
+        fenetre_longue.playback.set_position = (
+            positions.append
+        )
 
         fenetre_longue.positionner_audio(ligne, 0)
 
@@ -249,42 +274,27 @@ class TestInvariance1TimelineBlocs:
 
         from services.timecodes import lire_timecode
 
-        assert fenetre_longue.timeline.current_time == (
+        assert positions == [
             lire_timecode(attendu)
-        )
+        ]
 
-    def test_aller_retour_bloc_timeline_bloc(self, fenetre_longue):
+    def test_position_selectionne_le_bloc(self, fenetre_longue):
         """
-        Bloc → position → bloc : l'aller-retour est
-        cohérent (le bloc cliqué redevient le bloc
-        courant à sa propre position).
+        La position de lecture sélectionne le bloc
+        courant — même en pause.
         """
 
-        ligne = fenetre_longue.lignes[3]
-
-        fenetre_longue.positionner_audio(ligne, 0)
-
-        position = fenetre_longue.timeline.current_time
-
-        fenetre_longue.sur_clic_timeline(position)
+        fenetre_longue.sur_position_audio(21.0)
 
         assert fenetre_longue.bloc_courant == 3
 
-    def test_clic_timeline_selectionne_le_bloc(self, fenetre_longue):
-        """
-        Cliquer la timeline sélectionne le bloc
-        contenant la position — même en pause.
-        """
-
-        fenetre_longue.sur_clic_timeline(21.0)
-
-        assert fenetre_longue.bloc_courant == 3
-
-        # Le bloc courant est surligné (bord gauche
-        # non transparent), les autres non.
+        # Bloc courant : fond de surlignage, aucune
+        # bordure ; les autres : fond transparent.
         style = fenetre_longue.lignes[
             3
         ].cellule_brute.styleSheet()
+
+        assert "border: none" in style
 
         assert "transparent" not in style
 
@@ -554,40 +564,21 @@ class TestInvariance3Themes:
 
 @pytest.mark.qt
 class TestInvariance4Timeline:
+    """
+    P20, point 3 : la timeline et sa gouttière
+    gauche ont DISPARU — plus rien à synchroniser.
+    """
 
-    def test_gouttiere_egale_colonne_locuteurs(self, fenetre_longue):
+    def test_aucun_composant_timeline(self, fenetre_longue):
 
-        assert (
-            fenetre_longue.timeline_speakers.width()
-            == fenetre_longue.table.columnWidth(0)
-        )
+        from PySide6.QtWidgets import QWidget
 
-    def test_pistes_jusqu_au_bord_droit(self, fenetre_longue):
-        """
-        Aucune marge vide à droite : la timeline
-        remplit au minimum la largeur du viewport.
-        """
-
-        QApplication.processEvents()
-
-        viewport = (
-            fenetre_longue.zone_timeline.viewport()
-        )
-
-        assert fenetre_longue.timeline.width() >= (
-            viewport.width()
-        )
-
-    def test_redimensionnement_colonne_suivi(self, fenetre_longue):
-
-        fenetre_longue.table.setColumnWidth(0, 240)
-
-        QApplication.processEvents()
-
-        assert (
-            fenetre_longue.timeline_speakers.width()
-            == 240
-        )
+        for enfant in fenetre_longue.findChildren(
+            QWidget
+        ):
+            assert "timeline" not in (
+                type(enfant).__name__.lower()
+            )
 
 
 #

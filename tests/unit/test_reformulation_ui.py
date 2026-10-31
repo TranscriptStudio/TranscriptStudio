@@ -380,26 +380,26 @@ class TestRegle3Alignement:
                 == ligne.cellule_reformee.height()
             )
 
-    def test_timeline_hors_de_la_table(self, fenetre):
+    def test_timeline_supprimee(self, fenetre):
         """
-        La timeline est ancrée hors de la table (la
-        seule barre de défilement vertical de la
-        page ne l'atteint pas).
+        P20 (retour David 31/10, UI reformulation
+        point 3) : la timeline a DISPARU de la page
+        — le pointage du mot lu dans le bloc
+        d'origine suffit ; AUCUN composant timeline
+        ne subsiste.
         """
 
-        parents = []
+        assert not hasattr(
+            fenetre,
+            "conteneur_timeline"
+        )
 
-        widget = fenetre.conteneur_timeline
+        assert not hasattr(fenetre, "timeline")
 
-        while widget is not None:
-            parents.append(widget)
-            widget = widget.parentWidget()
-
-        assert fenetre.table not in parents
-
-        # La timeline est masquable.
-        fenetre.conteneur_timeline.setVisible(False)
-        fenetre.conteneur_timeline.setVisible(True)
+        assert not hasattr(
+            fenetre,
+            "timeline_speakers"
+        )
 
 
 @pytest.mark.qt
@@ -827,33 +827,26 @@ class TestInvariance2AlignementHorizontal:
 @pytest.mark.qt
 class TestInvariance3LargeurZoneGaucheTimeline:
     """
-    Règle 3 (spec correctifs §6.3) : la largeur de
-    la zone gauche de la timeline est égale à celle
-    de la colonne locuteurs (à la tolérance de
-    bordure près).
+    P20 (retour David 31/10, UI reformulation
+    point 3) : la timeline et sa gouttière gauche
+    ont DISPARU — plus aucune largeur à tenir
+    synchronisée ; les colonnes restent
+    redimensionnables.
     """
 
-    def test_largeurs_egales(self, fenetre):
-
-        assert (
-            fenetre.timeline_speakers.width()
-            == fenetre.table.columnWidth(0)
-        )
-
-    def test_largeurs_suivent_le_redimensionnement(self, fenetre):
+    def test_colonnes_redimensionnables(self, fenetre):
 
         fenetre.table.setColumnWidth(0, 210)
 
         QApplication.processEvents()
 
         assert fenetre.table.columnWidth(0) == 210
-        assert fenetre.timeline_speakers.width() == 210
 
         fenetre.table.setColumnWidth(0, 130)
 
         QApplication.processEvents()
 
-        assert fenetre.timeline_speakers.width() == 130
+        assert fenetre.table.columnWidth(0) == 130
 
 
 @pytest.mark.qt

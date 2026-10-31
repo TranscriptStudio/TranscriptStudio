@@ -124,6 +124,13 @@ class ReunionWindow(QWidget):
 
         self.pages_etape = {}
 
+        #
+        # P20 : barres d'outils des pages
+        # embarquées, placées sur la ligne du
+        # stepper quand leur page est active.
+        #
+        self._barres_pages = {}
+
         self.fenetre_correction = None
         self.fenetre_reformulation = None
 
@@ -177,6 +184,100 @@ class ReunionWindow(QWidget):
             self.etude is not None
             and self.nom is not None
         )
+
+    def _etude_interne(self, creer: bool = True):
+        """
+        P20 (retour David 31/10, UI reformulation
+        point 1) : la reformulation et les
+        traitements du stepper appartiennent au
+        processus RÉUNION, pas au processus étude.
+        Une réunion AUTONOME reçoit donc les mêmes
+        traitements — portés par une étude INTERNE
+        enregistrée DANS le dossier du projet v1
+        (sous-dossier « _traitements ») : la réunion
+        reste autonome (aucun rattachement), ses
+        données de traitements vivent avec elle.
+
+        ``creer=False`` : ne JAMAIS créer le
+        dossier — seulement réouvrir l'étude interne
+        existante (usage : états du stepper, sans
+        effet de bord à l'ouverture de la page).
+
+        Retour : (EtudeOuverte, nom de réunion)
+        ou None si impossible (projet introuvable,
+        dossier non inscriptible…).
+        """
+
+        if self.rattachee():
+            return (self.etude, self.nom)
+
+        cache = getattr(
+            self,
+            "_etude_interne_cache",
+            None
+        )
+
+        if cache is not None:
+            return cache
+
+        chemin = getattr(
+            self.projet,
+            "project_file",
+            None
+        )
+
+        if not chemin:
+            return None
+
+        from services.etude_io import (
+            ajouter_reunion,
+            creer_etude,
+            ouvrir_etude,
+        )
+
+        dossier_interne = (
+            Path(chemin).parent / "_traitements"
+        )
+
+        try:
+
+            if (
+                dossier_interne / "etude.json"
+            ).is_file():
+
+                etude = ouvrir_etude(
+                    dossier_interne
+                )
+
+                if not etude.etude.ordre_reunions:
+                    return None
+
+                nom = (
+                    etude.etude.ordre_reunions[0]
+                )
+
+            elif not creer:
+
+                return None
+
+            else:
+
+                etude = creer_etude(
+                    dossier_interne,
+                    Path(chemin).parent.name
+                )
+
+                nom = ajouter_reunion(
+                    etude,
+                    chemin
+                )
+
+        except Exception:
+            return None
+
+        self._etude_interne_cache = (etude, nom)
+
+        return (etude, nom)
 
     # ==================================================
     # UI.
@@ -617,69 +718,132 @@ class ReunionWindow(QWidget):
         # l'éditeur complet n'affiche plus de
         # barre propre).
         #
-        barre = getattr(
+        self._enregistrer_barre(
             self.fenetre_correction,
-            "barre_outils",
-            None
-        )
-
-        if barre is not None:
-
-            self.zone_outils.layout().addWidget(
-                barre
+            getattr(
+                self.fenetre_correction,
+                "barre_outils",
+                None
             )
-
-        self._maj_visibilite_outils()
+        )
 
         return self.fenetre_correction
 
+    def _enregistrer_barre(self, page, barre):
+        """
+        P20 : chaque page embarquée publie SA barre
+        d'outils — la page active place la sienne
+        sur la ligne du stepper (retour David
+        31/10, points 4 : Transcription et
+        Reformulation partagent la rangée).
+        """
+
+        if barre is None:
+            return
+
+        self._barres_pages[page] = barre
+
+        self._maj_visibilite_outils()
+
     def _maj_visibilite_outils(self, *_args):
         """
-        La barre d'outils (A+/A-, zoom, lecteur)
-        n'apparaît que sur l'étape Transcription
-        (= éditeur de correction) — jamais sur les
-        autres étapes.
+        Place sur la ligne du stepper la barre
+        d'outils de la page ACTIVE (Transcription :
+        A+/A-, zoom, lecteur ; Reformulation :
+        traitements, A+/A-, audio, log) — les
+        autres étapes n'affichent rien.
         """
+
+        disposition = getattr(
+            self,
+            "zone_outils",
+            None
+        )
+
+        if disposition is None:
+            return
+
+        layout = disposition.layout()
 
         page = self.contenu.currentWidget()
 
-        visible = (
-            page is not None
-            and page is self.fenetre_correction
-        )
+        barre_active = None
 
-        self.zone_outils.setVisible(visible)
+        if page is not None:
+
+            for (
+                page_connue,
+                barre
+            ) in self._barres_pages.items():
+
+                if page_connue is page:
+                    barre_active = barre
+                    break
+
+        #
+        # Retirer la barre affichée (elle reste
+        # enfant de la zone, masquée — sa page la
+        # reprendra à son retour).
+        #
+        while layout.count():
+
+            item = layout.takeAt(0)
+
+            widget = item.widget()
+
+            if widget is not None:
+                widget.hide()
+
+        if barre_active is None:
+
+            disposition.setVisible(False)
+
+            return
+
+        barre_active.show()
+
+        layout.addWidget(barre_active)
+
+        disposition.setVisible(True)
 
     def _page_reformulation(self):
         """
         ④ Reformulation (optionnelle) : la page de
-        relecture P16/P16-bis. Sans étude : la
-        réunion est autonome — rattachement proposé
-        (disponible à tout moment, spec §6.2).
+        relecture P16/P16-bis. La réunion RATTACHÉE
+        travaille dans son étude ; la réunion
+        AUTONOME travaille dans son étude INTERNE
+        (retour David 31/10, point 1 : la
+        reformulation appartient au processus
+        réunion — une réunion autonome reçoit tous
+        les traitements du stepper, hors ouvrage).
         """
 
-        if not self.rattachee():
+        interne = self._etude_interne()
+
+        if interne is None:
 
             return self._page_information(
                 "④ Reformulation (optionnelle)",
                 [
-                    "Cette réunion est autonome : la "
-                    "reformulation travaille par blocs "
-                    "de parole au sein d'une étude.",
+                    "La reformulation travaille par blocs "
+                    "de parole : elle exige la diarisation "
+                    "validée de la transcription.",
                     "",
-                    "Rattachez la réunion à une étude "
-                    "(bouton « Gestion de l'étude ») "
-                    "pour la reformuler — ou passez "
-                    "l'étape (elle est optionnelle).",
+                    "Cette réunion ne peut pas être "
+                    "segmentée en l'état (projet "
+                    "introuvable ou dossier non "
+                    "inscriptible).",
                 ]
             )
+
+        etude, nom = interne
 
         from ui.etude_window import assurer_decoupage
 
         if not assurer_decoupage(
             self,
-            self.etude,
-            self.nom
+            etude,
+            nom
         ):
 
             return self._page_information(
@@ -698,13 +862,28 @@ class ReunionWindow(QWidget):
 
         self.fenetre_reformulation = (
             ReformulationWindow(
-                self.etude,
-                self.nom,
+                etude,
+                nom,
                 settings=self.settings
             )
         )
 
         self.fenetre_reformulation.navigation = self
+
+        #
+        # P20, point 4 : la barre d'outils de la
+        # reformulation (traitements, A+/A−, audio,
+        # log) vit sur la ligne du stepper, comme
+        # celle de la page Transcription.
+        #
+        self._enregistrer_barre(
+            self.fenetre_reformulation,
+            getattr(
+                self.fenetre_reformulation,
+                "barre_outils",
+                None
+            )
+        )
 
         return self.fenetre_reformulation
 
@@ -744,7 +923,13 @@ class ReunionWindow(QWidget):
 
         actions = QHBoxLayout()
 
-        if self.rattachee():
+        #
+        # P20 : le résumé aussi appartient au
+        # processus réunion — réunion autonome =
+        # étude INTERNE (retour David 31/10,
+        # point 1).
+        #
+        if self._etude_interne() is not None:
 
             self.resume_button = QPushButton(
                 "Résumé…"
@@ -777,10 +962,11 @@ class ReunionWindow(QWidget):
         else:
 
             info = QLabel(
-                "Cette réunion est autonome : le résumé "
-                "vit dans une étude. Rattachez la réunion "
-                "(bouton « Gestion de l'étude ») — ou "
-                "passez l'étape (elle est optionnelle)."
+                "Le résumé exige la diarisation "
+                "validée de la transcription : cette "
+                "réunion ne peut pas être segmentée "
+                "en l'état (projet introuvable ou "
+                "dossier non inscriptible)."
             )
             info.setWordWrap(True)
             info.setStyleSheet("color: #555555;")
@@ -795,18 +981,22 @@ class ReunionWindow(QWidget):
 
     def _texte_statut_resume(self):
 
-        if not self.rattachee():
+        interne = self._etude_interne()
+
+        if interne is None:
             return ""
 
+        etude, nom = interne
+
         reunion = (
-            self.etude.reunions.get(self.nom)
+            etude.reunions.get(nom)
         )
 
         if reunion and reunion.resume_valide:
             return "Le résumé de la réunion est validé."
 
         resultat = (
-            self.etude.resumes.get(self.nom)
+            etude.resumes.get(nom)
         )
 
         if resultat and resultat.versions:
@@ -819,29 +1009,33 @@ class ReunionWindow(QWidget):
 
     def ouvrir_resume(self):
 
-        if not self.rattachee():
+        interne = self._etude_interne()
+
+        if interne is None:
             return
+
+        etude, nom = interne
 
         from ui.etude_window import assurer_decoupage
 
         if not assurer_decoupage(
             self,
-            self.etude,
-            self.nom
+            etude,
+            nom
         ):
             return
 
         from ui.resume_window import ResumeWindow
 
         fenetre = ResumeWindow(
-            self.etude,
-            self.nom,
+            etude,
+            nom,
             parent=self
         )
 
         fenetre.exec()
 
-        sauvegarder_etude(self.etude)
+        sauvegarder_etude(etude)
 
         if self.resume_statut_label is not None:
             self.resume_statut_label.setText(
@@ -1182,16 +1376,25 @@ class ReunionWindow(QWidget):
 
     def maj_stepper(self):
         """
-        Recalcule les couleurs du stepper.
+        Recalcule les couleurs du stepper. Réunion
+        autonome : les traitements réalisés dans
+        son étude INTERNE comptent (réouverture
+        seule, jamais de création ici).
         """
+
+        interne = self._etude_interne(creer=False)
+
+        if interne is not None:
+            etude_ref, nom_ref = interne
+        elif self.rattachee():
+            etude_ref, nom_ref = self.etude, self.nom
+        else:
+            etude_ref, nom_ref = None, None
 
         etats = etapes_reunion(
             self.projet,
-            etude_ouverte=(
-                self.etude if self.rattachee()
-                else None
-            ),
-            nom=self.nom,
+            etude_ouverte=etude_ref,
+            nom=nom_ref,
             settings=self.settings,
         )
 
@@ -1281,6 +1484,12 @@ class ReunionWindow(QWidget):
         self.pages_etape.clear()
         self.fenetre_correction = None
         self.fenetre_reformulation = None
+
+        #
+        # Les barres des pages détruites ne valent
+        # plus rien (les widgets sont détruits).
+        #
+        self._barres_pages.clear()
 
         while self.contenu.count():
             widget = self.contenu.widget(0)
