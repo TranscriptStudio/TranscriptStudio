@@ -110,14 +110,183 @@ class ModeleCatalogue:
         )
 
     @property
+    def valeurs_effort_raisonnement(self) -> list:
+        """
+        Valeurs d'effort de raisonnement ACCEPTÉES
+        par le modèle (mise à jour 2026-10-31 (c) :
+        la capacité passe du booléen à la LISTE
+        EXACTE des valeurs, dans l'ordre croissant
+        d'intensité ; chaque fournisseur discrétise
+        l'effort différemment).
+
+        Un catalogue édité à la main peut encore
+        porter l'ancien booléen ``true`` : repli sur
+        l'échelle historique commune de l'app.
+        """
+
+        valeur = self.capacites.get(
+            "effort_raisonnement"
+        )
+
+        if isinstance(valeur, bool):
+
+            return list(EFFORTS_HISTORIQUES) if (
+                valeur
+            ) else []
+
+        if isinstance(valeur, list):
+
+            return [
+                v for v in valeur
+                if isinstance(v, str) and v
+            ]
+
+        return []
+
+    @property
     def capacite_effort_raisonnement(self) -> bool:
+        """
+        Le modèle expose-t-il un effort de
+        raisonnement ? (Raccourci : liste de
+        valeurs non vide.)
+        """
 
         return bool(
-            self.capacites.get(
-                "effort_raisonnement",
-                False
-            )
+            self.valeurs_effort_raisonnement
         )
+
+    @property
+    def effort_defaut(self):
+        """
+        Effort par défaut du modèle (mise à jour
+        2026-10-31 (b)/(c)) : ``effort_defaut`` du
+        catalogue s'il appartient à la liste —
+        SINON la valeur la plus HAUTE disponible
+        (règle de la spec : jamais hors échelle).
+        """
+
+        valeurs = (
+            self.valeurs_effort_raisonnement
+        )
+
+        if not valeurs:
+            return None
+
+        defaut = self.capacites.get(
+            "effort_defaut"
+        )
+
+        if defaut in valeurs:
+            return defaut
+
+        # La plus haute : dernière de l'échelle
+        # triée par intensité.
+        return sorted(
+            valeurs,
+            key=intensite_effort
+        )[-1]
+
+
+#
+# Échelle HISTORIQUE commune (avant la bascule
+# booléen → liste, mise à jour 2026-10-31 (c)) :
+# repli pour un catalogue édité à la main qui
+# porterait encore ``"effort_raisonnement": true``.
+#
+
+EFFORTS_HISTORIQUES = [
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+]
+
+#
+# Échelle des efforts de raisonnement (mise à
+# jour 2026-10-31 (c)) : intensité croissante
+# connue de l'app — une valeur hors échelle
+# (catalogue édité à la main) se classe APRÈS
+# les valeurs connues et s'affiche telle quelle.
+#
+
+INTENSITES_EFFORT = {
+    "minimal": 0,
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+    "xhigh": 4,
+    "max": 5,
+}
+
+#
+# Libellés UI (spec 31c) : Faible / Moyen /
+# Élevé / Très élevé / Max selon la valeur ;
+# une valeur inconnue s'affiche telle quelle.
+#
+
+LIBELLES_EFFORT_RAISONNEMENT = {
+    "minimal": "Minimal",
+    "low": "Faible",
+    "medium": "Moyen",
+    "high": "Élevé",
+    "xhigh": "Très élevé",
+    "max": "Max",
+}
+
+
+def intensite_effort(valeur) -> int:
+    """
+    Rang d'intensité d'une valeur d'effort (les
+    valeurs inconnues se classent après les
+    connues).
+    """
+
+    return INTENSITES_EFFORT.get(valeur, 100)
+
+
+def libelle_effort(valeur) -> str:
+    """
+    Libellé lisible d'une valeur d'effort — la
+    valeur elle-même si elle est inconnue
+    (catalogue édité à la main, sans bloquer).
+    """
+
+    if valeur is None:
+        return ""
+
+    return LIBELLES_EFFORT_RAISONNEMENT.get(
+        valeur,
+        str(valeur)
+    )
+
+
+def effort_effectif(modele, effort_configure):
+    """
+    Effort à ENVOYER pour un modèle (utilisé par
+    le moteur, le résumé et la synthèse) :
+
+    - modèle sans la capacité : None (jamais de
+      paramètre envoyé) ;
+    - valeur configurée ACCEPTÉE par le modèle :
+      la valeur ;
+    - sinon (rien de mémorisé, valeur d'un autre
+      modèle, valeur retirée du catalogue) : le
+      défaut du modèle (lui-même toujours dans
+      la liste, cf. ``effort_defaut``).
+    """
+
+    valeurs = (
+        modele.valeurs_effort_raisonnement
+    )
+
+    if not valeurs:
+        return None
+
+    if effort_configure in valeurs:
+        return effort_configure
+
+    return modele.effort_defaut
 
 
 @dataclass
@@ -675,7 +844,21 @@ def reglages_affichables(
         )
     }
 
+    #
+    # Effort de raisonnement (mise à jour
+    # 2026-10-31 (b)/(c)) : uniquement si le
+    # modèle le déclare — le sélecteur n'affiche
+    # QUE les valeurs acceptées par le modèle,
+    # avec son défaut.
+    #
     if modele.capacite_effort_raisonnement:
-        reglages["effort_raisonnement"] = {}
+
+        reglages["effort_raisonnement"] = {
+            "valeurs": (
+                modele
+                .valeurs_effort_raisonnement
+            ),
+            "defaut": modele.effort_defaut,
+        }
 
     return reglages

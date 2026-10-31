@@ -25,6 +25,9 @@ from services.llm.catalogue import (
     cout_estime,
     estimer_tokens,
 )
+from services.llm.catalogue import (
+    effort_effectif,
+)
 from services.llm.client import (
     Annulation,
     ParametresCompletion,
@@ -515,12 +518,11 @@ class ServiceResume:
                     )
                     or None
                 ),
-                effort_raisonnement=(
+                effort_raisonnement=effort_effectif(
+                    modele,
                     self._parametres_app().get(
                         "effort_raisonnement"
                     )
-                    if modele.capacite_effort_raisonnement
-                    else None
                 ),
             ),
             annulation=annulation

@@ -571,8 +571,10 @@ class TestSection18Catalogue:
 
         dialogue.liste_modeles.setCurrentRow(0)
 
+        # Catalogue v3 (2026-10-31) : Le Chonk en
+        # tête des modèles Mistral.
         assert dialogue.modele_id_edit.text() == (
-            "mistral-large-latest"
+            "mistral-large-4"
         )
 
         # Le panneau montre le modèle du
@@ -645,7 +647,9 @@ class TestSection18Catalogue:
 
         assert mistral.chercher_modele(
             "mistral-large-latest"
-        ).nom_affiche == "Mistral Large (dernier)"
+        ).nom_affiche == (
+            "Mistral Large (précédent)"
+        )
 
     def test_doublon_d_identifiant_refuse(self, dialogue):
 
@@ -995,9 +999,12 @@ class TestSectionEffortRaisonnement:
     : la valeur mémorisée est RESTAURÉE à
     l'ouverture des réglages (le combo repassait
     à sa première entrée, et « Enregistrer »
-    écrasait l'ancienne valeur) ; les niveaux
-    complets sont exposés (jusqu'à « Très élevé »)
-    ; « Défaut de l'API » n'envoie rien.
+    écrasait l'ancienne valeur). Mise à jour
+    2026-10-31 (b)/(c) : le sélecteur ne propose
+    QUE les valeurs acceptées PAR MODÈLE (liste
+    du catalogue), sans option « Défaut de
+    l'API » — l'effort d'un modèle à
+    raisonnement est toujours explicite.
     """
 
     def test_effort_memorise_puis_restaure(
@@ -1102,16 +1109,30 @@ class TestSectionEffortRaisonnement:
                 )
             ]
 
-            assert "Très élevé" in libelles
-            assert "Minimal" in libelles
+            #
+            # Mise à jour 2026-10-31 (b)/(c) : le
+            # sélecteur ne propose QUE les valeurs
+            # acceptées par gpt-5.6-terra (liste
+            # du catalogue), sans « Défaut de
+            # l'API » — la valeur mémorisée est
+            # restaurée.
+            #
+            assert libelles == [
+                "Minimal",
+                "Faible",
+                "Moyen",
+                "Élevé",
+                "Très élevé",
+            ]
 
-            # « Défaut de l'API » = première entrée,
-            # valeur None (jamais de reasoning_effort
-            # envoyé).
-            assert dialogue.llm_effort_combo.itemData(0) is None
+            assert not any(
+                dialogue.llm_effort_combo.itemData(i)
+                is None
+                for i in range(
+                    dialogue.llm_effort_combo.count()
+                )
+            )
 
-            # Valeur mémorisée inconnue du catalogue :
-            # jamais perdue.
             assert dialogue.llm_effort_combo.currentData() == "xhigh"
 
         finally:

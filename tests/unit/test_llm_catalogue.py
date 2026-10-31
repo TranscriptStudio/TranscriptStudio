@@ -342,7 +342,11 @@ class TestPersistance:
             chemin.read_text(encoding="utf-8")
         )
 
-        assert reliture["catalogue_version"] == 2
+        # Catalogue v3 (2026-10-31 : Mistral Large 4
+        # « Le Chonk » + effort de raisonnement).
+        assert reliture["catalogue_version"] == (
+            catalogue_par_defaut().catalogue_version
+        )
 
 
 class TestValidation:

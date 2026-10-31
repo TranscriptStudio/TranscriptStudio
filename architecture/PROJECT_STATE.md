@@ -1,22 +1,29 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**P19.2/P19.3 LIVRÉS** — page Ouvrage à TROIS
-> ZONES (ui/ouvrage_window.py, maquette validée 2026-10-29) branchée sur le document
-> dérivé P19.1 : arborescence à la Word à gauche (chapitres manuels, sous-titres,
-> séparateurs, paragraphes avec réunion source, « Réserves » — largeur réglable par
-> splitter), manuscrit compilé ÉDITABLE au centre (titres et sous-titres édités en
-> place, paragraphes avec provenance dessous, insertion des éléments de structure
-> AVANT l'élément sélectionné), rapport à droite (état de la génération,
-> signalements « réunion re-reformulée depuis la génération », non-placées) ;
-> génération/régénération complète qui ÉCRASE avec avertissement explicite
-> (« Non » ne touche à rien), sauvegarde ouvrage.json, export final P18.3 conservé ;
-> l'analyse de cohérence et la re-vérification des versets arrivent avec P20 (note
-> dans le panneau). Aussi : **stepper compact sans info-bulle** (hub et page Étude —
-> la pastille affiche déjà son libellé, retour David 31/10 ; la page Réunion
-> conserve « Étape optionnelle »), **P16-bis 4ᵉ série LIVRÉE** (progression de la
-> reformulation §19-23, les 5 invariants testés), **P18.6-bis série 6 LIVRÉE**
-> (pastilles non configurées en gris off, hub sans mention pour les non-transcrites),
-> **P19.1 LIVRÉ** (modèle de données du document ouvrage). **518 tests verts**.)
+> **Dernière mise à jour** : 2026-10-31 (**synchro PARAMETRAGE_LLM 31/10-a/b/c faite** —
+> PARAMETRAGE_LLM_V2_2026-10-31a/b/c.md + INDEX 31b recopiés dans architecture/spec_v2/.
+> **Catalogue LLM v3 + effort de raisonnement LIVRÉS** (mise à jour (a) : Mistral
+> Large 4 « Le Chonk » — température, contexte 1 M, prix 0,70/2,10 $, mistral-large-
+> latest libellé « (précédent) » ; (b) : la capacité effort_raisonnement passe du
+> booléen à la LISTE des valeurs acceptées + effort_defaut, sélecteur « Effort de
+> raisonnement » sans option « Défaut de l'API » (jamais none pour Le Chonk),
+> repli silencieux (400/422 → type « requete » non transitoire → un seul
+> réessai sans le paramètre), tokens de raisonnement rapportés séparément
+> AJOUTÉS à la sortie (le détail nested OpenAI, déjà inclus, jamais compté deux
+> fois) ; (c) : échelles par modèle — Chonk low/medium/high défaut high, Claude
+> low/medium/high/xhigh/max traduit vers output_config.effort chez anthropic,
+> OpenAI documenté à la bascule (minimal→xhigh), effort_defaut toujours dans la
+> liste sinon la plus haute valeur, libellés Faible/Moyen/Élevé/Très élevé/Max,
+> valeur inconnue affichée telle quelle, échelle historique en repli pour un
+> booléen d'un catalogue édité à la main ; la montée 2→3 déclenche la fusion
+> automatique existante (_fusionner_avec_defauts) — les utilisateurs existants
+> voient Le Chonk sans action ; moteur/résumé/synthèse valident la valeur
+> mémorisée contre la liste du modèle (effort_effectif) ; **535 tests verts**,
+> dont 17 nouveaux (catalogue v3, fusion, effort_effectif, repli silencieux,
+> output_config anthropic, tokens de raisonnement, sélecteur Faible/Moyen/Élevé,
+> moteur hors échelle substitué). Aussi livrés ce jour : P19.1-P19.3 (document
+> ouvrage + page Ouvrage trois zones), P16-bis 4ᵉ série (progression),
+> P18.6-bis séries 6-7-bis, stepper compact sans info-bulle.)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)

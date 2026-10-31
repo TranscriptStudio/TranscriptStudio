@@ -1248,4 +1248,9 @@ class TestEffortRaisonnement:
             "medium",
             "high",
             "xhigh",
+            # Mise à jour 2026-10-31 (c) : l'échelle
+            # commune des libellés couvre « max »
+            # (Claude) ; les valeurs ACCEPTÉES restent
+            # déclarées PAR MODÈLE dans le catalogue.
+            "max",
         ]

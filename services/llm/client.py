@@ -100,20 +100,37 @@ class ParametresCompletion:
 
 
 #
-# Niveaux d'effort de raisonnement exposés à
-# l'utilisateur (raisoning_effort côté API OpenAI
-# compatible) — liste commune à l'UI (réglages)
-# et au moteur, l'API n'étant pas poussée au
-# delà de ces valeurs.
+# Libellés des efforts de raisonnement (mise à
+# jour 2026-10-31 (c) : la LISTE des valeurs
+# acceptées vit dans le catalogue, par modèle —
+# les libellés restent partagés ici et dans
+# l'UI des réglages).
 #
 
+from services.llm.catalogue import (
+    libelle_effort as _libelle_effort,
+)
+
 EFFORTS_RAISONNEMENT = [
-    ("minimal", "Minimal"),
-    ("low", "Faible"),
-    ("medium", "Moyen"),
-    ("high", "Élevé"),
-    ("xhigh", "Très élevé"),
+    (valeur, _libelle_effort(valeur))
+    for valeur in (
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+    )
 ]
+
+
+def libelle_effort(valeur) -> str:
+    """
+    Libellé lisible d'une valeur d'effort
+    (réexport du catalogue pour l'UI).
+    """
+
+    return _libelle_effort(valeur)
 
 
 @dataclass
@@ -197,6 +214,17 @@ class LLMClient(ABC):
 
         derniere_erreur = None
 
+        #
+        # Repli silencieux de l'effort de
+        # raisonnement (mise à jour 2026-10-31
+        # (b)) : si l'API REJETTE la requête
+        # (paramètre ou valeur non acceptée par ce
+        # modèle), l'appel est RETENTÉ une fois
+        # SANS le paramètre — jamais d'échec
+        # bloquant de la passe pour ce réglage.
+        #
+        repli_effort_effectue = False
+
         for tentative in range(self.tentatives):
 
             if annulation is not None and annulation.demandee:
@@ -234,6 +262,30 @@ class LLMClient(ABC):
 
                 if e.type == "annulation":
                     raise
+
+                if (
+                    e.type == "requete"
+                    and (
+                        parametres
+                        .effort_raisonnement
+                    ) is not None
+                    and not repli_effort_effectue
+                ):
+
+                    repli_effort_effectue = True
+
+                    parametres = ParametresCompletion(
+                        modele=parametres.modele,
+                        temperature=(
+                            parametres.temperature
+                        ),
+                        max_tokens=(
+                            parametres.max_tokens
+                        ),
+                        effort_raisonnement=None,
+                    )
+
+                    continue
 
                 derniere_erreur = e
 
@@ -356,6 +408,26 @@ class LLMClient(ABC):
                     f"Modèle ou adresse introuvable chez "
                     f"{nom} (404). Vérifiez le modèle et "
                     f"la base URL du fournisseur."
+                    + (f" ({detail})" if detail else "")
+                )
+            )
+
+        #
+        # Requête refusée par le serveur (400/422) :
+        # paramètre ou valeur non acceptée — NON
+        # transitoire (aucune relance utile), et
+        # terrain du repli silencieux de l'effort
+        # de raisonnement (mise à jour 2026-10-31
+        # (b) : retirer le paramètre et retenter,
+        # jamais d'échec bloquant de la passe).
+        #
+        if statut in (400, 422):
+
+            return ErreurLLM(
+                "requete",
+                (
+                    f"Requête refusée par {nom} "
+                    f"({statut})."
                     + (f" ({detail})" if detail else "")
                 )
             )
@@ -576,6 +648,31 @@ class ClientOpenAICompatible(LLMClient):
                     tokens_out
                 )
 
+                #
+                # Tokens de RAISONNEMENT (mise à jour
+                # 2026-10-31 (b)) : facturés comme des
+                # tokens de sortie — un champ
+                # ``reasoning_tokens`` rapporté
+                # SÉPARÉMENT au sommet de l'usage
+                # (convention des modèles à
+                # raisonnement de la Plateforme) est
+                # AJOUTÉ à la sortie ; le détail
+                # NESTÉ ``completion_tokens_details``
+                # (style OpenAI) est une répartition
+                # DÉJÀ INCLUSE dans
+                # completion_tokens — jamais ajouté
+                # deux fois.
+                #
+                raisonnement = usage.get(
+                    "reasoning_tokens"
+                )
+
+                if (
+                    isinstance(raisonnement, int)
+                    and isinstance(tokens_out, int)
+                ):
+                    tokens_out += raisonnement
+
             choixs = chunk.get("choices") or []
 
             if not choixs:
@@ -732,6 +829,26 @@ class ClientAnthropic(LLMClient):
             charge["temperature"] = (
                 parametres.temperature
             )
+
+        #
+        # Effort de raisonnement (mise à jour
+        # 2026-10-31 (c)) : l'API Anthropic attend
+        # le bloc ``output_config`` → champ
+        # ``effort`` — ce n'est PAS un paramètre
+        # top-level ``reasoning_effort``. Le repli
+        # silencieux (rejet → appel sans le bloc)
+        # est garanti par completions().
+        #
+        if (
+            parametres.effort_raisonnement
+            is not None
+        ):
+            charge["output_config"] = {
+                "effort": (
+                    parametres
+                    .effort_raisonnement
+                )
+            }
 
         url = (
             f"{self.fournisseur.base_url.rstrip('/')}"

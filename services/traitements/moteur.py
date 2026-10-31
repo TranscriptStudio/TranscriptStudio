@@ -781,21 +781,25 @@ class MoteurTraitements:
         """
         La température n'est envoyée que si le modèle
         la supporte (capacités du catalogue) —
-        décision C2. L'effort de raisonnement suit la
-        même règle : mémorisé dans les réglages LLM
-        de l'app, envoyé uniquement si le modèle le
-        déclare (None = défaut de l'API).
+        décision C2. L'effort de raisonnement suit
+        la même règle (mise à jour 2026-10-31 (c)) :
+        la valeur mémorisée n'est envoyée que si le
+        modèle l'ACCEPTE (liste exacte du catalogue),
+        sinon le DÉFAUT du modèle lui est substitué
+        — jamais de valeur hors échelle, jamais de
+        paramètre pour un modèle sans la capacité.
         """
 
-        effort = None
-
-        if modele.capacite_effort_raisonnement:
-
-            effort = self._parametres_app().get(
-                "effort_raisonnement"
-            )
+        from services.llm.catalogue import (
+            effort_effectif,
+        )
 
         config = self._parametres_app()
+
+        effort = effort_effectif(
+            modele,
+            config.get("effort_raisonnement")
+        )
 
         return ParametresCompletion(
             modele=modele.id,

@@ -998,35 +998,22 @@ class SettingsDialog(QDialog):
         )
 
         #
-        # Effort de raisonnement : affiché
-        # uniquement si le modèle le déclare.
-        # « Défaut de l'API » (valeur None) ne
-        # JAMAIS envoyer de reasoning_effort —
-        # l'API applique alors son propre défaut.
+        # Effort de raisonnement (mise à jour
+        # 2026-10-31 (b)/(c)) : affiché uniquement
+        # si le modèle le déclare ; le sélecteur ne
+        # propose QUE les valeurs acceptées par le
+        # modèle (libellés Faible/Moyen/Élevé/…),
+        # sans option « Défaut de l'API » — pour un
+        # modèle à raisonnement (Mistral Large 4),
+        # l'effort est TOUJOURS explicite. Le combo
+        # est rempli par on_llm_modele_change.
         #
-        from services.llm.client import (
-            EFFORTS_RAISONNEMENT,
-        )
-
         self.llm_effort_combo = QComboBox()
 
         self.llm_effort_combo.setSizeAdjustPolicy(
             QComboBox.SizeAdjustPolicy.
             AdjustToContents
         )
-
-        self.llm_effort_combo.addItem(
-            "Défaut de l'API",
-            None
-        )
-
-        for identifiant, libelle in (
-            EFFORTS_RAISONNEMENT
-        ):
-            self.llm_effort_combo.addItem(
-                libelle,
-                identifiant
-            )
 
         self.llm_effort_ligne = QWidget()
         ligne_layout = QHBoxLayout(self.llm_effort_ligne)
@@ -1338,12 +1325,17 @@ class SettingsDialog(QDialog):
             )
 
         #
-        # Effort de raisonnement : uniquement si
-        # déclaré — ET restauration de la valeur
-        # mémorisée (elle était perdue à chaque
-        # réouverture : le combo repassait à sa
-        # première entrée, puis « Enregistrer »
-        # écrasait l'ancienne valeur).
+        # Effort de raisonnement (mise à jour
+        # 2026-10-31 (b)/(c)) : uniquement si
+        # déclaré, et le sélecteur ne propose QUE
+        # les valeurs acceptées par le modèle
+        # (libellés lisibles, valeur inconnue
+        # affichée telle quelle), ordre croissant
+        # d'intensité. La valeur mémorisée est
+        # restaurée ; hors liste du modèle (autre
+        # modèle, valeur retirée du catalogue) :
+        # le DÉFAUT du modèle — jamais perdue en
+        # silence, jamais hors échelle.
         #
         effort_visible = (
             "effort_raisonnement" in reglages
@@ -1355,38 +1347,52 @@ class SettingsDialog(QDialog):
 
         if effort_visible:
 
+            from services.llm.client import (
+                libelle_effort,
+            )
+
+            reglage = reglages[
+                "effort_raisonnement"
+            ]
+
+            valeurs = list(
+                reglage["valeurs"]
+            )
+
+            self.llm_effort_combo.blockSignals(
+                True
+            )
+
+            self.llm_effort_combo.clear()
+
+            for valeur in valeurs:
+                self.llm_effort_combo.addItem(
+                    libelle_effort(valeur),
+                    valeur
+                )
+
             effort = config.get(
                 "effort_raisonnement"
             )
 
-            index = 0
+            if effort not in valeurs:
+                effort = reglage["defaut"]
 
-            if effort:
-                index = (
-                    self.llm_effort_combo.findData(
-                        effort
-                    )
+            index = (
+                self.llm_effort_combo.findData(
+                    effort
                 )
+            )
 
-                if index < 0:
-
-                    #
-                    # Valeur inconnue (catalogue
-                    # personnalisé) : jamais perdue,
-                    # ajoutée telle quelle.
-                    #
-                    self.llm_effort_combo.addItem(
-                        effort,
-                        effort
-                    )
-
-                    index = (
-                        self.llm_effort_combo.count()
-                        - 1
-                    )
+            if index < 0:
+                index = 0
 
             self.llm_effort_combo.setCurrentIndex(
                 index
+            )
+
+            self.llm_effort_combo.blockSignals(
+                False
             )
 
         #

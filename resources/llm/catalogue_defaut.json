@@ -1,5 +1,5 @@
 {
-  "catalogue_version": 2,
+  "catalogue_version": 3,
   "fournisseurs": [
     {
       "id": "openai",
@@ -14,8 +14,15 @@
           "nom_affiche": "GPT-6 Astra",
           "capacites": {
             "temperature": false,
-            "effort_raisonnement": true,
-            "max_contexte_tokens": 1050000
+            "effort_raisonnement": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "max_contexte_tokens": 1050000,
+            "effort_defaut": "high"
           },
           "prix": {
             "in_par_million": 10.0,
@@ -27,8 +34,15 @@
           "nom_affiche": "GPT-6.1 Sol",
           "capacites": {
             "temperature": false,
-            "effort_raisonnement": true,
-            "max_contexte_tokens": 1050000
+            "effort_raisonnement": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "max_contexte_tokens": 1050000,
+            "effort_defaut": "high"
           },
           "prix": {
             "in_par_million": 2.0,
@@ -40,8 +54,15 @@
           "nom_affiche": "GPT-6.1 Terra",
           "capacites": {
             "temperature": false,
-            "effort_raisonnement": true,
-            "max_contexte_tokens": 1050000
+            "effort_raisonnement": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "max_contexte_tokens": 1050000,
+            "effort_defaut": "high"
           },
           "prix": {
             "in_par_million": 1.0,
@@ -53,8 +74,15 @@
           "nom_affiche": "GPT-5.6 Sol",
           "capacites": {
             "temperature": false,
-            "effort_raisonnement": true,
-            "max_contexte_tokens": 1050000
+            "effort_raisonnement": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "max_contexte_tokens": 1050000,
+            "effort_defaut": "high"
           },
           "prix": {
             "in_par_million": 4.0,
@@ -66,8 +94,15 @@
           "nom_affiche": "GPT-5.6 Terra",
           "capacites": {
             "temperature": false,
-            "effort_raisonnement": true,
-            "max_contexte_tokens": 1050000
+            "effort_raisonnement": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "max_contexte_tokens": 1050000,
+            "effort_defaut": "high"
           },
           "prix": {
             "in_par_million": 2.0,
@@ -79,8 +114,15 @@
           "nom_affiche": "GPT-5.6 Luna",
           "capacites": {
             "temperature": false,
-            "effort_raisonnement": true,
-            "max_contexte_tokens": 1050000
+            "effort_raisonnement": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "max_contexte_tokens": 1050000,
+            "effort_defaut": "high"
           },
           "prix": {
             "in_par_million": 0.2,
@@ -110,8 +152,26 @@
       "origine": "defaut",
       "modeles": [
         {
+          "id": "mistral-large-4",
+          "nom_affiche": "Mistral Large 4 « Le Chonk »",
+          "capacites": {
+            "temperature": true,
+            "effort_raisonnement": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "effort_defaut": "high",
+            "max_contexte_tokens": 1000000
+          },
+          "prix": {
+            "in_par_million": 0.7,
+            "out_par_million": 2.1
+          }
+        },
+        {
           "id": "mistral-large-latest",
-          "nom_affiche": "Mistral Large (dernier)",
+          "nom_affiche": "Mistral Large (précédent)",
           "capacites": {
             "temperature": true,
             "max_contexte_tokens": 256000
@@ -136,7 +196,15 @@
           "nom_affiche": "Claude Opus 5.5",
           "capacites": {
             "temperature": true,
-            "max_contexte_tokens": 200000
+            "max_contexte_tokens": 200000,
+            "effort_raisonnement": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "effort_defaut": "high"
           },
           "prix": {
             "in_par_million": 4.0,
@@ -148,7 +216,15 @@
           "nom_affiche": "Claude Sonnet 5.5",
           "capacites": {
             "temperature": true,
-            "max_contexte_tokens": 200000
+            "max_contexte_tokens": 200000,
+            "effort_raisonnement": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "effort_defaut": "high"
           },
           "prix": {
             "in_par_million": 2.0,
@@ -160,7 +236,15 @@
           "nom_affiche": "Claude Sonnet 4",
           "capacites": {
             "temperature": true,
-            "max_contexte_tokens": 200000
+            "max_contexte_tokens": 200000,
+            "effort_raisonnement": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "effort_defaut": "high"
           },
           "prix": {
             "in_par_million": 3.0,
