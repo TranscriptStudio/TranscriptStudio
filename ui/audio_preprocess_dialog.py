@@ -38,7 +38,7 @@ from services.project_manager import ProjectManager
 from services.icons import (
     make_tinted_icon,
     make_button_height_css,
-    make_theme_text_color,
+    text_color_effectif,
     ICON_BUTTON_WIDTH,
     ICON_BUTTON_HEIGHT,
 )
@@ -148,11 +148,10 @@ class AudioPreprocessDialog(QDialog):
 
         # Icones SVG teintees theme : le rendu des
         # emojis varies fortement selon l'OS. La
-        # teinte derive du theme configure (la
-        # palette Qt ne reflete pas la stylesheet).
-        text_color = make_theme_text_color(
-            SettingsManager().get_theme()
-        )
+        # teinte derive du theme APPLIQUE (la
+        # palette Qt ne reflete pas la stylesheet
+        # ni le theme configure).
+        text_color = text_color_effectif()
 
         self.play_button = QPushButton()
         self.play_button.setIcon(
@@ -820,9 +819,7 @@ class AudioPreprocessDialog(QDialog):
         #
         result_controls_layout = QHBoxLayout()
 
-        result_text_color = make_theme_text_color(
-            SettingsManager().get_theme()
-        )
+        result_text_color = text_color_effectif()
 
         self.result_play_button = QPushButton()
         self.result_play_button.setIcon(
@@ -1105,9 +1102,7 @@ class AudioPreprocessDialog(QDialog):
         self,
         playing
     ):
-        text_color = make_theme_text_color(
-            SettingsManager().get_theme()
-        )
+        text_color = text_color_effectif()
 
         if playing:
             self.play_button.setIcon(
@@ -1986,9 +1981,7 @@ class AudioPreprocessDialog(QDialog):
         )
         self.result_play_button.setIcon(
             make_tinted_icon(
-                make_theme_text_color(
-                    SettingsManager().get_theme()
-                ),
+                text_color_effectif(),
                 "icons/player-play.svg",
                 18,
                 self.result_play_button.devicePixelRatioF()
@@ -2829,9 +2822,7 @@ class AudioPreprocessDialog(QDialog):
         self,
         playing
     ):
-        text_color = make_theme_text_color(
-            SettingsManager().get_theme()
-        )
+        text_color = text_color_effectif()
 
         if playing:
             self.result_play_button.setIcon(

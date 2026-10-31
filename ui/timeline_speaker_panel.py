@@ -5,7 +5,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import (
     QPainter,
     QColor,
-    QPalette,
 )
 from PySide6.QtCore import Signal, QRectF
 ROW_HEIGHT = 23
@@ -62,8 +61,18 @@ class TimelineSpeakerPanel(QWidget):
                 QColor(speaker.color)
             )
 
-            text_color = self.palette().color(
-                QPalette.ColorRole.Text
+            #
+            # P18.6-bis série 8-ter : couleur de
+            # texte du thème APPLIQUÉ — la palette
+            # ne reflète pas qdarktheme (retour
+            # David 31/10 : texte inversé en sombre).
+            #
+            from services.icons import (
+                text_color_effectif
+            )
+
+            text_color = QColor(
+                text_color_effectif()
             )
 
             painter.setPen(

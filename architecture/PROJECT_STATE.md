@@ -1,29 +1,26 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**série 8-bis livrée — correctifs au retour David
-> série 8**). **CORRECTIFS SÉRIE 8-BIS** : (1) ancre de teinte des icônes SVG du stepper
-> corrigée — make_tinted_icon remplace désormais AUSSI stroke="#2942ff" (les stepper-*.svg
-> portent l'ancre sur stroke, l'icône restait bleu ancre illisible sur la pastille bleue
-> « en cours ») ; (2) bouton « Reformulation… » de l'éditeur SUPPRIMÉ (doublon du stepper —
-> ouvrir_reformulation garde l'API de navigation pour les tests) ; (3) barre d'outils de
-> l'éditeur (A+/A−, zoom, lecteur) REPARENTÉE sur la ligne du stepper, à sa droite
-> (MainWindow.barre_outils → ReunionWindow.zone_outils), visible uniquement sur l'étape
-> Transcription, pastilles pleine taille à 25 px (min-height 21 + padding + bordure)
-> alignées sur les boutons d'icônes ; (4) BROADCAST de changement de thème :
-> ThemeManager.diffuser_changement_theme() appelé en fin d'apply_dark/apply_light,
-> rafraîchit les fenêtres VISIBLES qui exposent sur_changement_theme() (StepperBar rejoue
-> styles + icônes, ReunionWindow recalcule le stepper et propage, MainWindow re-teinte
-> A+/A−/lecteur et re-rend les blocs, HomeWindow recolore l'en-tête + tuiles,
-> EtudeWindow reconstruit la liste) — les couleurs peintes à la main suivaient enfin le
-> thème à chaud (plus de pastilles figées au thème précédent). **549 tests verts** (4
-> nouveaux : ancre stroke, barre reparentée + visibilité, hauteur des pastilles, broadcast
-> à chaud). La série 8 (retour David 31/10 points 1-10 : éditeur épuré, bouton Sauvegarder,
-> icônes par étape, « à faire » clair, couleur effective, badge aligné — détails au commit
-> série 8 du 31/10) et la série 7 (spec 31d §30, invariant 16 : reflet au survol) restent
-> livrées. Aussi livrés ce jour : catalogue
-> LLM v3 + effort de raisonnement (Chonk, repli silencieux, output_config anthropic),
-> P19.1-P19.3 (document ouvrage + page Ouvrage), P16-bis 4ᵉ série, P18.6-bis séries
-> 6-7-bis.
+> **Dernière mise à jour** : 2026-10-31 (**série 8-ter livrée — fin des couleurs
+> inversées sombre/clair, réglée à la racine**). **CAUSE RACINE** : la QPalette ne reflète
+> PAS le thème appliqué (qdarktheme travaille par feuille de style) — sur un OS au schéma
+> OPPOSÉ au thème de l'app (Windows clair + app sombre), tout ce qui lisait la palette
+> peignait les couleurs du thème INVERSE : la TIMELINE (bulle temporelle palette Base en
+> texte sur fond palette Text, grille palette Mid) et le PANNEAU DES INTERVENANTS lisaient
+> QPalette — d'où « lisible en clair, illisible en sombre ». **CORRECTIF — source de vérité
+> UNIQUE** : (1) timeline_widget et timeline_speaker_panel peignent désormais via
+> text_color_effectif()/est_sombre (bulles, grille, noms d'intervenants) ; (2) est_sombre :
+> le repli lit le schéma de couleurs DU SYSTÈME (styleHints().colorScheme()), plus JAMAIS la
+> luminosité de QPalette ; (3) en-tête du hub : suit le thème APPLIQUÉ (est_sombre), pas le
+> réglage configuré ni la palette ; (4) dialogue de prétraitement : les 5 teintes
+> d'icônes suivent text_color_effectif (thème appliqué), plus make_theme_text_color(réglage
+> configuré). **VERROU (TestSerie8TerInversion)** : palette délibérément OPPOSÉE au thème
+> appliqué dans les DEUX sens (app sombre + palette claire, app claire + palette sombre) —
+> est_sombre, text_color_effectif, styles du stepper, icônes A+/A−, rendu des blocs
+> transcrits et pixels de la timeline suivent TOUJOURS le thème appliqué. Série 8-bis
+> (ancre stroke, barre d'outils sur la ligne du stepper, broadcast de thème aux fenêtres
+> visibles) livrée juste avant. **551 tests verts** (2 verrous nouveaux). Aussi livrés ce
+> jour : série 8 (retour David points 1-10), série 7 (spec 31d §30, invariant 16), catalogue
+> LLM v3 + effort de raisonnement, P19.1-P19.3, P16-bis 4ᵉ série, P18.6-bis séries 6-7-bis.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)

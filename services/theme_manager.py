@@ -891,22 +891,35 @@ def est_sombre(widget) -> bool:
       ne met pas la palette à jour — sans cela,
       un thème sombre appliqué se lisait
       « clair ») ;
-    - repli : luminosité de la palette courante
-      (recalculée à chaque appel).
+    - repli : schéma de couleurs DU SYSTÈME
+      (app.styleHints().colorScheme()) — la
+      QPalette reste la palette par défaut de
+      l'OS sous qdarktheme et ne doit JAMAIS
+      servir à deviner le thème affiché
+      (P18.6-bis série 8-ter, retour David
+      31/10 : couleurs inversées en sombre).
     """
 
     if _THEME_ACTIF is not None:
         return _THEME_ACTIF == "dark"
 
-    if widget is None:
+    from PySide6.QtGui import (
+        QGuiApplication,
+        Qt,
+    )
+
+    application = (
+        QGuiApplication.instance()
+    )
+
+    if application is None:
         return False
 
     return (
-        widget.palette()
-        .window()
-        .color()
-        .lightness()
-        < 128
+        application
+        .styleHints()
+        .colorScheme()
+        == Qt.ColorScheme.Dark
     )
 
 

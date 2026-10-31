@@ -1555,27 +1555,26 @@ class HomeWindow(QWidget):
         self.update_header_colors()
 
     def update_header_colors(self):
-        theme = self.settings.get_theme()
-        if theme == "dark":
+        #
+        # P18.6-bis série 8-ter : l'en-tête suit le
+        # thème APPLIQUÉ (est_sombre), pas le seul
+        # réglage configuré — l'aperçu immédiat
+        # des réglages peut diverger du réglage
+        # enregistré, et la palette ne reflète pas
+        # qdarktheme.
+        #
+        from services.theme_manager import (
+            est_sombre,
+        )
+
+        if est_sombre(self):
             title_color = "#F0F0F0"
             subtitle_color = "#C0C0C0"
             version_color = "#A8A8A8"
-        elif theme == "light":
+        else:
             title_color = "#191919"
             subtitle_color = "#555555"
             version_color = "#777777"
-        else:
-            is_dark = (
-                self.palette().window().color().lightness() < 128
-            )
-            if is_dark:
-                title_color = "#F0F0F0"
-                subtitle_color = "#C0C0C0"
-                version_color = "#A8A8A8"
-            else:
-                title_color = "#191919"
-                subtitle_color = "#555555"
-                version_color = "#777777"
 
         self.title_label.setStyleSheet(
             f"color: {title_color}; font-size: 26px;"

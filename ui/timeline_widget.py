@@ -9,7 +9,6 @@ from PySide6.QtGui import (
     QColor,
     QPen,
     QBrush,
-    QPalette,
 )
 
 from PySide6.QtCore import Qt, QRectF, Signal
@@ -246,22 +245,37 @@ class TimelineWidget(QWidget):
     ):
 
         painter = QPainter(self)
-        palette = self.palette()
 
-        text_color = palette.color(
-            QPalette.ColorRole.Text
+        #
+        # P18.6-bis série 8-ter : la palette ne
+        # reflète PAS le thème appliqué (qdarktheme
+        # travaille par feuille de style) — sur un
+        # OS clair avec l'app en sombre, la bulle
+        # temporelle et la grille peignaient des
+        # couleurs du thème OPPOSÉ (retour David
+        # 31/10 : « inversé, illisible en sombre »).
+        # Toutes les couleurs de la timeline
+        # suivent désormais le thème APPLIQUÉ.
+        #
+        from services.icons import (
+            text_color_effectif,
+        )
+        from services.theme_manager import (
+            est_sombre,
         )
 
-        grid_color = palette.color(
-            QPalette.ColorRole.Mid
+        sombre = est_sombre(self)
+
+        text_color = QColor(text_color_effectif())
+
+        grid_color = QColor(
+            "#3c3d44" if sombre else "#c9ccd2"
         )
 
-        bubble_color = palette.color(
-            QPalette.ColorRole.Text
-        )
+        bubble_color = QColor(text_color_effectif())
 
-        bubble_text_color = palette.color(
-            QPalette.ColorRole.Base
+        bubble_text_color = QColor(
+            "#1e1f24" if sombre else "#f3f3f3"
         )
 
         painter.setRenderHint(

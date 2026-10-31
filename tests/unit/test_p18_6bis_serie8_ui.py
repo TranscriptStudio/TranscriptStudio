@@ -793,3 +793,296 @@ class TestCorrectionsSuite:
         )
 
         reinitialiser_theme_actif()
+
+
+#
+# ==================================================
+# SÉRIE 8-ter (retour David 31/10 : « couleurs
+# inversées entre sombre et clair, illisible en
+# sombre ») : la QPalette ne reflète PAS le thème
+# appliqué (qdarktheme travaille par feuille de
+# style). Sur un OS au schéma OPPOSÉ au thème de
+# l'app (Windows clair + app sombre), tout ce qui
+# lisait la palette peignait les couleurs du
+# thème inverse : timeline (bulles temporelles,
+# grille), panneau des intervenants, en-tête du
+# hub. VERROU : palette délibérément OPPOSÉE au
+# thème appliqué — TOUTE couleur peinte à la main
+# doit suivre le thème APPLIQUÉ, jamais la
+# palette ni le réglage configuré.
+# ==================================================
+#
+
+class TestSerie8TerInversion:
+
+    def _palette(self, sombre: bool):
+        from PySide6.QtGui import (
+            QColor,
+            QPalette,
+        )
+
+        palette = QPalette()
+
+        if sombre:
+            palette.setColor(
+                QPalette.ColorRole.Window,
+                QColor("#1e1f24")
+            )
+            palette.setColor(
+                QPalette.ColorRole.Text,
+                QColor("#f0f0f0")
+            )
+            palette.setColor(
+                QPalette.ColorRole.Base,
+                QColor("#202124")
+            )
+            palette.setColor(
+                QPalette.ColorRole.Mid,
+                QColor("#3c3d44")
+            )
+        else:
+            palette.setColor(
+                QPalette.ColorRole.Window,
+                QColor("#f3f3f3")
+            )
+            palette.setColor(
+                QPalette.ColorRole.Text,
+                QColor("#191919")
+            )
+            palette.setColor(
+                QPalette.ColorRole.Base,
+                QColor("#ffffff")
+            )
+            palette.setColor(
+                QPalette.ColorRole.Mid,
+                QColor("#c9ccd2")
+            )
+
+        return palette
+
+    def _couleurs(self, image):
+        couleurs = {}
+
+        for y in range(0, image.height(), 2):
+            for x in range(0, image.width(), 2):
+                couleur = image.pixelColor(x, y)
+
+                if couleur.alpha() < 128:
+                    continue
+
+                couleurs[couleur.name()] = (
+                    couleurs.get(couleur.name(), 0) + 1
+                )
+
+        return couleurs
+
+    def _presque(self, couleurs, rgb, seuil=8):
+        """Une couleur rendue est-elle proche de rgb ?"""
+
+        from PySide6.QtGui import QColor
+
+        for nom in couleurs:
+            valeur = QColor(nom)
+
+            ecart = max(
+                abs(valeur.red() - rgb[0]),
+                abs(valeur.green() - rgb[1]),
+                abs(valeur.blue() - rgb[2]),
+            )
+
+            if ecart <= seuil:
+                return True
+
+        return False
+
+    def _verifie(
+        self,
+        qapp,
+        fenetre,
+        sombre: bool
+    ):
+        from services.icons import (
+            TEXT_COLOR_DARK_THEME,
+            TEXT_COLOR_LIGHT_THEME,
+            text_color_effectif,
+        )
+        from services.theme_manager import (
+            est_sombre,
+        )
+
+        correction = fenetre.fenetre_correction
+
+        attendu = (
+            TEXT_COLOR_DARK_THEME
+            if sombre
+            else TEXT_COLOR_LIGHT_THEME
+        )
+
+        oppose = (
+            TEXT_COLOR_LIGHT_THEME
+            if sombre
+            else TEXT_COLOR_DARK_THEME
+        )
+
+        # Détection du thème : appliqué, pas palette.
+        assert est_sombre(fenetre.stepper) is sombre
+
+        assert text_color_effectif() == attendu
+
+        # Stepper : couleurs du thème appliqué.
+        style = (
+            fenetre.stepper.boutons["export"]
+            .styleSheet()
+        )
+
+        assert (
+            "#33343a" if sombre else "#e6e7eb"
+        ) in style
+
+        # Icônes A+/A− : teinte du thème appliqué.
+        image = (
+            correction.text_smaller_button
+            .icon()
+            .pixmap(32, 32)
+            .toImage()
+        )
+
+        couleurs = self._couleurs(image)
+
+        attendu_bas = attendu.lower()
+        oppose_bas = oppose.lower()
+
+        assert attendu_bas in couleurs
+
+        assert oppose_bas not in couleurs
+
+        # Bloc transcrit : texte lisible sur le fond
+        # du thème appliqué (rendu réel).
+        widget = next(
+            iter(correction.block_widgets.values())
+        )
+
+        couleurs = self._couleurs(widget.grab().toImage())
+
+        assert attendu.lower() in couleurs
+
+        # Timeline : grille du thème appliqué,
+        # jamais celle du thème opposé (la bulle
+        # temporelle lisait la palette Base/Text).
+        couleurs = self._couleurs(
+            correction.timeline.grab().toImage()
+        )
+
+        grille = (
+            (60, 61, 68) if sombre else (201, 204, 210)
+        )
+
+        grille_opposee = (
+            (201, 204, 210) if sombre else (60, 61, 68)
+        )
+
+        #
+        # Presence : seuil large (la grille
+        # 1 px se fond au fond par anticrenage).
+        # Absence : stricte — la grille du theme
+        # OPPOSE ne doit JAMAIS apparaitre.
+        #
+        assert self._presque(
+            couleurs,
+            grille,
+            seuil=30
+        )
+
+        assert not self._presque(
+            couleurs,
+            grille_opposee,
+            seuil=10
+        )
+
+    def test_sombre_applique_palette_claire(
+        self,
+        reunion,
+        qapp
+    ):
+        """
+        Machine de David : Windows clair, app
+        sombre — la palette reste CLAIRE sous le
+        thème sombre appliqué.
+        """
+
+        from PySide6.QtGui import QPalette
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
+
+        fenetre = reunion[0]
+        fenetre.changer_etape("transcription")
+        fenetre.show()
+
+        sauvegarde = QPalette(qapp.palette())
+
+        try:
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.DARK
+            )
+
+            qapp.setPalette(
+                self._palette(sombre=False)
+            )
+
+            self._verifie(qapp, fenetre, sombre=True)
+        finally:
+            qapp.setPalette(sauvegarde)
+            fenetre.close()
+
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.DARK
+            )
+
+            reinitialiser_theme_actif()
+
+    def test_clair_applique_palette_sombre(
+        self,
+        reunion,
+        qapp
+    ):
+        """
+        Miroir : OS sombre, app claire.
+        """
+
+        from PySide6.QtGui import QPalette
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
+
+        fenetre = reunion[0]
+        fenetre.changer_etape("transcription")
+        fenetre.show()
+
+        sauvegarde = QPalette(qapp.palette())
+
+        try:
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.LIGHT
+            )
+
+            qapp.setPalette(
+                self._palette(sombre=True)
+            )
+
+            self._verifie(qapp, fenetre, sombre=False)
+        finally:
+            qapp.setPalette(sauvegarde)
+            fenetre.close()
+
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.DARK
+            )
+
+            reinitialiser_theme_actif()

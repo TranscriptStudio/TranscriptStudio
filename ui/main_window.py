@@ -374,7 +374,7 @@ class MainWindow(QMainWindow):
         # Controles de lecture : icones SVG teintees
         # avec la couleur de texte du theme (le rendu
         # des emojis varies fortement selon l'OS).
-        # Teinte derivee du theme configure : la
+        # Teinte derivee du theme applique : la
         # palette Qt ne reflete pas la stylesheet
         # du theme.
         #
