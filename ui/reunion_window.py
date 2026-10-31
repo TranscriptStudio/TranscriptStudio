@@ -42,7 +42,6 @@ from PySide6.QtWidgets import (
 
 from services.avancement import (
     ETAPES_REUNION,
-    LIBELLES_ETAPES,
     etapes_reunion,
     etat_export,
 )
@@ -232,36 +231,22 @@ class ReunionWindow(QWidget):
         )
 
         #
-        # Bouton UNIQUE « Étape suivante : [nom] › »
-        # (P18.6-bis, spec correctifs §20) : plus
-        # de « passer l'étape › » — pour sauter une
-        # étape optionnelle, on clique directement
-        # la pastille suivante du stepper (toutes
+        # P18.6-bis série 8 (retour David 31/10,
+        # point 4) : plus de bouton « Étape
+        # suivante » — le stepper suffit (toutes
         # les pastilles restent navigables).
         #
-        barre_bas = QHBoxLayout()
-
-        self.etape_suivante_button = QPushButton(
-            "Étape suivante ›"
-        )
-        self.etape_suivante_button.clicked.connect(
-            self.aller_etape_suivante
-        )
-
-        barre_bas.addWidget(
-            self.etape_suivante_button
-        )
-        barre_bas.addStretch()
-
-        layout.addLayout(barre_bas)
 
         self.maj_stepper()
 
     def _construire_ruban(self) -> QWidget:
         """
-        Ruban : titre, date · durée, badge
-        étude/Bible ou « Réunion autonome », boutons
-        Gestion de l'étude, Accueil, ⚙, ?.
+        Ruban : titre, puis sur UNE MÊME LIGNE la
+        date · durée et l'étude/Bible (couleur de
+        police normale — retour David 31/10,
+        point 9), boutons Sauvegarder la réunion
+        (point 2), Gestion de l'étude, Accueil,
+        ⚙, ?.
         """
 
         ruban = QWidget()
@@ -281,30 +266,58 @@ class ReunionWindow(QWidget):
             "font-size: 18px; font-weight: 600;"
         )
 
+        #
+        # Date · durée et étude/Bible : alignées
+        # horizontalement, couleur de police
+        # normale (point 9 — le badge bleu
+        # disparaît).
+        #
+        ligne_infos = QHBoxLayout()
+        ligne_infos.setSpacing(0)
+
         infos = self._ligne_infos()
 
         self.infos_label = QLabel(infos)
         self.infos_label.setStyleSheet(
-            "font-size: 12px; color: #757575;"
+            "font-size: 12px;"
         )
-
-        colonne_titre.addWidget(self.titre_label)
-        colonne_titre.addWidget(self.infos_label)
-
-        layout.addLayout(colonne_titre)
 
         self.badge_label = QLabel(
             self._texte_badge()
         )
+
         self.badge_label.setStyleSheet(
-            "font-size: 12px; color: #1565C0;"
-            if self.rattachee()
-            else "font-size: 12px; color: #8A8A8A;"
+            "font-size: 12px;"
         )
 
-        layout.addWidget(self.badge_label)
+        ligne_infos.addWidget(self.infos_label)
+
+        if self.badge_label.text():
+
+            ligne_infos.addSpacing(8)
+
+            ligne_infos.addWidget(
+                self.badge_label
+            )
+
+        ligne_infos.addStretch()
+
+        colonne_titre.addWidget(self.titre_label)
+        colonne_titre.addLayout(ligne_infos)
+
+        layout.addLayout(colonne_titre)
 
         layout.addStretch()
+
+        self.sauvegarder_button = QPushButton(
+            "💾 Sauvegarder"
+        )
+        self.sauvegarder_button.setToolTip(
+            "Sauvegarder la réunion"
+        )
+        self.sauvegarder_button.clicked.connect(
+            self.sauvegarder_reunion
+        )
 
         self.gestion_button = QPushButton(
             "Gestion de l'étude"
@@ -337,6 +350,7 @@ class ReunionWindow(QWidget):
         )
 
         for bouton in (
+            self.sauvegarder_button,
             self.gestion_button,
             self.accueil_button,
             self.parametres_button,
@@ -482,7 +496,6 @@ class ReunionWindow(QWidget):
 
         self.contenu.setCurrentWidget(page)
 
-        self.maj_boutons_etape()
         self.maj_stepper()
 
     def _construire_page_etape(self, etape):
@@ -1052,55 +1065,51 @@ class ReunionWindow(QWidget):
     # Navigation entre étapes.
     # ==================================================
 
-    def maj_boutons_etape(self):
+    def sauvegarder_reunion(self):
         """
-        « Étape suivante » précise « (optionnelle) »
-        quand l'étape qui vient l'est (spec §3.3).
+        « Sauvegarder la réunion » (retour David
+        31/10, point 2) : écrit le projet v1 de la
+        réunion (corrections en cours incluses —
+        l'éditeur embarqué partage le même objet
+        projet) puis, si la réunion est rattachée,
+        l'étude (traitements, paramètres).
         """
 
-        index = list(ETAPES_REUNION).index(
-            self.etape_courante
+        sauvegarde = False
+
+        chemin = getattr(
+            self.projet,
+            "project_file",
+            None
         )
 
-        if index + 1 >= len(ETAPES_REUNION):
-            self.etape_suivante_button.setEnabled(
-                False
+        if chemin:
+
+            self.projet.mark_saved()
+
+            from services.project_io import (
+                save_project,
             )
-            self.etape_suivante_button.setText(
-                "Étape suivante ›"
+
+            save_project(self.projet, chemin)
+
+            sauvegarde = True
+
+        if self.rattachee():
+            sauvegarder_etude(self.etude)
+            sauvegarde = True
+
+        if sauvegarde:
+            QMessageBox.information(
+                self,
+                "Réunion sauvegardée",
+                "La réunion a été sauvegardée"
+                + (
+                    " avec son étude."
+                    if self.rattachee()
+                    else "."
+                )
             )
-            return
-
-        suivante = ETAPES_REUNION[index + 1]
-
-        optionnelle = suivante in (
-            "reformulation",
-            "resume"
-        )
-
-        self.etape_suivante_button.setEnabled(
-            True
-        )
-
-        self.etape_suivante_button.setText(
-            "Étape suivante : "
-            f"{LIBELLES_ETAPES[suivante]} "
-            + ("(optionnelle) ›" if optionnelle
-               else "›")
-        )
-
-    def aller_etape_suivante(self):
-
-        index = list(ETAPES_REUNION).index(
-            self.etape_courante
-        )
-
-        if index + 1 >= len(ETAPES_REUNION):
-            return
-
-        self.changer_etape(
-            ETAPES_REUNION[index + 1]
-        )
 
     def maj_stepper(self):
         """

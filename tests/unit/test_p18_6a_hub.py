@@ -382,11 +382,14 @@ class TestStepperBar:
             for bouton in barre.boutons.values()
         ]
 
+        # Série 8 : plus de numéros — une ICÔNE
+        # par étape (micro, crayon, document,
+        # plateau fléché).
         assert libelles == [
-            "① Transcription",
-            "② Reformulation",
-            "③ Résumé",
-            "④ Export",
+            "Transcription",
+            "Reformulation",
+            "Résumé",
+            "Export",
         ]
 
     def test_trois_etapes_page_etude(self, qapp):

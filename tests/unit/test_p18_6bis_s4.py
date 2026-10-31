@@ -835,18 +835,29 @@ class TestSerie5Couleurs:
 
     def test_stepper_couleurs_affirmees(self):
         """
-        Invariant 13 : en cours = #2563eb plein à
-        texte blanc avec lueur ; fait = émeraude
-        #2ec98a sur fond translucide, texte
+        Invariant 13 (SOMBRE) : en cours = #2563eb
+        plein à texte blanc avec lueur ; fait =
+        émeraude #2ec98a sur fond translucide, texte
         #45d695 ; à faire = gris #33343a/#8a8b92.
-        Toujours, quel que soit le thème.
+        Série 8 (CLAIR, retour David point 5) : à
+        faire = gris TRÈS CLAIR #e6e7eb/#6b6c73 —
+        jamais une forme noire.
         """
 
         from services.avancement import (
             EN_COURS,
             TERMINE,
         )
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
         from ui.stepper import StepperBar
+
+        ThemeManager.apply_theme(
+            QApplication.instance(),
+            ThemeManager.DARK
+        )
 
         barre = StepperBar()
 
@@ -889,6 +900,54 @@ class TestSerie5Couleurs:
         )
 
         assert "color: #8a8b92" in a_faire
+
+        barre.close()
+
+        #
+        # Série 8 : thème CLAIR — l'étape à faire
+        # devient un gris très clair (pas une
+        # forme noire), le fait reste émeraude
+        # avec un vert lisible sur clair.
+        #
+        ThemeManager.apply_theme(
+            QApplication.instance(),
+            ThemeManager.LIGHT
+        )
+
+        barre = StepperBar()
+
+        barre.definir_etats({
+            "transcription": TERMINE,
+            "reformulation": "a_faire",
+        })
+
+        a_faire = (
+            barre.boutons["reformulation"]
+            .styleSheet()
+        )
+
+        assert "background-color: #e6e7eb" in (
+            a_faire
+        )
+
+        assert "color: #6b6c73" in a_faire
+
+        fait = (
+            barre.boutons["transcription"]
+            .styleSheet()
+        )
+
+        assert "#2ec98a" in fait
+        assert "#1d9d66" in fait
+
+        barre.close()
+
+        ThemeManager.apply_theme(
+            QApplication.instance(),
+            ThemeManager.LIGHT
+        )
+
+        reinitialiser_theme_actif()
 
     def test_icones_tuiles_accent(self):
         """

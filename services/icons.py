@@ -57,6 +57,37 @@ def make_theme_text_color(theme, app=None):
     return TEXT_COLOR_LIGHT_THEME
 
 
+def text_color_effectif() -> str:
+    """
+    Couleur de texte du thème EFFECTIVEMENT appliqué
+    (P18.6-bis série 8, retour David 31/10, points 7
+    et 8) : qdarktheme ne met PAS la QPalette à
+    jour et le réglage « system » se lit mal quand
+    l'OS et l'app divergent — les icônes et les
+    textes peints à la main suivent le thème appliqué
+    par ThemeManager, pas la palette ni le seul
+    réglage configuré.
+    """
+
+    from services.theme_manager import (
+        theme_actif,
+    )
+
+    actif = theme_actif()
+
+    if actif == "dark":
+        return TEXT_COLOR_DARK_THEME
+
+    if actif == "light":
+        return TEXT_COLOR_LIGHT_THEME
+
+    from services.settings import SettingsManager
+
+    return make_theme_text_color(
+        SettingsManager().get_theme()
+    )
+
+
 # Dimensions des boutons d'icones (barre d'outils
 # de l'editeur et fenetre de pretraitement audio).
 # Ajuster ici pour retailler tous les boutons.

@@ -92,11 +92,18 @@ ETAPES_OPTIONNELLES = (
     ETAPE_RESUME,
 )
 
+#
+# P18.6-bis série 8 (retour David 31/10, point 3) :
+# plus de NUMÉROS — chaque étape porte une ICÔNE
+# (ui/stepper.py) : micro pour la transcription,
+# crayon pour la reformulation, document pour le
+# résumé, plateau fléché pour l'export.
+#
 LIBELLES_ETAPES = {
-    ETAPE_TRANSCRIPTION: "① Transcription",
-    ETAPE_REFORMULATION: "② Reformulation",
-    ETAPE_RESUME: "③ Résumé",
-    ETAPE_EXPORT: "④ Export",
+    ETAPE_TRANSCRIPTION: "Transcription",
+    ETAPE_REFORMULATION: "Reformulation",
+    ETAPE_RESUME: "Résumé",
+    ETAPE_EXPORT: "Export",
 }
 
 # Mention discrète d'une réunion non transcrite

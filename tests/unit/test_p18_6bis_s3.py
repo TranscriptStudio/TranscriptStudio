@@ -491,10 +491,11 @@ class TestMentions:
                 )
             ]
 
+            # Série 8 : plus de numéros.
             assert libelles == [
-                "① Transcription",
-                "② Reformulation",
-                "③ Résumé",
+                "Transcription",
+                "Reformulation",
+                "Résumé",
             ]
 
             # La réunion non transcrite : mention.

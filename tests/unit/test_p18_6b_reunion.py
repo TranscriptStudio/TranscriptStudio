@@ -215,11 +215,13 @@ class TestStepper:
             )
         ]
 
+        # Série 8 : plus de numéros — une ICÔNE
+        # par étape.
         assert libelles == [
-            "① Transcription",
-            "② Reformulation",
-            "③ Résumé",
-            "④ Export",
+            "Transcription",
+            "Reformulation",
+            "Résumé",
+            "Export",
         ]
 
         assert (
@@ -239,36 +241,26 @@ class TestStepper:
 
         fenetre = reunion[0]
 
-        # ① Transcription → ② Reformulation :
-        # libellé « Étape suivante : ② Reformulation
-        # (optionnelle) › » (§20 : nom de l'étape
-        # qui vient).
-        assert (
-            fenetre.etape_suivante_button.text()
-            == "Étape suivante : ② Reformulation "
-            "(optionnelle) ›"
+        #
+        # P18.6-bis série 8 (retour David 31/10,
+        # point 4) : le bouton « Étape suivante »
+        # a DISPARU — le stepper suffit, toutes les
+        # pastilles restent navigables (l'étape
+        # courante est réglée par changer_etape).
+        #
+        assert not hasattr(
+            fenetre,
+            "etape_suivante_button"
         )
 
-        fenetre.etape_courante = "reformulation"
-
-        fenetre.maj_boutons_etape()
-
-        # ② → ③ Résumé : optionnelle aussi.
-        assert "(optionnelle)" in (
-            fenetre
-            .etape_suivante_button
-            .text()
-        )
-
-        fenetre.etape_courante = "resume"
-
-        fenetre.maj_boutons_etape()
-
-        # ③ → ④ Export : pas optionnelle.
-        assert "(optionnelle)" not in (
-            fenetre
-            .etape_suivante_button
-            .text()
+        assert not any(
+            bouton.text().startswith(
+                "Étape suivante"
+            )
+            for bouton in (
+                fenetre.findChildren(QPushButton)
+            )
+            if bouton.text()
         )
 
     def test_passage_direct_2_vers_6(

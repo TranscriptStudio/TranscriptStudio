@@ -795,9 +795,17 @@ class TestSvgAccentUnique:
                 encoding="utf-8"
             )
 
-            assert "#2942ff" not in contenu, (
-                f"{svg.name} garde l'ancien bleu"
-            )
+            # Série 8 : les icônes du stepper
+            # portent l'ANCRE DE TEINTE #2942ff —
+            # un placeholder remplacé au rendu par
+            # la couleur de l'état, jamais affiché
+            # tel quel.
+            if not svg.name.startswith(
+                "stepper-"
+            ):
+                assert "#2942ff" not in contenu, (
+                    f"{svg.name} garde l'ancien bleu"
+                )
 
             assert "#2196f3" not in contenu.lower(), (
                 f"{svg.name} garde l'ancien bleu"

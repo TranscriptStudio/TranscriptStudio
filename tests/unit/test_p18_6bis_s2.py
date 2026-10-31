@@ -126,14 +126,12 @@ class TestSerie2:
             for b in boutons
         )
 
-        # Une seule action d'avancement, avec le
-        # nom de l'étape qui vient.
-        libelle = (
-            fenetre.etape_suivante_button.text()
+        #
+        # P18.6-bis série 8 (retour David 31/10,
+        # point 4) : plus AUCUNE action
+        # d'avancement — le stepper suffit.
+        #
+        assert not hasattr(
+            fenetre,
+            "etape_suivante_button"
         )
-
-        assert libelle.startswith(
-            "Étape suivante : "
-        )
-
-        assert libelle.endswith("›")

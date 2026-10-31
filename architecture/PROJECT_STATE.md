@@ -1,29 +1,27 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**synchro PARAMETRAGE_LLM 31/10-a/b/c faite** —
-> PARAMETRAGE_LLM_V2_2026-10-31a/b/c.md + INDEX 31b recopiés dans architecture/spec_v2/.
-> **Catalogue LLM v3 + effort de raisonnement LIVRÉS** (mise à jour (a) : Mistral
-> Large 4 « Le Chonk » — température, contexte 1 M, prix 0,70/2,10 $, mistral-large-
-> latest libellé « (précédent) » ; (b) : la capacité effort_raisonnement passe du
-> booléen à la LISTE des valeurs acceptées + effort_defaut, sélecteur « Effort de
-> raisonnement » sans option « Défaut de l'API » (jamais none pour Le Chonk),
-> repli silencieux (400/422 → type « requete » non transitoire → un seul
-> réessai sans le paramètre), tokens de raisonnement rapportés séparément
-> AJOUTÉS à la sortie (le détail nested OpenAI, déjà inclus, jamais compté deux
-> fois) ; (c) : échelles par modèle — Chonk low/medium/high défaut high, Claude
-> low/medium/high/xhigh/max traduit vers output_config.effort chez anthropic,
-> OpenAI documenté à la bascule (minimal→xhigh), effort_defaut toujours dans la
-> liste sinon la plus haute valeur, libellés Faible/Moyen/Élevé/Très élevé/Max,
-> valeur inconnue affichée telle quelle, échelle historique en repli pour un
-> booléen d'un catalogue édité à la main ; la montée 2→3 déclenche la fusion
-> automatique existante (_fusionner_avec_defauts) — les utilisateurs existants
-> voient Le Chonk sans action ; moteur/résumé/synthèse valident la valeur
-> mémorisée contre la liste du modèle (effort_effectif) ; **535 tests verts**,
-> dont 17 nouveaux (catalogue v3, fusion, effort_effectif, repli silencieux,
-> output_config anthropic, tokens de raisonnement, sélecteur Faible/Moyen/Élevé,
-> moteur hors échelle substitué). Aussi livrés ce jour : P19.1-P19.3 (document
-> ouvrage + page Ouvrage trois zones), P16-bis 4ᵉ série (progression),
-> P18.6-bis séries 6-7-bis, stepper compact sans info-bulle.)
+> **Dernière mise à jour** : 2026-10-31 (**synchro specs 31c/31d faite** — SPEC_NAVIGATION_MODIFS_
+> 2026-10-31c/d.md + INDEX 31c/31d recopiés). **SÉRIE 8 LIVRÉE — UI transcription/correction**
+> (retour David 31/10, points 1-10) : les boutons 🏠💾📤📖 de l'éditeur de correction ont disparu
+> (doublons du ruban) ; bouton « 💾 Sauvegarder » (info-bulle « Sauvegarder la réunion ») à
+> gauche de « Gestion de l'étude » — écrit le projet v1 puis l'étude ; bouton « Étape suivante »
+> SUPPRIMÉ (le stepper suffit) ; steppers sans NUMÉROS, une ICÔNE par étape (micro vintage,
+> crayon, document, plateau fléché — SVG ancre de teinte recolorés à la couleur de texte de
+> l'état) ; thème clair : étape « à faire » en gris très clair #e6e7eb/#6b6c73 (jamais une
+> forme noire — couleurs_stepper(sombre)), « fait » #1d9d66 lisible sur clair ; texte des
+> blocs transcrits et icônes A+/A−/lecteur suivant le thème EFFECTIVEMENT appliqué
+> (text_color_effectif — la palette Qt ne reflète pas qdarktheme, cause du texte illisible
+> et du « A » invisible en clair) ; étude/Bible en couleur normale alignée sur la ligne
+> date · durée (le badge bleu disparaît). **SÉRIE 7 LIVRÉE (spec 31d §30, invariant 16)** :
+> reflet translucide en UNE PASSE (~900 ms, skew par rotation, fondu) + contour assorti au
+> survol des pastilles CLIQUABLES (page Réunion), teinte par état (fait → émeraude, en
+> cours → blanc, à faire → voile clair), jamais en boucle, rejoué à chaque entrée, retour
+> ~120 ms, curseur main ; pastilles sans lien propre (hub, page Étude) ENTÈREMENT
+> STATIQUES. Aussi livrés ce jour : catalogue LLM v3 + effort de raisonnement (Chonk,
+> repli silencieux, output_config anthropic), P19.1-P19.3 (document ouvrage + page Ouvrage),
+> P16-bis 4ᵉ série, P18.6-bis séries 6-7-bis. **545 tests verts**, dont 10 nouveaux
+> (sauvegarde, icônes, reflet invariant 16, statiques, clair, couleur effective,
+> badge aligné, éditeur épuré).
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)

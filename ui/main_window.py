@@ -49,7 +49,6 @@ from services.help import open_user_manual
 from services.icons import (
     make_tinted_icon,
     make_button_height_css,
-    make_theme_text_color,
     ICON_BUTTON_WIDTH,
     ICON_BUTTON_HEIGHT,
 )
@@ -251,13 +250,18 @@ class MainWindow(QMainWindow):
 
         main_widget = QWidget()
         root_layout = QVBoxLayout(main_widget)
-        
+
         action_layout = QHBoxLayout()
-        # Barre d'icones
-        self.home_button = QPushButton("🏠")
-        self.save_button = QPushButton("💾")
-        self.export_button = QPushButton("📤")
-        self.help_button = QPushButton("📖")
+
+        #
+        # P18.6-bis série 8 (retour David 31/10,
+        # point 1) : les boutons 🏠 💾 📤 📖 ont
+        # DISPARU — doublons des boutons du ruban
+        # de la page Réunion (Accueil, Sauvegarder
+        # la réunion, étape Export du stepper,
+        # ? Aide) ; la sauvegarde reste au
+        # raccourci Ctrl+S et à l'autosave.
+        #
 
         #
         # Taille du texte de transcription.
@@ -295,21 +299,6 @@ class MainWindow(QMainWindow):
             "Augmenter la taille du texte"
         )
 
-        self.home_button.setToolTip(
-            "Retour à l'accueil"
-        )
-
-        self.save_button.setToolTip(
-            "Enregistrer la réunion"
-        )
-
-        self.export_button.setToolTip(
-            "Exporter la transcription"
-        )
-        self.help_button.setToolTip(
-            "Ouvrir le manuel utilisateur"
-        )
-
         #
         # P16-bis (spec correctifs §4) : liaison
         # correction de transcription → reformulation.
@@ -322,21 +311,6 @@ class MainWindow(QMainWindow):
         self.reformulation_button.setToolTip(
             "Ouvrir la page Reformulation littéraire "
             "de cette réunion dans son étude"
-        )
-
-        action_layout.addWidget(
-            self.home_button
-        )
-
-        action_layout.addWidget(
-            self.save_button
-        )
-
-        action_layout.addWidget(
-            self.export_button
-        )
-        action_layout.addWidget(
-            self.help_button
         )
 
         action_layout.addWidget(
@@ -405,9 +379,11 @@ class MainWindow(QMainWindow):
         # palette Qt ne reflete pas la stylesheet
         # du theme.
         #
-        text_color = make_theme_text_color(
-            SettingsManager().get_theme()
+        from services.icons import (
+            text_color_effectif,
         )
+
+        text_color = text_color_effectif()
 
         self.btn_prev = QPushButton()
         self.btn_prev.setIcon(
@@ -463,11 +439,6 @@ class MainWindow(QMainWindow):
         action_layout.addStretch()
         root_layout.addLayout(action_layout)
         icon_buttons = [
-            self.home_button,
-            self.save_button,
-            self.export_button,
-            self.help_button,
-
             self.text_smaller_button,
             self.text_larger_button,
 
@@ -767,17 +738,6 @@ class MainWindow(QMainWindow):
         self.timeline.seek_requested.connect(
             self.on_timeline_seek
         )
-        self.home_button.clicked.connect(
-            self.return_to_home
-        )
-
-        self.save_button.clicked.connect(
-            self.save_current_project
-        )
-
-        self.export_button.clicked.connect(
-            self.export_project
-        )
         self.save_shortcut.activated.connect(
             self.save_current_project
         )
@@ -795,9 +755,6 @@ class MainWindow(QMainWindow):
         )
         self.timeline_speakers.rename_speaker_requested.connect(
             self.timeline_rename_speaker
-        )
-        self.help_button.clicked.connect(
-            open_user_manual
         )
         self.timeline.new_speaker_requested.connect(
             self.create_new_speaker
@@ -1086,9 +1043,11 @@ class MainWindow(QMainWindow):
 
     def update_play_button(self, playing):
 
-        text_color = make_theme_text_color(
-            SettingsManager().get_theme()
+        from services.icons import (
+            text_color_effectif,
         )
+
+        text_color = text_color_effectif()
 
         if playing:
             self.btn_play.setIcon(
@@ -2027,10 +1986,12 @@ class MainWindow(QMainWindow):
         # Lettre A dans la couleur normale
         # du texte de l'interface.
         #
+        from services.icons import (
+            text_color_effectif,
+        )
+
         text_color = QColor(
-            make_theme_text_color(
-                SettingsManager().get_theme()
-            )
+            text_color_effectif()
         )
 
         painter.setPen(

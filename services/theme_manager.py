@@ -598,15 +598,48 @@ FOND_PAGE_CLAIR = "#f3f3f3"
 # - fait : émeraude sur fond translucide.
 #
 COULEURS_STEPPER = {
-    "a_faire_fond": "#33343a",
-    "a_faire_texte": "#8a8b92",
-    "en_cours_fond": "#2563eb",
-    "en_cours_texte": "#ffffff",
-    "en_cours_lueur": "rgba(59,158,255,150)",
-    "fait_fond": "rgba(52,194,135,41)",
-    "fait_contour": "#2ec98a",
-    "fait_texte": "#45d695",
+    True: {  # thème sombre (maquettes hub v4)
+        "a_faire_fond": "#33343a",
+        "a_faire_texte": "#8a8b92",
+        "en_cours_fond": "#2563eb",
+        "en_cours_texte": "#ffffff",
+        "en_cours_lueur": "rgba(59,158,255,150)",
+        "fait_fond": "rgba(52,194,135,41)",
+        "fait_contour": "#2ec98a",
+        "fait_texte": "#45d695",
+    },
+    #
+    # P18.6-bis série 8 (retour David 31/10,
+    # point 5) : en thème CLAIR, l'étape « à
+    # faire » ne peut plus être une forme noire —
+    # fond gris TRÈS CLAIR (un peu plus soutenu
+    # que le fond de page #f3f3f3), texte gris
+    # moyen ; le « fait » garde l'émeraude, avec
+    # un vert assez foncé pour rester lisible sur
+    # clair.
+    #
+    False: {
+        "a_faire_fond": "#e6e7eb",
+        "a_faire_texte": "#6b6c73",
+        "en_cours_fond": "#2563eb",
+        "en_cours_texte": "#ffffff",
+        "en_cours_lueur": "rgba(59,158,255,150)",
+        "fait_fond": "rgba(52,194,135,45)",
+        "fait_contour": "#2ec98a",
+        "fait_texte": "#1d9d66",
+    },
 }
+
+
+def couleurs_stepper(sombre: bool) -> dict:
+    """
+    Couleurs du stepper selon le thème (série 5
+    §24 pour le sombre ; série 8 pour le clair —
+    l'étape à faire y devient un gris très clair,
+    jamais une forme noire).
+    """
+
+    return COULEURS_STEPPER[bool(sombre)]
 
 COULEURS_TUILES = {
     True: {  # thème sombre (maquettes)

@@ -352,13 +352,16 @@ class BlockWidget(QWidget):
         #     self.setStyleSheet("")
 
     def render_words(self):
-        text_color = (
-            self.text_edit
-            .palette()
-            .text()
-            .color()
-            .name()
+        # P18.6-bis serie 8 (retour David, point 7) :
+        # la PALETTE ne reflete pas le theme applique
+        # (qdarktheme travaille par feuille de style) ;
+        # en theme clair sur un OS sombre, le texte
+        # ressortait blanc sur blanc.
+        from services.icons import (
+            text_color_effectif
         )
+
+        text_color = text_color_effectif()
         items = self.project.get_block_items(
             self.block
         )
@@ -843,11 +846,12 @@ class BlockWidget(QWidget):
         # utilise la variante assombrie de la meme
         # teinte. Le texte garde en permanence la
         # couleur du theme.
-        base_text_color = (
-            self.text_edit
-            .palette()
-            .text()
-            .color()
+        from services.icons import (
+            text_color_effectif
+        )
+
+        base_text_color = QColor(
+            text_color_effectif()
         )
 
         text_luminance = (
