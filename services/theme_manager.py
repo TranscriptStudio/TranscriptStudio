@@ -184,6 +184,59 @@ class ThemeManager:
             """
 
     @staticmethod
+    def diffuser_changement_theme():
+        """
+        P18.6-bis serie 8 (retour David 31/10) :
+        diffuse le changement de theme aux fenetres
+        VISIBLES — chaque fenetre ouverte qui
+        expose sur_changement_theme() est invitee
+        a rafraichir ses couleurs peintes a la main
+        (steppers, icones teintees, blocs de
+        transcription). Sans ce broadcast, ces
+        elements gardaient les couleurs du theme
+        precedent jusqu'au survol.
+
+        Seules les fenetres VISIBLES sont
+        rafraichies : le rafraichissement reconstruit
+        des listes de tuiles (lecture de projets) —
+        le diffuser aux fenetres fermées/cachées
+        le ferait payer à chaque changement de
+        theme pour rien.
+        """
+        from PySide6.QtWidgets import (
+            QApplication,
+        )
+
+        application = QApplication.instance()
+
+        if application is None:
+            return
+
+        for fenetre in (
+            QApplication.topLevelWidgets()
+        ):
+
+            if not fenetre.isVisible():
+                continue
+
+            hook = getattr(
+                fenetre,
+                "sur_changement_theme",
+                None
+            )
+
+            if hook is not None:
+                try:
+                    hook()
+                except Exception:
+                    #
+                    # Un rafraichissement rate ne doit
+                    # jamais bloquer l'application du
+                    # theme ni les autres fenetres.
+                    #
+                    pass
+
+    @staticmethod
     def apply_dark(app):
         """
         Applique le theme sombre utilisant qdarktheme.
@@ -201,6 +254,8 @@ class ThemeManager:
         else:
             # Fallback au theme personnalise si qdarktheme n'est pas disponible
             ThemeManager._apply_dark_fallback(app)
+
+        ThemeManager.diffuser_changement_theme()
 
     @staticmethod
     def apply_light(app):
@@ -220,6 +275,8 @@ class ThemeManager:
         else:
             # Fallback au theme personnalise si qdarktheme n'est pas disponible
             ThemeManager._apply_light_fallback(app)
+
+        ThemeManager.diffuser_changement_theme()
 
     @staticmethod
     def _apply_dark_fallback(app):

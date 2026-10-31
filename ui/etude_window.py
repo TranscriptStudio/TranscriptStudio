@@ -787,6 +787,16 @@ class EtudeWindow(QWidget):
 
         self.fenetre_ouvrage.show()
 
+    def sur_changement_theme(self):
+        """
+        Broadcast de ThemeManager : reconstruit la
+        liste des réunions (les mini-tuiles portent
+        leurs couleurs à la construction).
+        """
+
+        if getattr(self, "reunions_liste", None) is not None:
+            self.refresh_reunions()
+
     def refresh_reunions(self):
         """
         Reconstitue la liste des réunions en une

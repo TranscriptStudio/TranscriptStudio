@@ -550,7 +550,21 @@ class StepperBar(QWidget):
             style
             + "border-radius: 10px;"
             "padding: 1px 8px;"
-            "font-size: "
+            + (
+                #
+                # Hauteur pleine taille calée sur les
+                # boutons d'icones voisins (ICON_
+                # BUTTON_HEIGHT = 25 px dans services/
+                # icons.py : 21 + 2x1 de padding + 2x1
+                # de bordure) — le stepper partage la
+                # ligne avec la barre d'outils (retour
+                # David 31/10).
+                #
+                "min-height: 21px;"
+                if not self._compact
+                else ""
+            )
+            + "font-size: "
             + ("10px" if self._compact else "12px")
             + ";"
         )
@@ -693,3 +707,14 @@ class StepperBar(QWidget):
     @property
     def isCompact(self) -> bool:
         return getattr(self, "_compact", False)
+
+    def sur_changement_theme(self):
+        """
+        Broadcast de ThemeManager : rejoue les
+        styles ET les icones dans le theme courant —
+        sinon les pastilles gardaient les couleurs
+        du theme precedent jusqu'au survol (retour
+        David 31/10).
+        """
+
+        self.definir_etats(self._etats)

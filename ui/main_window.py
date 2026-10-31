@@ -251,7 +251,15 @@ class MainWindow(QMainWindow):
         main_widget = QWidget()
         root_layout = QVBoxLayout(main_widget)
 
-        action_layout = QHBoxLayout()
+        #
+        # P18.6-bis serie 8 (retour David 31/10) :
+        # la barre d'outils vit dans un conteneur
+        # REMPARENTABLE — la page Reunion la place
+        # sur la ligne du stepper (reparentage Qt).
+        #
+        self.barre_outils = QWidget()
+        action_layout = QHBoxLayout(self.barre_outils)
+        action_layout.setContentsMargins(0, 0, 0, 0)
 
         #
         # P18.6-bis série 8 (retour David 31/10,
@@ -300,22 +308,13 @@ class MainWindow(QMainWindow):
         )
 
         #
-        # P16-bis (spec correctifs §4) : liaison
-        # correction de transcription → reformulation.
-        # Actif uniquement si le projet appartient à
-        # une étude (référencé comme réunion).
+        # P18.6-bis serie 8 (retour David 31/10) :
+        # le bouton « Reformulation… » a DISPARU —
+        # doublon du stepper de la page Reunion ;
+        # la navigation reste ouverte par la
+        # pastille ② (ouvrir_reformulation garde
+        # l'API de navigation pour les tests).
         #
-        self.reformulation_button = QPushButton(
-            "Reformulation…"
-        )
-        self.reformulation_button.setToolTip(
-            "Ouvrir la page Reformulation littéraire "
-            "de cette réunion dans son étude"
-        )
-
-        action_layout.addWidget(
-            self.reformulation_button
-        )
 
         #
         # Taille du texte.
@@ -437,7 +436,7 @@ class MainWindow(QMainWindow):
         )
         
         action_layout.addStretch()
-        root_layout.addLayout(action_layout)
+        root_layout.addWidget(self.barre_outils)
         icon_buttons = [
             self.text_smaller_button,
             self.text_larger_button,
@@ -770,16 +769,6 @@ class MainWindow(QMainWindow):
             self.decrease_text_size
         )
 
-        #
-        # P16-bis (spec correctifs §4) : liaison
-        # correction de transcription → reformulation.
-        #
-        self.reformulation_button.clicked.connect(
-            self.ouvrir_reformulation
-        )
-
-        self.maj_bouton_reformulation()
-
     #
     # ==================================================
     # P16-bis : bouton « Reformulation… » (spec
@@ -852,33 +841,10 @@ class MainWindow(QMainWindow):
 
         return resultats
 
-    def maj_bouton_reformulation(self):
-        """
-        Le bouton n'est actif que si le projet
-        appartient à une étude (référencé comme
-        réunion) ; sinon désactivé avec info-bulle
-        (spec correctifs §4.2).
-        """
-
-        etudes = self.etudes_referencant_projet()
-
-        if etudes:
-            self.reformulation_button.setEnabled(True)
-            self.reformulation_button.setToolTip(
-                "Ouvrir la page Reformulation littéraire "
-                "de cette réunion dans son étude"
-            )
-        else:
-            self.reformulation_button.setEnabled(False)
-            self.reformulation_button.setToolTip(
-                "Cette réunion n'appartient à aucune étude"
-            )
-
     def ouvrir_reformulation(self):
         """
         Ouvre la page de traitement Reformulation de
-        la réunion courante (spec correctifs §4.1) :
-        même navigation que « Reformulation
+        la réunion courante : même navigation que « Reformulation
         littéraire… » depuis la page Étude.
 
         Projet référencé par plusieurs études :
@@ -1025,6 +991,56 @@ class MainWindow(QMainWindow):
 
         return f"{minutes:02}:{seconds:02}"
 
+    def sur_changement_theme(self):
+        """
+        Broadcast de ThemeManager : les couleurs
+        peintes a la main (icones A+/A- et lecteur,
+        texte des blocs de transcription) suivent
+        le theme APPLIQUE, pas la QPalette — sans
+        ce rafraichissement elles gardaient les
+        couleurs du theme precedent (retour David
+        31/10, points 7 et 8).
+        """
+
+        self.text_smaller_button.setIcon(
+            self.create_text_size_icon("−")
+        )
+
+        self.text_larger_button.setIcon(
+            self.create_text_size_icon("+")
+        )
+
+        self.update_play_button(
+            getattr(
+                self,
+                "_lecture_en_cours",
+                False
+            )
+        )
+
+        from services.icons import (
+            text_color_effectif,
+        )
+
+        for bouton, chemin in (
+            (self.btn_prev, "icons/player-skip-back.svg"),
+            (self.btn_next, "icons/player-skip-forward.svg"),
+        ):
+
+            bouton.setIcon(
+                make_tinted_icon(
+                    text_color_effectif(),
+                    chemin,
+                    20,
+                    bouton.devicePixelRatioF()
+                )
+            )
+
+        for widget in (
+            self.block_widgets.values()
+        ):
+            widget.render_words()
+
     def update_duration(self, duration):
 
         self.current_duration = duration
@@ -1046,6 +1062,13 @@ class MainWindow(QMainWindow):
         from services.icons import (
             text_color_effectif,
         )
+
+        #
+        # Etat memorise pour le re-teintage au
+        # changement de theme (sur_changement_
+        # theme rejoue la bonne icone).
+        #
+        self._lecture_en_cours = bool(playing)
 
         text_color = text_color_effectif()
 

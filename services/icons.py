@@ -147,9 +147,9 @@ def make_tinted_icon(
 ):
     """Retourne l'icône SVG teintée avec la couleur donnée.
 
-    Le SVG doit porter l'ancre fill="#2942ff" sur
-    son élément racine : elle est remplacée par la
-    couleur demandée avant le rendu.
+    Le SVG doit porter l'ancre #2942ff (sur fill
+    ou stroke) : elle est remplacée par la couleur
+    demandée avant le rendu.
     """
 
     svg = (
@@ -160,6 +160,18 @@ def make_tinted_icon(
     svg = svg.replace(
         'fill="#2942ff"',
         f'fill="{color}"'
+    )
+
+    #
+    # Ancre stroke : les icones du stepper portent
+    # la couleur sur stroke (et non fill) — sans
+    # ce remplacement l'icone restait au bleu ancre
+    # sur la pastille bleue « en cours » (retour
+    # David 31/10, point icone illisible).
+    #
+    svg = svg.replace(
+        'stroke="#2942ff"',
+        f'stroke="{color}"'
     )
 
     renderer = QSvgRenderer(

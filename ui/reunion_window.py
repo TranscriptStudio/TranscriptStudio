@@ -40,6 +40,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from PySide6.QtCore import Qt
+
 from services.avancement import (
     ETAPES_REUNION,
     etapes_reunion,
@@ -204,7 +206,32 @@ class ReunionWindow(QWidget):
             self.changer_etape
         )
 
-        layout.addWidget(self.stepper)
+        #
+        # P18.6-bis série 8 (retour David 31/10) :
+        # la barre d'outils de l'éditeur (A+/A-,
+        # zoom, lecteur) vit sur la MÊME LIGNE que
+        # le stepper, à sa droite — reparentage Qt
+        # depuis MainWindow.barre_outils (hauteurs
+        # alignées : pastilles à 25 px comme les
+        # boutons d'icones).
+        #
+        ligne_stepper = QHBoxLayout()
+        ligne_stepper.setContentsMargins(0, 0, 0, 0)
+        ligne_stepper.setSpacing(10)
+
+        ligne_stepper.addWidget(self.stepper)
+        ligne_stepper.addStretch()
+
+        self.zone_outils = QWidget()
+        zone_outils_layout = QHBoxLayout(self.zone_outils)
+        zone_outils_layout.setContentsMargins(0, 0, 0, 0)
+
+        ligne_stepper.addWidget(
+            self.zone_outils,
+            alignment=Qt.AlignmentFlag.AlignVCenter
+        )
+
+        layout.addLayout(ligne_stepper)
 
         self.mention_label = QLabel(
             "transcription en attente"
@@ -219,6 +246,10 @@ class ReunionWindow(QWidget):
         layout.addWidget(self.mention_label)
 
         self.contenu = QStackedWidget()
+
+        self.contenu.currentChanged.connect(
+            self._maj_visibilite_outils
+        )
 
         for etape in ETAPES_REUNION:
             self.contenu.addWidget(
@@ -579,7 +610,45 @@ class ReunionWindow(QWidget):
         #
         self.fenetre_correction.navigation = self
 
+        #
+        # P18.6-bis série 8 (retour David 31/10) :
+        # la barre d'outils de l'éditeur migre sur
+        # la ligne du stepper (reparentage Qt —
+        # l'éditeur complet n'affiche plus de
+        # barre propre).
+        #
+        barre = getattr(
+            self.fenetre_correction,
+            "barre_outils",
+            None
+        )
+
+        if barre is not None:
+
+            self.zone_outils.layout().addWidget(
+                barre
+            )
+
+        self._maj_visibilite_outils()
+
         return self.fenetre_correction
+
+    def _maj_visibilite_outils(self, *_args):
+        """
+        La barre d'outils (A+/A-, zoom, lecteur)
+        n'apparaît que sur l'étape Transcription
+        (= éditeur de correction) — jamais sur les
+        autres étapes.
+        """
+
+        page = self.contenu.currentWidget()
+
+        visible = (
+            page is not None
+            and page is self.fenetre_correction
+        )
+
+        self.zone_outils.setVisible(visible)
 
     def _page_reformulation(self):
         """
@@ -1467,3 +1536,24 @@ class ReunionWindow(QWidget):
 
         if entree is not None:
             entree()
+
+    def sur_changement_theme(self):
+        """
+        Broadcast de ThemeManager : recalcule le
+        stepper dans le nouveau thème et propage
+        aux pages embarquées (éditeur de correction,
+        etc.).
+        """
+
+        self.maj_stepper()
+
+        page = self.contenu.currentWidget()
+
+        hook = getattr(
+            page,
+            "sur_changement_theme",
+            None
+        )
+
+        if hook is not None:
+            hook()

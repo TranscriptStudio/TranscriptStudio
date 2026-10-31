@@ -302,16 +302,17 @@ class TestCouleurTexteEffective:
                 "save_button",
                 "export_button",
                 "help_button",
+                "reformulation_button",
             ):
                 assert not hasattr(
                     editeur,
                     attribut
                 )
 
-            # Le lien de travail reste.
+            # La navigation de travail reste (API).
             assert hasattr(
                 editeur,
-                "reformulation_button"
+                "ouvrir_reformulation"
             )
 
         finally:
@@ -580,3 +581,215 @@ class TestStepperClair:
             )
 
             reinitialiser_theme_actif()
+
+
+#
+# ==================================================
+# Corrections post-série 8 (retour David 31/10) :
+# icône lisible sur pastille bleue, barre
+# d'outils sur la ligne du stepper, hauteur
+# alignée, broadcast du changement de thème.
+# ==================================================
+#
+
+class TestCorrectionsSuite:
+
+    def test_ancre_stroke_teintee(self, qapp):
+        """
+        Les SVG du stepper portent la couleur sur
+        stroke="#2942ff" (et non fill) : le
+        teintage doit remplacer cette ancre —
+        sinon l'icône restait bleu ancre sur la
+        pastille bleue « en cours ».
+        """
+
+        from services.icons import (
+            make_tinted_icon,
+        )
+
+        icone = make_tinted_icon(
+            "#ffffff",
+            "icons/stepper-transcription.svg",
+            20,
+            1.0
+        )
+
+        image = (
+            icone.pixmap(20, 20).toImage()
+        )
+
+        couleurs = {
+            image.pixelColor(x, y).name()
+            for x in range(20)
+            for y in range(20)
+            if image.pixelColor(x, y).alpha() > 0
+        }
+
+        assert "#ffffff" in couleurs
+
+        assert "#2942ff" not in couleurs
+
+    def test_barre_outils_sur_la_ligne_du_stepper(
+        self,
+        reunion
+    ):
+        """
+        La barre d'outils de l'éditeur (A+/A−,
+        zoom, lecteur) est REPARENTÉE dans la zone
+        à droite du stepper de la page Réunion,
+        visible uniquement sur l'étape
+        Transcription.
+        """
+
+        fenetre = reunion[0]
+
+        fenetre.changer_etape("transcription")
+
+        barre = (
+            fenetre.fenetre_correction.barre_outils
+        )
+
+        assert (
+            barre.parent() is fenetre.zone_outils
+        )
+
+        assert not fenetre.zone_outils.isHidden()
+
+        fenetre.changer_etape("export")
+
+        assert fenetre.zone_outils.isHidden()
+
+    def test_hauteur_pastilles_alignee(
+        self,
+        qapp
+    ):
+        """
+        Pleine taille : pastilles à 25 px
+        (min-height 21 + padding + bordure), comme
+        les boutons d'icônes (ICON_BUTTON_HEIGHT).
+        Compact (hub, page Étude) : inchangé.
+        """
+
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
+        from ui.stepper import StepperBar
+
+        ThemeManager.apply_theme(
+            qapp,
+            ThemeManager.DARK
+        )
+
+        barre = StepperBar(cliquable=True)
+        compacte = StepperBar(
+            cliquable=False,
+            compact=True
+        )
+
+        try:
+
+            barre.definir_etats({
+                "export": "a_faire",
+            })
+
+            compacte.definir_etats({
+                "export": "a_faire",
+            })
+
+            assert (
+                "min-height: 21px"
+                in barre.boutons["export"]
+                .styleSheet()
+            )
+
+            assert (
+                "min-height"
+                not in compacte.boutons["export"]
+                .styleSheet()
+            )
+
+        finally:
+
+            barre.close()
+            compacte.close()
+
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.DARK
+            )
+
+            reinitialiser_theme_actif()
+
+    def test_broadcast_theme_rafraichit_le_stepper(
+        self,
+        reunion
+    ):
+        """
+        Changement de thème à chaud : le broadcast
+        de ThemeManager recalcule les pastilles
+        (elles gardaient la couleur du thème
+        précédent jusqu'au survol).
+        """
+
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
+
+        fenetre = reunion[0]
+
+        #
+        # Le broadcast ne rafraîchit que les
+        # fenêtres VISIBLES (les fenêtres cachées
+        # ne paieraient une reconstruction de
+        # tuiles pour rien) : la page doit être
+        # montrée.
+        #
+        fenetre.show()
+
+        ThemeManager.apply_theme(
+            QApplication.instance(),
+            ThemeManager.DARK
+        )
+
+        styles_sombre = {
+            etape: bouton.styleSheet()
+            for etape, bouton in (
+                fenetre.stepper.boutons.items()
+            )
+        }
+
+        assert any(
+            "#33343a" in style
+            for style in styles_sombre.values()
+        )
+
+        ThemeManager.apply_theme(
+            QApplication.instance(),
+            ThemeManager.LIGHT
+        )
+
+        styles_clair = {
+            etape: bouton.styleSheet()
+            for etape, bouton in (
+                fenetre.stepper.boutons.items()
+            )
+        }
+
+        assert any(
+            "#e6e7eb" in style
+            for style in styles_clair.values()
+        )
+
+        assert all(
+            "#33343a" not in style
+            for style in styles_clair.values()
+        )
+
+        ThemeManager.apply_theme(
+            QApplication.instance(),
+            ThemeManager.DARK
+        )
+
+        reinitialiser_theme_actif()

@@ -1544,9 +1544,18 @@ class HomeWindow(QWidget):
 
         self.refresh_dernieres_reunions()
 
+    def sur_changement_theme(self):
+        """
+        Broadcast de ThemeManager : recolore
+        l'en-tête et reconstruit les dernières
+        réunions (tuiles et steppers portent leurs
+        couleurs à la construction).
+        """
+
+        self.update_header_colors()
+
     def update_header_colors(self):
         theme = self.settings.get_theme()
-
         if theme == "dark":
             title_color = "#F0F0F0"
             subtitle_color = "#C0C0C0"

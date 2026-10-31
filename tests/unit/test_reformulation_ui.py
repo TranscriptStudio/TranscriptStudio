@@ -947,16 +947,28 @@ class TestInvariance4Persistance:
 @pytest.mark.qt
 class TestInvariance5BoutonReformulationEditeur:
     """
-    Règle 5 (spec correctifs §6.5) : «
-    Reformulation… » depuis l'éditeur v1 aboutit
-    toujours à la page Reformulation de la même
-    réunion (jamais d'une autre), et n'est pas
-    actif pour un projet hors étude.
+    Règle 5 (spec correctifs §6.5) : la liaison
+    correction de transcription → reformulation
+    aboutit toujours à la page Reformulation de la
+    même réunion (jamais d'une autre). P18.6-bis
+    série 8 (retour David 31/10) : le bouton
+    « Reformulation… » a été supprimé (doublon du
+    stepper) — la navigation reste testée par
+    ouvrir_reformulation.
     """
 
-    def test_actif_si_projet_dans_une_etude(self, editeur):
+    def test_bouton_supprime(self, editeur):
+        from PySide6.QtWidgets import QPushButton
 
-        assert editeur.reformulation_button.isEnabled()
+        boutons = [
+            bouton
+            for bouton in editeur.findChildren(QPushButton)
+            if bouton.text() == "Reformulation…"
+        ]
+
+        assert boutons == []
+
+        assert editeur.etudes_referencant_projet()
 
     def test_ouvre_la_page_de_la_meme_reunion(self, editeur, tmp_path):
 
@@ -991,14 +1003,14 @@ class TestInvariance5BoutonReformulationEditeur:
         fenetre.close()
 
     def test_inactif_si_projet_hors_etude(self, editeur_hors_etude):
+        from PySide6.QtWidgets import QPushButton
 
-        bouton = editeur_hors_etude.reformulation_button
+        boutons = [
+            bouton
+            for bouton in editeur_hors_etude.findChildren(QPushButton)
+            if bouton.text() == "Reformulation…"
+        ]
 
-        assert not bouton.isEnabled()
-
-        assert (
-            "n'appartient à aucune étude"
-            in bouton.toolTip()
-        )
+        assert boutons == []
 
         assert editeur_hors_etude.etudes_referencant_projet() == []
