@@ -71,11 +71,13 @@ Règles d'invariance UI (spec §7) :
 """
 
 import re
+import time
 
 from PySide6.QtCore import (
     QObject,
     Qt,
     QThread,
+    QTimer,
     Signal,
     Slot,
 )
@@ -92,6 +94,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMenu,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QTableWidget,
@@ -561,6 +564,22 @@ class ReformulationWindow(QWidget):
         self.annulation_passe = None
         self.passe_en_cours = False
 
+        #
+        # Progression de la passe (P16-bis 4ᵉ
+        # série, spec §19-23) : dénominateur du
+        # « run » courant — conservé après une
+        # annulation pour que le décompte d'une
+        # relance REPARTE des blocs déjà faits
+        # (§22), remis à zéro quand une passe se
+        # TERMINE.
+        #
+        self._run_denominateur = None
+        self._progression_base = 0
+        self._progression_total = 0
+        self._progression_denominateur = 0
+        self._progression_depart = 0.0
+        self._progression_echantillons = []
+
         self.thread_passe = None
         self.worker_passe = None
         self.thread_bloc = None
@@ -689,6 +708,71 @@ class ReformulationWindow(QWidget):
             barre.addWidget(bouton)
 
         layout.addLayout(barre)
+
+        #
+        # Zone de progression de la passe (P16-bis
+        # 4ᵉ série, spec correctifs §19-§23) : dans
+        # la zone de lancement — barre DÉTERMINÉE
+        # par blocs entiers « Bloc k/N » (N ≥ 2),
+        # temps écoulé en permanence, estimation du
+        # temps restant dès le premier bloc terminé,
+        # PULSE indéterminé discret pour N = 1 ;
+        # couleurs de la série 5 (#2563eb plein,
+        # lueur d'accent #3b9eff).
+        #
+        self.zone_progression = QWidget()
+        self.zone_progression.setVisible(False)
+
+        progression_layout = QHBoxLayout(
+            self.zone_progression
+        )
+
+        progression_layout.setContentsMargins(
+            0, 0, 0, 0
+        )
+
+        progression_layout.setSpacing(12)
+
+        self.progression_barre = QProgressBar()
+        self.progression_barre.setTextVisible(False)
+        self.progression_barre.setFixedHeight(8)
+
+        self._styliser_barre_progression()
+
+        self.progression_label = QLabel("")
+        self.progression_temps = QLabel("")
+        self.progression_reste = QLabel("")
+        self.progression_reste.setVisible(False)
+
+        progression_layout.addWidget(
+            self.progression_barre,
+            stretch=1
+        )
+
+        progression_layout.addWidget(
+            self.progression_label
+        )
+
+        progression_layout.addWidget(
+            self.progression_temps
+        )
+
+        progression_layout.addWidget(
+            self.progression_reste
+        )
+
+        layout.addWidget(self.zone_progression)
+
+        #
+        # Chronomètre du temps écoulé : tics d'une
+        # seconde pendant la passe (arrêté à la
+        # fin de passe).
+        #
+        self.chronometre = QTimer(self)
+        self.chronometre.setInterval(1000)
+        self.chronometre.timeout.connect(
+            self._maj_temps_progression
+        )
 
         #
         # Corps : table de relecture (P16-bis : une
@@ -2142,9 +2226,11 @@ class ReformulationWindow(QWidget):
         if self.passe_en_cours:
             return
 
-        if not self.moteur.blocs_a_traiter(
+        blocs_passe = self.moteur.blocs_a_traiter(
             CIBLE_NON_VALIDES
-        ):
+        )
+
+        if not blocs_passe:
             QMessageBox.information(
                 self,
                 "Rien à traiter",
@@ -2165,6 +2251,19 @@ class ReformulationWindow(QWidget):
             "Traitement en cours… "
             "(l'annulation conserve tout ce qui est "
             "déjà produit)"
+        )
+
+        #
+        # Zone de progression (4ᵉ série §19-§22) :
+        # le décompte d'une RELANCHE repart des
+        # blocs déjà faits (dénominateur du run
+        # conservé après annulation).
+        #
+        base = self._base_relance(len(blocs_passe))
+
+        self._demarrer_zone_progression(
+            len(blocs_passe),
+            base
         )
 
         self.thread_passe = QThread(self)
@@ -2229,11 +2328,336 @@ class ReformulationWindow(QWidget):
         La progression et la barre d'état restent
         visibles même avec un filtre locuteur actif
         (règle 6).
+
+        P16-bis 4ᵉ série (§19-§20) : la zone de
+        progression avance D'UN BLOC ENTIER — la
+        barre affiche k = blocs validés (base de
+        reprise + traités de la passe), sans
+        jamais de progression intra-bloc.
         """
+
+        self._sur_bloc_fini_progression(traites)
 
         self.barre_etat.setText(
             f"Traitement : {traites} / {total} blocs…"
         )
+
+    # ==================================================
+    # Zone de progression (P16-bis 4ᵉ série,
+    # spec correctifs §19-§23).
+    # ==================================================
+
+    @staticmethod
+    def _formater_duree(secondes) -> str:
+        """
+        Temps écoulé (§20) : format m:ss, ou
+        h:mm:ss au-delà d'une heure.
+        """
+
+        secondes = max(0, int(secondes))
+
+        heures = secondes // 3600
+        minutes = (secondes % 3600) // 60
+        s = secondes % 60
+
+        if heures:
+            return (
+                f"{heures}:"
+                f"{minutes:02d}:{s:02d}"
+            )
+
+        return f"{minutes}:{s:02d}"
+
+    @staticmethod
+    def _formater_duree_finale(secondes) -> str:
+        """
+        Durée de fin (§20) : format mm:ss (ou
+        h:mm:ss au-delà d'une heure).
+        """
+
+        secondes = max(0, int(secondes))
+
+        heures = secondes // 3600
+        minutes = (secondes % 3600) // 60
+        s = secondes % 60
+
+        if heures:
+            return (
+                f"{heures}:"
+                f"{minutes:02d}:{s:02d}"
+            )
+
+        return f"{minutes:02d}:{s:02d}"
+
+    @staticmethod
+    def _formater_restant(secondes) -> str:
+        """
+        Estimation du temps restant (§20), à titre
+        indicatif : « ~2 min restantes ».
+        """
+
+        secondes = max(0, int(secondes))
+
+        if secondes < 60:
+            return f"~{secondes} s restantes"
+
+        return (
+            f"~{round(secondes / 60)} "
+            f"min restantes"
+        )
+
+    def _styliser_barre_progression(self):
+        """
+        §23 : couleurs de la série 5 — morceau
+        PLEIN #2563eb (état actif du stepper v4),
+        lueur discrète d'accent #3b9eff, aucune
+        teinte ardoise.
+        """
+
+        from services.theme_manager import (
+            est_sombre,
+        )
+
+        fond = (
+            "#33343a"
+            if est_sombre(self)
+            else "#e9eaee"
+        )
+
+        self.progression_barre.setStyleSheet(
+            "QProgressBar {"
+            "background-color: " + fond + ";"
+            "border: 1px solid "
+            "rgba(59,158,255,90);"
+            "border-radius: 4px;"
+            "}"
+            "QProgressBar::chunk {"
+            "background-color: #2563eb;"
+            "border-radius: 3px;"
+            "}"
+        )
+
+    def _base_relance(self, total_pass: int) -> int:
+        """
+        §22 : à la relance après une annulation (ou
+        une erreur), le décompte REPART des blocs
+        déjà faits — le dénominateur du run est
+        conservé, la base = dénominateur − reste
+        à traiter. Première passe : base 0,
+        dénominateur = total de la passe.
+        """
+
+        denominateur = self._run_denominateur
+
+        if (
+            denominateur is not None
+            and 0 < total_pass <= denominateur
+        ):
+            return denominateur - total_pass
+
+        self._run_denominateur = total_pass
+
+        return 0
+
+    def _demarrer_zone_progression(
+        self,
+        total_pass: int,
+        base: int = 0
+    ):
+        """
+        §19/§21 : prépare la zone de progression.
+        ``base`` = blocs déjà faits d'une passe
+        interrompue (§22).
+
+        - N ≥ 2 : barre DÉTERMINÉE, un pas par
+          bloc terminé, libellé
+          « Bloc k/N — Reformulation en cours… » ;
+        - N = 1 : PAS de barre déterminée —
+          libellé « Reformulation en cours… »,
+          temps écoulé seul, PULSE indéterminé
+          discret.
+        """
+
+        self._progression_base = base
+        self._progression_total = total_pass
+        self._progression_denominateur = (
+            total_pass + base
+        )
+
+        self._progression_echantillons = []
+        self._progression_depart = (
+            time.monotonic()
+        )
+
+        self.zone_progression.setVisible(True)
+
+        denominateur = (
+            self._progression_denominateur
+        )
+
+        if denominateur >= 2:
+
+            self.progression_barre.setRange(
+                0,
+                denominateur
+            )
+
+            self.progression_barre.setValue(base)
+
+            self.progression_label.setText(
+                f"Bloc {base}/{denominateur} "
+                "— Reformulation en cours…"
+            )
+
+        else:
+
+            # N = 1 (§21) : animation indéterminée
+            # discrète — la barre en PULSE
+            # (0,0), jamais déterminée.
+            self.progression_barre.setRange(0, 0)
+
+            self.progression_label.setText(
+                "Reformulation en cours…"
+            )
+
+        self.progression_reste.setVisible(False)
+
+        self._maj_temps_progression()
+
+        self.chronometre.start()
+
+    def _sur_bloc_fini_progression(
+        self,
+        traites_pass: int
+    ):
+        """
+        Un bloc vient d'être terminé (et validé) :
+        la barre avance d'UN PAS ENTIER (§19) et
+        l'estimation du temps restant se recalcule
+        (§20).
+        """
+
+        self._progression_echantillons.append(
+            time.monotonic()
+        )
+
+        denominateur = (
+            self._progression_denominateur
+        )
+
+        if denominateur >= 2:
+
+            k = (
+                self._progression_base
+                + traites_pass
+            )
+
+            self.progression_barre.setValue(k)
+
+            self.progression_label.setText(
+                f"Bloc {k}/{denominateur} "
+                "— Reformulation en cours…"
+            )
+
+        self._maj_temps_progression()
+
+    def _maj_temps_progression(self):
+        """
+        §20 : temps écoulé affiché EN TOUTE
+        CIRCONSTANCE ; estimation du temps restant
+        dès qu'au moins un bloc est terminé
+        (durée moyenne des blocs traités ×
+        blocs restants), recalculée à chaque bloc.
+        """
+
+        ecoule = (
+            time.monotonic()
+            - self._progression_depart
+        )
+
+        self.progression_temps.setText(
+            "Temps écoulé : "
+            + self._formater_duree(ecoule)
+        )
+
+        denominateur = (
+            self._progression_denominateur
+        )
+
+        k = (
+            self._progression_base
+            + len(self._progression_echantillons)
+        )
+
+        if (
+            self._progression_echantillons
+            and denominateur >= 2
+            and k < denominateur
+        ):
+
+            moyenne = (
+                self._progression_echantillons[-1]
+                - self._progression_depart
+            ) / len(
+                self._progression_echantillons
+            )
+
+            self.progression_reste.setText(
+                self._formater_restant(
+                    moyenne * (denominateur - k)
+                )
+            )
+
+            self.progression_reste.setVisible(True)
+
+        else:
+
+            self.progression_reste.setVisible(False)
+
+    def _terminer_zone_progression(
+        self,
+        annulee: bool = False
+    ):
+        """
+        Fin de passe (§20) : « Reformulation
+        terminée en mm:ss » — ou état interrompu
+        après annulation (§22 : les blocs déjà
+        validés sont conservés, le décompte d'une
+        relance repartira d'eux).
+        """
+
+        self.chronometre.stop()
+
+        ecoule = (
+            time.monotonic()
+            - self._progression_depart
+        )
+
+        k = (
+            self._progression_base
+            + len(self._progression_echantillons)
+        )
+
+        denominateur = (
+            self._progression_denominateur
+        )
+
+        if annulee:
+
+            self.progression_label.setText(
+                f"Reformulation interrompue — "
+                f"{k}/{denominateur} bloc(s) "
+                "reformulé(s)"
+            )
+
+        else:
+
+            self.progression_label.setText(
+                "Reformulation terminée en "
+                + self._formater_duree_finale(ecoule)
+            )
+
+        self.progression_reste.setVisible(False)
 
     def sur_bloc_traite(self, fid: int):
 
@@ -2252,6 +2676,42 @@ class ReformulationWindow(QWidget):
         fait office de confirmation de la passe
         suivante).
         """
+
+        #
+        # Robustesse : le signal d'erreur du worker
+        # transporte un TEXTE (jamais un
+        # ResultatPasse) — normalisé ici pour que
+        # le bilan et la zone de progression
+        # restent cohérents.
+        #
+        if isinstance(resultat, str):
+
+            from services.traitements.moteur import (
+                ResultatPasse
+            )
+
+            resultat = ResultatPasse(
+                statut="erreur",
+                message=resultat
+            )
+
+        #
+        # Zone de progression (4ᵉ série §20/§22) :
+        # « Reformulation terminée en mm:ss » — ou
+        # état interrompue ; le dénominateur du run
+        # est conservé après interruption (le
+        # décompte d'une relance repart des blocs
+        # déjà faits), remis à zéro après une passe
+        # TERMINÉE.
+        #
+        self._terminer_zone_progression(
+            annulee=(
+                resultat.statut == "annulee"
+            )
+        )
+
+        if resultat.statut == "terminee":
+            self._run_denominateur = None
 
         self.passe_en_cours = False
 
@@ -2275,7 +2735,10 @@ class ReformulationWindow(QWidget):
                 f"Passe terminée : "
                 f"{resultat.nb_traites} bloc(s) traité(s).\n\n"
                 f"Coût réel : {cout:.3f} €\n"
-                f"Durée : {duree / 1000:.0f} s"
+                "Durée : "
+                + self._formater_duree_finale(
+                    duree / 1000
+                )
             )
 
             QMessageBox.information(

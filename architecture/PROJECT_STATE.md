@@ -1,22 +1,27 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**P18.6-bis séries 6 à 7-bis LIVRÉES**,
-> retours UI de David du 31/10 — logo V1 120 px ; plaque des services compacte
-> sur UNE ligne à hauteur des boutons ⚙/?, info-bulles par service dont la
-> liste verticale « clé API {fournisseur} configurée » ; tuiles-rangées de
-> réunions sur UNE ligne (hauteur ÷2), clic GAUCHE = ouverture à l'étape en
-> cours, menu contextuel au clic droit (rattacher absent si rattachée) ;
-> fonds UNIFORMES #1e1f24 en sombre (neutralisation du #202124 de qdarktheme
-> sur bandeau et labels) et #f3f3f3 en clair (gris Windows, tuiles #e9eaee
-> plus foncées) ; ombre de survol subtile (12 px, 4 %) ; SVG à l'accent
-> unique #3b9eff ; steppers ALIGNÉS en colonne (cause : l'étirement interne
-> du StepperBar le rendait expansif — élasticité déplacée dans la zone
-> d'infos, politique Maximum/Fixed). **P19.1 LIVRÉ** : modèle de données du
-> document ouvrage (models/ouvrage.py + services/ouvrage_document.py —
-> ouvrage.json, génération depuis les reformulations validées selon l'ordre
-> d'ouvrage, régénération complète qui écrase, instantané de génération +
-> signalement « réunion re-reformulée », Réserves, provenances multiples
-> prêtes pour P19.4). **495 tests verts**.)
+> **Dernière mise à jour** : 2026-10-31 (**synchro skill v30 faite** — INDEX_SPECS_
+> 2026-10-30h, UI_REFORMULATION_MODIFS_2026-10-30f, SPEC_NAVIGATION_MODIFS_
+> 2026-10-31a recopiés dans architecture/spec_v2/. **P16-bis 4ᵉ série LIVRÉE**
+> (UI_REFORMULATION_MODIFS_30f §19-23) : zone de progression de la reformulation
+> dans la zone de lancement — barre DÉTERMINÉE par blocs entiers « Bloc k/N —
+> Reformulation en cours… » (N ≥ 2), temps écoulé en permanence (m:ss /
+> h:mm:ss), estimation du temps restant dès le 1ᵉʳ bloc terminé (moyenne ×
+> restants, recalculée à chaque bloc), « Reformulation terminée en mm:ss » à la
+> fin, cas N = 1 sans barre déterminée (libellé + temps écoulé + pulse
+> indéterminé discret), annulation après le bloc en cours avec RELANCE dont le
+> décompte repart des blocs déjà faits (dénominateur du run conservé, remis à
+> zéro après une passe terminée), couleurs série 5 (chunk #2563eb plein, lueur
+> #3b9eff) — les 5 invariants testés. **P18.6-bis série 6 LIVRÉE**
+> (SPEC_NAVIGATION_MODIFS_31a §28-29) : pastilles non configurées toutes en
+> GRIS OFF (rouge réservé aux échecs réels — l'écart CLI est levé), hub sans
+> stepper NI mention pour les non-transcrites (page Étude inchangée).
+> **P19.1 LIVRÉ** — modèle de données du document ouvrage
+> (models/ouvrage.py + services/ouvrage_document.py : ouvrage.json,
+> génération depuis les reformulations validées selon l'ordre d'ouvrage,
+> régénération complète qui écrase, instantané de génération et signalement
+> « réunion re-reformulée », Réserves, provenances multiples prêtes pour
+> la fusion P19.4). **509 tests verts**.)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)

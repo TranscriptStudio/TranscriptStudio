@@ -1306,11 +1306,14 @@ class HomeWindow(QWidget):
 
         if etats is None:
 
+            #
+            # P18.6-bis série 6 (SPEC_NAVIGATION_
+            # MODIFS_2026-10-31a §29) : le hub
+            # n'affiche NI stepper NI MENTION pour
+            # une réunion non transcrite (la page
+            # Étude conserve sa mention discrète).
+            #
             fabrique_stepper = None
-
-            mention_non_transcrite = (
-                "transcription en attente"
-            )
 
         else:
 
@@ -1321,8 +1324,6 @@ class HomeWindow(QWidget):
                 )
                 stepper.definir_etats(etats)
                 return stepper
-
-            mention_non_transcrite = None
 
         cout_libelle = (
             f"Coût : {cout:.4f} $"
@@ -1336,9 +1337,6 @@ class HomeWindow(QWidget):
             texte_etude,
             fabrique_stepper=fabrique_stepper,
             cout=cout_libelle,
-            mention_non_transcrite=(
-                mention_non_transcrite
-            ),
         )
 
         tuile.setToolTip(str(chemin))
@@ -1619,8 +1617,11 @@ class HomeWindow(QWidget):
         """
         Point « Service de transcription » (ElevenLabs)
         de la plaque (spec 30f §25a) : vert si ok,
-        rouge si ko (le service requis n'est pas
-        configuré).
+        GRIS OFF si non configuré — P18.6-bis série 6
+        (SPEC_NAVIGATION_MODIFS_2026-10-31a §28) :
+        le ROUGE est réservé à un échec RÉEL de
+        service (erreur de connexion, clé refusée),
+        jamais à une simple absence de configuration.
 
         Info-bulle de la LIGNE complète (retour
         David, point 2) : « clé API ElevenLabs
@@ -1639,7 +1640,7 @@ class HomeWindow(QWidget):
             self.api_status_label.setText(
                 "Service de transcription : non configuré"
             )
-            couleur = "#c0533f"
+            couleur = "#8a8b92"
             bulle = (
                 "clé API ElevenLabs non configurée"
             )

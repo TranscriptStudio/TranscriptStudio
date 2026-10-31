@@ -234,9 +234,14 @@ class TuileReunion(QWidget):
 
     Une ligne COMPACTE (~30 px — l'ancienne
     hauteur « mastoc » est divisée par deux) :
-    marque carrée d'accent → titre → étude (ou
-    mention « transcription en attente ») →
+    marque carrée d'accent → titre → étude →
     stepper compact → coût à droite.
+
+    P18.6-bis série 6 (SPEC_NAVIGATION_MODIFS_
+    2026-10-31a §29) : plus AUCUNE mention pour
+    une réunion non transcrite sur le hub — ni
+    stepper ni mention (la page Étude conserve
+    la sienne).
 
     Série 7 (retour David, point 3) : plus
     AUCUN lien « rattacher à une étude… » sur
@@ -270,7 +275,6 @@ class TuileReunion(QWidget):
         texte_etude,
         fabrique_stepper,
         cout: str,
-        mention_non_transcrite: str = None,
         parent=None
     ):
         super().__init__(parent)
@@ -297,14 +301,12 @@ class TuileReunion(QWidget):
             texte_etude,
             fabrique_stepper,
             cout,
-            mention_non_transcrite,
         )
 
         deux_lignes = self._construire_deux_lignes(
             texte_etude,
             fabrique_stepper,
             cout,
-            mention_non_transcrite,
         )
 
         self.page_une_ligne = une_ligne
@@ -371,36 +373,20 @@ class TuileReunion(QWidget):
 
     def _libelle_secondaire(
         self,
-        texte_etude,
-        mention_non_transcrite
+        texte_etude
     ):
         """
         Libellé secondaire INLINE (plus de colonne
         empilée — la rangée tient sur une ligne) :
-        étude en couleur atténuée, ou mention
-        « transcription en attente » pour une
-        réunion non transcrite.
+        étude en couleur atténuée.
 
         Réunion autonome (série 7, retour David
         point 3) : AUCUN libellé — le
         rattachement se fait par le menu
-        contextuel.
+        contextuel. Réunion non transcrite
+        (série 6, §29) : AUCUNE mention sur le
+        hub.
         """
-
-        if mention_non_transcrite is not None:
-
-            mention = QLabel(mention_non_transcrite)
-
-            police = QFont(self.font())
-            police.setPixelSize(11)
-            police.setItalic(True)
-            mention.setFont(police)
-
-            mention.setStyleSheet(
-                "color: #8a8b92;"
-            )
-
-            return mention
 
         if not texte_etude:
             return None
@@ -479,12 +465,11 @@ class TuileReunion(QWidget):
         self,
         texte_etude,
         fabrique_stepper,
-        cout,
-        mention_non_transcrite
+        cout
     ):
         """
         Disposition large : TOUT SUR UNE LIGNE —
-        marque, titre, étude (ou mention),
+        marque, titre, étude,
         stepper, coût (retour David, point 3b :
         hauteur de rangée divisée par deux).
         """
@@ -505,8 +490,7 @@ class TuileReunion(QWidget):
         )
 
         secondaire = self._libelle_secondaire(
-            texte_etude,
-            mention_non_transcrite
+            texte_etude
         )
 
         if secondaire is not None:
@@ -526,8 +510,7 @@ class TuileReunion(QWidget):
         self,
         texte_etude,
         fabrique_stepper,
-        cout,
-        mention_non_transcrite
+        cout
     ):
         """
         Disposition étroite : titre + étude, puis
@@ -553,8 +536,7 @@ class TuileReunion(QWidget):
         )
 
         secondaire = self._libelle_secondaire(
-            texte_etude,
-            mention_non_transcrite
+            texte_etude
         )
 
         if secondaire is not None:

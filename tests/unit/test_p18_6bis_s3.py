@@ -356,8 +356,9 @@ class TestPageReunion:
 
 #
 # ==================================================
-# Hub et page Étude : mention au lieu du stepper
-# pour une réunion non transcrite (invariant 9).
+# Hub, page Réunion et page Étude : réunion non
+# transcrite (invariant 9, puis série 6 §29 —
+# le hub n'affiche NI stepper NI mention).
 # ==================================================
 #
 
@@ -368,6 +369,13 @@ class TestMentions:
         qapp,
         tmp_path
     ):
+        """
+        P18.6-bis série 6 (SPEC_NAVIGATION_MODIFS_
+        2026-10-31a §29, remplace la fin du §19 sur
+        ce point) : le hub n'affiche NI stepper NI
+        MENTION pour une réunion non transcrite —
+        la page Étude conserve la sienne.
+        """
 
         chemin = ecrire_projet_sans_transcription(
             tmp_path / "Audio_prepare"
@@ -412,7 +420,9 @@ class TestMentions:
                 == "transcription en attente"
             ]
 
-            assert mentions
+            # Série 6 §29 : AUCUNE mention sur le
+            # hub pour une réunion non transcrite.
+            assert mentions == []
 
         finally:
             accueil.close()
