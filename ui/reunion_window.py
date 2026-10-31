@@ -1540,20 +1540,11 @@ class ReunionWindow(QWidget):
     def sur_changement_theme(self):
         """
         Broadcast de ThemeManager : recalcule le
-        stepper dans le nouveau thème et propage
-        aux pages embarquées (éditeur de correction,
-        etc.).
+        stepper dans le nouveau thème. La page
+        embarquée courante (éditeur de correction,
+        etc.) reçoit le broadcast DIRECTEMENT —
+        le diffusion parcourt tous les widgets
+        visibles, embarqués compris.
         """
 
         self.maj_stepper()
-
-        page = self.contenu.currentWidget()
-
-        hook = getattr(
-            page,
-            "sur_changement_theme",
-            None
-        )
-
-        if hook is not None:
-            hook()

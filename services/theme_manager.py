@@ -186,22 +186,28 @@ class ThemeManager:
     @staticmethod
     def diffuser_changement_theme():
         """
-        P18.6-bis serie 8 (retour David 31/10) :
-        diffuse le changement de theme aux fenetres
-        VISIBLES — chaque fenetre ouverte qui
-        expose sur_changement_theme() est invitee
-        a rafraichir ses couleurs peintes a la main
-        (steppers, icones teintees, blocs de
-        transcription). Sans ce broadcast, ces
-        elements gardaient les couleurs du theme
-        precedent jusqu'au survol.
+        P18.6-bis serie 8-bis : diffuse le
+        changement de theme a TOUT widget VISIBLE
+        qui expose sur_changement_theme() — les
+        pages de l'application (Reunion, hub,
+        Etude) sont EMBARQUEES dans le
+        QStackedWidget d'AppWindow, ce ne sont
+        PAS des fenetres de premier niveau : ne
+        parcourir que topLevelWidgets ne
+        rafraissait jamais la page Reunion dans
+        l'application reelle (retour David 31/10 :
+        blocs et A+/A− figés au theme de leur
+        construction, corrigés « au survol »).
 
-        Seules les fenetres VISIBLES sont
-        rafraichies : le rafraichissement reconstruit
-        des listes de tuiles (lecture de projets) —
-        le diffuser aux fenetres fermées/cachées
-        le ferait payer à chaque changement de
-        theme pour rien.
+        isVisible() d'un enfant n'est vrai que si
+        TOUTE sa chaîne d'ancêtres est visible :
+        la page courante d'une app ouverte est
+        rafraîchie, les fenêtres cachées ou
+        fermées ne paient rien (et le
+        rafraîchissement reconstruit des listes
+        de tuiles — le diffuser aux fenêtres
+        fermées le ferait payer à chaque
+        changement de theme pour rien).
         """
         from PySide6.QtWidgets import (
             QApplication,
@@ -212,15 +218,15 @@ class ThemeManager:
         if application is None:
             return
 
-        for fenetre in (
-            QApplication.topLevelWidgets()
+        for widget in (
+            QApplication.allWidgets()
         ):
 
-            if not fenetre.isVisible():
+            if not widget.isVisible():
                 continue
 
             hook = getattr(
-                fenetre,
+                widget,
                 "sur_changement_theme",
                 None
             )

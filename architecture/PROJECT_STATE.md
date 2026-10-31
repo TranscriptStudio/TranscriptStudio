@@ -1,26 +1,25 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**série 8-ter livrée — fin des couleurs
-> inversées sombre/clair, réglée à la racine**). **CAUSE RACINE** : la QPalette ne reflète
-> PAS le thème appliqué (qdarktheme travaille par feuille de style) — sur un OS au schéma
-> OPPOSÉ au thème de l'app (Windows clair + app sombre), tout ce qui lisait la palette
-> peignait les couleurs du thème INVERSE : la TIMELINE (bulle temporelle palette Base en
-> texte sur fond palette Text, grille palette Mid) et le PANNEAU DES INTERVENANTS lisaient
-> QPalette — d'où « lisible en clair, illisible en sombre ». **CORRECTIF — source de vérité
-> UNIQUE** : (1) timeline_widget et timeline_speaker_panel peignent désormais via
-> text_color_effectif()/est_sombre (bulles, grille, noms d'intervenants) ; (2) est_sombre :
-> le repli lit le schéma de couleurs DU SYSTÈME (styleHints().colorScheme()), plus JAMAIS la
-> luminosité de QPalette ; (3) en-tête du hub : suit le thème APPLIQUÉ (est_sombre), pas le
-> réglage configuré ni la palette ; (4) dialogue de prétraitement : les 5 teintes
-> d'icônes suivent text_color_effectif (thème appliqué), plus make_theme_text_color(réglage
-> configuré). **VERROU (TestSerie8TerInversion)** : palette délibérément OPPOSÉE au thème
-> appliqué dans les DEUX sens (app sombre + palette claire, app claire + palette sombre) —
-> est_sombre, text_color_effectif, styles du stepper, icônes A+/A−, rendu des blocs
-> transcrits et pixels de la timeline suivent TOUJOURS le thème appliqué. Série 8-bis
-> (ancre stroke, barre d'outils sur la ligne du stepper, broadcast de thème aux fenêtres
-> visibles) livrée juste avant. **551 tests verts** (2 verrous nouveaux). Aussi livrés ce
-> jour : série 8 (retour David points 1-10), série 7 (spec 31d §30, invariant 16), catalogue
-> LLM v3 + effort de raisonnement, P19.1-P19.3, P16-bis 4ᵉ série, P18.6-bis séries 6-7-bis.
+> **Dernière mise à jour** : 2026-10-31 (**série 8-quater — LA panne des couleurs
+> sombre/clair enfin à sa vraie racine**). **CAUSE RÉELLE** (pourquoi la 8-ter « ne changeait
+> rien » sur la machine de David) : le broadcast de changement de thème ne parcourait que
+> les fenêtres DE PREMIER NIVEAU — or dans l'application réelle la page Réunion (éditeur,
+> stepper, A+/A−) est EMBARQUÉE dans le QStackedWidget d'AppWindow : le broadcast ne
+> l'atteignait JAMAIS. Les couleurs peintes à la main restaient figées au thème de leur
+> CONSTRUCTION et ne se corrigeaient qu'au survol (d'où tous les allers-retours). En tests
+> la page était orpheline (top-level) → tout passait sans que le réel soit réparé.
+> **CORRECTIF** : diffuser_changement_theme parcourt désormais TOUS les widgets VISIBLES
+> (QApplication.allWidgets() + isVisible — un enfant n'est visible que si toute sa chaîne
+> d'ancêtres l'est : la page courante d'une app ouverte est rafraîchie, les fenêtres
+> fermées/cachées ne paient rien) ; ReunionWindow.sur_changement_theme ne propage plus
+> manuellement (l'éditeur embarqué reçoit le broadcast directement, plus de double travail).
+> **TEST DE RÉGRESSION (TestBroadcastEmbarque)** reproduisant le RÉEL : page Réunion dans
+> une pile d'une fenêtre montrée, bascule clair→sombre — icônes A+/A−, texte des blocs et
+> pastilles du stepper se rafraîchissent. Série 8-ter conservée (timeline et intervenants
+> peignent via le thème appliqué, est_sombre ne lit plus jamais la palette, verrous
+> palette-opposée). **552 tests verts**. Aussi livrés ce jour : séries 8/8-bis, série 7
+> (invariant 16), catalogue LLM v3 + effort de raisonnement, P19.1-P19.3, P16-bis 4ᵉ série,
+> P18.6-bis séries 6-7-bis.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)

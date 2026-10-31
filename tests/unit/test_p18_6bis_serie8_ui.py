@@ -1086,3 +1086,157 @@ class TestSerie8TerInversion:
             )
 
             reinitialiser_theme_actif()
+
+
+class TestBroadcastEmbarque:
+    """
+    RÉEL de l'application : AppWindow embarque la
+    page Réunion (et l'éditeur de correction) dans
+    un QStackedWidget — la page n'est PAS une
+    fenêtre de premier niveau. Le broadcast du
+    changement de thème doit atteindre les widgets
+    EMBARQUÉS visibles (sinon blocs et A+/A−
+    restaient figés au thème de leur construction
+    et ne se corrigeaient qu'au survol — retour
+    David 31/10).
+    """
+
+    def _couleurs_icone(self, bouton):
+        image = (
+            bouton.icon()
+            .pixmap(32, 32)
+            .toImage()
+        )
+
+        couleurs = {}
+
+        for y in range(image.height()):
+            for x in range(image.width()):
+                couleur = image.pixelColor(x, y)
+
+                if couleur.alpha() < 128:
+                    continue
+
+                couleurs[couleur.name()] = (
+                    couleurs.get(couleur.name(), 0) + 1
+                )
+
+        return couleurs
+
+    def _couleurs_bloc(self, correction):
+        widget = next(
+            iter(correction.block_widgets.values())
+        )
+
+        image = widget.grab().toImage()
+
+        couleurs = {}
+
+        for y in range(0, image.height(), 2):
+            for x in range(0, image.width(), 2):
+                couleur = image.pixelColor(x, y)
+
+                couleurs[couleur.name()] = (
+                    couleurs.get(couleur.name(), 0) + 1
+                )
+
+        return couleurs
+
+    def test_bascule_clair_puis_sombre(
+        self,
+        reunion,
+        qapp
+    ):
+        from PySide6.QtWidgets import (
+            QStackedWidget,
+            QVBoxLayout,
+            QWidget,
+        )
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
+
+        fenetre = reunion[0]
+        fenetre.changer_etape("transcription")
+        correction = fenetre.fenetre_correction
+
+        #
+        # Structure d'AppWindow : la page vit
+        # dans une PILE d'une fenêtre MONTRÉE.
+        #
+        conteneur = QWidget()
+        pile = QStackedWidget()
+
+        layout = QVBoxLayout(conteneur)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(pile)
+
+        pile.addWidget(fenetre)
+
+        conteneur.show()
+
+        try:
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.LIGHT
+            )
+
+            couleurs = self._couleurs_icone(
+                correction.text_larger_button
+            )
+
+            assert "#191919" in couleurs
+
+            assert (
+                "#191919"
+                in self._couleurs_bloc(correction)
+            )
+
+            #
+            # Bascule à chaud clair -> sombre :
+            # la page EMBARQUÉE doit se rafraîchir
+            # (le flux exact de David).
+            #
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.DARK
+            )
+
+            couleurs = self._couleurs_icone(
+                correction.text_larger_button
+            )
+
+            assert "#f0f0f0" in couleurs
+
+            assert (
+                "#f0f0f0"
+                in self._couleurs_bloc(correction)
+            )
+
+            # Le stepper embarqué aussi.
+            assert (
+                "#33343a"
+                in fenetre.stepper.boutons["export"]
+                .styleSheet()
+            )
+
+        finally:
+            #
+            # Démonter la pile AVANT de fermer le
+            # conteneur : fermer le conteneur
+            # détruirait la page (le fixture la
+            # referme ensuite).
+            #
+            pile.removeWidget(fenetre)
+
+            fenetre.setParent(None)
+
+            conteneur.close()
+
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.DARK
+            )
+
+            reinitialiser_theme_actif()
