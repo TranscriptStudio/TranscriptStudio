@@ -309,35 +309,57 @@ class TestBlocsSansBordure:
                     in widget.styleSheet()
                 )
 
-    def test_voile_de_survol_progressif(
+    def test_aucun_effet_de_survol(
         self,
         fenetre
     ):
         """
-        Voile très léger appliqué par PASSE
-        (valeur intermédiaire < cible), alpha final
-        14/255, retour à transparent.
+        P20-bis, point 3 : la surbrillance des
+        cellules survolées est ABANDONNÉE — le
+        survol d'un bloc ne change RIEN.
         """
 
         ligne = next(
             iter(fenetre.lignes.values())
         )
 
-        ligne._voile = 14
+        avant = ligne.cellule_brute.styleSheet()
 
-        fenetre._appliquer_fond_ligne(ligne)
+        ligne.cellule_brute.enterEvent(None)
 
-        style = ligne.cellule_brute.styleSheet()
-
-        assert "rgba(59,158,255,14)" in style
-
-        ligne._voile = 0
-
-        fenetre._appliquer_fond_ligne(ligne)
-
-        assert "transparent" in (
+        assert (
             ligne.cellule_brute.styleSheet()
+            == avant
         )
+
+    def test_justifie_et_sans_grille(
+        self,
+        fenetre
+    ):
+        """
+        P20-bis, point 2 : FIN de la logique tableur
+        — texte JUSTIFIÉ (la délimitation visuelle
+        des blocs), AUCUNE grille ni contour.
+        """
+
+        assert not fenetre.table.showGrid()
+
+        for ligne in fenetre.lignes.values():
+
+            for cellule in (
+                ligne.cellule_brute,
+                ligne.cellule_reformee,
+            ):
+
+                assert (
+                    cellule.document()
+                    .defaultTextOption()
+                    .alignment()
+                    == (
+                        Qt.AlignmentFlag
+                        .AlignJustify
+                    )
+                )
 
     def test_fond_surlignage_sans_bordure(
         self,
@@ -394,7 +416,7 @@ class TestEntetes:
                 2,
                 Qt.Orientation.Horizontal
             )
-            == "version reformulée"
+            == "Version reformulée"
         )
 
     def test_orateur_aligne_a_gauche(self, fenetre):
@@ -416,9 +438,15 @@ class TestEntetes:
 
 class TestIconeAudio:
 
-    def test_icone_sans_texte(self, fenetre):
+    def test_audio_avec_texte(self, fenetre):
+        """
+        P20-bis, point 7 : « Audio » à droite de
+        l'icône.
+        """
 
-        assert fenetre.jouer_button.text() == ""
+        assert fenetre.jouer_button.text() == (
+            "Audio"
+        )
 
     def test_bascule_lecture_pause(self, fenetre):
         """
@@ -622,6 +650,77 @@ class TestInfoBulles:
         bulle.definir_texte("Essai")
 
         assert "#26272d" in bulle.styleSheet()
+
+    def test_bulle_police_explicite(
+        self,
+        fenetre
+    ):
+        """
+        La taille de police est EXPLICITE dans la
+        feuille de l'info-bulle — la pastille
+        parente (« font-size: 20px ») ne déteint
+        PLUS dessus (retour David : police énorme).
+        """
+
+        ligne = next(
+            iter(fenetre.lignes.values())
+        )
+
+        bulle = ligne.bulle_pastille
+
+        bulle.definir_texte("Essai")
+
+        assert "font-size:" in bulle.styleSheet()
+
+        assert "font-size: 20px" not in (
+            bulle.styleSheet()
+        )
+
+    def test_bulle_restylee_a_l_affichage(
+        self,
+        fenetre,
+        qapp
+    ):
+        """
+        Le thème de l'info-bulle est recalculé à
+        CHAQUE affichage : un changement de thème à
+        chaud ne laisse plus le fond du thème
+        précédent (retour David : fond inversé).
+        """
+
+        from services.theme_manager import (
+            ThemeManager,
+        )
+
+        ligne = next(
+            iter(fenetre.lignes.values())
+        )
+
+        bulle = ligne.bulle_pastille
+
+        bulle.definir_texte("Essai")
+
+        ThemeManager.apply_theme(
+            qapp,
+            ThemeManager.DARK
+        )
+
+        bulle.montrer()
+
+        assert "#26272d" in bulle.styleSheet()
+
+        ThemeManager.apply_theme(
+            qapp,
+            ThemeManager.LIGHT
+        )
+
+        bulle.montrer()
+
+        assert "#ffffff" in bulle.styleSheet()
+
+        assert "#26272d" not in (
+            bulle.styleSheet()
+        )
 
     def test_bulle_multiligne(self, fenetre):
 

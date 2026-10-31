@@ -329,7 +329,23 @@ class _MoletteDouce(QObject):
             QEasingCurve.Type.OutCubic
         )
         self._animation.valueChanged.connect(
-            self._table.verticalScrollBar().setValue
+            self._sur_valeur
+        )
+
+    def _sur_valeur(self, valeur):
+        """
+        QVariantAnimation peut émettre None (fin ou
+        arrêt d'animation) : la valeur est alors
+        IGNORÉE — jamais de setValue(None) (retour
+        David 31/10 : la molette mourait avec
+        « TypeError: setValue(NoneType) »).
+        """
+
+        if valeur is None:
+            return
+
+        self._table.verticalScrollBar().setValue(
+            int(valeur)
         )
 
     def eventFilter(self, objet, event):
@@ -388,72 +404,6 @@ class _MoletteDouce(QObject):
         return True
 
 
-class _SurvolBloc(QObject):
-    """
-    P20 (retour David 31/10, UI reformulation
-    point 5) : plus AUCUNE bordure sur les blocs
-    (fin des « cellules Excel ») ; au survol d'un
-    bloc, un voile de fond TRÈS léger s'applique
-    PROGRESSIVEMENT (~100 ms) et s'efface tout
-    aussi progressivement.
-    """
-
-    DUREE_MS = 100
-    ALPHA_MAX = 14
-
-    def __init__(self, fenetre, ligne, parent=None):
-
-        super().__init__(parent)
-
-        self._fenetre = fenetre
-        self._ligne = ligne
-        self._valeur = 0.0
-
-        self._animation = QVariantAnimation(self)
-        self._animation.setDuration(self.DUREE_MS)
-        self._animation.setEasingCurve(
-            QEasingCurve.Type.OutCubic
-        )
-        self._animation.valueChanged.connect(
-            self._appliquer
-        )
-
-    def entrer(self):
-
-        self._animer(self.ALPHA_MAX)
-
-    def sortir(self):
-
-        self._animer(0)
-
-    def _animer(self, cible: int):
-
-        self._animation.stop()
-
-        self._animation.setStartValue(
-            self._valeur
-        )
-
-        self._animation.setEndValue(cible)
-
-        self._animation.start()
-
-    def _appliquer(self, valeur):
-
-        self._valeur = valeur
-
-        self._ligne._voile = int(valeur)
-
-        #
-        # La composition (bloc joué + voile) vit
-        # dans la fenêtre : UNE seule feuille de
-        # style par widget, jamais de conflit.
-        #
-        self._fenetre._appliquer_fond_ligne(
-            self._ligne
-        )
-
-
 class LigneBloc:
     """
     Une ligne de la table de relecture : nom(s) du
@@ -483,12 +433,11 @@ class LigneBloc:
         self.filtration_locuteur = True
 
         #
-        # P20, points 3-5 : bloc en lecture (fond
-        # de surlignage SANS bordure) et voile de
-        # survol courant (alpha 0-14).
+        # P20-bis, points 2-3 : bloc en lecture
+        # (fond de surlignage SANS bordure) ; plus
+        # AUCUN effet de survol.
         #
         self.jouee = False
-        self._voile = 0
 
         #
         # Colonne orateur (P20, point 6 : « Orateur »,
@@ -506,7 +455,7 @@ class LigneBloc:
             | Qt.AlignmentFlag.AlignLeft
         )
         self.label_locuteurs.setContentsMargins(
-            4, 0, 0, 0
+            6, 0, 0, 0
         )
         self.label_locuteurs.setStyleSheet(
             "QLabel {"
@@ -643,6 +592,14 @@ class LigneBloc:
         la ligne se fait sur la largeur de la
         colonne, la hauteur est portée par la ligne
         de la table.
+
+        P20-bis (retour David 31/10, points 1-2) :
+        - la cellule N'AVALE PAS la molette (sinon
+          le défilement lissé de la table ne
+          recevait rien) ;
+        - le texte est JUSTIFIÉ : c'est la
+          délimitation visuelle des blocs, plus
+          AUCUN contour de cellule.
         """
 
         cellule.setVerticalScrollBarPolicy(
@@ -655,6 +612,20 @@ class LigneBloc:
 
         cellule.setLineWrapMode(
             QTextEdit.LineWrapMode.WidgetWidth
+        )
+
+        cellule.wheelEvent = (
+            lambda event: event.ignore()
+        )
+
+        option = cellule.document().defaultTextOption()
+
+        option.setAlignment(
+            Qt.AlignmentFlag.AlignJustify
+        )
+
+        cellule.document().setDefaultTextOption(
+            option
         )
 
     def appliquer_taille(self, taille: int):
@@ -924,7 +895,7 @@ class ReformulationWindow(QWidget):
         # Audio (point 7) : les MÊMES icônes SVG
         # teintées que la page transcription.
         #
-        self.jouer_button = QPushButton()
+        self.jouer_button = QPushButton("Audio")
         self.jouer_button.setIcon(
             make_tinted_icon(
                 text_color_effectif(),
@@ -949,7 +920,12 @@ class ReformulationWindow(QWidget):
         ):
             barre.addWidget(bouton)
 
-        barre.addStretch()
+        #
+        # P20-bis, point 8 : espace RÉDUIT entre
+        # « Coûts » et A+ (12 px, plus de
+        # l'étirement qui les éloignait).
+        #
+        barre.addSpacing(12)
 
         for bouton in (
             self.augmenter_button,
@@ -958,6 +934,8 @@ class ReformulationWindow(QWidget):
             self.log_button,
         ):
             barre.addWidget(bouton)
+
+        barre.addStretch()
 
         layout.addWidget(self.barre_outils)
 
@@ -1123,17 +1101,49 @@ class ReformulationWindow(QWidget):
         """
 
         #
-        # P20, point 6 : libellés épurés —
-        # « Orateur » (aligné à gauche, même retrait
-        # que les noms en dessous), « Transcription
-        # d'origine », « version reformulée ».
+        # P20-bis, points 4-5 : libellés « Orateur »,
+        # « Transcription d'origine », « Version
+        # reformulée ». FIN de la logique tableur
+        # (point 2) : plus de grille, plus de contour
+        # de cellule, plus de barre d'en-tête —
+        # l'en-tête plat est TRANSPARENT et « Orateur »
+        # partage le retrait GAUCHE des noms
+        # (6 px, même valeur que le contenu de la
+        # colonne).
         #
         self.table.setHorizontalHeaderLabels([
             "Orateur",
             "Transcription d'origine",
-            "version reformulée",
+            "Version reformulée",
             "",
         ])
+
+        self.table.setShowGrid(False)
+
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background: transparent;
+                border: none;
+                gridline-color: transparent;
+            }
+
+            QTableWidget::item {
+                background: transparent;
+                border: none;
+            }
+
+            QHeaderView {
+                background: transparent;
+                border: none;
+            }
+
+            QHeaderView::section {
+                background: transparent;
+                border: none;
+                padding-left: 6px;
+                padding-right: 6px;
+            }
+        """)
 
         entete_orateur = (
             self.table.horizontalHeaderItem(0)
@@ -1425,47 +1435,30 @@ class ReformulationWindow(QWidget):
         )
 
         #
-        # Survol du BLOC (P20, point 5) : voile de
-        # fond très léger, application progressive
-        # ~100 ms — aucune bordure. La pastille et
-        # l'indicateur de version montrent AUSSI
-        # leur info-bulle au même survol.
+        # Info-bulles au thème de l'app (P20,
+        # point 9) : montrer/cacher au survol —
+        # AUCUN autre effet de survol (P20-bis,
+        # point 3 : la surbrillance des cellules
+        # survolées est ABANDONNÉE).
         #
-        survol = _SurvolBloc(self, ligne, parent=self)
-
-        for widget in (
-            ligne.label_locuteurs,
-            ligne.cellule_brute,
-            ligne.cellule_reformee,
-            ligne.colonne_droite,
-        ):
-
-            widget.enterEvent = (
-                lambda event, s=survol: s.entrer()
-            )
-
-            widget.leaveEvent = (
-                lambda event, s=survol: s.sortir()
-            )
-
         ligne.pastille.enterEvent = (
-            lambda event, s=survol, b=ligne.bulle_pastille:
-            (s.entrer(), b.montrer())
+            lambda event, b=ligne.bulle_pastille:
+            b.montrer()
         )
 
         ligne.pastille.leaveEvent = (
-            lambda event, s=survol, b=ligne.bulle_pastille:
-            (s.sortir(), b.cacher())
+            lambda event, b=ligne.bulle_pastille:
+            b.cacher()
         )
 
         ligne.version_label.enterEvent = (
-            lambda event, s=survol, b=ligne.bulle_versions:
-            (s.entrer(), b.montrer())
+            lambda event, b=ligne.bulle_versions:
+            b.montrer()
         )
 
         ligne.version_label.leaveEvent = (
-            lambda event, s=survol, b=ligne.bulle_versions:
-            (s.sortir(), b.cacher())
+            lambda event, b=ligne.bulle_versions:
+            b.cacher()
         )
 
         #
@@ -3422,7 +3415,6 @@ class ReformulationWindow(QWidget):
         for bouton in (
             self.augmenter_button,
             self.diminuer_button,
-            self.jouer_button,
         ):
 
             bouton.setFixedSize(
@@ -3445,6 +3437,33 @@ class ReformulationWindow(QWidget):
                     border-radius: 5px;
                 }}
             """)
+
+        #
+        # P20-bis, point 7 : « Audio » à droite de
+        # l'icône — largeur libre, texte à la
+        # couleur STANDARD du thème (aucune
+        # feuille : la couleur par défaut de la
+        # stylesheet du thème).
+        #
+        self.jouer_button.setMinimumHeight(
+            ICON_BUTTON_HEIGHT
+        )
+
+        css_hauteur = make_button_height_css(
+            ICON_BUTTON_HEIGHT
+        )
+
+        self.jouer_button.setStyleSheet(
+            "QPushButton {"
+            "border: none;"
+            f"{css_hauteur}"
+            "}"
+
+            "QPushButton:hover {"
+            "background-color: rgba(128,128,128,45);"
+            "border-radius: 5px;"
+            "}"
+        )
 
     def sur_changement_theme(self):
         """
@@ -3475,30 +3494,19 @@ class ReformulationWindow(QWidget):
         ligne: LigneBloc
     ):
         """
-        P20, points 3 et 5 : composition UNIE du
-        fond d'une ligne — AUCUNE bordure, jamais
-        deux feuilles de style concurrentes.
-
-        - cellule brute : fond de surlignage si le
-          bloc est en lecture (couleurs_surlignage,
-          contraste AA), sinon le voile de survol ;
-        - autres widgets : voile de survol seul.
+        P20-bis, points 2-3 : fond d'une ligne —
+        AUCUNE bordure, AUCUN effet de survol ;
+        seule la cellule brute du bloc EN LECTURE
+        reçoit le fond de surlignage (couleurs du
+        thème, contraste AA).
         """
-
-        voile = getattr(ligne, "_voile", 0)
-
-        fond_voile = (
-            f"rgba(59,158,255,{voile})"
-            if voile
-            else "transparent"
-        )
 
         fond_brute = (
             couleurs_surlignage(
                 est_sombre(self)
             )["bloc"]
             if ligne.jouee
-            else fond_voile
+            else "transparent"
         )
 
         ligne.cellule_brute.setStyleSheet(
@@ -3507,19 +3515,6 @@ class ReformulationWindow(QWidget):
             f"background-color: {fond_brute};"
             "}"
         )
-
-        for widget in (
-            ligne.cellule_reformee,
-            ligne.label_locuteurs,
-            ligne.colonne_droite,
-        ):
-
-            widget.setStyleSheet(
-                f"{type(widget).__name__} {{"
-                "border: none;"
-                f"background-color: {fond_voile};"
-                "}"
-            )
 
     def sur_position_audio(self, position: float):
         """

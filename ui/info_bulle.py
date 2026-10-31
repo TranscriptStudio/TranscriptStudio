@@ -11,12 +11,21 @@ InfoBulle : petit QLabel contextuel stylé dans
 le thème APPLIQUÉ (fond, texte, bord), police
 de l'app, texte MULTI-LIGNE (retour à la ligne
 automatique sur une largeur maximale).
+
+P20-bis (retour David 31/10, points 5-6) :
+- la police et le fond sont recalculés à
+  CHAQUE affichage (un changement de thème à
+  chaud ne laisse plus l'info-bulle aux
+  couleurs du thème précédent) ;
+- la taille de police est EXPLICITE dans la
+  feuille de style — la pastille parente
+  portait « font-size: 20px » qui déteignait
+  sur l'info-bulle enfant.
 """
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel
 
-from services.icons import text_color_effectif
 from services.theme_manager import est_sombre
 
 
@@ -34,6 +43,7 @@ class InfoBulle(QLabel):
         super().__init__(parent_widget)
 
         self._parent = parent_widget
+        self._texte = ""
 
         self.setWindowFlags(
             Qt.WindowType.ToolTip
@@ -49,7 +59,10 @@ class InfoBulle(QLabel):
         self.setContentsMargins(8, 6, 8, 6)
 
         #
-        # Police de l'app : celle du widget survolé,
+        # Police de l'app : celle du widget survolé
+        # AVANT toute feuille de style (la pastille
+        # grossit sa police par stylesheet —
+        # l'info-bulle ne doit pas en hériter),
         # taille réduite d'un cran.
         #
         police = parent_widget.font()
@@ -59,14 +72,25 @@ class InfoBulle(QLabel):
 
         self.setFont(police)
 
-        self.definir_texte("")
+        self._taille_police = (
+            police.pointSize()
+        )
 
     def definir_texte(self, texte: str):
         """
-        Texte brut (retours à la ligne conservés) —
-        restylé au thème courant à CHAQUE définition
-        (l'info-bulle suit le thème appliqué, y
-        compris après un changement à chaud).
+        Mémorise le texte (brut, retours à la ligne
+        conservés) et l'applique au thème COURANT.
+        """
+
+        self._texte = texte
+
+        self._appliquer()
+
+    def _appliquer(self):
+        """
+        Restyle au thème APPLIQUÉ — appelé à chaque
+        définition ET à chaque affichage : l'info-
+        bulle suit les changements de thème à chaud.
         """
 
         sombre = est_sombre(self._parent)
@@ -81,7 +105,7 @@ class InfoBulle(QLabel):
             else "#c4c7cf"
         )
 
-        lignes = texte.split("\n")
+        lignes = self._texte.split("\n")
 
         corps = "<br>".join(
             ligne.replace("<", "&lt;")
@@ -94,12 +118,13 @@ class InfoBulle(QLabel):
         )
 
         self.setStyleSheet(
-            f"QLabel {{"
+            "QLabel {"
             f"background-color: {fond};"
             f"color: {texte_couleur};"
             f"border: 1px solid {bord};"
-            f"border-radius: 6px;"
-            f"}}"
+            "border-radius: 6px;"
+            f"font-size: {self._taille_police}pt;"
+            "}"
         )
 
         self.adjustSize()
@@ -111,8 +136,11 @@ class InfoBulle(QLabel):
     def montrer(self):
         """
         Affiche l'info-bulle AU-DESSUS du widget
-        survolé (ou en dessous si la place manque).
+        survolé (ou en dessous si la place manque),
+        dans le thème courant.
         """
+
+        self._appliquer()
 
         zone = self._parent.rect()
 

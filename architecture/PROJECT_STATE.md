@@ -1,39 +1,25 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**P20 livré — UI REFORMULATION, retour David
-> 31/10 points 1-9**). (1) RÉUNION AUTONOME : la reformulation ET le résumé appartiennent au
-> processus RÉUNION — une réunion autonome reçoit tous les traitements du stepper (hors
-> ouvrage) via une étude INTERNE persistée dans le dossier du projet v1
-> (sous-dossier « _traitements », créée/ouverte par ReunionWindow._etude_interne, creer=False
-> pour les états du stepper sans effet de bord) ; segmentation générée depuis la diarisation
-> validée (assurer_decoupage) ; le stepper comptabilise les traitements de l'étude interne.
-> (2) icônes A+/A− : générateur PARTAGÉ avec la page transcription
-> (services.icons.make_text_size_icon — « A » au texte du thème appliqué, signe bleu
-> #2A7DDC ; main_window.create_text_size_icon supprimé). (3) TIMELINE SUPPRIMÉE de la page
-> reformulation (le pointage du mot lu dans le bloc d'origine suffit ; plus de composants
-> TimelineWidget/TimelineSpeakerPanel/QToolTip résiduels). (4) BARRE ÉPURÉE : plus de
-> boutons Sauvegarder/Aide/Accueil/Timeline ; la barre (Traiter, Coûts, Annuler, A+/A−,
-> Audio, Log) vit dans barre_outils remparenté sur la ligne du STEPPER de la page Réunion
-> (registre _barres_pages, la page active place sa barre). (5) BLOCS SANS BORDURE :
-> feuilles « border: none » partout ; survol = voile translucide progressif ~100 ms
-> (_SurvolBloc) ; le bloc en lecture est surbrillé par son FOND (couleurs_surlignage) — le
-> border-left de sur_position_audio remplacé par un COMPOSITEUR unique
-> (_appliquer_fond_ligne : jamais deux feuilles concurrentes). (6) EN-TÊTES : « Orateur »
-> (aligné à gauche, même retrait que les noms), « Transcription d'origine », « version
-> reformulée ». (7) AUDIO : bouton icône seule, mêmes SVG teintés que la page transcription
-> (play/pause via maj_icone_lecture, état _lecture_en_cours). (8) DÉFILEMENT FIN ET LISSE :
-> ScrollPerPixel + _MoletteDouce (1-2 lignes de texte par crant, animation ~140 ms OutCubic,
-> cible RECALÉE depuis la cible courante — non cumulable, défilement rapide possible).
-> (9) INFO-BULLES : nouveau module ui/info_bulle.py — InfoBulle au thème APPLIQUÉ (fond,
-> texte, bord par thème), police de l'app, MULTI-LIGNE (largeur plafonnée 260 px) ;
-> pastille et indicateur de version (devenu QLabel wordwrap) ; messages contextuels via
-> _montrer_message. Sur_changement_theme sur ReformulationWindow (broadcast de thème).
-> **569 tests verts** (19 nouveaux dans test_p20_ui_reformulation.py + 3 tests autonomes
-> dans test_p18_6b_reunion.py ; tests timeline réécrits en absence dans
-> test_reformulation_ui/test_p16bis_serie2/test_p16bis_serie3). Précédemment livrés ce
-> jour : séries 8/8-bis/8-ter/8-quater (couleurs thème appliqué, broadcast aux widgets
-> embarqués visibles), série 7 (invariant 16), catalogue LLM v3 + effort de raisonnement,
-> P19.1-P19.3, P16-bis 4ᵉ série, P18.6-bis séries 6-7-bis.
+> **Dernière mise à jour** : 2026-10-31 (**P20-bis livré — ajustements UI reformulation, retour
+> David 31/10 points 1-8**). (1) MOLETTE RÉPARÉE : QVariantAnimation peut émettre None en fin
+> d'animation — _MoletteDouce._sur_valeur l'IGNORE (fin des « TypeError: setValue(NoneType) »
+> qui tuaient la molette en cours de session) ; les cellules QTextEdit n'AVALAIENT plus la
+> molette (wheelEvent ignore → propagation vers le filtre de la table). (2) FIN de la logique
+> tableur : plus AUCUN contour de cellule — setShowGrid(False) + feuille de table
+> transparente (fond, items, en-têtes plats) ; le texte des blocs est JUSTIFIÉ
+> (defaultTextOption AlignJustify) : la justification délimite visuellement les blocs.
+> (3) Effet de surbrillance des cellules survolées ABANDONNÉ (_SurvolBloc supprimé ; seul le
+> bloc EN LECTURE garde son fond de surlignage, sans bordure). (4) En-tête « Version
+> reformulée » (majuscule). (5) « Orateur » partage le retrait GAUCHE des noms (padding-left
+> 6 px de l'en-tête plat = marges 6 px du contenu de colonne). (6) INFO-BULLES réparées : la
+> taille de police est EXPLICITE dans la feuille de l'InfoBulle (la pastille parente portait
+> « font-size: 20px » qui déteignait sur l'enfant — police énorme) et le fond/texte/bord
+> sont recalculés à CHAQUE AFFICHAGE (plus de couleurs figées au thème précédent après un
+> changement à chaud). (7) Bouton « Audio » : le texte « Audio » figure à droite de l'icône,
+> à la couleur STANDARD du thème. (8) Espace réduit entre « Coûts » et A+ (12 px au lieu de
+> l'étirement). **572 tests verts** (22 dans test_p20_ui_reformulation.py). P20 (réunion
+> autonome, barre sur le stepper, timeline supprimée, défilement fin lissé, info-bulles) et
+> tout l'historique du jour restent livrés comme décrits au commit P20.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
