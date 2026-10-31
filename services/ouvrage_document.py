@@ -1,0 +1,374 @@
+# services/ouvrage_document.py
+"""
+Document ouvrage d'une étude (P19.1-P19.3,
+feuille de route v2.1 §P19) :
+
+- **génération** : initialise le document à partir
+  des reformulations VALIDÉES de l'étude, réunion
+  par réunion (ordre de l'étude), chaque réunion
+  dans son **ordre d'ouvrage** — chaque paragraphe
+  porte sa provenance (FID, réunion, date,
+  version) ;
+- **régénération complète** : écrase le document
+  existant (l'avertissement relève de l'UI) ;
+  JAMAIS de mise à jour automatique incrémentale ;
+- **vie propre** : l'ouvrage diverge des textes
+  validés par réunion — au mieux un signalement
+  « réunion re-reformulée depuis la génération »
+  (``reformulees_depuis_generation``), calculé
+  en comparant l'instantané de génération aux
+  versions courantes ;
+- **persistance** : ``ouvrage.json`` dans le
+  dossier de l'étude (fichier additionnel au
+  contrat format étude — le dossier reste
+  autonome et portable).
+"""
+
+import json
+from pathlib import Path
+
+from models.ouvrage import (
+    DocumentOuvrage,
+    ElementOuvrage,
+    OuvrageFormatError,
+    ProvenanceParagraphe,
+    SOURCE_GENERATION,
+    TYPE_PARAGRAPHE,
+)
+from services.timecodes import horodatage_iso
+
+NOM_FICHIER_OUVRAGE = "ouvrage.json"
+
+
+def chemin_ouvrage(dossier) -> Path:
+    """
+    Chemin du document ouvrage d'une étude.
+    """
+
+    return Path(dossier) / NOM_FICHIER_OUVRAGE
+
+
+def charger_ouvrage(dossier):
+    """
+    Charge le document ouvrage d'une étude —
+    None s'il n'existe pas encore (l'ouvrage
+    n'est généré qu'à la demande).
+
+    Lève OuvrageFormatError si le fichier existe
+    mais n'est pas lisible comme un document
+    ouvrage.
+    """
+
+    chemin = chemin_ouvrage(dossier)
+
+    if not chemin.is_file():
+        return None
+
+    try:
+
+        with open(
+            chemin,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            data = json.load(f)
+
+    except (OSError, ValueError) as e:
+
+        raise OuvrageFormatError(
+            f"ouvrage.json illisible : {e}"
+        )
+
+    return DocumentOuvrage.from_dict(data)
+
+
+def sauvegarder_ouvrage(
+    document: DocumentOuvrage,
+    dossier
+) -> Path:
+    """
+    Écrit le document ouvrage dans le dossier de
+    l'étude. Retourne le chemin écrit.
+    """
+
+    chemin = chemin_ouvrage(dossier)
+
+    with open(
+        chemin,
+        "w",
+        encoding="utf-8"
+    ) as f:
+        json.dump(
+            document.to_dict(),
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+
+        f.write("\n")
+
+    return chemin
+
+
+def _version_validee(resultat):
+    """
+    Dernière version VALIDÉE d'un résultat de
+    reformulation (None sinon) — même règle que
+    l'export ouvrage (P18.3).
+    """
+
+    if not resultat or not resultat.versions:
+        return None
+
+    for version in reversed(resultat.versions):
+
+        if (
+            version.validation
+            and version.validation.statut
+            == "valide"
+        ):
+            return version
+
+    return None
+
+
+def generer_document(
+    etude_ouverte
+) -> DocumentOuvrage:
+    """
+    Génère (ou régénère — l'opération ÉCRASE tout)
+    le document ouvrage de l'étude :
+
+    - titre = titre de l'étude (défaut : thème,
+      « Ouvrage ») ;
+    - pour chaque réunion de l'étude dans l'ordre
+      de l'étude : les reformulations VALIDÉES de
+      ses blocs, dans l'**ordre d'ouvrage** — un
+      paragraphe par bloc, avec provenance complète
+      (FID, réunion, numéro, date, version
+      utilisée) ;
+    - une réunion sans découpage ou sans texte
+      validé ne produit AUCUN paragraphe : elle
+      figure dans l'instantané de génération avec
+      zéro paragraphe (la page Ouvrage l'affiche
+      comme non placée).
+
+    Aucune structure de chapitre n'est créée :
+    les titres (chapitres) sont ajoutés
+    MANUELLEMENT (maquette validée 2026-10-29) —
+    tout est donc en « Réserves » à la génération.
+    """
+
+    from services.decoupage import (
+        DecoupageError,
+        ordre_ouvrage_effectif,
+    )
+
+    etude = etude_ouverte.etude
+
+    document = DocumentOuvrage(
+        titre=(
+            etude.titre
+            or etude.theme
+            or "Ouvrage"
+        )
+    )
+
+    reunions_snapshot = {}
+
+    for nom_reunion in etude.ordre_reunions:
+
+        reunion = (
+            etude_ouverte.reunions.get(nom_reunion)
+        )
+
+        numero = (
+            reunion.numero if reunion else 0
+        )
+
+        date_reunion = (
+            reunion.date if reunion else ""
+        )
+
+        paragraphes_reunion = 0
+        versions_snapshot = {}
+
+        try:
+            ordre = ordre_ouvrage_effectif(
+                etude_ouverte,
+                nom_reunion
+            )
+        except DecoupageError:
+            ordre = []
+
+        for fid in ordre:
+
+            version = _version_validee(
+                etude_ouverte
+                .reformulations
+                .get(fid)
+            )
+
+            if version is None:
+                continue
+
+            provenance = ProvenanceParagraphe(
+                reunion=nom_reunion,
+                fid=fid,
+                numero_reunion=numero,
+                date_reunion=date_reunion,
+                numero_version=version.numero,
+                horodatage_version=(
+                    version.horodatage
+                ),
+            )
+
+            document.elements.append(
+                ElementOuvrage(
+                    id=document.nouvel_id("p"),
+                    type=TYPE_PARAGRAPHE,
+                    texte=version.texte,
+                    provenances=[provenance],
+                    source=SOURCE_GENERATION,
+                )
+            )
+
+            paragraphes_reunion += 1
+
+            versions_snapshot[str(fid)] = {
+                "numero": version.numero,
+                "horodatage": (
+                    version.horodatage
+                ),
+            }
+
+        reunions_snapshot[nom_reunion] = {
+            "numero": numero,
+            "date": date_reunion,
+            "paragraphes": paragraphes_reunion,
+            "versions": versions_snapshot,
+        }
+
+    document.generation = {
+        "horodatage": horodatage_iso(),
+        "reunions": reunions_snapshot,
+    }
+
+    return document
+
+
+def reformulees_depuis_generation(
+    document: DocumentOuvrage,
+    etude_ouverte
+) -> list:
+    """
+    Signalement « réunion re-reformulée depuis la
+    génération » (le document dérivé n'est JAMAIS
+    mis à jour automatiquement — au mieux
+    signalement) : pour chaque bloc capturé dans
+    l'instantané de génération, une version
+    PLUS RÉCENTE que la version utilisée existe
+    (passe, relance ciblée ou édition manuelle —
+    validée ou non : toute nouvelle version
+    signifie que le texte source a bougé).
+
+    Retour : liste
+    ``{"reunion", "fid", "version_generation",
+    "version_courante"}``, triée par réunion
+    puis FID.
+    """
+
+    if not document.generation:
+        return []
+
+    reunions = (
+        document.generation.get("reunions")
+        or {}
+    )
+
+    signalements = []
+
+    for nom_reunion, snapshot in (
+        reunions.items()
+    ):
+
+        versions = (
+            snapshot.get("versions") or {}
+        )
+
+        for cle_fid, version_snapshot in (
+            versions.items()
+        ):
+
+            fid = int(cle_fid)
+
+            resultat = (
+                etude_ouverte
+                .reformulations
+                .get(fid)
+            )
+
+            if not resultat or (
+                not resultat.versions
+            ):
+                continue
+
+            numero_courant = max(
+                version.numero
+                for version in (
+                    resultat.versions
+                )
+            )
+
+            if (
+                numero_courant
+                > version_snapshot["numero"]
+            ):
+
+                signalements.append({
+                    "reunion": nom_reunion,
+                    "fid": fid,
+                    "version_generation": (
+                        version_snapshot["numero"]
+                    ),
+                    "version_courante": (
+                        numero_courant
+                    ),
+                })
+
+    return signalements
+
+
+def reunions_non_placees(
+    document: DocumentOuvrage,
+    etude_ouverte
+) -> list:
+    """
+    Réunions de l'étude dont AUCUN paragraphe n'est
+    placé sous un chapitre (ou qui n'ont produit
+    aucun paragraphe) — l'arborescence de la page
+    Ouvrage les montre en « Réserves ».
+    """
+
+    etude = etude_ouverte.etude
+
+    ids_reserves = {
+        p.id
+        for p in document.paragraphes_reserves()
+    }
+
+    placees = set()
+
+    for p in document.paragraphes():
+
+        if p.id in ids_reserves:
+            continue
+
+        for provenance in p.provenances:
+            placees.add(provenance.reunion)
+
+    return [
+        nom
+        for nom in etude.ordre_reunions
+        if nom not in placees
+    ]

@@ -1,19 +1,22 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-30 (**P18.6-bis — correctifs
-> de relecture de la navigation LIVRÉS, séries 1 à 5** : séries 1-3
-> (grandes tuiles + « Version 2.0 », badge Bible court, dates de
-> réunion, stepper compact après transcription, bouton unique),
-> série 4 (tuile « Études » = menu déroulant ouvrant DIRECTEMENT
-> la page Étude, contours visibles, survol des tuiles) et série 5
-> du 2026-10-30f : accent unique #3b9eff, stepper à couleurs
-> affirmées, hub v4 (plaque métal brossé des pastilles de services,
-> boutons ⚙/? à une seule icône, salutation supprimée, logo 72 px,
-> tuiles-rangées de réunions CLIQUABLES sans bouton « Ouvrir »,
-> une ligne/deux lignes en fenêtre étroite), correctifs techniques
-> (artefact d'angle du menu Études, fonds de page #1e1f24 strict
-> hors tuiles, accueil plein écran par défaut) ; invariants 1 à 13
-> TOUS testés ; sync documents du 2026-10-30d/e/f ; **457 tests verts**)
+> **Dernière mise à jour** : 2026-10-31 (**P18.6-bis séries 6 à 7-bis LIVRÉES**,
+> retours UI de David du 31/10 — logo V1 120 px ; plaque des services compacte
+> sur UNE ligne à hauteur des boutons ⚙/?, info-bulles par service dont la
+> liste verticale « clé API {fournisseur} configurée » ; tuiles-rangées de
+> réunions sur UNE ligne (hauteur ÷2), clic GAUCHE = ouverture à l'étape en
+> cours, menu contextuel au clic droit (rattacher absent si rattachée) ;
+> fonds UNIFORMES #1e1f24 en sombre (neutralisation du #202124 de qdarktheme
+> sur bandeau et labels) et #f3f3f3 en clair (gris Windows, tuiles #e9eaee
+> plus foncées) ; ombre de survol subtile (12 px, 4 %) ; SVG à l'accent
+> unique #3b9eff ; steppers ALIGNÉS en colonne (cause : l'étirement interne
+> du StepperBar le rendait expansif — élasticité déplacée dans la zone
+> d'infos, politique Maximum/Fixed). **P19.1 LIVRÉ** : modèle de données du
+> document ouvrage (models/ouvrage.py + services/ouvrage_document.py —
+> ouvrage.json, génération depuis les reformulations validées selon l'ordre
+> d'ouvrage, régénération complète qui écrase, instantané de génération +
+> signalement « réunion re-reformulée », Réserves, provenances multiples
+> prêtes pour P19.4). **495 tests verts**.)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -1904,8 +1907,10 @@ Bilan tests : **457 verts** (446 + 11 : 3 stepper/accent, 4 hub v4
 
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P18.6 et P18.6-bis (séries 1 à 5) sont LIVRÉS** (457 tests verts).
-Restent :
+**P18.6-bis est LIVRÉ dans son intégralité (séries 1 à 7-bis, retours UI du
+31/10 absorbés)** — 495 tests verts. **P19.1 est LIVRÉ** (modèle de données du
+document ouvrage : ouvrage.json, génération, régénération, divergences,
+Réserves). Restent :
 
 1. **Recette P16/P17/P18/P18.6 par David** (checklist en fin de session
    P17 ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé,
@@ -1917,11 +1922,16 @@ Restent :
    compact, rattachement, changement d'étude, saisie manuelle,
    exports 3 portées, menu déroulant des études, tuiles et
    survol) contre les maquettes validées mises à jour.
-2. **P19/P20 (v2.1)** — page Ouvrage complète (arborescence à la Word,
-   document compilé éditable, rapport d'analyse, fusion de pensées,
-   mobilité des paragraphes, sous-titres proposés par IA, export
-   structuré) — la destination de navigation et l'export final sont
-   déjà en place (P18.6).
+2. **P19.2/P19.3** — page Ouvrage trois zones (arborescence à la Word
+   à largeur réglable avec titres manuels et « Réserves », manuscrit
+   compilé éditable au centre, rapport d'analyse à droite) branchée
+   sur services/ouvrage_document.py : génération/régénération avec
+   avertissement, navigation par structure, signalement « réunion
+   re-reformulée depuis la génération ».
+3. **P19.4 puis P20** — fusion de pensées (provenances multiples déjà
+   prévues par le modèle P19.1), mobilité des paragraphes, sous-titres
+   IA, aides à la relecture (récurrences, emphase), export DOCX
+   structuré de l'ouvrage.
 
 ---
 
