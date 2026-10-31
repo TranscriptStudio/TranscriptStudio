@@ -361,13 +361,15 @@ class TestBlocsSansBordure:
                     )
                 )
 
-    def test_fond_surlignage_sans_bordure(
+    def test_selection_sans_fond(
         self,
         fenetre
     ):
         """
-        Le bloc en lecture est surbrillé par son
-        FOND (jamais une bordure gauche).
+        P20-ter (retour David 31/10) : sélectionner
+        un bloc ne change PLUS son fond (le « bleu »
+        a disparu) — la cellule reste transparente,
+        seul le mot lu est surligné.
         """
 
         fenetre.sur_position_audio(21.0)
@@ -380,7 +382,52 @@ class TestBlocsSansBordure:
             ).cellule_brute.styleSheet()
         )
 
-        assert "border: none" in style
+        assert "transparent" in style
+
+        assert "background-color: rgba" not in style
+
+    def test_modele_et_parametres_dans_libelle(
+        self,
+        fenetre
+    ):
+        """
+        P20-ter : la version mémorise le modèle LLM
+        et ses paramètres EFFECTIFS — le libellé les
+        affiche (traçabilité des écarts).
+        """
+
+        from services.etude_io import (
+            ajouter_version_reformulation
+        )
+
+        ajouter_version_reformulation(
+            fenetre.etude,
+            1,
+            "Version reformulée de test.",
+            type_version="passe",
+            stats={
+                "duree_ms": 29_000,
+                "tokens_in": 3400,
+                "tokens_out": 2400,
+                "cout_estime": 0.02,
+                "modele": "mistral-large-4",
+                "temperature": 0.3,
+                "effort": "high",
+                "max_tokens": 4000,
+            }
+        )
+
+        version = fenetre.derniere_version(1)
+
+        libelle = fenetre.libelle_version(version)
+
+        assert "v1" in libelle
+
+        assert "mistral-large-4" in libelle
+
+        assert "T 0.3" in libelle
+
+        assert "max 4000" in libelle
 
 
 #
@@ -532,6 +579,49 @@ class TestDefilement:
             fenetre.table.ScrollMode
             .ScrollPerPixel
         )
+
+    def test_molette_sur_les_cellules(
+        self,
+        fenetre
+    ):
+        """
+        P20-ter : la molette fonctionne AU-DESSUS
+        DES CELLULES (leur scrollbar interne
+        masquée l'avale sinon) — le filtre la
+        consomme et anime la table.
+        """
+
+        ligne = next(
+            iter(fenetre.lignes.values())
+        )
+
+        fenetre.table.verticalScrollBar(
+        ).setMaximum(1000)
+
+        evenement = QWheelEvent(
+            QPointF(5, 5),
+            QPointF(5, 5),
+            QPoint(0, -120),
+            QPoint(0, -120),
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+            Qt.ScrollPhase.NoScrollPhase,
+            False,
+        )
+
+        for cible in (
+            ligne.cellule_brute.viewport(),
+            ligne.cellule_reformee.viewport(),
+        ):
+
+            fenetre._molette._cible = None
+
+            assert fenetre._molette.eventFilter(
+                cible,
+                evenement
+            )
+
+            assert fenetre._molette._cible > 0
 
     def test_molette_deux_lignes_par_crant(
         self,

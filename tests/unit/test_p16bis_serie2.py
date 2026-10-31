@@ -288,15 +288,16 @@ class TestInvariance1TimelineBlocs:
 
         assert fenetre_longue.bloc_courant == 3
 
-        # Bloc courant : fond de surlignage, aucune
-        # bordure ; les autres : fond transparent.
+        # P20-ter : la sélection ne change PLUS le
+        # fond (plus de « bleu ») — cellule du bloc
+        # courant comme des autres : transparent.
         style = fenetre_longue.lignes[
             3
         ].cellule_brute.styleSheet()
 
         assert "border: none" in style
 
-        assert "transparent" not in style
+        assert "transparent" in style
 
         style_avant = fenetre_longue.lignes[
             1
@@ -316,9 +317,11 @@ class TestInvariance2SuiviLecture:
 
     def test_bloc_courant_visible(self, fenetre_longue):
         """
-        Le bloc en lecture sortant de la zone visible
-        y est ramené sans intervention ; il est
-        surligné.
+        Le bloc en LECTURE sortant de la zone visible
+        y est ramené sans intervention (P20-ter :
+        le suivi ne se fait qu'en lecture — le
+        positionnement seul ne défile PLUS ; le mot
+        lu, et lui seul, est surligné).
         """
 
         # Un bloc lointain, hors zone visible.
@@ -332,23 +335,45 @@ class TestInvariance2SuiviLecture:
             fenetre_longue.rangees[35]
         )
 
+        #
+        # Simple positionnement (pas de lecture) :
+        # AUCUN défilement, AUCUN fond.
+        #
         fenetre_longue.sur_position_audio(351.0)
 
         QApplication.processEvents()
 
         assert fenetre_longue.bloc_courant is not None
 
-        rangée = fenetre_longue.rangees[
-            fenetre_longue.bloc_courant
-        ]
-
-        assert fenetre_longue._rangée_visible(rangée)
+        assert not fenetre_longue._rangée_visible(
+            fenetre_longue.rangees[
+                fenetre_longue.bloc_courant
+            ]
+        )
 
         style = fenetre_longue.lignes[
             fenetre_longue.bloc_courant
         ].cellule_brute.styleSheet()
 
-        assert "transparent" not in style
+        assert "transparent" in style
+
+        #
+        # En lecture : le bloc joué est suivi.
+        #
+        fenetre_longue._lecture_en_cours = True
+
+        try:
+            fenetre_longue.sur_position_audio(351.0)
+
+            QApplication.processEvents()
+
+            assert fenetre_longue._rangée_visible(
+                fenetre_longue.rangees[
+                    fenetre_longue.bloc_courant
+                ]
+            )
+        finally:
+            fenetre_longue._lecture_en_cours = False
 
     def test_pas_de_defilement_pendant_l_edition(self, fenetre_longue):
         """

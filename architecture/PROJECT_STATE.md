@@ -1,25 +1,22 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**P20-bis livré — ajustements UI reformulation, retour
-> David 31/10 points 1-8**). (1) MOLETTE RÉPARÉE : QVariantAnimation peut émettre None en fin
-> d'animation — _MoletteDouce._sur_valeur l'IGNORE (fin des « TypeError: setValue(NoneType) »
-> qui tuaient la molette en cours de session) ; les cellules QTextEdit n'AVALAIENT plus la
-> molette (wheelEvent ignore → propagation vers le filtre de la table). (2) FIN de la logique
-> tableur : plus AUCUN contour de cellule — setShowGrid(False) + feuille de table
-> transparente (fond, items, en-têtes plats) ; le texte des blocs est JUSTIFIÉ
-> (defaultTextOption AlignJustify) : la justification délimite visuellement les blocs.
-> (3) Effet de surbrillance des cellules survolées ABANDONNÉ (_SurvolBloc supprimé ; seul le
-> bloc EN LECTURE garde son fond de surlignage, sans bordure). (4) En-tête « Version
-> reformulée » (majuscule). (5) « Orateur » partage le retrait GAUCHE des noms (padding-left
-> 6 px de l'en-tête plat = marges 6 px du contenu de colonne). (6) INFO-BULLES réparées : la
-> taille de police est EXPLICITE dans la feuille de l'InfoBulle (la pastille parente portait
-> « font-size: 20px » qui déteignait sur l'enfant — police énorme) et le fond/texte/bord
-> sont recalculés à CHAQUE AFFICHAGE (plus de couleurs figées au thème précédent après un
-> changement à chaud). (7) Bouton « Audio » : le texte « Audio » figure à droite de l'icône,
-> à la couleur STANDARD du thème. (8) Espace réduit entre « Coûts » et A+ (12 px au lieu de
-> l'étirement). **572 tests verts** (22 dans test_p20_ui_reformulation.py). P20 (réunion
-> autonome, barre sur le stepper, timeline supprimée, défilement fin lissé, info-bulles) et
-> tout l'historique du jour restent livrés comme décrits au commit P20.
+> **Dernière mise à jour** : 2026-10-31 (**P20-ter livré — correctifs UI reformulation, retour David
+> 31/10**). (1) MOLETTE : la panne était plus profonde — un QTextEdit distribue la molette à sa
+> scrollbar INTERNE (même masquée) AVANT toute propagation : le filtre de la table ne la voyait
+> jamais ; le filtre de molette douce est désormais installé sur CHAQUE cellule et son viewport,
+> AVANT la scrollbar. (2) SÉLECTION : plus AUCUN fond de bloc (le « bleu » disparaît) — seul le mot
+> lu reste surligné ; le compositeur de fond (_appliquer_fond_ligne) est supprimé. (3) DÉFILEMENT
+> DE SÉLECTION : le suivi de vue ne se fait PLUS au positionnement (cliquer un bloc ne fait plus
+> « sauter » la vue pour le montrer en entier) — uniquement PENDANT LA LECTURE, à chaque position.
+> (4) TRAÇABILITÉ LLM : chaque version de reformulation MÉMORISE le modèle et ses paramètres
+> EFFECTIFS (stats.modele/temperature/max_tokens/effort, consignés par le moteur depuis
+> ParametresCompletion, passe et relance) ; le libellé de version les affiche sur une seconde
+> ligne (« mistral-large-4 · T 0.3 · Élevé · max 4000 »), l'info-bulle en détail — les écarts de
+> pertinence entre reformulations deviennent traçables modèle par modèle. **574 tests verts**
+> (test_p20_ui_reformulation.py : 24 tests ; suivi-en-lecture vérifié dans test_p16bis_serie2).
+> P20 et P20-bis (réunion autonome, barre sur le stepper, timeline supprimée, texte justifié sans
+> contours, défilement fin lissé, info-bulles au thème) restent livrés comme décrits à leurs
+> commits.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)

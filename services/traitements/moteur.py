@@ -845,8 +845,41 @@ class MoteurTraitements:
         type_version: str,
         contexte: ContexteAssemble,
         consigne: str = None,
-        selection: dict = None
+        selection: dict = None,
+        parametres: ParametresCompletion = None
     ):
+        """
+        P20-ter (retour David 31/10) : la version
+        MEMORISE le modèle LLM utilisé et ses
+        paramètres EFFECTIFS (température, effort,
+        max tokens) — les écarts et la pertinence
+        des reformulations deviennent traçables
+        modèle par modèle.
+        """
+
+        stats = {
+            "duree_ms": resultat.duree_ms,
+            "tokens_in": resultat.tokens_in,
+            "tokens_out": resultat.tokens_out,
+            "cout_estime": (
+                resultat.cout_estime
+            ),
+        }
+
+        if parametres is not None:
+
+            stats.update({
+                "modele": parametres.modele,
+                "temperature": (
+                    parametres.temperature
+                ),
+                "max_tokens": (
+                    parametres.max_tokens
+                ),
+                "effort": (
+                    parametres.effort_raisonnement
+                ),
+            })
 
         version = ajouter_version_reformulation(
             self.etude,
@@ -855,14 +888,7 @@ class MoteurTraitements:
             type_version=type_version,
             consigne=consigne,
             selection=selection,
-            stats={
-                "duree_ms": resultat.duree_ms,
-                "tokens_in": resultat.tokens_in,
-                "tokens_out": resultat.tokens_out,
-                "cout_estime": (
-                    resultat.cout_estime
-                ),
-            },
+            stats=stats,
             contexte=contexte.fids_contexte,
         )
 
@@ -965,7 +991,8 @@ class MoteurTraitements:
                 bloc,
                 resultat,
                 "passe",
-                contexte
+                contexte,
+                parametres=parametres
             )
 
             traites += 1
@@ -1203,5 +1230,6 @@ class MoteurTraitements:
             type_version,
             contexte,
             consigne=consigne,
-            selection=selection
+            selection=selection,
+            parametres=parametres
         )

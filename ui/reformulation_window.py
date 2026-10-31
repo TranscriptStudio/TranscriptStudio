@@ -433,13 +433,6 @@ class LigneBloc:
         self.filtration_locuteur = True
 
         #
-        # P20-bis, points 2-3 : bloc en lecture
-        # (fond de surlignage SANS bordure) ; plus
-        # AUCUN effet de survol.
-        #
-        self.jouee = False
-
-        #
         # Colonne orateur (P20, point 6 : « Orateur »,
         # même retrait que l'en-tête) : le(s) nom(s)
         # du bloc (« / » pour un bloc fusionné
@@ -1333,6 +1326,30 @@ class ReformulationWindow(QWidget):
 
             self.brancher_ligne(ligne)
 
+            #
+            # P20-ter (retour David 31/10) : la
+            # molette doit fonctionner AU-DESSUS DES
+            # CELLULES — un QTextEdit distribue la
+            # molette à sa scrollbar INTERNE (même
+            # masquée) AVANT toute propagation : le
+            # filtre de la table ne la voyait jamais.
+            # Le filtre de molette douce est donc
+            # installé sur chaque cellule ET son
+            # viewport, AVANT la scrollbar.
+            #
+            for cellule in (
+                ligne.cellule_brute,
+                ligne.cellule_reformee,
+            ):
+                cellule.installEventFilter(
+                    self._molette
+                )
+
+                cellule.viewport(
+                ).installEventFilter(
+                    self._molette
+                )
+
             self.projeter_mots(ligne)
 
             self.rafraichir_ligne(bloc.fid)
@@ -1610,6 +1627,13 @@ class ReformulationWindow(QWidget):
         return ETAT_MODIFIABLE
 
     def libelle_version(self, version) -> str:
+        """
+        P20-ter (retour David 31/10) : le libellé
+        porte AUSSI le modèle LLM et ses paramètres
+        EFFECTIFS (mémorisés par la passe) — les
+        écarts de pertinence entre reformulations
+        deviennent traçables modèle par modèle.
+        """
 
         numero = version.numero
 
@@ -1623,13 +1647,55 @@ class ReformulationWindow(QWidget):
         tokens_out = stats.get("tokens_out", 0)
         cout = stats.get("cout_estime", 0.0)
 
-        return (
-            f"v{numero} · "
-            f"{round(duree / 1000)}s · "
+        lignes = [
+            f"v{numero} · {round(duree / 1000)}s · "
             f"{self._courte(tokens_in)}→"
             f"{self._courte(tokens_out)} · "
             f"{cout:.2f} €"
-        )
+        ]
+
+        modele = stats.get("modele")
+
+        if modele:
+
+            parametres = []
+
+            temperature = stats.get("temperature")
+
+            if temperature is not None:
+                parametres.append(
+                    f"T {temperature}"
+                )
+
+            effort = stats.get("effort")
+
+            if effort:
+
+                from services.llm.catalogue import (
+                    libelle_effort,
+                )
+
+                parametres.append(
+                    libelle_effort(effort)
+                )
+
+            max_tokens = stats.get("max_tokens")
+
+            if max_tokens:
+                parametres.append(
+                    f"max {max_tokens}"
+                )
+
+            ligne_modele = modele
+
+            if parametres:
+                ligne_modele += (
+                    " · " + " · ".join(parametres)
+                )
+
+            lignes.append(ligne_modele)
+
+        return "\n".join(lignes)
 
     @staticmethod
     def _courte(tokens: int) -> str:
@@ -3489,42 +3555,16 @@ class ReformulationWindow(QWidget):
             )
         )
 
-    def _appliquer_fond_ligne(
-        self,
-        ligne: LigneBloc
-    ):
-        """
-        P20-bis, points 2-3 : fond d'une ligne —
-        AUCUNE bordure, AUCUN effet de survol ;
-        seule la cellule brute du bloc EN LECTURE
-        reçoit le fond de surlignage (couleurs du
-        thème, contraste AA).
-        """
-
-        fond_brute = (
-            couleurs_surlignage(
-                est_sombre(self)
-            )["bloc"]
-            if ligne.jouee
-            else "transparent"
-        )
-
-        ligne.cellule_brute.setStyleSheet(
-            "QTextEdit {"
-            "border: none;"
-            f"background-color: {fond_brute};"
-            "}"
-        )
-
     def sur_position_audio(self, position: float):
         """
-        Surligne le mot lu dans la cellule brute et
-        surbrille le bloc joué (E1.3, spec §3) —
-        couleurs du thème courant (spec correctifs
-        §9 : contraste AA, aucun jaune clair sur
-        fond sombre). Le bloc joué est surbrillé
-        par son FOND, jamais par une bordure (P20,
-        point 5).
+        Surligne le mot lu dans le bloc d'origine
+        (E1.3, spec §3) — couleurs du thème courant
+        (spec correctifs §9 : contraste AA, aucun
+        jaune clair sur fond sombre).
+
+        P20-ter (retour David 31/10) : plus AUCUN
+        fond de bloc à la sélection (le « bleu »
+        disparaît) — seul le MOT lu est surligné.
         """
 
         couleurs = couleurs_surlignage(
@@ -3537,13 +3577,7 @@ class ReformulationWindow(QWidget):
 
         for fid, ligne in self.lignes.items():
 
-            jouee = fid == bloc_courant
-
-            ligne.jouee = jouee
-
-            self._appliquer_fond_ligne(ligne)
-
-            if not jouee:
+            if fid != bloc_courant:
                 ligne.surligner_mot(None)
                 continue
 
@@ -3578,9 +3612,21 @@ class ReformulationWindow(QWidget):
         # jamais pendant une sélection ou une
         # édition dans la table.
         #
+        # P20-ter : uniquement PENDANT LA LECTURE —
+        # sélectionner un bloc ne fait plus défiler.
+        #
         if bloc_courant != self.bloc_courant:
 
             self.bloc_courant = bloc_courant
+
+        #
+        # Le suivi ne se fait qu'en lecture — et à
+        # CHAQUE position tant qu'elle dure (pas
+        # seulement au changement de bloc : une
+        # lecture démarrée sur un bloc hors champ
+        # doit le suivre immédiatement).
+        #
+        if self._lecture_en_cours:
 
             self._defiler_vers_bloc(bloc_courant)
 
