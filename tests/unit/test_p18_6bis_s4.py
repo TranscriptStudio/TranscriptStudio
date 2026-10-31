@@ -214,7 +214,9 @@ class TestCartesHub:
     def test_elevation_ombre_au_survol(self, hub):
         """
         Retour David : élévation ~2 px + ombre
-        portée vers le bas (8 % d'opacité),
+        portée vers le bas DISCRÈTE (4 % d'opacité
+        depuis la série 7, retour David point 2 —
+        naguère 8 %, jugée trop forte et large),
         PROGRESSIVES (~120 ms — spec 30f) à
         l'entrée, retour IMMÉDIAT en sortie.
         """
@@ -227,7 +229,9 @@ class TestCartesHub:
 
         assert tuile.ELEVATION_SURVOL == 2
         assert tuile.DUREE_SURVOL_MS == 120
-        assert tuile.OPACITE_OMBRE_SURVOL == 0.08
+        assert tuile.OPACITE_OMBRE_SURVOL == 0.04
+        assert tuile.RAYON_OMBRE_SURVOL == 12
+        assert tuile.DECALAGE_OMBRE_SURVOL == 3
 
         base = tuile.pos()
 
@@ -241,11 +245,11 @@ class TestCartesHub:
         assert tuile._animation.endValue() == 1.0
 
         # Terme de l'animation : élévation 2 px,
-        # ombre à 8 % d'opacité, contour bleu.
+        # ombre à 4 % d'opacité, contour bleu.
         tuile._appliquer_progression(1.0)
 
         assert tuile.pos().y() == base.y() - 2
-        assert tuile._ombre.color().alpha() == 20
+        assert tuile._ombre.color().alpha() == 10
         assert "#3b9eff" in tuile.styleSheet()
 
         # Sortie de survol : retour immédiat —

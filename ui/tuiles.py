@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QStackedLayout,
     QVBoxLayout,
     QWidget,
@@ -44,7 +43,18 @@ from services.theme_manager import (
 
 ELEVATION_SURVOL = 2
 DUREE_SURVOL_MS = 120
-OPACITE_OMBRE_SURVOL = 0.08
+
+#
+# P18.6-bis série 7 (retour David, point 2) :
+# ombre de survol BEAUCOUP plus subtile —
+# naguère blur 24 px décalée de 8 px à 8 %
+# d'opacité (halo large et visible) : désormais
+# flou doux de 12 px, décalé de 3 px, 4 %
+# d'opacité.
+#
+OPACITE_OMBRE_SURVOL = 0.04
+RAYON_OMBRE_SURVOL = 12
+DECALAGE_OMBRE_SURVOL = 3
 
 
 def activer_survol_anime(
@@ -64,6 +74,10 @@ def activer_survol_anime(
     1.0 = survol complet) — c'est là que le
     contour glisse vers l'accent.
 
+    L'OMBRE de survol est subtile (série 7,
+    retour David point 2) : flou doux 12 px,
+    décalée de 3 px, 4 % d'opacité.
+
     La tuile doit porter WA_StyledBackground
     (posé ici) pour que sa feuille de style se
     rende.
@@ -79,8 +93,8 @@ def activer_survol_anime(
     )
 
     ombre = QGraphicsDropShadowEffect(tuile)
-    ombre.setBlurRadius(24)
-    ombre.setOffset(0, 8)
+    ombre.setBlurRadius(RAYON_OMBRE_SURVOL)
+    ombre.setOffset(0, DECALAGE_OMBRE_SURVOL)
     ombre.setColor(QColor(0, 0, 0, 0))
 
     tuile.setGraphicsEffect(ombre)
@@ -220,10 +234,17 @@ class TuileReunion(QWidget):
 
     Une ligne COMPACTE (~30 px — l'ancienne
     hauteur « mastoc » est divisée par deux) :
-    marque carrée d'accent → titre → étude
-    (ou lien « rattacher à une étude… », ou
+    marque carrée d'accent → titre → étude (ou
     mention « transcription en attente ») →
     stepper compact → coût à droite.
+
+    Série 7 (retour David, point 3) : plus
+    AUCUN lien « rattacher à une étude… » sur
+    une réunion autonome — le rattachement se
+    fait par le menu contextuel (clic droit) ;
+    la rangée reste ainsi de hauteur IDENTIQUE
+    d'une réunion à l'autre, les steppers sont
+    alignés (point 4).
 
     Deux lignes en fenêtre étroite (titre + étude /
     stepper + coût), hauteur adaptative : la
@@ -238,7 +259,6 @@ class TuileReunion(QWidget):
     """
 
     ouvrir_demandee = Signal(str)
-    rattacher_demande = Signal(str)
 
     LARGEUR_UNE_LIGNE = 640
     MARGES = (12, 6, 12, 6)
@@ -248,7 +268,6 @@ class TuileReunion(QWidget):
         chemin: str,
         titre: str,
         texte_etude,
-        lien_rattachement: bool,
         fabrique_stepper,
         cout: str,
         mention_non_transcrite: str = None,
@@ -276,7 +295,6 @@ class TuileReunion(QWidget):
 
         une_ligne = self._construire_une_ligne(
             texte_etude,
-            lien_rattachement,
             fabrique_stepper,
             cout,
             mention_non_transcrite,
@@ -284,7 +302,6 @@ class TuileReunion(QWidget):
 
         deux_lignes = self._construire_deux_lignes(
             texte_etude,
-            lien_rattachement,
             fabrique_stepper,
             cout,
             mention_non_transcrite,
@@ -355,16 +372,19 @@ class TuileReunion(QWidget):
     def _libelle_secondaire(
         self,
         texte_etude,
-        lien_rattachement,
         mention_non_transcrite
     ):
         """
         Libellé secondaire INLINE (plus de colonne
         empilée — la rangée tient sur une ligne) :
-        étude en couleur atténuée, ou lien
-        « rattacher à une étude… » pour une réunion
-        autonome, ou mention « transcription en
-        attente » pour une réunion non transcrite.
+        étude en couleur atténuée, ou mention
+        « transcription en attente » pour une
+        réunion non transcrite.
+
+        Réunion autonome (série 7, retour David
+        point 3) : AUCUN libellé — le
+        rattachement se fait par le menu
+        contextuel.
         """
 
         if mention_non_transcrite is not None:
@@ -382,38 +402,8 @@ class TuileReunion(QWidget):
 
             return mention
 
-        if lien_rattachement:
-
-            lien = QPushButton(
-                "rattacher à une étude…"
-            )
-            lien.setFlat(True)
-            lien.setCursor(
-                Qt.CursorShape.PointingHandCursor
-            )
-
-            police = QFont(self.font())
-            police.setPixelSize(12)
-            lien.setFont(police)
-
-            lien.setStyleSheet(
-                "color: "
-                + BORD_BLEU_ACCENT
-                + ";"
-                "text-decoration: underline;"
-                "border: none;"
-                "padding: 0;"
-                "text-align: left;"
-            )
-            lien.clicked.connect(
-                lambda checked=False: (
-                    self.rattacher_demande.emit(
-                        self.chemin
-                    )
-                )
-            )
-
-            return lien
+        if not texte_etude:
+            return None
 
         etude_label = QLabel(texte_etude)
 
@@ -470,14 +460,13 @@ class TuileReunion(QWidget):
     def _construire_une_ligne(
         self,
         texte_etude,
-        lien_rattachement,
         fabrique_stepper,
         cout,
         mention_non_transcrite
     ):
         """
         Disposition large : TOUT SUR UNE LIGNE —
-        marque, titre, étude (ou lien / mention),
+        marque, titre, étude (ou mention),
         stepper, coût (retour David, point 3b :
         hauteur de rangée divisée par deux).
         """
@@ -497,15 +486,14 @@ class TuileReunion(QWidget):
             self._libelle_titre()
         )
 
-        ligne.addSpacing(4)
-
-        ligne.addWidget(
-            self._libelle_secondaire(
-                texte_etude,
-                lien_rattachement,
-                mention_non_transcrite
-            )
+        secondaire = self._libelle_secondaire(
+            texte_etude,
+            mention_non_transcrite
         )
+
+        if secondaire is not None:
+            ligne.addSpacing(4)
+            ligne.addWidget(secondaire)
 
         ligne.addStretch()
 
@@ -518,7 +506,6 @@ class TuileReunion(QWidget):
     def _construire_deux_lignes(
         self,
         texte_etude,
-        lien_rattachement,
         fabrique_stepper,
         cout,
         mention_non_transcrite
@@ -546,16 +533,19 @@ class TuileReunion(QWidget):
             self._libelle_titre()
         )
 
-        premiere.addSpacing(4)
-
-        premiere.addWidget(
-            self._libelle_secondaire(
-                texte_etude,
-                lien_rattachement,
-                mention_non_transcrite
-            ),
-            stretch=1
+        secondaire = self._libelle_secondaire(
+            texte_etude,
+            mention_non_transcrite
         )
+
+        if secondaire is not None:
+            premiere.addSpacing(4)
+            premiere.addWidget(
+                secondaire,
+                stretch=1
+            )
+        else:
+            premiere.addStretch()
 
         colonne.addLayout(premiere)
 

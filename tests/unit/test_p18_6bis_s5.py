@@ -165,7 +165,6 @@ class TestTuilesReunionV4:
             "chemin",
             "Titre",
             "Étude « X »",
-            lien_rattachement=False,
             fabrique_stepper=None,
             cout="Coût : —",
         )

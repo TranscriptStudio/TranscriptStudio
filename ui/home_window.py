@@ -72,7 +72,8 @@ class TuileAccueil(QWidget):
     fond, jamais ne s'y fond) et EFFET DE SURVOL
     identique aux maquettes : élévation ~2 px,
     contour passant au bleu d'accent (#3b9eff — série 5, spec 30f §23),
-    OMBRE PORTÉE vers le bas (8 % d'opacité) —
+    OMBRE PORTÉE vers le bas DISCRÈTE (4 % d'opacité,
+    flou doux 12 px — série 7, retour David point 2) —
     l'effet est PROGRESSIF (contour, élévation et
     ombre animés ensemble, ~120 ms — spec 30f
     §22/invariant 10), retour immédiat en sortie
@@ -90,7 +91,18 @@ class TuileAccueil(QWidget):
 
     ELEVATION_SURVOL = 2
     DUREE_SURVOL_MS = 120
-    OPACITE_OMBRE_SURVOL = 0.08
+
+    #
+    # P18.6-bis série 7 (retour David, point 2) :
+    # ombre de survol BEAUCOUP plus subtile
+    # (naguère flou 24 px, décalée de 8 px, 8 %
+    # d'opacité — halo large et trop visible) :
+    # flou doux 12 px, décalée de 3 px, 4 %.
+    #
+    OPACITE_OMBRE_SURVOL = 0.04
+    RAYON_OMBRE_SURVOL = 12
+    DECALAGE_OMBRE_SURVOL = 3
+
     LARGEUR_CARTE = 300
     HAUTEUR_CARTE = 200
 
@@ -149,8 +161,13 @@ class TuileAccueil(QWidget):
         self._ombre = (
             QGraphicsDropShadowEffect(self)
         )
-        self._ombre.setBlurRadius(24)
-        self._ombre.setOffset(0, 8)
+        self._ombre.setBlurRadius(
+            self.RAYON_OMBRE_SURVOL
+        )
+        self._ombre.setOffset(
+            0,
+            self.DECALAGE_OMBRE_SURVOL,
+        )
         self._ombre.setColor(
             QColor(0, 0, 0, 0)
         )
@@ -515,17 +532,24 @@ class HomeWindow(QWidget):
             "plaque_services"
         )
 
-        plaque_layout = QVBoxLayout(self.plaque_services)
-        plaque_layout.setContentsMargins(10, 5, 10, 5)
-        plaque_layout.setSpacing(2)
+        # P18.6-bis série 7 (retour David, point 5) :
+        # plaque sur UNE SEULE LIGNE — les deux
+        # services côte à côte — et hauteur
+        # HOMOGÈNE avec les boutons ⚙/? voisins
+        # (34 px, verticalement centrée).
+        self.plaque_services.setFixedHeight(34)
+
+        plaque_layout = QHBoxLayout(self.plaque_services)
+        plaque_layout.setContentsMargins(12, 0, 12, 0)
+        plaque_layout.setSpacing(16)
 
         def ligne_service(texte):
             """
-            Une pastille de service : une LIGNE
-            entière (point + libellé) qui porte sa
-            propre INFO-BULLE — le survol du libellé
-            ou du point montre l'état du service
-            (retour David, point 2).
+            Un service de la plaque : un GROUPE
+            (point + libellé) qui porte sa propre
+            INFO-BULLE — le survol du libellé ou du
+            point montre l'état du service (retour
+            David, point 2).
 
             Le libellé est posé par QFont (et non
             par la feuille de style) : un
@@ -535,8 +559,8 @@ class HomeWindow(QWidget):
             réellement affichée (plaque démesurée).
             """
 
-            ligne = QWidget()
-            contenu = QHBoxLayout(ligne)
+            groupe = QWidget()
+            contenu = QHBoxLayout(groupe)
             contenu.setContentsMargins(0, 0, 0, 0)
             contenu.setSpacing(7)
 
@@ -556,9 +580,9 @@ class HomeWindow(QWidget):
             contenu.addWidget(point)
             contenu.addWidget(libelle)
 
-            plaque_layout.addWidget(ligne)
+            plaque_layout.addWidget(groupe)
 
-            return ligne, point
+            return groupe, point
 
         self.ligne_api, self.api_pastille = (
             ligne_service("Service de transcription")
@@ -766,15 +790,23 @@ class HomeWindow(QWidget):
     def _appliquer_fond_page(self):
         """
         Fond de page UNIQUE hors tuiles, dans les DEUX
-        thèmes (retour David, points 4 et 5) :
+        thèmes (retour David, points 1, 4 et 5) :
 
         - sombre : fond des maquettes #1e1f24 sur la
           fenêtre ET sur les zones de contenu
-          non-tuile (qdarktheme peint sinon le
-          viewport du QScrollArea des dernières
-          réunions d'une teinte différente) ;
+          non-tuile (qdarktheme peint SINON tout
+          QWidget et tout QLabel en #202124 —
+          c'est la « légère différence de couleur »
+          du bandeau supérieur et de la ligne
+          « Dernières réunions » — série 7,
+          retour David point 1) ;
         - clair : gris élégant de Windows #f3f3f3 —
           plus aucun blanc pur sur le hub.
+
+        Les contours et fonds propres des tuiles et
+        de la plaque des services sont posés par
+        leurs feuilles de style respectives : ils
+        priment sur ces règles de transparence.
         """
 
         from services.theme_manager import (
@@ -799,6 +831,21 @@ class HomeWindow(QWidget):
             "background-color: "
             + fond
             + ";"
+            "}"
+            # Zone non-tuile DIRECTE (le bandeau
+            # supérieur notamment) : transparente.
+            "HomeWindow > QWidget {"
+            "background: transparent;"
+            "border: none;"
+            "}"
+            # Tout label du hub : transparent (le
+            # titre « Dernières réunions »
+            # notamment) — les labels des tuiles
+            # et du menu Études portent leurs
+            # propres feuilles de style.
+            "HomeWindow QLabel {"
+            "background: transparent;"
+            "border: none;"
             "}"
             "QScrollArea {"
             "background: transparent;"
@@ -1153,11 +1200,15 @@ class HomeWindow(QWidget):
         """
         Tuile-rangée de réunion (spec 30f §26) :
         CLIQUABLE, sans bouton « Ouvrir » —
-        marque carrée d'accent, titre, étude (ou
-        lien « rattacher à une étude… »), stepper
-        compact (ou mention si non transcrite),
-        coût à droite ; UNE ligne, DEUX lignes en
-        fenêtre étroite.
+        marque carrée d'accent, titre, étude,
+        stepper compact (ou mention si non
+        transcrite), coût à droite ; UNE ligne,
+        DEUX lignes en fenêtre étroite. Réunion
+        autonome : AUCUN lien de rattachement
+        (série 7, retour David point 3 — le menu
+        contextuel s'en charge), la rangée garde
+        la hauteur des autres (steppers alignés,
+        point 4).
 
         Retourne None si le projet est illisible
         (la liste des récents est déjà nettoyée par
@@ -1283,9 +1334,6 @@ class HomeWindow(QWidget):
             str(chemin),
             titre,
             texte_etude,
-            lien_rattachement=(
-                texte_etude is None
-            ),
             fabrique_stepper=fabrique_stepper,
             cout=cout_libelle,
             mention_non_transcrite=(
@@ -1305,10 +1353,6 @@ class HomeWindow(QWidget):
 
         tuile.ouvrir_demandee.connect(
             self.ouvrir_reunion_depuis_hub
-        )
-
-        tuile.rattacher_demande.connect(
-            self.rattacher_reunion
         )
 
         tuile.setContextMenuPolicy(
@@ -1380,9 +1424,12 @@ class HomeWindow(QWidget):
 
     def rattacher_reunion(self, chemin):
         """
-        « rattacher à une étude… » d'une mini-tuile
-        autonome (spec §2.4) : disponible à tout
-        moment, dès le prétraitement.
+        Rattachement d'une réunion autonome à une
+        étude (spec §2.4) : proposé par le menu
+        contextuel de la tuile (clic droit — série 7,
+        retour David point 3 : plus de lien dans la
+        rangée), disponible à tout moment, dès le
+        prétraitement.
         """
 
         from ui.rattachement_dialog import (

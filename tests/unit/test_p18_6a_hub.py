@@ -906,13 +906,18 @@ class TestHub:
 
             assert "Ouvrir" not in boutons
 
+            # Série 7 (retour David, point 3) : le
+            # lien « rattacher à une étude… » a
+            # DISPARU des tuiles — le rattachement
+            # se fait par le menu contextuel.
             libelles = [
                 w.text()
                 for w in accueil.findChildren(QPushButton)
             ]
 
             assert (
-                "rattacher à une étude…" in libelles
+                "rattacher à une étude…"
+                not in libelles
             )
 
             # Le clic (signal de la tuile) ouvre la
