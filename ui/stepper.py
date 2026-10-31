@@ -24,6 +24,7 @@ Réutilisé par :
 """
 
 from PySide6.QtCore import Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
@@ -128,6 +129,23 @@ class StepperBar(QWidget):
             bouton = QPushButton(
                 LIBELLES_ETAPES[etape]
             )
+
+            # Police posée par QFont (P18.6-bis série
+            # 6) : un ``font-size`` de feuille de
+            # style ne se reflète pas dans le
+            # sizeHint — les pastilles réclamaient
+            # la largeur de la police PAR DÉFAUT
+            # tout en s'affichant petites (pastilles
+            # vides et étirées, rangée impossible à
+            # rétrécir).
+            police = QFont(self.font())
+
+            if compact:
+                police.setPixelSize(10)
+            else:
+                police.setPixelSize(12)
+
+            bouton.setFont(police)
 
             if etape in self.optionnelles:
                 bouton.setToolTip(

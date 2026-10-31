@@ -742,6 +742,19 @@ class TestHub:
         """
 
         from ui.home_window import HomeWindow
+        from services.theme_manager import (
+            ThemeManager,
+            reinitialiser_theme_actif,
+        )
+
+        # Plaque métal brossé : elle est THÉMÉE
+        # (P18.6-bis série 6) — le métal brossé
+        # s'affiche en thème SOMBRE ; le tester
+        # exige d'appliquer ce thème.
+        ThemeManager.apply_theme(
+            qapp,
+            ThemeManager.DARK
+        )
 
         settings = SettingsManager(
             str(tmp_path / "reglages")
@@ -809,6 +822,16 @@ class TestHub:
 
         finally:
             accueil.close()
+
+            # Isoler la suite : revenir au thème
+            # clair et oublier le thème retenu
+            # (même motif que la série 4).
+            ThemeManager.apply_theme(
+                qapp,
+                ThemeManager.LIGHT
+            )
+
+            reinitialiser_theme_actif()
 
     def test_mini_tuile_autonome_et_rattachement(
         self,

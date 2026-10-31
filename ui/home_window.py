@@ -17,7 +17,6 @@ from PySide6.QtCore import (
     QThread,
     Qt,
     QSize,
-    QUrl,
     Signal,
 )
 from PySide6.QtGui import (
@@ -27,10 +26,11 @@ from PySide6.QtGui import (
     QIcon,
     QPalette,
     QColor,
-    QDesktopServices,
 )
 
 from pathlib import Path
+
+import functools
 
 from services.settings import SettingsManager
 from services.api_capabilities import can_access_account_info, has_transcription_api
@@ -407,6 +407,12 @@ class HomeWindow(QWidget):
         self.progress_dialog = None
         self.transcription_started = False
 
+        # Étape en cours de chaque réunion récente
+        # (chemin -> étape) — le clic gauche sur une
+        # tuile ouvre la réunion à SON étape en
+        # cours (retour David, point 3c).
+        self._etapes_recentes = {}
+
         self.setWindowTitle(
             "Transcript Studio"
         )
@@ -448,12 +454,13 @@ class HomeWindow(QWidget):
         pixmap = QPixmap(str(resource_path("icons/logo.png")))
         icon_label.setPixmap(
             pixmap.scaled(
-                72,
-                72,
+                120,
+                120,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
         )
+        self.logo_label = icon_label
 
         title_layout = QVBoxLayout()
         title_layout.setContentsMargins(0, 0, 0, 0)
@@ -501,12 +508,6 @@ class HomeWindow(QWidget):
         #
         from services.theme_manager import (
             BORD_BLEU_ACCENT,
-            couleurs_menu_etudes,
-            est_sombre as _est_sombre,
-        )
-
-        _menu_couleurs = couleurs_menu_etudes(
-            _est_sombre(self)
         )
 
         self.plaque_services = QFrame()
@@ -514,29 +515,30 @@ class HomeWindow(QWidget):
             "plaque_services"
         )
 
-        self.plaque_services.setStyleSheet(
-            "QFrame#plaque_services {"
-            "background-color: qlineargradient("
-            "x1:0, y1:0, x2:0, y2:1,"
-            " stop:0 #2e2f35,"
-            " stop:1 #27282e"
-            ");"
-            "border: 1px solid #3c3d44;"
-            "border-radius: 8px;"
-            "}"
-            "QFrame#plaque_services QLabel {"
-            "background: transparent;"
-            "border: none;"
-            "}"
-        )
-
         plaque_layout = QVBoxLayout(self.plaque_services)
-        plaque_layout.setContentsMargins(10, 6, 12, 6)
-        plaque_layout.setSpacing(3)
+        plaque_layout.setContentsMargins(10, 5, 10, 5)
+        plaque_layout.setSpacing(2)
 
         def ligne_service(texte):
-            ligne = QHBoxLayout()
-            ligne.setSpacing(8)
+            """
+            Une pastille de service : une LIGNE
+            entière (point + libellé) qui porte sa
+            propre INFO-BULLE — le survol du libellé
+            ou du point montre l'état du service
+            (retour David, point 2).
+
+            Le libellé est posé par QFont (et non
+            par la feuille de style) : un
+            ``font-size`` de feuille de style ne se
+            reflète pas dans le sizeHint, qui
+            réclamait alors le double de la largeur
+            réellement affichée (plaque démesurée).
+            """
+
+            ligne = QWidget()
+            contenu = QHBoxLayout(ligne)
+            contenu.setContentsMargins(0, 0, 0, 0)
+            contenu.setSpacing(7)
 
             point = QLabel()
             point.setFixedSize(9, 9)
@@ -546,27 +548,27 @@ class HomeWindow(QWidget):
             )
 
             libelle = QLabel(texte)
-            libelle.setStyleSheet(
-                "font-size: 11px;"
-                + ("color: #d7d8dc;" if _est_sombre(self)
-                   else "color: #404248;")
-            )
 
-            ligne.addWidget(point)
-            ligne.addWidget(libelle)
-            ligne.addStretch()
+            police = QFont(self.font())
+            police.setPixelSize(11)
+            libelle.setFont(police)
 
-            plaque_layout.addLayout(ligne)
+            contenu.addWidget(point)
+            contenu.addWidget(libelle)
 
-            return point
+            plaque_layout.addWidget(ligne)
 
-        self.api_pastille = ligne_service(
-            "Transcription ElevenLabs"
+            return ligne, point
+
+        self.ligne_api, self.api_pastille = (
+            ligne_service("Service de transcription")
         )
 
-        self.llm_pastille = ligne_service(
-            "Service IA"
+        self.ligne_llm, self.llm_pastille = (
+            ligne_service("Service IA")
         )
+
+        self._appliquer_style_plaque()
 
         #
         # Libellés d'état complets conservés
@@ -582,7 +584,12 @@ class HomeWindow(QWidget):
         self.llm_status_label.setStyleSheet("font-size: 12px; color: #666666;")
         self.llm_status_label.setVisible(False)
 
-        header_layout.addWidget(self.plaque_services)
+        header_layout.addWidget(
+            self.plaque_services,
+            alignment=(
+                Qt.AlignmentFlag.AlignVCenter
+            ),
+        )
 
         #
         # Boutons du bandeau (§25b) : UNE SEULE
@@ -754,42 +761,107 @@ class HomeWindow(QWidget):
         # Dernieres reunions.
         self.refresh_dernieres_reunions()
 
+        self._ui_construite = True
+
     def _appliquer_fond_page(self):
         """
-        Thème sombre : fond de page des maquettes
-        (#1e1f24) sur la fenêtre ET sur les zones
-        de contenu non-tuile (spec 30f §27) —
-        qdarktheme peint sinon le viewport du
-        QScrollArea des dernières réunions d'une
-        teinte différente du fond de page.
+        Fond de page UNIQUE hors tuiles, dans les DEUX
+        thèmes (retour David, points 4 et 5) :
+
+        - sombre : fond des maquettes #1e1f24 sur la
+          fenêtre ET sur les zones de contenu
+          non-tuile (qdarktheme peint sinon le
+          viewport du QScrollArea des dernières
+          réunions d'une teinte différente) ;
+        - clair : gris élégant de Windows #f3f3f3 —
+          plus aucun blanc pur sur le hub.
         """
 
         from services.theme_manager import (
+            FOND_PAGE_CLAIR,
             FOND_PAGE_SOMBRE,
             est_sombre,
         )
 
-        if est_sombre(self):
-            self.setAttribute(
-                Qt.WidgetAttribute
-                .WA_StyledBackground,
-                True
-            )
-            self.setStyleSheet(
-                "HomeWindow {"
-                "background-color: "
-                + FOND_PAGE_SOMBRE
-                + ";"
-                "}"
-                "QScrollArea {"
-                "background: transparent;"
-                "border: none;"
-                "}"
-                "QScrollArea > QWidget > QWidget {"
-                "background: transparent;"
-                "border: none;"
-                "}"
-            )
+        fond = (
+            FOND_PAGE_SOMBRE
+            if est_sombre(self)
+            else FOND_PAGE_CLAIR
+        )
+
+        self.setAttribute(
+            Qt.WidgetAttribute
+            .WA_StyledBackground,
+            True
+        )
+        self.setStyleSheet(
+            "HomeWindow {"
+            "background-color: "
+            + fond
+            + ";"
+            "}"
+            "QScrollArea {"
+            "background: transparent;"
+            "border: none;"
+            "}"
+            "QScrollArea > QWidget > QWidget {"
+            "background: transparent;"
+            "border: none;"
+            "}"
+        )
+
+    def _appliquer_style_plaque(self):
+        """
+        Style de la plaque des services selon le
+        thème : « métal brossé » des maquettes en
+        sombre, plaque claire discrète en clair
+        (P18.6-bis série 6 — la plaque sombre ne
+        s'affiche PLUS en thème clair).
+        """
+
+        from services.theme_manager import (
+            couleurs_plaque_services,
+            est_sombre,
+        )
+
+        couleurs = couleurs_plaque_services(
+            est_sombre(self)
+        )
+
+        self.plaque_services.setStyleSheet(
+            "QFrame#plaque_services {"
+            "background-color: qlineargradient("
+            "x1:0, y1:0, x2:0, y2:1,"
+            " stop:0 "
+            + couleurs["degrade_haut"]
+            + ", stop:1 "
+            + couleurs["degrade_bas"]
+            + ");"
+            "border: 1px solid "
+            + couleurs["bord"]
+            + ";"
+            "border-radius: 8px;"
+            "}"
+            "QFrame#plaque_services QLabel {"
+            "background: transparent;"
+            "border: none;"
+            "}"
+            "QFrame#plaque_services QWidget {"
+            "background: transparent;"
+            "}"
+        )
+
+        for ligne in (
+            self.ligne_api,
+            self.ligne_llm,
+        ):
+            for libelle in ligne.findChildren(QLabel):
+                if libelle.text():
+                    libelle.setStyleSheet(
+                        "color: "
+                        + couleurs["texte"]
+                        + ";"
+                    )
 
     #
     # ==================================================
@@ -1027,6 +1099,8 @@ class HomeWindow(QWidget):
         stepper ①→⑥, coût.
         """
 
+        self._etapes_recentes = {}
+
         while self.dernieres_layout.count() > 1:
 
             item = self.dernieres_layout.takeAt(0)
@@ -1162,6 +1236,23 @@ class HomeWindow(QWidget):
             chemin_projet=str(chemin)
         )
 
+        #
+        # Étape en cours (retour David, point 3c) :
+        # le clic GAUCHE sur la tuile ouvre la
+        # réunion directement à l'étape en cours —
+        # la première pastille bleue ; la première
+        # étape non terminée s'il n'y en a pas.
+        #
+        from services.avancement import (
+            etape_courante,
+        )
+
+        etape = (
+            etape_courante(etats)
+            if etats is not None
+            else None
+        )
+
         if etats is None:
 
             fabrique_stepper = None
@@ -1204,6 +1295,14 @@ class HomeWindow(QWidget):
 
         tuile.setToolTip(str(chemin))
 
+        tuile.rattachee = (
+            texte_etude is not None
+        )
+
+        tuile.etape_courante = etape
+
+        self._etapes_recentes[str(chemin)] = etape
+
         tuile.ouvrir_demandee.connect(
             self.ouvrir_reunion_depuis_hub
         )
@@ -1216,9 +1315,15 @@ class HomeWindow(QWidget):
             Qt.ContextMenuPolicy.CustomContextMenu
         )
 
+        # functools.partial et non une lambda :
+        # les signaux connectés à des lambdas
+        # provoquent un segfault Nuitka/PySide6
+        # (P12).
         tuile.customContextMenuRequested.connect(
-            lambda pos, c=str(chemin): (
-                self.afficher_menu_mini_tuile(tuile, c, pos)
+            functools.partial(
+                self.afficher_menu_mini_tuile,
+                tuile,
+                str(chemin),
             )
         )
 
@@ -1230,6 +1335,12 @@ class HomeWindow(QWidget):
         pile de navigation si la destination existe,
         sinon repli sur la page Correction — lancement
         autonome et tests).
+
+        Retour David, point 3c : la réunion s'ouvre
+        à SON ÉTAPE EN COURS (première pastille
+        bleue, première étape non terminée sinon) —
+        le stepper de la tuile n'est plus un lien
+        vers chaque étape.
         """
 
         if not Path(chemin).exists():
@@ -1246,6 +1357,10 @@ class HomeWindow(QWidget):
 
         projet = load_project(str(chemin))
 
+        etape = self._etapes_recentes.get(
+            str(chemin)
+        )
+
         navigation = getattr(self, "navigation", None)
 
         if (
@@ -1255,7 +1370,10 @@ class HomeWindow(QWidget):
                 "ouvrir_reunion"
             )
         ):
-            navigation.ouvrir_reunion(projet)
+            navigation.ouvrir_reunion(
+                projet,
+                etape=etape
+            )
             return
 
         self.ouvrir_correction(projet)
@@ -1300,28 +1418,66 @@ class HomeWindow(QWidget):
         pos
     ):
         """
-        Menu contextuel d'une mini-tuile : ouvrir la
-        réunion, ouvrir son répertoire, la retirer de
-        la liste (jamais du disque).
+        Menu contextuel (clic DROIT) d'une tuile de
+        réunion — retour David, point 3d :
+
+        - ouvrir la réunion à l'étape en cours ;
+        - rattacher la réunion à une étude
+          existante — option ABSENTE (et non
+          grisée) si la réunion appartient déjà
+          à une étude ;
+        - retirer de la liste des réunions
+          récentes (jamais du disque).
+        """
+
+        menu = self._construire_menu_mini_tuile(
+            cadre,
+            chemin
+        )
+
+        menu.exec(
+            cadre.mapToGlobal(pos)
+        )
+
+    def _construire_menu_mini_tuile(
+        self,
+        cadre,
+        chemin
+    ):
+        """
+        Construit le menu contextuel d'une tuile de
+        réunion (séparé de l'affichage pour être
+        testable sans exécuter le menu).
         """
 
         menu = QMenu(self)
 
         ouvrir_action = menu.addAction(
-            "Ouvrir la réunion"
+            "Ouvrir la réunion à l'étape en cours"
         )
         ouvrir_action.triggered.connect(
-            lambda: self.ouvrir_reunion_depuis_hub(
+            functools.partial(
+                self.ouvrir_reunion_depuis_hub,
                 chemin
             )
         )
 
-        dossier_action = menu.addAction(
-            "Ouvrir le répertoire de la réunion"
+        rattachee = getattr(
+            cadre,
+            "rattachee",
+            False
         )
-        dossier_action.triggered.connect(
-            lambda: self._ouvrir_repertoire(chemin)
-        )
+
+        if not rattachee:
+            rattacher_action = menu.addAction(
+                "Rattacher la réunion à une étude existante"
+            )
+            rattacher_action.triggered.connect(
+                functools.partial(
+                    self.rattacher_reunion,
+                    chemin
+                )
+            )
 
         menu.addSeparator()
 
@@ -1329,32 +1485,13 @@ class HomeWindow(QWidget):
             "Retirer de la liste des réunions récentes"
         )
         retirer_action.triggered.connect(
-            lambda: self._retirer_recent(chemin)
-        )
-
-        menu.exec(
-            cadre.mapToGlobal(pos)
-        )
-
-    def _ouvrir_repertoire(self, chemin):
-
-        folder = Path(chemin).parent
-
-        if not folder.is_dir():
-            QMessageBox.warning(
-                self,
-                "Répertoire introuvable",
-                (
-                    "Le répertoire\n\n"
-                    f"{folder}\n\n"
-                    "n'existe plus."
-                )
+            functools.partial(
+                self._retirer_recent,
+                chemin
             )
-            return
-
-        QDesktopServices.openUrl(
-            QUrl.fromLocalFile(str(folder))
         )
+
+        return menu
 
     def _retirer_recent(self, chemin):
 
@@ -1396,6 +1533,30 @@ class HomeWindow(QWidget):
             f"color: {version_color}; font-size: 12px;"
         )
 
+        # Changement de thème : la plaque des
+        # services, le fond de page, les grandes
+        # tuiles et les tuiles de réunion
+        # reprennent immédiatement les couleurs du
+        # nouveau thème (P18.6-bis série 6).
+        self._appliquer_style_plaque()
+        self._appliquer_fond_page()
+
+        for tuile in (
+            self.tuile_nouvelle,
+            self.tuile_reprendre,
+            self.tuile_etudes,
+        ):
+            tuile._appliquer_style(0.0)
+
+        # Après un changement de thème (les
+        # tuiles de réunion portent leurs
+        # couleurs à la construction) : recon-
+        # struire les dernières réunions. Pas
+        # pendant la construction initiale (la
+        # liste est construite en fin de build_ui).
+        if getattr(self, "_ui_construite", False):
+            self.refresh_dernieres_reunions()
+
 
     def open_settings(self):
         dialog = SettingsDialog(self)
@@ -1409,22 +1570,32 @@ class HomeWindow(QWidget):
                 
     def update_api_status(self):
         """
-        Point « Transcription ElevenLabs » de la
-        plaque (spec 30f §25a) : vert si ok, rouge
-        si ko (le service requis n'est pas
-        configuré), détail dans l'info-bulle de la
-        plaque.
+        Point « Service de transcription » (ElevenLabs)
+        de la plaque (spec 30f §25a) : vert si ok,
+        rouge si ko (le service requis n'est pas
+        configuré).
+
+        Info-bulle de la LIGNE complète (retour
+        David, point 2) : « clé API ElevenLabs
+        configurée » — le survol fonctionne sur le
+        point ET sur le libellé.
         """
         if has_transcription_api():
             self.api_status_label.setText(
                 "Service de transcription : configuré"
             )
             couleur = "#3fa66c"
+            bulle = (
+                "clé API ElevenLabs configurée"
+            )
         else:
             self.api_status_label.setText(
                 "Service de transcription : non configuré"
             )
             couleur = "#c0533f"
+            bulle = (
+                "clé API ElevenLabs non configurée"
+            )
 
         self.api_pastille.setStyleSheet(
             "border-radius: 4px;"
@@ -1433,9 +1604,7 @@ class HomeWindow(QWidget):
             + ";"
         )
 
-        self.plaque_services.setToolTip(
-            self.api_status_label.text()
-        )
+        self.ligne_api.setToolTip(bulle)
 
     def maj_statut_llm(self):
         """
@@ -1478,11 +1647,21 @@ class HomeWindow(QWidget):
                 + ", ".join(noms)
             )
             couleur = "#3fa66c"
+
+            # Liste VERTICALE des fournisseurs
+            # configurés (retour David, point 2) :
+            # une ligne « clé API {fournisseur}
+            # configurée » par fournisseur.
+            bulle = "\n".join(
+                f"clé API {nom} configurée"
+                for nom in noms
+            )
         else:
             self.llm_status_label.setText(
                 "Service de reformulation : non configuré"
             )
             couleur = "#8a8b92"
+            bulle = "aucune clé API configurée"
 
         self.llm_pastille.setStyleSheet(
             "border-radius: 4px;"
@@ -1491,9 +1670,7 @@ class HomeWindow(QWidget):
             + ";"
         )
 
-        self.llm_pastille.setToolTip(
-            self.llm_status_label.text()
-        )
+        self.ligne_llm.setToolTip(bulle)
 
     def new_transcription(self):
 

@@ -104,13 +104,15 @@ class ThemeManager:
         """
         if theme_type == "light":
             return """
-                /* Fond général de l'application */
+                /* Fond général de l'application : gris
+                élégant de Windows (P18.6-bis série 6,
+                retour David — plus aucun blanc pur). */
                 QMainWindow, QWidget, QDialog, QFrame {
-                    background-color: #fafafa;
+                    background-color: #f3f3f3;
                 }
                 /* Zone de contenu */
                 QMainWindow {
-                    background-color: #f8f8f8;
+                    background-color: #f3f3f3;
                 }
                 /* Zones de saisie */
                 QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QListView, QTreeView {
@@ -119,7 +121,7 @@ class ThemeManager:
                 }
                 /* Panneaux et conteneurs */
                 QFrame, QGroupBox {
-                    background-color: #f8f8f8;
+                    background-color: #f3f3f3;
                 }
             """
         else:
@@ -578,6 +580,15 @@ BORD_BLEU_ACCENT = "#3b9eff"
 FOND_PAGE_SOMBRE = "#1e1f24"
 
 #
+# P18.6-bis série 6 (retour David, point 5) :
+# en thème clair, le fond de page est le gris
+# élégant de Windows — plus aucun blanc pur —
+# et les tuiles sont LÉGÈREMENT PLUS FONCÉES
+# que ce fond pour s'en détacher.
+#
+FOND_PAGE_CLAIR = "#f3f3f3"
+
+#
 # Série 5 (spec 30f §24) : stepper — couleurs
 # affirmées, identiques dans les deux thèmes
 # (maquette hub v4) :
@@ -604,13 +615,50 @@ COULEURS_TUILES = {
         "bord": "#3a3b42",
         "description": "#a6a7ae",
     },
-    False: {  # thème clair
-        "fond": "#ffffff",
-        "fond_survol": "#f2f6fb",
+    False: {  # thème clair : gris légèrement plus
+        # foncé que le fond de page #f3f3f3 (retour
+        # David, point 5 — les tuiles se détachent
+        # en CLAIR du fond, jamais en blanc pur).
+        "fond": "#e9eaee",
+        "fond_survol": "#e1e4ea",
         "bord": "#b9bcc2",
         "description": "#555555",
     },
 }
+
+
+#
+# Couleurs de la plaque des services du bandeau
+# (hub). Sombre : plaque « métal brossé » des
+# maquettes (P18.6-bis série 5). Clair (série 6,
+# retour David point 2) : plaque claire discrète
+# sur fond gris — plus jamais la plaque sombre
+# en thème clair.
+#
+COULEURS_PLAQUE_SERVICES = {
+    True: {
+        "degrade_haut": "#2e2f35",
+        "degrade_bas": "#27282e",
+        "bord": "#3c3d44",
+        "texte": "#d7d8dc",
+    },
+    False: {
+        "degrade_haut": "#f0f1f4",
+        "degrade_bas": "#e8e9ee",
+        "bord": "#c4c7cf",
+        "texte": "#404248",
+    },
+}
+
+
+def couleurs_plaque_services(sombre: bool) -> dict:
+    """
+    Couleurs de la plaque des services du bandeau
+    selon le thème (métal brossé en sombre, plaque
+    claire en clair).
+    """
+
+    return COULEURS_PLAQUE_SERVICES[bool(sombre)]
 
 #
 # Couleurs du menu déroulant des études (maquette :

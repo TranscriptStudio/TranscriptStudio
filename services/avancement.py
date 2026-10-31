@@ -447,6 +447,35 @@ def etats_compacts(
     }
 
 
+def etape_courante(etats):
+    """
+    Étape en cours d'une réunion (P18.6-bis série 6,
+    retour David point 3c) : la PREMIÈRE étape
+    « en cours » (plusieurs étapes peuvent l'être
+    simultanément — la première l'emporte) ; à
+    défaut, la première étape NON terminée ; None
+    si tout est terminé (la page Réunion s'ouvre
+    alors sur son étape par défaut).
+
+    ``etats`` est le dictionnaire des états du
+    stepper compact (``etapes_reunion``) ; None
+    (réunion non transcrite) donne None.
+    """
+
+    if not etats:
+        return None
+
+    for etape in ETAPES_REUNION:
+        if etats.get(etape) == EN_COURS:
+            return etape
+
+    for etape in ETAPES_REUNION:
+        if etats.get(etape) != TERMINE:
+            return etape
+
+    return None
+
+
 def etapes_reunion(
     projet,
     etude_ouverte=None,

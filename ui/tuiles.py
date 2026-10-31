@@ -22,7 +22,7 @@ séries 4-5, spec 2026-10-30f).
 """
 
 from PySide6.QtCore import Qt, Signal, QVariantAnimation
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
@@ -161,6 +161,23 @@ def style_rangee(
     survol : contour glissant du gris vers
     l'accent #3b9eff, fond de tuile distinct,
     enfants transparents.
+
+    P18.6-bis série 6 (retour David, points 3a
+    et 4) : mêmes canons que les GRANDES tuiles
+    du hub (coins arrondis 12 px) ; les QFrame
+    INTERNES (pages empilées une ligne / deux
+    lignes) sont strictement TRANSPARENTS —
+    sans cette règle, qdarktheme les repeint
+    (#202124 en sombre) et masque le fond de
+    la tuile, d'où la « légère différence de
+    couleur sur les fonds » constatée.
+
+    Le sélecteur racine est un sélecteur d'ID
+    PUR (``#hub_tuile_reunion``) : la tuile du
+    hub est un QWidget (les pages internes seules
+    sont des QFrame) — l'ancien ``QFrame#…`` ne
+    matchait JAMAIS la racine et le fond de la
+    tuile ne s'affichait pas.
     """
 
     bord = melanger_couleurs(
@@ -170,11 +187,11 @@ def style_rangee(
     )
 
     return (
-        f"QFrame#{nom_objet} {{"
+        f"#{nom_objet} {{"
         "border: 1px solid "
         + bord
         + ";"
-        "border-radius: 8px;"
+        "border-radius: 12px;"
         "background-color: "
         + (
             melanger_couleurs(
@@ -185,11 +202,7 @@ def style_rangee(
         )
         + ";"
         "}"
-        f"QFrame#{nom_objet} QLabel {{"
-        "background-color: transparent;"
-        "border: none;"
-        "}}"
-        f"QFrame#{nom_objet} QPushButton {{"
+        f"#{nom_objet} QWidget {{"
         "background-color: transparent;"
         "border: none;"
         "}}"
@@ -199,22 +212,36 @@ def style_rangee(
 class TuileReunion(QWidget):
     """
     Tuile-rangée d'une réunion du hub (spec 30f
-    §26) : CLIQUABLE, sans bouton « Ouvrir ».
+    §26, compactée en P18.6-bis série 6 — retour
+    David, point 3) : CLIQUABLE, sans bouton
+    « Ouvrir », même langage graphique que les
+    grandes tuiles (coins 12 px, contour visible,
+    survol animé vers l'accent).
 
-    Une ligne : marque carrée d'accent (avec halo
-    de même teinte) → titre → étude (couleur
-    standard, ou lien « rattacher à une étude… »
-    pour une réunion autonome) → stepper compact
-    → infos (coût) à droite.
+    Une ligne COMPACTE (~30 px — l'ancienne
+    hauteur « mastoc » est divisée par deux) :
+    marque carrée d'accent → titre → étude
+    (ou lien « rattacher à une étude… », ou
+    mention « transcription en attente ») →
+    stepper compact → coût à droite.
 
     Deux lignes en fenêtre étroite (titre + étude /
-    stepper + infos), hauteur adaptative.
+    stepper + coût), hauteur adaptative : la
+    hauteur de la tuile suit la page EMPILÉE
+    courante (le QStackedLayout réclame sinon la
+    hauteur de la plus haute des deux pages).
+
+    Le clic GAUCHE ouvre la réunion (le clic
+    droit est traité par le menu contextuel du
+    hub) ; le stepper n'est qu'un indicateur —
+    jamais un lien vers chaque étape.
     """
 
     ouvrir_demandee = Signal(str)
     rattacher_demande = Signal(str)
 
     LARGEUR_UNE_LIGNE = 640
+    MARGES = (12, 6, 12, 6)
 
     def __init__(
         self,
@@ -276,6 +303,10 @@ class TuileReunion(QWidget):
             self._appliquer_style
         )
 
+        # Hauteur initiale alignée sur la page
+        # courante (corrigée à chaque resize).
+        self._basculer_selon_largeur(self.width())
+
     # ==================================================
     # Contenu.
     # ==================================================
@@ -300,45 +331,58 @@ class TuileReunion(QWidget):
 
         return marque
 
-    def _zone_etude(
+    def _libelle_titre(self) -> QLabel:
+        """
+        Titre de la réunion, en gras.
+
+        La graisse est posée par QFont (et non par
+        la feuille de style) : un ``font-weight`` de
+        feuille de style ne se reflète pas dans le
+        sizeHint du label, qui réclamait alors une
+        largeur erronée.
+        """
+
+        titre_label = QLabel(self.titre)
+
+        police = QFont(self.font())
+        police.setBold(True)
+        titre_label.setFont(police)
+
+        self.titre_label = titre_label
+
+        return titre_label
+
+    def _libelle_secondaire(
         self,
         texte_etude,
         lien_rattachement,
         mention_non_transcrite
     ):
         """
-        Zone titre + étude : le titre en gras,
-        l'étude en couleur standard ; pour une
-        réunion autonome, le lien « rattacher à
-        une étude… » (cliquable).
+        Libellé secondaire INLINE (plus de colonne
+        empilée — la rangée tient sur une ligne) :
+        étude en couleur atténuée, ou lien
+        « rattacher à une étude… » pour une réunion
+        autonome, ou mention « transcription en
+        attente » pour une réunion non transcrite.
         """
-
-        zone = QWidget()
-        colonne = QVBoxLayout(zone)
-        colonne.setContentsMargins(0, 0, 0, 0)
-        colonne.setSpacing(1)
-
-        titre_label = QLabel(self.titre)
-        titre_label.setStyleSheet(
-            "font-weight: 600;"
-        )
-
-        colonne.addWidget(titre_label)
 
         if mention_non_transcrite is not None:
 
-            mention = QLabel(
-                mention_non_transcrite
-            )
+            mention = QLabel(mention_non_transcrite)
+
+            police = QFont(self.font())
+            police.setPixelSize(11)
+            police.setItalic(True)
+            mention.setFont(police)
+
             mention.setStyleSheet(
                 "color: #8a8b92;"
-                "font-style: italic;"
-                "font-size: 11px;"
             )
 
-            colonne.addWidget(mention)
+            return mention
 
-        elif lien_rattachement:
+        if lien_rattachement:
 
             lien = QPushButton(
                 "rattacher à une étude…"
@@ -347,6 +391,11 @@ class TuileReunion(QWidget):
             lien.setCursor(
                 Qt.CursorShape.PointingHandCursor
             )
+
+            police = QFont(self.font())
+            police.setPixelSize(12)
+            lien.setFont(police)
+
             lien.setStyleSheet(
                 "color: "
                 + BORD_BLEU_ACCENT
@@ -354,7 +403,6 @@ class TuileReunion(QWidget):
                 "text-decoration: underline;"
                 "border: none;"
                 "padding: 0;"
-                "font-size: 12px;"
                 "text-align: left;"
             )
             lien.clicked.connect(
@@ -365,20 +413,19 @@ class TuileReunion(QWidget):
                 )
             )
 
-            colonne.addWidget(lien)
+            return lien
 
-        else:
+        etude_label = QLabel(texte_etude)
 
-            etude_label = QLabel(texte_etude)
-            etude_label.setStyleSheet(
-                "font-size: 12px;"
-            )
+        police = QFont(self.font())
+        police.setPixelSize(12)
+        etude_label.setFont(police)
 
-            colonne.addWidget(etude_label)
+        etude_label.setStyleSheet(
+            "color: #8a8b92;"
+        )
 
-        self.titre_label = titre_label
-
-        return zone
+        return etude_label
 
     def _zone_infos(
         self,
@@ -402,8 +449,13 @@ class TuileReunion(QWidget):
             ligne.addWidget(fabrique_stepper())
 
         cout_label = QLabel(cout)
+
+        police = QFont(self.font())
+        police.setPixelSize(11)
+        cout_label.setFont(police)
+
         cout_label.setStyleSheet(
-            "color: #8a8b92; font-size: 11px;"
+            "color: #8a8b92;"
         )
 
         if aligne_droite:
@@ -424,14 +476,17 @@ class TuileReunion(QWidget):
         mention_non_transcrite
     ):
         """
-        Disposition large : tout sur UNE ligne.
+        Disposition large : TOUT SUR UNE LIGNE —
+        marque, titre, étude (ou lien / mention),
+        stepper, coût (retour David, point 3b :
+        hauteur de rangée divisée par deux).
         """
 
         page = QFrame()
         page.setObjectName("hub_tuile_contenu")
 
         ligne = QHBoxLayout(page)
-        ligne.setContentsMargins(10, 8, 10, 8)
+        ligne.setContentsMargins(*self.MARGES)
         ligne.setSpacing(10)
 
         ligne.addWidget(
@@ -439,16 +494,23 @@ class TuileReunion(QWidget):
         )
 
         ligne.addWidget(
-            self._zone_etude(
+            self._libelle_titre()
+        )
+
+        ligne.addSpacing(4)
+
+        ligne.addWidget(
+            self._libelle_secondaire(
                 texte_etude,
                 lien_rattachement,
                 mention_non_transcrite
-            ),
-            stretch=1
+            )
         )
 
+        ligne.addStretch()
+
         ligne.addWidget(
-            self._zone_infos(fabrique_stepper, cout, True)
+            self._zone_infos(fabrique_stepper, cout, False)
         )
 
         return page
@@ -463,14 +525,14 @@ class TuileReunion(QWidget):
     ):
         """
         Disposition étroite : titre + étude, puis
-        stepper + infos.
+        stepper + coût.
         """
 
         page = QFrame()
         page.setObjectName("hub_tuile_contenu")
 
         colonne = QVBoxLayout(page)
-        colonne.setContentsMargins(10, 8, 10, 8)
+        colonne.setContentsMargins(*self.MARGES)
         colonne.setSpacing(4)
 
         premiere = QHBoxLayout()
@@ -481,7 +543,13 @@ class TuileReunion(QWidget):
         )
 
         premiere.addWidget(
-            self._zone_etude(
+            self._libelle_titre()
+        )
+
+        premiere.addSpacing(4)
+
+        premiere.addWidget(
+            self._libelle_secondaire(
                 texte_etude,
                 lien_rattachement,
                 mention_non_transcrite
@@ -491,9 +559,14 @@ class TuileReunion(QWidget):
 
         colonne.addLayout(premiere)
 
-        colonne.addWidget(
-            self._zone_infos(fabrique_stepper, cout, True)
+        deuxieme = QHBoxLayout()
+        deuxieme.setSpacing(0)
+        deuxieme.addStretch()
+        deuxieme.addWidget(
+            self._zone_infos(fabrique_stepper, cout, False)
         )
+
+        colonne.addLayout(deuxieme)
 
         return page
 
@@ -528,6 +601,11 @@ class TuileReunion(QWidget):
         Bascule entre la page « une ligne » (large)
         et la page « deux lignes » (fenêtre étroite)
         selon la largeur effective.
+
+        La HAUTEUR de la tuile suit la page courante :
+        le QStackedLayout réclame sinon la hauteur
+        de la PLUS HAUTE des deux pages (l'ancien
+        « mastoc » de 80 px, retour David point 3b).
         """
 
         cible = (
@@ -538,6 +616,10 @@ class TuileReunion(QWidget):
 
         if self.pile.currentWidget() is not cible:
             self.pile.setCurrentWidget(cible)
+
+        self.setMaximumHeight(
+            cible.sizeHint().height()
+        )
 
     def resizeEvent(self, event):
 
@@ -550,8 +632,20 @@ class TuileReunion(QWidget):
     # ==================================================
 
     def mousePressEvent(self, event):
+        """
+        Clic GAUCHE uniquement (retour David, point
+        3c) : le clic droit relève du menu contextuel
+        du hub. Le stepper n'est pas cliquable —
+        c'est le clic sur la tuile qui ouvre la
+        réunion à l'étape en cours.
+        """
 
-        self.ouvrir_demandee.emit(self.chemin)
+        if (
+            event is None
+            or event.button()
+            == Qt.MouseButton.LeftButton
+        ):
+            self.ouvrir_demandee.emit(self.chemin)
 
         if event is not None:
             super().mousePressEvent(event)
