@@ -160,10 +160,17 @@ class StepperBar(QWidget):
                 self._style(etape, A_FAIRE)
             )
 
+            #
+            # PAS d'info-bulle en mode COMPACT (hub,
+            # page Étude) : la pastille affiche déjà
+            # son libellé — l'info-bulle doublait
+            # l'information pour rien (retour David,
+            # 31/10). Elle reste entière sur le
+            # stepper de la page Réunion (étape
+            # optionnelle).
+            #
             if compact:
-                bouton.setToolTip(
-                    LIBELLES_ETAPES[etape]
-                )
+                bouton.setToolTip(None)
 
             if cliquable:
 

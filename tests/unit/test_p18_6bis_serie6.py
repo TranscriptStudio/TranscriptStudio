@@ -183,6 +183,60 @@ class TestInvariant14Pastilles:
 
 #
 # ==================================================
+# Stepper compact : pas d'info-bulle (retour
+# David 31/10 — la pastille affiche déjà son
+# libellé, l'info-bulle doublait l'information).
+# ==================================================
+#
+
+class TestStepperCompactSansInfoBulle:
+
+    def test_hub_sans_info_bulle(self, qapp):
+        """
+        Les pastilles du stepper COMPACT (hub, page
+        Étude) ne portent AUCUNE info-bulle ; le
+        stepper pleine taille de la page Réunion
+        conserve la sienne (« Étape optionnelle »).
+        """
+
+        from ui.stepper import StepperBar
+
+        compact = StepperBar(
+            cliquable=False,
+            compact=True
+        )
+
+        try:
+
+            assert all(
+                not bouton.toolTip()
+                for bouton in (
+                    compact.boutons.values()
+                )
+            )
+
+        finally:
+            compact.close()
+
+        pleine = StepperBar(
+            cliquable=True,
+            compact=False
+        )
+
+        try:
+
+            assert (
+                pleine.boutons["reformulation"]
+                .toolTip()
+                == "Étape optionnelle"
+            )
+
+        finally:
+            pleine.close()
+
+
+#
+# ==================================================
 # Invariant 15 : réunion non transcrite —
 # ni stepper ni mention sur le hub ; la page
 # Étude garde sa mention discrète.

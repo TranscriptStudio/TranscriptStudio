@@ -1,27 +1,22 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**synchro skill v30 faite** — INDEX_SPECS_
-> 2026-10-30h, UI_REFORMULATION_MODIFS_2026-10-30f, SPEC_NAVIGATION_MODIFS_
-> 2026-10-31a recopiés dans architecture/spec_v2/. **P16-bis 4ᵉ série LIVRÉE**
-> (UI_REFORMULATION_MODIFS_30f §19-23) : zone de progression de la reformulation
-> dans la zone de lancement — barre DÉTERMINÉE par blocs entiers « Bloc k/N —
-> Reformulation en cours… » (N ≥ 2), temps écoulé en permanence (m:ss /
-> h:mm:ss), estimation du temps restant dès le 1ᵉʳ bloc terminé (moyenne ×
-> restants, recalculée à chaque bloc), « Reformulation terminée en mm:ss » à la
-> fin, cas N = 1 sans barre déterminée (libellé + temps écoulé + pulse
-> indéterminé discret), annulation après le bloc en cours avec RELANCE dont le
-> décompte repart des blocs déjà faits (dénominateur du run conservé, remis à
-> zéro après une passe terminée), couleurs série 5 (chunk #2563eb plein, lueur
-> #3b9eff) — les 5 invariants testés. **P18.6-bis série 6 LIVRÉE**
-> (SPEC_NAVIGATION_MODIFS_31a §28-29) : pastilles non configurées toutes en
-> GRIS OFF (rouge réservé aux échecs réels — l'écart CLI est levé), hub sans
-> stepper NI mention pour les non-transcrites (page Étude inchangée).
-> **P19.1 LIVRÉ** — modèle de données du document ouvrage
-> (models/ouvrage.py + services/ouvrage_document.py : ouvrage.json,
-> génération depuis les reformulations validées selon l'ordre d'ouvrage,
-> régénération complète qui écrase, instantané de génération et signalement
-> « réunion re-reformulée », Réserves, provenances multiples prêtes pour
-> la fusion P19.4). **509 tests verts**.)
+> **Dernière mise à jour** : 2026-10-31 (**P19.2/P19.3 LIVRÉS** — page Ouvrage à TROIS
+> ZONES (ui/ouvrage_window.py, maquette validée 2026-10-29) branchée sur le document
+> dérivé P19.1 : arborescence à la Word à gauche (chapitres manuels, sous-titres,
+> séparateurs, paragraphes avec réunion source, « Réserves » — largeur réglable par
+> splitter), manuscrit compilé ÉDITABLE au centre (titres et sous-titres édités en
+> place, paragraphes avec provenance dessous, insertion des éléments de structure
+> AVANT l'élément sélectionné), rapport à droite (état de la génération,
+> signalements « réunion re-reformulée depuis la génération », non-placées) ;
+> génération/régénération complète qui ÉCRASE avec avertissement explicite
+> (« Non » ne touche à rien), sauvegarde ouvrage.json, export final P18.3 conservé ;
+> l'analyse de cohérence et la re-vérification des versets arrivent avec P20 (note
+> dans le panneau). Aussi : **stepper compact sans info-bulle** (hub et page Étude —
+> la pastille affiche déjà son libellé, retour David 31/10 ; la page Réunion
+> conserve « Étape optionnelle »), **P16-bis 4ᵉ série LIVRÉE** (progression de la
+> reformulation §19-23, les 5 invariants testés), **P18.6-bis série 6 LIVRÉE**
+> (pastilles non configurées en gris off, hub sans mention pour les non-transcrites),
+> **P19.1 LIVRÉ** (modèle de données du document ouvrage). **518 tests verts**.)
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
