@@ -59,6 +59,7 @@ from services.etude_io import (
     ajouter_version_reformulation,
     sauvegarder_etude,
 )
+from services.prompts import hash_prompt
 from services.traitements.journal import (
     RESULTAT_ERREUR,
     RESULTAT_SUCCES,
@@ -855,6 +856,11 @@ class MoteurTraitements:
         max tokens) — les écarts et la pertinence
         des reformulations deviennent traçables
         modèle par modèle.
+
+        P16-ter : le prompt système EFFECTIF est
+        mémorisé avec la version (texte + hash
+        court) — deux versions qui ne divergent
+        que par le prompt se distinguent.
         """
 
         stats = {
@@ -880,6 +886,16 @@ class MoteurTraitements:
                     parametres.effort_raisonnement
                 ),
             })
+
+        #
+        # P16-ter : prompt EFFECTIF (texte + hash
+        # court) dans les stats de la version.
+        #
+        if contexte.prompt_systeme:
+            stats["prompt"] = contexte.prompt_systeme
+            stats["prompt_hash"] = hash_prompt(
+                contexte.prompt_systeme
+            )
 
         version = ajouter_version_reformulation(
             self.etude,

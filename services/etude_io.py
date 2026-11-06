@@ -64,7 +64,11 @@ from services.etude_schema import (
     valider_resume,
     valider_synthese,
 )
-from services.resources import resource_path
+from services.prompts import (
+    USAGE_REFORMULATION,
+    USAGE_RESUME,
+    prompt_initial,
+)
 from services.timecodes import horodatage_iso
 from services.controle_qualite import (
     INTERDITS_STYLISTIQUES_DEFAUT,
@@ -200,32 +204,18 @@ def _lire_json(chemin: Path) -> dict:
         return json.load(fichier)
 
 
-def _lire_prompt_par_defaut(nom_fichier: str) -> str:
-    """
-    Charge un prompt v2 de référence embarqué dans
-    l'application (valeur par défaut des paramètres).
-    """
-
-    chemin = resource_path(
-        f"resources/prompts/{nom_fichier}"
-    )
-
-    with open(
-        chemin,
-        "r",
-        encoding="utf-8"
-    ) as fichier:
-        return fichier.read().strip()
-
-
 def parametres_par_defaut(
     temperature_reformulation: float = 0.3,
-    temperature_resume: float = 0.2
+    temperature_resume: float = 0.2,
+    dossier_prompts=None
 ) -> ParametresEtude:
     """
     Paramètres initiaux d'une étude (contrat §10) :
-    prompts v2 de référence intégrés comme valeurs
-    actives, températures par défaut venant des
+    prompts v2 intégrés comme valeurs actives —
+    depuis la BIBLIOTHÈQUE depuis P16-ter
+    (fichier prompts/<usage>.md du dossier de
+    paramétrage s'il existe, défaut embarqué
+    sinon) — températures par défaut venant des
     réglages de l'app (décision C2 : reformulation
     0.3, résumé 0.2 — surchargeables par étude),
     aucun secret (CredentialStore v1).
@@ -233,8 +223,9 @@ def parametres_par_defaut(
 
     return ParametresEtude(
         reformulation={
-            "prompt": _lire_prompt_par_defaut(
-                "prompt_reformulation_v2.md"
+            "prompt": prompt_initial(
+                USAGE_REFORMULATION,
+                dossier_prompts
             ),
             "modele": "mistral-large-latest",
             "temperature": temperature_reformulation,
@@ -248,8 +239,9 @@ def parametres_par_defaut(
             },
         },
         resume={
-            "prompt": _lire_prompt_par_defaut(
-                "prompt_resume_v2.md"
+            "prompt": prompt_initial(
+                USAGE_RESUME,
+                dossier_prompts
             ),
             "modele": "mistral-large-latest",
             "temperature": temperature_resume,

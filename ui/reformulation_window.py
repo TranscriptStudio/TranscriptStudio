@@ -906,7 +906,22 @@ class ReformulationWindow(QWidget):
             "Log des opérations (lecture seule)"
         )
 
+        #
+        # Gestion des prompts (P16-ter) : ouvre le
+        # gestionnaire EN MODE ÉTUDE — édition de
+        # la copie locale de l'étude, divergence
+        # (hash) avec la bibliothèque, recharger /
+        # promulguer.
+        #
+        self.prompts_button = QPushButton("⚙ Prompts")
+        self.prompts_button.setToolTip(
+            "Gérer le prompt de reformulation de "
+            "l'étude (copie locale, divergence avec "
+            "la bibliothèque, recharger / promulguer)"
+        )
+
         for bouton in (
+            self.prompts_button,
             self.traiter_button,
             self.couts_button,
             self.annuler_button,
@@ -1026,6 +1041,10 @@ class ReformulationWindow(QWidget):
         #
         self.traiter_button.clicked.connect(
             self.lancer_traitement
+        )
+
+        self.prompts_button.clicked.connect(
+            self.ouvrir_gestion_prompts
         )
 
         self.couts_button.clicked.connect(
@@ -1694,6 +1713,16 @@ class ReformulationWindow(QWidget):
                 )
 
             lignes.append(ligne_modele)
+
+        #
+        # P16-ter : hash court du prompt EFFECTIF —
+        # deux versions qui ne divergent que par
+        # le prompt se distinguent.
+        #
+        hash_court = stats.get("prompt_hash")
+
+        if hash_court:
+            lignes.append(f"prompt {hash_court}")
 
         return "\n".join(lignes)
 
@@ -3780,6 +3809,32 @@ class ReformulationWindow(QWidget):
         dialogue = LogWindow(
             self.etude.journal,
             parent=self
+        )
+
+        dialogue.exec()
+
+    def ouvrir_gestion_prompts(self):
+        """
+        « ⚙ Prompts » (P16-ter) : gestionnaire en
+        MODE ÉTUDE — la copie locale de l'étude
+        uniquement, divergence (hash) avec la
+        bibliothèque, recharger / promulguer avec
+        confirmation.
+        """
+
+        from ui.gestion_prompts_dialog import (
+            GestionPromptsDialog,
+            MODE_ETUDE,
+        )
+        from services.prompts import (
+            USAGE_REFORMULATION,
+        )
+
+        dialogue = GestionPromptsDialog(
+            self,
+            mode=MODE_ETUDE,
+            etude_ouverte=self.etude,
+            usage_initial=USAGE_REFORMULATION,
         )
 
         dialogue.exec()

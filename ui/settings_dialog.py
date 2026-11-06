@@ -43,6 +43,10 @@ from services.llm.client import (
     creer_client,
 )
 from ui.catalogue_llm_dialog import CatalogueLLMDialog
+from ui.gestion_prompts_dialog import (
+    MODE_BIBLIOTHEQUE,
+    PanneauGestionPrompts,
+)
 from services.bibles import (
     ErreurBible,
     VERSIONS_BIBLE,
@@ -213,6 +217,11 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(
             self._construire_onglet_bibles(),
             "Bibles"
+        )
+
+        self.tabs.addTab(
+            self._construire_onglet_prompts(),
+            "Prompts"
         )
 
         layout.addWidget(
@@ -678,6 +687,40 @@ class SettingsDialog(QDialog):
         layout.addLayout(ligne)
 
         return carte
+
+    def _construire_onglet_prompts(self) -> QWidget:
+        """
+        Onglet Prompts (P16-ter, spec
+        UI_GESTION_PROMPTS_V2_2026-10-31a.md) :
+        bibliothèque de prompts du dossier de
+        paramétrage (prompts/<usage>.md) — éditeur
+        multiligne intégré, « Réinitialiser aux
+        défauts embarqués », import/export .md/.txt.
+
+        « Enregistrer » écrit les modifications ;
+        « Annuler » les abandonne (invariant 6 :
+        l'import n'écrit jamais rien).
+        """
+
+        onglet = QWidget()
+
+        layout = QVBoxLayout(onglet)
+
+        layout.setContentsMargins(0, 10, 0, 10)
+
+        layout.setSpacing(10)
+
+        self.prompts_panneau = PanneauGestionPrompts(
+            onglet,
+            mode=MODE_BIBLIOTHEQUE
+        )
+
+        layout.addWidget(
+            self.prompts_panneau,
+            stretch=1
+        )
+
+        return onglet
 
     def _rafraichir_bibles(self):
         """
@@ -1623,6 +1666,14 @@ class SettingsDialog(QDialog):
             )
 
         self.settings.set_llm_config(config)
+
+        #
+        # Bibliothèque de prompts (P16-ter) : les
+        # usages modifiés sont écrits dans le
+        # dossier de paramétrage ; les autres
+        # réglages n'entraînent AUCUNE écriture.
+        #
+        self.prompts_panneau.enregistrer()
 
         # En mode first-run, marquer la configuration comme terminee
         if self._is_first_run:

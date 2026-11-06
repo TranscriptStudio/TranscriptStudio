@@ -198,6 +198,21 @@ class ResumeWindow(QDialog):
         lancement.addWidget(QLabel("Longueur :"))
         lancement.addWidget(longueur_widget)
 
+        #
+        # Gestion des prompts (P16-ter) : gestionnaire
+        # en MODE ÉTUDE depuis la page Résumé.
+        #
+        self.prompts_button = QPushButton("⚙ Prompts")
+        self.prompts_button.setToolTip(
+            "Gérer le prompt de résumé de l'étude "
+            "(copie locale, divergence avec la "
+            "bibliothèque, recharger / promulguer)"
+        )
+        self.prompts_button.clicked.connect(
+            self.ouvrir_gestion_prompts
+        )
+        lancement.addWidget(self.prompts_button)
+
         self.generer_button = QPushButton("Générer…")
         self.generer_button.clicked.connect(
             self.generer
@@ -414,6 +429,14 @@ class ResumeWindow(QDialog):
                     f"{stats.get('cout_estime', 0):.3f} €"
                 )
 
+                # P16-ter : traçabilité du prompt
+                # effectif (hash court).
+                if stats.get("prompt_hash"):
+                    details += (
+                        f" · prompt "
+                        f"{stats['prompt_hash']}"
+                    )
+
             self.version_label.setText(details)
 
         else:
@@ -591,6 +614,30 @@ class ResumeWindow(QDialog):
             self.annulation.demandee = True
 
         self.annuler_button.setEnabled(False)
+
+    def ouvrir_gestion_prompts(self):
+        """
+        « ⚙ Prompts » (P16-ter) : gestionnaire en
+        MODE ÉTUDE — la copie locale de l'étude
+        uniquement, divergence (hash) avec la
+        bibliothèque, recharger / promulguer avec
+        confirmation.
+        """
+
+        from ui.gestion_prompts_dialog import (
+            GestionPromptsDialog,
+            MODE_ETUDE,
+        )
+        from services.prompts import USAGE_RESUME
+
+        dialogue = GestionPromptsDialog(
+            self,
+            mode=MODE_ETUDE,
+            etude_ouverte=self.etude,
+            usage_initial=USAGE_RESUME,
+        )
+
+        dialogue.exec()
 
     #
     # Opérations.

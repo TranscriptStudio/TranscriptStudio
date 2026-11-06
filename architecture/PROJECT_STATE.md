@@ -1,22 +1,25 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**P20-ter livré — correctifs UI reformulation, retour David
-> 31/10**). (1) MOLETTE : la panne était plus profonde — un QTextEdit distribue la molette à sa
-> scrollbar INTERNE (même masquée) AVANT toute propagation : le filtre de la table ne la voyait
-> jamais ; le filtre de molette douce est désormais installé sur CHAQUE cellule et son viewport,
-> AVANT la scrollbar. (2) SÉLECTION : plus AUCUN fond de bloc (le « bleu » disparaît) — seul le mot
-> lu reste surligné ; le compositeur de fond (_appliquer_fond_ligne) est supprimé. (3) DÉFILEMENT
-> DE SÉLECTION : le suivi de vue ne se fait PLUS au positionnement (cliquer un bloc ne fait plus
-> « sauter » la vue pour le montrer en entier) — uniquement PENDANT LA LECTURE, à chaque position.
-> (4) TRAÇABILITÉ LLM : chaque version de reformulation MÉMORISE le modèle et ses paramètres
-> EFFECTIFS (stats.modele/temperature/max_tokens/effort, consignés par le moteur depuis
-> ParametresCompletion, passe et relance) ; le libellé de version les affiche sur une seconde
-> ligne (« mistral-large-4 · T 0.3 · Élevé · max 4000 »), l'info-bulle en détail — les écarts de
-> pertinence entre reformulations deviennent traçables modèle par modèle. **574 tests verts**
-> (test_p20_ui_reformulation.py : 24 tests ; suivi-en-lecture vérifié dans test_p16bis_serie2).
-> P20 et P20-bis (réunion autonome, barre sur le stepper, timeline supprimée, texte justifié sans
-> contours, défilement fin lissé, info-bulles au thème) restent livrés comme décrits à leurs
-> commits.
+> **Dernière mise à jour** : 2026-10-31 (**P16-ter livré — gestion des prompts, spec
+> UI_GESTION_PROMPTS_V2_2026-10-31a.md**). (1) BIBLIOTHÈQUE DE PROMPTS dans le dossier de
+> paramétrage de l'app (`prompts/<usage>.md` : reformulation, résumé) — services/prompts.py ;
+> un usage sans fichier vaut le DÉFAUT EMBARQUÉ (jamais modifié, jamais écrit à la lecture) ;
+> les NOUVELLES études héritent de la bibliothèque (parametres_par_defaut lit la
+> bibliothèque), les études EXISTANTES ne sont jamais touchées. (2) RÉGLAGES : onglet
+> « Prompts » (éditeur multiligne intégré, « Réinitialiser aux défauts embarqués » = suppression
+> du fichier, import/export .md/.txt — l'import n'écrit rien avant « Enregistrer »). (3) BOUTONS
+> « ⚙ Prompts » à GAUCHE de « Traiter les blocs non validés » (page Reformulation) et sur la
+> ligne de lancement (page Résumé) : gestionnaire en MODE ÉTUDE — édition de la copie locale
+> uniquement, indicateurs de divergence locale/bibliothèque (hash court SHA-256 8 hex),
+> « Recharger depuis la bibliothèque » et « Promulguer dans la bibliothèque » avec
+> confirmation (ui/gestion_prompts_dialog.py). (4) TRAÇABILITÉ : chaque version LLM
+> (reformulation ET résumé, tous points de consignation) mémorise le prompt EFFECTIF — texte
+> (stats.prompt) et hash court (stats.prompt_hash) ; le libellé de version l'affiche
+> (« prompt 8f2a1b3c ») — continuité directe de la traçabilité modèle/paramètres de P20-ter.
+> Invariants 1-6 testés dans tests/unit/test_p16ter_gestion_prompts.py (22 tests).
+> **596 tests verts.** P20/P20-bis/P20-ter (réunion autonome, barre sur le stepper,
+> timeline supprimée, molette, sélection, traçabilité LLM) restent livrés comme décrits à
+> leurs commits.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)

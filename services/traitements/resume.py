@@ -49,6 +49,7 @@ from services.traitements.journal import (
 from services.traitements.moteur import (
     TEMPERATURE_RESUME_DEFAUT,
 )
+from services.prompts import hash_prompt
 
 
 SOURCE_BRUTE = "brute_corrigee"
@@ -567,6 +568,10 @@ class ServiceResume:
             "tokens_in": 0,
             "tokens_out": 0,
             "cout_estime": 0.0,
+            # P16-ter : prompt EFFECTIF (texte +
+            # hash court) mémorisé avec la version.
+            "prompt": prompt,
+            "prompt_hash": hash_prompt(prompt),
         }
 
         segments = segmenter_source(texte)
@@ -782,6 +787,10 @@ class ServiceResume:
             "tokens_in": 0,
             "tokens_out": 0,
             "cout_estime": 0.0,
+            # P16-ter : prompt EFFECTIF (texte +
+            # hash court) mémorisé avec la version.
+            "prompt": prompt,
+            "prompt_hash": hash_prompt(prompt),
         }
 
         appel = self._appeler(
@@ -888,6 +897,10 @@ class ServiceResume:
             "tokens_in": 0,
             "tokens_out": 0,
             "cout_estime": 0.0,
+            # P16-ter : prompt EFFECTIF (texte +
+            # hash court) mémorisé avec la version.
+            "prompt": prompt,
+            "prompt_hash": hash_prompt(prompt),
         }
 
         appel = self._appeler(
