@@ -2310,7 +2310,15 @@ class ReformulationWindow(QWidget):
     ):
         """
         Relance d'un bloc dans un thread (réseau).
+
+        Toute interrogation du LLM passe par une
+        fenêtre de chargement (règle 2026-11-07) :
+        un seul appel ici — barre indéterminée,
+        temps écoulé affiché, Annuler branché.
         """
+
+        if getattr(self, "thread_bloc", None):
+            return
 
         ligne = self.lignes.get(fid)
 
@@ -2339,12 +2347,38 @@ class ReformulationWindow(QWidget):
             LIBELLES_ETAT[ETAT_EN_COURS]
         )
 
+        #
+        # Fenêtre de chargement (règle 2026-11-07) :
+        # un appel LLM — temps écoulé + Annuler.
+        #
+        from ui.fenetre_chargement_llm import (
+            FenetreChargementLLM,
+        )
+
+        self.annulation_bloc = type(
+            "A", (), {"demandee": False}
+        )()
+
+        self.fenetre_chargement = FenetreChargementLLM(
+            f"Reformulation du bloc {fid}…",
+            parent=self,
+            annulation=self.annulation_bloc,
+            message=(
+                "Appel LLM en cours "
+                f"(bloc {fid})…"
+            ),
+        )
+
+        self.fenetre_chargement.set_indeterminee()
+        self.fenetre_chargement.show()
+
         self.thread_bloc = QThread(self)
         self.worker_bloc = ReformulationBlocWorker(
             self.moteur,
             fid,
             consigne=consigne,
-            selection=selection
+            selection=selection,
+            annulation=self.annulation_bloc
         )
 
         self.worker_bloc.moveToThread(self.thread_bloc)
@@ -2373,6 +2407,14 @@ class ReformulationWindow(QWidget):
 
     def sur_relance_terminee(self, fid: int, _version):
 
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
+
         ligne = self.lignes.get(fid)
 
         if ligne is not None:
@@ -2388,6 +2430,14 @@ class ReformulationWindow(QWidget):
         self.maj_barre_etat()
 
     def sur_relance_erreur(self, fid: int, message: str):
+
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
 
         QMessageBox.critical(
             self,
@@ -2519,6 +2569,26 @@ class ReformulationWindow(QWidget):
             "mise à jour de la synthèse d'étude…"
         )
 
+        #
+        # Fenêtre de chargement (règle 2026-11-07) :
+        # un appel LLM — temps écoulé affiché.
+        #
+        from ui.fenetre_chargement_llm import (
+            FenetreChargementLLM,
+        )
+
+        self.fenetre_chargement = FenetreChargementLLM(
+            "Synthèse d'étude en cours…",
+            parent=self,
+            message=(
+                "Appel LLM en cours "
+                "(synthèse d'étude)…"
+            ),
+        )
+
+        self.fenetre_chargement.set_indeterminee()
+        self.fenetre_chargement.show()
+
         self.synthese_thread = QThread(self)
         self.synthese_worker = SyntheseWorker(
             service,
@@ -2544,6 +2614,14 @@ class ReformulationWindow(QWidget):
 
     def _sur_synthese_terminee(self, resultat):
 
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
+
         version, stats = resultat
 
         self.synthese_thread.quit()
@@ -2558,6 +2636,14 @@ class ReformulationWindow(QWidget):
         )
 
     def _sur_synthese_erreur(self, message):
+
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
 
         self.synthese_thread.quit()
         self.synthese_thread = None
@@ -2626,6 +2712,31 @@ class ReformulationWindow(QWidget):
             base
         )
 
+        #
+        # Fenêtre de chargement (règle 2026-11-07) :
+        # toute la passe passe par la fenêtre —
+        # barre DÉTERMINÉE (bloc k/N), temps écoulé
+        # et estimation du restant.
+        #
+        from ui.fenetre_chargement_llm import (
+            FenetreChargementLLM,
+        )
+
+        self.fenetre_chargement = FenetreChargementLLM(
+            "Reformulation des blocs non validés…",
+            parent=self,
+            annulation=self.annulation_passe,
+            message="Reformulation en cours…",
+            unite="Bloc",
+        )
+
+        self.fenetre_chargement.set_total(
+            base + len(blocs_passe),
+            base
+        )
+
+        self.fenetre_chargement.show()
+
         self.thread_passe = QThread(self)
         self.worker_passe = ReformulationWorker(
             self.moteur,
@@ -2644,6 +2755,21 @@ class ReformulationWindow(QWidget):
         self.worker_passe.progression.connect(
             self.sur_progression_passe
         )
+
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.worker_passe.progression.connect(
+                lambda traites, total: (
+                    self.fenetre_chargement
+                    .definir_progression(
+                        base + traites,
+                        base + total
+                    )
+                )
+            )
 
         self.worker_passe.bloc_traite.connect(
             self.sur_bloc_traite
@@ -3069,6 +3195,18 @@ class ReformulationWindow(QWidget):
                 resultat.statut == "annulee"
             )
         )
+
+        #
+        # Fenêtre de chargement (règle 2026-11-07) :
+        # fermée en fin de passe.
+        #
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
 
         if resultat.statut == "terminee":
             self._run_denominateur = None

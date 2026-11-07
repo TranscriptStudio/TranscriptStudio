@@ -1840,6 +1840,26 @@ class EtudeWindow(QWidget):
             "Génération en cours…"
         )
 
+        #
+        # Fenêtre de chargement (règle 2026-11-07) :
+        # un appel LLM — temps écoulé affiché.
+        #
+        from ui.fenetre_chargement_llm import (
+            FenetreChargementLLM,
+        )
+
+        self.fenetre_chargement = FenetreChargementLLM(
+            "Synthèse d'étude en cours…",
+            parent=self,
+            message=(
+                "Appel LLM en cours "
+                "(synthèse d'étude)…"
+            ),
+        )
+
+        self.fenetre_chargement.set_indeterminee()
+        self.fenetre_chargement.show()
+
         self.synthese_thread = QThread(self)
 
         self.synthese_worker = SyntheseWorker(
@@ -1866,6 +1886,14 @@ class EtudeWindow(QWidget):
 
     def _sur_synthese_terminee(self, resultat):
 
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
+
         version, stats = resultat
 
         self.synthese_thread.quit()
@@ -1887,6 +1915,14 @@ class EtudeWindow(QWidget):
         )
 
     def _sur_synthese_erreur(self, message):
+
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
 
         self.synthese_thread.quit()
         self.synthese_thread = None

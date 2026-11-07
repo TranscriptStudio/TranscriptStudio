@@ -295,6 +295,25 @@ class FusionPenseesDialog(QDialog):
 
         self.assistance_button.setEnabled(False)
 
+        #
+        # Fenêtre de chargement (règle 2026-11-07) :
+        # un appel LLM — temps écoulé + Annuler.
+        #
+        from ui.fenetre_chargement_llm import (
+            FenetreChargementLLM,
+        )
+
+        self.fenetre_chargement = FenetreChargementLLM(
+            "Fusion assistée (IA) en cours…",
+            parent=self,
+            annulation=self.annulation,
+            message="Appel LLM en cours (fusion)…",
+            unite="Appel",
+        )
+
+        self.fenetre_chargement.set_indeterminee()
+        self.fenetre_chargement.show()
+
         self.thread = QThread(self)
         self.worker = FusionWorker(
             lambda: self.service.proposer(
@@ -324,6 +343,14 @@ class FusionPenseesDialog(QDialog):
         self.thread.start()
 
     def sur_assistance_terminee(self, resultat):
+
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
 
         if self.thread is not None:
             self.thread.quit()
@@ -382,6 +409,14 @@ class FusionPenseesDialog(QDialog):
             self.stats_assistance = stats
 
     def sur_assistance_erreur(self, message):
+
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
 
         if self.thread is not None:
             self.thread.quit()

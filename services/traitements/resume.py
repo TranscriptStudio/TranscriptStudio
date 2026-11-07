@@ -535,11 +535,17 @@ class ServiceResume:
         source: str = None,
         longueur_cible: list = None,
         consigne: str = None,
-        annulation: Annulation = None
+        annulation: Annulation = None,
+        progression=None
     ):
         """
         Génère le résumé de la réunion (nouvelle
         version, source stockée avec le résultat).
+
+        ``progression`` (optionnel) : rappelé
+        ``(etape, total)`` après chaque appel LLM
+        des segments + l'assemblage final
+        (fenêtre de chargement, règle 2026-11-07).
 
         Retour : (version, stats cumulées des appels).
         """
@@ -638,6 +644,12 @@ class ServiceResume:
 
             notes.append(resultat.texte)
 
+            if progression is not None:
+                progression(
+                    index,
+                    len(segments) + 1
+                )
+
         message = self._message_final(
             "\n\n".join(
                 f"Notes du segment {index} :\n{note}"
@@ -658,6 +670,12 @@ class ServiceResume:
         )
 
         self._cumuler(stats, resultat)
+
+        if progression is not None:
+            progression(
+                len(segments) + 1,
+                len(segments) + 1
+            )
 
         return (
             self._consigner(

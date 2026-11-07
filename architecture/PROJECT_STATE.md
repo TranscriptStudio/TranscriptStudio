@@ -1,23 +1,29 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-11-07 (**P19.4-bis LIVRÉ — prompt de fusion dans la
-> BIBLIOTHÈQUE ÉDITABLE**, ARBITRAGE_PROMPT_FUSION_2026-11-07a : usage
-> `prompts/fusion.md`, libellé « Fusion de pensées » au sélecteur de ⚙ Prompts (entrées
-> page Reformulation et page Résumé), défaut embarqué reconstituable
-> `resources/prompts/prompt_fusion_v2.md`, copie LOCALE par étude — bloc `fusion`
-> OPTIONNEL de parametres.json, les études existantes ne sont jamais touchées, les
-> nouvelles héritent de la bibliothèque ; l'assistance envoie les PENSÉES CANDIDATES
-> (textes, locuteurs, réunions sources) au prompt de fusion ; TRAÇABILITÉ texte+hash :
-> chaque fusion assistée consigne le prompt EFFECTIF (texte entier + hash court, modèle,
-> coûts) dans ouvrage.json (`fusion.stats`) — hash visible au manuscrit ; Inv. B de
-> ARBITRAGE_P19_4_FUSION_REGENERATION appliqué : l'avertissement de régénération
-> mentionne désormais explicitement les FUSIONS (et l'historique)). Aussi livrés ce
-> jour : **série 8 navigation** (spec 31e §31 — tout l'outillage du résumé vit dans la
-> page ③ Résumé, la fenêtre « Résumé… » est SUPPRIMÉE, invariant 17, ui/resume_window.py
-> devient PageResume(QWidget) embarquée, 5 nouveaux test_p18_6bis_serie8_resume.py) et
-> **P19.4 fusion de pensées** (17 tests ; interprétation VALIDÉE par
-> ARBITRAGE_P19_4_FUSION_REGENERATION). Synchro atelier v39 : INDEX_SPECS 2026-11-07b/c
-> + les deux arbitrages recopiés dans architecture/spec_v2/.
+> **Dernière mise à jour** : 2026-11-07 (**fenêtre de chargement pour TOUTE
+> interrogation du LLM** — règle David 2026-11-07, livrée en fin de journée).
+> Nouvelle `ui/fenetre_chargement_llm.py` (`FenetreChargementLLM`, non modale) :
+> TEMPS ÉCOULÉ toujours affiché (m:ss / h:mm:ss), barre DÉTERMINÉE quand
+> c'est possible (« Bloc k/N — en cours… » avec estimation indicative du
+> restant ; « Segment k/N » pour le résumé), sinon barre INDÉTERMINÉE (un
+> seul appel), bouton « Annuler » branché sur l'annulation de l'opération.
+> Branchée sur TOUS les appels LLM de l'app : page Reformulation (relance
+> d'un bloc individuel/ciblée — fenêtre « Reformulation du bloc N… » avec
+> annulation désormais câblée au worker ; passe complète — fenêtre avec
+> progression bloc k/N alimentée par le worker, la zone en ligne de la
+> 4ᵉ série reste ; synthèse auto), page Résumé (génération avec
+> progression par segment via un nouveau callback `progression` de
+> `ServiceResume.generer`, relance avec consigne et retravail de
+> sélection — un appel, temps seul), page Étude (régénérer la synthèse),
+> dialogue de fusion assistée. Tests : test_progression_llm.py (12 tests :
+> fenêtre seule — temps/format, déterminée+restant, indéterminée,
+> Annuler, fermeture idempotente ; invariant « chaque module LLM importe
+> la fenêtre » ; par site : ouverture+fermeture et progression — workers
+> rendus synchrones en test). Voir session ci-dessous. Aussi livrés ce
+> jour : **P19.4-bis** (prompt de fusion en bibliothèque, commit 735c7ed),
+> **série 8 navigation** (résumé dans la page ③, commit 1153a2a),
+> **P19.4** (fusion de pensées, commit 737d30d). Synchro atelier v39 :
+> INDEX_SPECS 2026-11-07b/c + les deux arbitrages recopiés.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -2128,6 +2134,52 @@ utilisateur-invisible codé en dur.
    dernier_prompt/hash, DialogueFactice.stats()).
 
 Bilan tests : **630 verts** (618 + 12 nouveaux), suite complète
+régénérée.
+
+---
+
+## SESSION 2026-11-07 (fin de journée) — FENÊTRE DE CHARGEMENT LLM : LIVRÉ
+
+Règle David (2026-11-07) : **toute interrogation du LLM de l'app passe
+par une fenêtre de chargement** affichant la progression quand c'est
+possible (typiquement la reformulation de tous les blocs) et le temps.
+
+1. **Nouveau `ui/fenetre_chargement_llm.py`** — `FenetreChargementLLM`
+   (QDialog NON modale) : titre de l'opération, libellé d'étape
+   (« Bloc k/N — en cours… » / « Segment k/N — en cours… » / message
+   libre), barre QProgressBar DÉTERMINÉE si total connu sinon
+   INDÉTERMINÉE, **temps écoulé toujours affiché** (m:ss, h:mm:ss ;
+   QTimer 500 ms), estimation indicative du restant quand k>0, bouton
+   « Annuler » branché sur l'objet d'annulation (masqué sinon),
+   `fermer()` idempotent.
+2. **Sites branchés** (ouverture au lancement, fermeture en fin
+   d'opération — succès, erreur ou annulation) :
+   - page Reformulation : `lancer_relance` (bloc individuel / partie
+     de bloc — 1 appel, temps seul ; **l'annulation est désormais
+     câblée au worker** `ReformulationBlocWorker`, avec garde
+     anti-double-lancement), `lancer_traitement` (passe complète —
+     fenêtre alimentée par le signal `progression` du worker, base de
+     reprise incluse ; la zone en ligne de la 4ᵉ série reste en
+     place), `maj_synthese_si_reunion_validee` (synthèse auto) ;
+   - page Résumé (`PageResume.lancer_operation`) : « Générer… » avec
+     **progression par segment** (nouveau callback `progression` de
+     `ServiceResume.generer` : (k, segments+1) après chaque segment
+     puis l'assemblage final), « Relancer avec consigne… » et
+     « Retravailler la sélection » (1 appel, temps seul) ;
+   - page Étude : `_lancer_synthese` (régénération manuelle) ;
+   - dialogue de fusion assistée (P19.4) : `assister`.
+3. **Tests** : `tests/unit/test_progression_llm.py` (12 tests). Les
+   workers y sont rendus SYNCHRONES (`QThread.start` émet `started`
+   immédiatement + `moveToThread` neutre — les signaux passent en
+   direct, aucun vrai thread Qt en offscreen : un premier run avec
+   vrais threads a segfaulté à la teardown) ; la fenêtre est espionnée
+   par sous-classement (`EspionChargement.crees`) : titre, barre,
+   libellé, `_fermee`, et `page.fenetre_chargement is None` après.
+   Invariant textuel : les 4 modules LLM importent la fenêtre.
+   Service résumé : progression (1,4)…(4,4) vérifiée avec
+   `segmenter_source` mocké à 3 segments.
+
+Bilan tests : **642 verts** (630 + 12 nouveaux), suite complète
 régénérée.
 
 ---

@@ -598,7 +598,13 @@ class PageResume(QWidget):
     # Lancement d'une opération en thread.
     #
 
-    def lancer_operation(self, operation):
+    def lancer_operation(
+        self,
+        operation,
+        titre="Opération LLM en cours…",
+        message="Appel LLM en cours…",
+        unite="Segment"
+    ):
 
         if self.thread is not None:
             return
@@ -606,6 +612,28 @@ class PageResume(QWidget):
         self.annulation = type(
             "A", (), {"demandee": False}
         )()
+
+        #
+        # Fenêtre de chargement (règle 2026-11-07) :
+        # TOUTE interrogation du LLM y passe —
+        # progression déterminée quand c'est possible
+        # (segments du résumé), sinon temps écoulé
+        # seul ; Annuler branché sur l'annulation.
+        #
+        from ui.fenetre_chargement_llm import (
+            FenetreChargementLLM,
+        )
+
+        self.fenetre_chargement = FenetreChargementLLM(
+            titre,
+            parent=self,
+            annulation=self.annulation,
+            message=message,
+            unite=unite,
+        )
+
+        self.fenetre_chargement.set_indeterminee()
+        self.fenetre_chargement.show()
 
         for bouton in (
             self.generer_button,
@@ -635,6 +663,14 @@ class PageResume(QWidget):
 
     def sur_terminee(self, _resultat):
 
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
+
         self.thread.quit()
         self.thread = None
         self.worker = None
@@ -647,6 +683,14 @@ class PageResume(QWidget):
         self.charger()
 
     def sur_erreur(self, message):
+
+        if getattr(
+            self,
+            "fenetre_chargement",
+            None
+        ) is not None:
+            self.fenetre_chargement.fermer()
+            self.fenetre_chargement = None
 
         self.thread.quit()
         self.thread = None
@@ -767,10 +811,28 @@ class PageResume(QWidget):
                 reunion,
                 source=source,
                 longueur_cible=longueur,
-                annulation=self.annulation
+                annulation=self.annulation,
+                progression=(
+                    getattr(
+                        self,
+                        "fenetre_chargement",
+                        None
+                    )
+                    and (
+                        self.fenetre_chargement
+                        .definir_progression
+                    )
+                ),
             )
 
-        self.lancer_operation(operation)
+        self.lancer_operation(
+            operation,
+            titre="Génération du résumé…",
+            message=(
+                "Génération du résumé en cours…"
+            ),
+            unite="Segment",
+        )
 
     def relancer(self):
         """
@@ -804,7 +866,15 @@ class PageResume(QWidget):
                 annulation=self.annulation
             )
 
-        self.lancer_operation(operation)
+        self.lancer_operation(
+            operation,
+            titre="Relance du résumé…",
+            message=(
+                "Relance du résumé avec consigne "
+                "en cours…"
+            ),
+            unite="Appel",
+        )
 
     def relancer_selection(self):
         """
@@ -856,7 +926,15 @@ class PageResume(QWidget):
                 annulation=self.annulation
             )
 
-        self.lancer_operation(operation)
+        self.lancer_operation(
+            operation,
+            titre="Retravail de la sélection…",
+            message=(
+                "Retravail du passage sélectionné "
+                "en cours…"
+            ),
+            unite="Appel",
+        )
 
     def sauvegarder_edition(self):
         """
