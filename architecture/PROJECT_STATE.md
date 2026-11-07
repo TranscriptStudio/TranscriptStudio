@@ -2184,6 +2184,27 @@ régénérée.
 
 ---
 
+## SESSION 2026-11-07 (soir) — MOLETTE : TOUCHPAD DE PRÉCISION : CORRIGÉ
+
+Retour David : « le scroll molette dans la page reformulation ne
+fonctionne pas ». Diagnostic offscreen (événements synthétiques
+`QWheelEvent` envoyés au viewport, aux cellules et via le vrai chemin
+`QWindow`) : la molette CLASSIQUE (`angleDelta`, 1 cran = 120) fonctionne
+(le filtre `_MoletteDouce` de P20-ter consomme et anime), mais un
+**touchpad de précision Windows** délivre `angleDelta == 0` avec
+`pixelDelta` renseigné — le filtre ne lisait que `angleDelta` :
+aucun défilement (reproduit : value restait à 0).
+
+Correctif (`_MoletteDouce.eventFilter`) : si `angleDelta != 0`,
+granularité habituelle (1 à 2 lignes par cran, cible non cumulable) ;
+sinon **défilement au pixel** depuis `pixelDelta`. Test de régression
+`test_molette_touchpad_pixel_delta` (test_p20_ui_reformulation.py) :
+`angleDelta=0, pixelDelta=(0,-53)` → cible 53, puis 106 au cumul.
+Vérifié de bout en bout : pixelDelta seul 0 → 360, angleDelta 0 → 540.
+Hors périmètre (inchangés) : `timeline_widget.py` et `waveform_widget.py`
+(zoom horizontal, `angleDelta` seul) — la timeline n'est plus dans la
+page Reformulation depuis P20.
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
 **P19 est LIVRÉ DANS SON INTÉGRALITÉ** (P19.1 :

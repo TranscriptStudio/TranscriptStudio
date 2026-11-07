@@ -304,7 +304,10 @@ class _MoletteDouce(QObject):
     - granularité : une à deux lignes de texte par
       crant de molette (plus JAMAIS un bloc
       entier — le mode ScrollPerItem sautait les
-      cellules) ;
+      cellules) ; touchpad de PRÉCISION
+      (angleDelta == 0, pixelDelta renseigné) :
+      défilement au pixel (retour David
+      2026-11-07) ;
     - lissage : le défilement est ANIMÉ (~140 ms,
       courbe OutCubic) — pas de rupture brutale ;
     - latence NON cumulable : un crant pendant
@@ -357,32 +360,51 @@ class _MoletteDouce(QObject):
             self._table.verticalScrollBar()
         )
 
-        crant = event.angleDelta().y() / 120
-
-        ligne_px = max(
-            14,
-            int(
-                self._table.font().pointSize()
-                * 1.7
-            )
-        )
-
         #
-        # Base = la CIBLE courante (pas la position
-        # affichée) : les crants successifs se
-        # suivent sans s'annuler ni s'empiler.
+        # Molette classique : angleDelta (1 cran =
+        # 120) → une à deux lignes par cran. Touchpad
+        # de PRÉCISION (Windows) : angleDelta == 0 et
+        # pixelDelta renseigné → défilement AU PIXEL
+        # (sinon la molette ne fait RIEN sur ces
+        # touchpads — retour David 2026-11-07).
         #
+        delta_angle = event.angleDelta().y()
+
         base = (
             self._cible
             if self._cible is not None
             else barre.value()
         )
 
-        cible = (
-            base
-            - crant * ligne_px
-            * self.LIGNES_PAR_CRANT
-        )
+        if delta_angle != 0:
+
+            crant = delta_angle / 120
+
+            ligne_px = max(
+                14,
+                int(
+                    self._table.font().pointSize()
+                    * 1.7
+                )
+            )
+
+            #
+            # Base = la CIBLE courante (pas la position
+            # affichée) : les crants successifs se
+            # suivent sans s'annuler ni s'empiler.
+            #
+            cible = (
+                base
+                - crant * ligne_px
+                * self.LIGNES_PAR_CRANT
+            )
+
+        else:
+
+            cible = (
+                base
+                - event.pixelDelta().y()
+            )
 
         cible = max(
             barre.minimum(),

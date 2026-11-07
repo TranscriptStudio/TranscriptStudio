@@ -676,6 +676,55 @@ class TestDefilement:
             > premiere
         )
 
+    def test_molette_touchpad_pixel_delta(
+        self,
+        fenetre
+    ):
+        """
+        Touchpad de PRÉCISION (Windows) : la molette
+        arrive avec angleDelta == 0 et pixelDelta
+        renseigné — le filtre doit défiler AU PIXEL
+        (retour David 2026-11-07 : sinon la molette
+        ne fait RIEN sur ces touchpads).
+        """
+
+        barre = fenetre.table.verticalScrollBar()
+
+        barre.setMaximum(1000)
+        barre.setValue(0)
+
+        fenetre._molette._cible = None
+
+        evenement = QWheelEvent(
+            QPointF(5, 5),
+            QPointF(5, 5),
+            QPoint(0, -53),   # pixelDelta seul
+            QPoint(0, 0),     # angleDelta nul
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+            Qt.ScrollPhase.ScrollUpdate,
+            False,
+        )
+
+        assert fenetre._molette.eventFilter(
+            fenetre.table.viewport(),
+            evenement
+        )
+
+        assert (
+            fenetre._molette._cible == 53
+        )
+
+        # Cumul au pixel depuis la cible courante.
+        fenetre._molette.eventFilter(
+            fenetre.table.viewport(),
+            evenement
+        )
+
+        assert (
+            fenetre._molette._cible == 106
+        )
+
 
 #
 # ==================================================
