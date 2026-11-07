@@ -415,11 +415,22 @@ class _MoletteDouce(QObject):
 
         self._animation.stop()
 
+        #
+        # P20-ter bis (retour David 2026-11-07 : la
+        # molette ne fonctionnait PLUS) : QVariantAnimation
+        # n'émet RIEN si startValue (int, barre.value())
+        # et endValue (float, cible) n'ont pas le même
+        # type — l'animation restait « Running » sans
+        # jamais tick. Les deux bornes sont forcées en
+        # float.
+        #
         self._animation.setStartValue(
-            barre.value()
+            float(barre.value())
         )
 
-        self._animation.setEndValue(cible)
+        self._animation.setEndValue(
+            float(cible)
+        )
 
         self._animation.start()
 

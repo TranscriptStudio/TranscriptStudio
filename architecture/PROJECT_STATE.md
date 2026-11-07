@@ -2204,6 +2204,21 @@ Vérifié de bout en bout : pixelDelta seul 0 → 360, angleDelta 0 → 540.
 Hors périmètre (inchangés) : `timeline_widget.py` et `waveform_widget.py`
 (zoom horizontal, `angleDelta` seul) — la timeline n'est plus dans la
 page Reformulation depuis P20.
+Mise à jour même jour (2ᵉ retour David : « toujours pas ») : la cause
+RACINE est trouvée — `QVariantAnimation` n'émet RIEN quand
+`startValue` (int, `barre.value()`) et `endValue` (float, `cible`)
+n'ont pas le même type : l'animation restait « Running » sans jamais
+tick (0 émission, `currentValue=None`), la barre restait à 0 — la
+molette était morte depuis P20. Correctif : les deux bornes sont
+forcées en `float` dans `_MoletteDouce.eventFilter`. Le correctif
+pixelDelta (touchpad) du commit précédent reste valide et cumulé.
+Test de régression `test_molette_animation_vraiment_appliquee`
+(émissions valueChanged jusqu'à la cible après pompage de la vraie
+boucle d'événements). Vérifié de bout en bout offscreen : 5 crants →
+150 px, 5 gestes touchpad → 300 px, 3 crants haut → 210 px. Autres
+QVariantAnimation de l'app vérifiées (home_window, block_widget :
+types homogènes).
+
 
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 

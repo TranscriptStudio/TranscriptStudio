@@ -725,6 +725,77 @@ class TestDefilement:
             fenetre._molette._cible == 106
         )
 
+    def test_molette_animation_vraiment_appliquee(
+        self,
+        qapp,
+        fenetre
+    ):
+        """
+        RÉGRESSION (retour David 2026-11-07 : « le
+        scroll ne marche pas ») : QVariantAnimation
+        n'émet RIEN quand startValue (int,
+        barre.value()) et endValue (float, cible) n'ont
+        pas le même type — l'animation restait
+        « Running » sans jamais tick. Les deux bornes
+        sont forcées en float : après un cran,
+        l'animation émet bien jusqu'à la cible.
+        """
+
+        import time
+
+        barre = fenetre.table.verticalScrollBar()
+
+        barre.setRange(0, 1000)
+
+        fenetre._molette._cible = None
+
+        evenement = QWheelEvent(
+            QPointF(5, 5),
+            QPointF(5, 5),
+            QPoint(0, 0),
+            QPoint(0, -120),
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+            Qt.ScrollPhase.ScrollUpdate,
+            False,
+        )
+
+        assert fenetre._molette.eventFilter(
+            fenetre.table.viewport(),
+            evenement
+        )
+
+        cible = fenetre._molette._cible
+
+        assert cible > 0
+
+        emissions = []
+
+        fenetre._molette._animation.valueChanged.connect(
+            lambda v: emissions.append(v)
+        )
+
+        # Un deuxième cran relance l'animation.
+        fenetre._molette.eventFilter(
+            fenetre.table.viewport(),
+            evenement
+        )
+
+        # Pompe la vraie boucle d'événements.
+        fin = time.monotonic() + 1.0
+
+        while time.monotonic() < fin:
+            QApplication.processEvents()
+            time.sleep(0.01)
+
+        # L'animation a tické jusqu'à la cible (avant
+        # le correctif : 0 émission, bloquée à jamais).
+        assert len(emissions) > 0
+
+        assert abs(emissions[-1] - (
+            fenetre._molette._cible
+        )) < 1e-6
+
 
 #
 # ==================================================
