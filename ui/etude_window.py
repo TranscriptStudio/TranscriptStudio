@@ -1668,9 +1668,12 @@ class EtudeWindow(QWidget):
 
     def ouvrir_reunion_resume(self):
         """
-        Ouvre la fenêtre Résumé de la réunion
-        sélectionnée (P17.1) — dialogue modal, la
-        synthèse se rafraîchit à la fermeture.
+        Série 8 (SPEC_NAVIGATION_MODIFS 31e §31) :
+        le bouton « Résumé » de la mini-tuile mène à
+        la PAGE Réunion, directement à l'étape ⑤
+        Résumé — l'outillage y vit dans la page ; la
+        fenêtre secondaire « Résumé… » est supprimée
+        de l'app (invariant complémentaire 17).
         """
 
         nom = self.reunion_selectionnee()
@@ -1678,20 +1681,63 @@ class EtudeWindow(QWidget):
         if nom is None:
             return
 
+        if not self.etude.reunion_joignable(nom):
+            QMessageBox.warning(
+                self,
+                "Réunion introuvable",
+                (
+                    "La réunion est "
+                    "introuvable : l'étape Résumé "
+                    "a besoin de la réunion (audio, mots "
+                    "horodatés). Relocalisez-la "
+                    "d'abord."
+                )
+            )
+            return
+
         if not self._assurer_decoupage(nom):
             return
 
-        from ui.resume_window import ResumeWindow
-
-        fenetre = ResumeWindow(
+        chemin = fichier_projet_v1(
             self.etude,
-            nom,
-            parent=self
+            nom
         )
 
-        fenetre.exec()
+        projet = load_project(str(chemin))
 
-        self.maj_synthese()
+        navigation = getattr(
+            self,
+            "navigation",
+            None
+        )
+
+        if (
+            navigation is not None
+            and hasattr(
+                navigation,
+                "ouvrir_reunion"
+            )
+        ):
+            navigation.ouvrir_reunion(
+                projet,
+                etude=self.etude,
+                nom=nom,
+                etape="resume"
+            )
+            return
+
+        # Sans adaptateur de navigation (page
+        # orpheline, tests) : pas de fenêtre —
+        # indiquer où vit le résumé.
+        QMessageBox.information(
+            self,
+            "Résumé",
+            (
+                "Le résumé se rédige sur la page "
+                "Réunion, étape ⑤ Résumé : ouvrez "
+                "la réunion pour l'éditer."
+            )
+        )
     #
     # Synthèse d'étude (P17.2).
     #

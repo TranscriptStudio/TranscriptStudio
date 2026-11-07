@@ -1,29 +1,31 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-11-07 (**P19.4 LIVRÉ — fusion de pensées**, feuille de
-> route v2.1 §P19.4 ; **P19 est COMPLET**). Fusion MANUELLE (dialogue côte à côte,
-> `ui/fusion_pensees_dialog.py` — le texte fusionné est prérempli avec les deux textes) ou
-> ASSISTÉE LLM (relance avec les deux textes en entrée + consigne embarquée ;
-> `ServiceFusion` dans `services/traitements/fusion.py`, MÊME résolution de configuration
-> que le moteur — fournisseur des réglages app, modèle/température « reformulation »
-> surchargeables par l'étude —, un appel en thread, la PROPOSITION reste éditable puis
-> validée explicitement, jamais d'application automatique) ; le paragraphe fusionné porte
-> les **provenances multiples** (FIDs, **locuteurs** — champ optionnel `locuteurs` de
-> `ProvenanceParagraphe`, rempli à la génération depuis le découpage —, réunions), prend
-> la place du PREMIER des deux paragraphes et conserve un instantané complet des
-> originaux ; **dé-fusion réversible** : chaque paragraphe reprend son texte, le
-> paragraphe fusionné est conservé dans l'**historique** de l'ouvrage (nouvelle clé
-> `historique` de ouvrage.json), opération confirmée ; le rapport signale fusions vives
-> et fusions dé-fusionnées conservées ; invariant central : opération de COMPOSITION DE
-> L'OUVRAGE uniquement — textes validés et registre de l'étude jamais touchés (testé).
-> Interprétation retenue (à confirmer par l'atelier) : « les paragraphes fusionnés
-> survivent aux régénérations comme toute édition d'ouvrage » = une fusion est une
-> ÉDITION du document dérivé : rien ne la défait automatiquement (jamais de mise à jour
-> incrémentale), seule la RÉGÉNÉRATION EXPLICITE (qui écrase toute édition, avec
-> avertissement) la fait disparaître. La détection des pensées similaires rejoint P20.
-> 17 tests dans tests/unit/test_p194_fusion_pensees.py. **613 tests verts.** P16-ter
-> (gestion des prompts), P20/P20-bis/P20-ter et P18.6-bis séries 1-8-quater restent
-> livrés comme décrits à leurs commits.
+> **Dernière mise à jour** : 2026-11-07 (**série 8 navigation LIVRÉE** — spec 31e §31,
+> P18.6-bis : fusion de l'outillage du résumé dans la PAGE ③ Résumé du stepper ;
+> la fenêtre secondaire « Résumé… » est SUPPRIMÉE de l'app, invariant complémentaire 17
+> testé). `ui/resume_window.py` devient `PageResume` (QWidget embarqué dans la page
+> Réunion étape ⑤) : barre d'outils en haut de page (Source, Longueur 650-700,
+> ⚙ Prompts, Générer…), zone d'édition au corps (la saisie manuelle se fait
+> DIRECTEMENT dedans, l'ancien texte d'aide disparaît), état des versions en tête
+> (Brouillon/Validé + détails avec hash prompt) et indicateur au pied ; source requise
+> MANQUANTE = message clair à la place de la génération (« Générer… » éteint, zone
+> restant éditable — test vérifié sur reformulations absentes puis source brute
+> disponible) ; actions Sauvegarder/Retour arrière/Relancer/Retravailler/Valider,
+> plus de « Fermer » ; le bouton « Résumé » de la page Étude NAVIGUE vers la page
+> Réunion étape ⑤ (plus de dialogue) ; le callback `sur_changement` rafraîchit le
+> stepper à chaque changement de résumé. Tests : réécriture de
+> test_p17_integration (navigation étape « resume »), test_resume_ui (PageResume +
+> source manquante), test_p16ter / test_p18_6e (PageResume), test_p18_6b
+> (réunion autonome : page embarquée, plus de bouton « Résumé… ») ; NOUVEAU
+> tests/unit/test_p18_6bis_serie8_resume.py (5 tests : outillage dans la page,
+> aucun bouton/fenêtre, saisie manuelle directe, source manquante, stepper).
+> Aussi livré ce jour : **P19.4 fusion de pensées** (détail en session P19.4
+> ci-dessous, 17 tests) ; l'écart d'interprétation soumis à l'atelier est
+> **VALIDÉ** par ARBITRAGE_P19_4_FUSION_REGENERATION_2026-11-07a (une fusion est
+> une édition du document dérivé ; jamais défaite automatiquement ; seule la
+> régénération explicite peut l'écraser — son avertissement doit désormais le
+> mentionner, livré avec P19.4-bis). Synchro atelier v39 : INDEX_SPECS
+> 2026-11-07b/c recopiés.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -2006,6 +2008,56 @@ Bilan tests : **613 verts** (596 + 17), suite complète régénérée.
 Synchro atelier faite avant la session (skill v39 via Drive :
 INDEX_SPECS_2026-10-31e…i, SPEC_NAVIGATION_MODIFS_2026-10-31e
 recopiés — séries 6-8 navigation, aucune incidence P19).
+
+---
+
+## SESSION 2026-11-07 (suite, P18.6-bis série 8) — RÉSUMÉ DANS LA PAGE : LIVRÉ
+
+**Série 8** (SPEC_NAVIGATION_MODIFS_2026-10-31e §31, arbitrage du 31/10,
+captures 24-25) : tout l'outillage du résumé vit dans la **page ③ Résumé du
+stepper** (page Réunion) — la fenêtre secondaire « Résumé… » est SUPPRIMÉE
+de l'app (invariant complémentaire 17).
+
+1. **`ui/resume_window.py` : `ResumeWindow(QDialog)` → `PageResume(QWidget)`**,
+   embarquée par `_page_resume` (même schéma que la page Reformulation :
+   étude interne/découpage assurés, sinon panneau d'information). L'outillage
+   est inchangé par ailleurs (P17) : barre d'outils en haut de page (Source,
+   Longueur 650-700 mots, ⚙ Prompts en mode étude, Générer…), zone d'édition
+   au corps, état des versions en tête (Brouillon/Validé, détails v/origine/
+   tokens/€/hash prompt), indicateur de longueur + contrôle qualité au pied,
+   actions Sauvegarder l'édition / Retour arrière / Relancer avec consigne… /
+   Retravailler la sélection / Valider / Dévalider / Annuler — **plus de
+   « Fermer »**, `setWindowTitle`/`resize` supprimés.
+2. **Saisie manuelle DIRECTE** dans la zone d'édition (l'ancien texte d'aide
+   de la page Réunion disparaît ; placeholder enrichi : générer OU taper/
+   coller).
+3. **Source requise manquante** (série 8 §31) : `_verifier_source` (à
+   l'ouverture et à chaque changement de source) — message clair dans
+   l'indicateur (message du service, « la génération est désactivée pour
+   cette source ; la saisie manuelle reste possible »), « Générer… »
+   éteint, zone d'édition restant éditable.
+4. **Navigation** : le bouton « Résumé » de la page Étude mène à la PAGE
+   Réunion étape ⑤ (`navigation.ouvrir_reunion(..., etape="resume")`,
+   réunion joignable vérifiée au passage comme la Reformulation ; sans
+   adaptateur : message d'information, plus aucun dialogue). Le callback
+   `sur_changement` (→ `ReunionWindow._maj_stepper_resume`) rafraîchit le
+   stepper à chaque changement de résumé.
+5. **Tests** : `tests/unit/test_p18_6bis_serie8_resume.py` (5 tests :
+   outillage embarqué dans la page sans « Fermer » ni ancien texte d'aide,
+   aucun bouton « Résumé… » et plus aucune référence de fenêtre dans
+   reunion_window, saisie manuelle directe `edition_manuelle`, source
+   manquante → message + génération éteinte + zone éditable puis rallumage
+   sur source disponible, validation → stepper rafraîchi) ; test_resume_ui
+   (PageResume + nouveau comportement source manquante), test_p17_integration
+   (navigation étape « resume », plus de fenêtre), test_p16ter/test_p18_6e
+   (PageResume), test_p18_6b (réunion autonome : page embarquée).
+6. **Recouvrement avec la série 8 déjà livrée le 31/10** (commit 0261a6c,
+   « UI transcription/correction ») : ce §31 portait sur le RÉSUMÉ, jamais
+   appliqué jusqu'ici — la fenêtre P17 vivait toujours derrière le bouton
+   « Résumé… » ; c'est exactement l'objet de cette session.
+
+Bilan tests : **618 verts** (613 + 5 nouveaux), suite complète
+régénérée.
 
 ---
 

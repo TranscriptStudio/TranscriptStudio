@@ -1,6 +1,13 @@
 # ui/resume_window.py
 """
-Fenêtre Résumé d'une réunion (P17.1).
+Page Résumé d'une réunion (P17.1, fusion de
+l'outillage dans la page ③ Résumé — série 8 §31
+de SPEC_NAVIGATION_MODIFS_2026-10-31e) :
+barre d'outils, zone d'édition, état des
+versions et actions sont portés par la PAGE
+Réunion elle-même ; la fenêtre secondaire
+« Résumé… » est supprimée de l'app (invariant
+complémentaire 17).
 
 Même outillage que la page Reformulation (mécanismes
 communs du moteur) : génération avec source au choix
@@ -11,6 +18,10 @@ versions antérieures), édition libre (chaque
 sauvegarde = une nouvelle version edition_manuelle),
 retour arrière, validation (résumé figé pour
 l'export et la synthèse d'étude).
+
+La saisie manuelle (taper/coller, sans appel LLM) se
+fait DIRECTEMENT dans la zone d'édition — l'état
+vide garde la zone prête.
 
 Avertissement si la source a évolué depuis la
 génération — signalement seulement, jamais de mise à
@@ -27,12 +38,10 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QComboBox,
-    QDialog,
     QHBoxLayout,
     QInputDialog,
     QLabel,
     QMessageBox,
-    QPlainTextEdit,
     QPushButton,
     QSpinBox,
     QTextEdit,
@@ -57,6 +66,7 @@ from services.traitements.resume import (
     SOURCE_BRUTE,
     SOURCE_REFORMULEES,
     source_a_evolve,
+    texte_source,
 )
 
 try:
@@ -88,17 +98,21 @@ class ResumeWorker(QObject):
             self.erreur.emit(str(e))
 
 
-class ResumeWindow(QDialog):
+class PageResume(QWidget):
     """
-    Résumé d'une réunion : génération, édition,
-    historique de versions, validation.
+    Page Résumé d'une réunion : barre d'outils
+    (source, longueur, ⚙ Prompts, générer), zone
+    d'édition, état des versions, actions — le tout
+    SANS fenêtre secondaire (série 8 §31,
+    invariant 17).
     """
 
     def __init__(
         self,
         etude_ouverte: EtudeOuverte,
         reunion: str,
-        parent=None
+        parent=None,
+        sur_changement=None
     ):
         super().__init__(parent)
 
@@ -113,14 +127,18 @@ class ResumeWindow(QDialog):
 
         self.non_enregistre = False
 
-        self.setWindowTitle(
-            f"Résumé — {reunion} — "
-            f"{self.etude.etude.titre}"
-        )
+        # Message quand la source requise manque
+        # (série 8 §31 : message clair À LA PLACE de
+        # la génération, zone d'édition ouverte à la
+        # saisie manuelle).
+        self.message_source = ""
 
-        self.resize(760, 620)
+        # Rappel (Réunion : rafraîchir le stepper
+        # quand le résumé change).
+        self.sur_changement = sur_changement
 
         self.build_ui()
+        self._verifier_source()
         self.charger()
 
     #
@@ -172,6 +190,9 @@ class ResumeWindow(QDialog):
         self.source_combo.addItem(
             "Transcription brute corrigée",
             SOURCE_BRUTE
+        )
+        self.source_combo.currentIndexChanged.connect(
+            self._verifier_source
         )
         lancement.addWidget(self.source_combo)
 
@@ -230,7 +251,10 @@ class ResumeWindow(QDialog):
         self.resume_edit.setPlaceholderText(
             "Aucun résumé pour cette réunion : "
             "choisissez la source et cliquez "
-            "« Générer… »."
+            "« Générer… », ou tapez / collez le "
+            "texte directement ici (saisie manuelle, "
+            "sans appel LLM — même statut une fois "
+            "validé)."
         )
         self.resume_edit.textChanged.connect(
             self.sur_texte_modifie
@@ -309,10 +333,6 @@ class ResumeWindow(QDialog):
         operations.addWidget(self.annuler_button)
 
         operations.addStretch(1)
-
-        fermer = QPushButton("Fermer")
-        fermer.clicked.connect(self.accept)
-        operations.addWidget(fermer)
 
         layout.addLayout(operations)
 
@@ -409,6 +429,14 @@ class ResumeWindow(QDialog):
         self.valider_button.setVisible(not fige)
         self.devalider_button.setVisible(fige)
 
+        # Série 8 §31 : si la source requise manque,
+        # un message clair se met À LA PLACE de la
+        # génération (bouton éteint) — la zone
+        # d'édition reste ouverte à la saisie
+        # manuelle.
+        if not fige and self.message_source:
+            self.generer_button.setEnabled(False)
+
         if derniere:
 
             details = (
@@ -444,6 +472,31 @@ class ResumeWindow(QDialog):
 
         self.maj_controle_qualite()
 
+        if self.sur_changement is not None:
+            self.sur_changement()
+
+    def _verifier_source(self):
+        """
+        Série 8 §31 : la source sélectionnée est-elle
+        disponible ? Sinon, message clair (affiché par
+        l'indicateur À LA PLACE de la génération) ;
+        la zone d'édition reste éditable pour la
+        saisie manuelle.
+        """
+
+        try:
+            texte_source(
+                self.etude,
+                self.reunion,
+                self.source_combo.currentData()
+            )
+            self.message_source = ""
+
+        except Exception as e:
+            self.message_source = str(e)
+
+        self.rafraichir()
+
     def maj_controle_qualite(self):
 
         texte = self.resume_edit.toPlainText()
@@ -453,7 +506,18 @@ class ResumeWindow(QDialog):
 
         mots = compter_mots(texte)
 
-        message = f"Longueur : {mots} mots "
+        message = ""
+
+        if self.message_source:
+            message += (
+                self.message_source
+                + " — la génération est désactivée "
+                "pour cette source ; la saisie "
+                "manuelle reste possible "
+                "ci-dessous.\n"
+            )
+
+        message += f"Longueur : {mots} mots "
 
         if mots == 0:
             message += "(cible : "

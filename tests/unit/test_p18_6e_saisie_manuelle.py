@@ -225,9 +225,9 @@ class TestSaisieManuelleResume:
 
         assert nom not in etude.resumes
 
-        from ui.resume_window import ResumeWindow
+        from ui.resume_window import PageResume
 
-        fenetre = ResumeWindow(etude, nom)
+        fenetre = PageResume(etude, nom)
 
         try:
 

@@ -179,10 +179,14 @@ class TestP17Integration:
         page_etude
     ):
         """
-        P17.1 : « Résumé… » ouvre la fenêtre Résumé
-        de la réunion sélectionnée — la segmentation
-        (déjà enregistrée) est assurée par la
-        fonction partagée, sans dialogue.
+        Série 8 (SPEC_NAVIGATION_MODIFS 31e §31) :
+        « Résumé » mène à la PAGE Réunion, étape ⑤
+        Résumé — tout l'outillage vit dans la page,
+        la fenêtre secondaire « Résumé… » est
+        supprimée de l'app (invariant complémentaire
+        17). La segmentation (déjà enregistrée) est
+        assurée par la fonction partagée, sans
+        dialogue.
         """
 
         page, nom = page_etude
@@ -194,39 +198,51 @@ class TestP17Integration:
 
         assert page.reunion_selectionnee() == nom
 
-        with patch(
-            "ui.resume_window.ResumeWindow"
-        ) as fenetre_resume:
+        ouvertures = []
 
-            with patch.object(
-                page,
-                "_assurer_decoupage",
-                wraps=page._assurer_decoupage
-            ) as assurer:
+        class NavigationFactice:
 
-                page.ouvrir_reunion_resume()
+            def ouvrir_reunion(
+                self,
+                projet,
+                etude=None,
+                nom=None,
+                etape=None
+            ):
+                ouvertures.append({
+                    "etude": etude,
+                    "nom": nom,
+                    "etape": etape,
+                })
 
-            # Segmentation existante : assurée sans
-            # confirmation, pour LA réunion choisie.
-            assert assurer.called
+        page.navigation = NavigationFactice()
 
-            assert (
-                assurer.call_args[0][0] == nom
-            )
+        with patch.object(
+            page,
+            "_assurer_decoupage",
+            wraps=page._assurer_decoupage
+        ) as assurer:
 
-            # La fenêtre Résumé est ouverte pour la
-            # bonne réunion de la bonne étude, et le
-            # dialogue est exécuté (mocké en test).
-            assert fenetre_resume.called
+            page.ouvrir_reunion_resume()
 
-            args = fenetre_resume.call_args
+        # Segmentation existante : assurée sans
+        # confirmation, pour LA réunion choisie.
+        assert assurer.called
 
-            assert args[0][0] is page.etude
-            assert args[0][1] == nom
+        assert (
+            assurer.call_args[0][0] == nom
+        )
 
-            assert (
-                fenetre_resume.return_value.exec.called
-            )
+        # La page Réunion est ouverte à l'étape
+        # Résumé de la bonne réunion de la bonne
+        # étude — jamais une fenêtre séparée.
+        assert len(ouvertures) == 1
+
+        assert ouvertures[0]["etude"] is page.etude
+
+        assert ouvertures[0]["nom"] == nom
+
+        assert ouvertures[0]["etape"] == "resume"
 
     def test_recurrences_depuis_la_page_etude(
         self,

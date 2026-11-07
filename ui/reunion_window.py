@@ -889,130 +889,33 @@ class ReunionWindow(QWidget):
 
     def _page_resume(self):
         """
-        ⑤ Résumé (optionnelle) : la fenêtre Résumé
-        P17 reste un dialogue — panneau d'état +
-        ouverture. Sans étude : rattachement proposé.
+        ⑤ Résumé (optionnelle) — SÉRIE 8 §31
+        (SPEC_NAVIGATION_MODIFS 2026-10-31e) : tout
+        l'outillage du résumé vit DANS LA PAGE —
+        barre d'outils, zone d'édition, état des
+        versions, actions ; la fenêtre secondaire
+        « Résumé… » est supprimée de l'app
+        (invariant complémentaire 17).
         """
 
-        panneau = QWidget()
-
-        layout = QVBoxLayout(panneau)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
-
-        titre_label = QLabel(
-            "⑤ Résumé (optionnelle)"
-        )
-        titre_label.setStyleSheet(
-            "font-size: 15px; font-weight: 600;"
-        )
-
-        layout.addWidget(titre_label)
-
-        self.resume_statut_label = QLabel(
-            self._texte_statut_resume()
-        )
-        self.resume_statut_label.setWordWrap(
-            True
-        )
-        self.resume_statut_label.setStyleSheet(
-            "color: #555555;"
-        )
-
-        layout.addWidget(self.resume_statut_label)
-
-        actions = QHBoxLayout()
-
-        #
-        # P20 : le résumé aussi appartient au
-        # processus réunion — réunion autonome =
-        # étude INTERNE (retour David 31/10,
-        # point 1).
-        #
-        if self._etude_interne() is not None:
-
-            self.resume_button = QPushButton(
-                "Résumé…"
-            )
-            self.resume_button.setToolTip(
-                "Ouvrir la fenêtre Résumé de la réunion "
-                "(P17 : source au choix, éditable, "
-                "validable)"
-            )
-            self.resume_button.clicked.connect(
-                self.ouvrir_resume
-            )
-
-            actions.addWidget(self.resume_button)
-
-            saisie_note = QLabel(
-                "Saisie manuelle possible : tapez ou "
-                "collez le résumé dans la fenêtre "
-                "« Résumé… », puis « Sauvegarder "
-                "l'édition » — sans aucun appel LLM "
-                "(statut identique une fois validé)."
-            )
-            saisie_note.setWordWrap(True)
-            saisie_note.setStyleSheet(
-                "color: #757575; font-size: 11px;"
-            )
-
-            layout.addWidget(saisie_note)
-
-        else:
-
-            info = QLabel(
-                "Le résumé exige la diarisation "
-                "validée de la transcription : cette "
-                "réunion ne peut pas être segmentée "
-                "en l'état (projet introuvable ou "
-                "dossier non inscriptible)."
-            )
-            info.setWordWrap(True)
-            info.setStyleSheet("color: #555555;")
-
-            layout.addWidget(info)
-
-        actions.addStretch()
-        layout.addLayout(actions)
-        layout.addStretch()
-
-        return panneau
-
-    def _texte_statut_resume(self):
-
         interne = self._etude_interne()
 
         if interne is None:
-            return ""
 
-        etude, nom = interne
-
-        reunion = (
-            etude.reunions.get(nom)
-        )
-
-        if reunion and reunion.resume_valide:
-            return "Le résumé de la réunion est validé."
-
-        resultat = (
-            etude.resumes.get(nom)
-        )
-
-        if resultat and resultat.versions:
-            return (
-                f"{len(resultat.versions)} version(s) "
-                "de résumé, aucune validée."
+            return self._page_information(
+                "⑤ Résumé (optionnelle)",
+                [
+                    "Le résumé de la réunion se rédige "
+                    "depuis ses reformulations ou sa "
+                    "transcription brute corrigée : "
+                    "il exige la diarisation validée.",
+                    "",
+                    "Cette réunion ne peut pas être "
+                    "segmentée en l'état (projet "
+                    "introuvable ou dossier non "
+                    "inscriptible).",
+                ]
             )
-
-        return "Aucun résumé pour cette réunion."
-
-    def ouvrir_resume(self):
-
-        interne = self._etude_interne()
-
-        if interne is None:
-            return
 
         etude, nom = interne
 
@@ -1023,27 +926,37 @@ class ReunionWindow(QWidget):
             etude,
             nom
         ):
-            return
 
-        from ui.resume_window import ResumeWindow
-
-        fenetre = ResumeWindow(
-            etude,
-            nom,
-            parent=self
-        )
-
-        fenetre.exec()
-
-        sauvegarder_etude(etude)
-
-        if self.resume_statut_label is not None:
-            self.resume_statut_label.setText(
-                self._texte_statut_resume()
+            return self._page_information(
+                "⑤ Résumé (optionnelle)",
+                [
+                    "La segmentation de la réunion est "
+                    "nécessaire au résumé. Relancez "
+                    "l'étape pour la générer à partir "
+                    "de la diarisation validée."
+                ]
             )
 
-        self.maj_stepper()
+        from ui.resume_window import PageResume
 
+        self.page_resume = PageResume(
+            etude,
+            nom,
+            sur_changement=(
+                self._maj_stepper_resume
+            ),
+        )
+
+        return self.page_resume
+
+    def _maj_stepper_resume(self):
+        """
+        Le résumé a changé (édition, génération,
+        validation) : le stepper de la réunion
+        reflète son état.
+        """
+
+        self.maj_stepper()
     def _page_export(self):
         """
         ⑥ Export : export de réunion (y compris

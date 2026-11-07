@@ -1063,14 +1063,14 @@ class TestEntreesUI:
         self, qapp, tmp_path, monkeypatch
     ):
 
-        from ui.resume_window import ResumeWindow
+        from ui.resume_window import PageResume
         import ui.gestion_prompts_dialog as module
 
         etude, reunions = creer_etude_reunions(
             tmp_path
         )
 
-        fenetre = ResumeWindow(etude, reunions[0])
+        fenetre = PageResume(etude, reunions[0])
 
         try:
 

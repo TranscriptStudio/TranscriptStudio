@@ -1,6 +1,9 @@
 """
-Tests d'invariance UI de la fenêtre Résumé (P17.1,
-même outillage que la page Reformulation).
+Tests d'invariance UI de la page Résumé (P17.1,
+même outillage que la page Reformulation —
+l'outillage vit DANS la page depuis la série 8
+§31 : PageResume est un QWidget embarqué dans la
+page Réunion).
 
 Règles testées :
 - un résumé validé est figé (édition et relances
@@ -50,7 +53,7 @@ def application():
 @pytest.fixture
 def fenetre(application, tmp_path):
 
-    from ui.resume_window import ResumeWindow
+    from ui.resume_window import PageResume
 
     etude, reunions = creer_etude_reunions(tmp_path)
     reunion = reunions[0]
@@ -62,7 +65,7 @@ def fenetre(application, tmp_path):
         source=SOURCE_BRUTE
     )
 
-    fenetre = ResumeWindow(etude, reunion)
+    fenetre = PageResume(etude, reunion)
     fenetre.show()
 
     yield fenetre
@@ -138,6 +141,21 @@ class TestFenetreResume:
         fenetre.devalider()
 
         assert fenetre.resume_edit.isReadOnly() is False
+
+        # Série 8 §31 : la source sélectionnée
+        # (« Reformulations validées ») manque
+        # (aucune reformulation validée dans cette
+        # étude de test) — la génération reste
+        # ÉTEINTE avec son message clair, la zone
+        # d'édition reste ouverte (saisie manuelle).
+        assert not fenetre.generer_button.isEnabled()
+
+        assert fenetre.message_source
+
+        # Source disponible (brute corrigée) : la
+        # génération se rallume.
+        fenetre.source_combo.setCurrentIndex(1)
+
         assert fenetre.generer_button.isEnabled()
 
         assert fenetre.etude.reunions[

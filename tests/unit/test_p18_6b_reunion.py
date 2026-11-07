@@ -504,9 +504,11 @@ class TestContenu:
         reunion_autonome
     ):
         """
-        P20 : le RÉSUMÉ aussi appartient au
-        processus réunion — la page ⑤ d'une réunion
-        autonome offre le bouton « Résumé… ».
+        P20 + SÉRIE 8 §31 : le RÉSUMÉ aussi appartient
+        au processus réunion — la page ⑤ d'une réunion
+        AUTONOME embarque la page Résumé complète
+        (outillage dans la page, plus de bouton
+        « Résumé… » ni de fenêtre : invariant 17).
         """
 
         from unittest.mock import patch
@@ -515,6 +517,8 @@ class TestContenu:
             QMessageBox,
             QPushButton,
         )
+
+        from ui.resume_window import PageResume
 
         fenetre, _p, _s = reunion_autonome
 
@@ -532,12 +536,20 @@ class TestContenu:
 
         page = fenetre.pages_etape["resume"]
 
+        assert isinstance(page, PageResume)
+
+        # Plus aucun bouton « Résumé… » : l'édition
+        # et la génération se font dans la page.
         boutons = [
             b.text()
             for b in page.findChildren(QPushButton)
         ]
 
-        assert "Résumé…" in boutons
+        assert "Résumé…" not in boutons
+
+        assert (
+            "Générer…" in boutons
+        )
 
 
 #
