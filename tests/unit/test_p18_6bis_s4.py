@@ -21,7 +21,7 @@ os.environ.setdefault(
 
 import pytest
 
-from PySide6.QtCore import QEvent, QPointF
+from PySide6.QtCore import QEvent, QPointF, Qt
 from PySide6.QtGui import QEnterEvent
 from PySide6.QtWidgets import (
     QApplication,
@@ -809,9 +809,10 @@ class TestSerie5Couleurs:
             "ui/menu_etudes.py",
             "ui/etude_window.py",
             "ui/reunion_window.py",
-            "icons/tuile-nouvelle-transcription.svg",
+            # tuile-reprendre.svg reste (menu Études) ;
+            # les deux autres SVG de tuiles ont été
+            # remplacés par les PNG de resources/icons/.
             "icons/tuile-reprendre.svg",
-            "icons/tuile-etudes.svg",
         ]
 
         residuelles = [
@@ -949,21 +950,92 @@ class TestSerie5Couleurs:
 
         reinitialiser_theme_actif()
 
-    def test_icones_tuiles_accent(self):
+    def test_icones_tuiles_png(self, hub):
         """
-        §23 : les icônes des 3 grandes tuiles sont
-        à la couleur d'accent #3b9eff.
+        2026-11-07 (cahier David) : les 3 grandes
+        tuiles du hub affichent les illustrations
+        PNG fournies (resources/icons/), telles
+        quelles (PAS de teinte par thème — ce ne
+        sont plus des SVG teintés).
         """
 
         from pathlib import Path
 
-        for nom in [
-            "tuile-nouvelle-transcription.svg",
-            "tuile-reprendre.svg",
-            "tuile-etudes.svg",
-        ]:
-            contenu = Path("icons", nom).read_text(
-                encoding="utf-8"
+        attendues = {
+            "Nouvelle transcription": (
+                "resources/icons/microphone.png"
+            ),
+            "Reprendre une réunion": (
+                "resources/icons/dossier.png"
+            ),
+            "Études": (
+                "resources/icons/livre_étude.png"
+            ),
+        }
+
+        for tuile in (
+            hub.tuile_nouvelle,
+            hub.tuile_reprendre,
+            hub.tuile_etudes,
+        ):
+            chemin = attendues[tuile.titre]
+
+            assert Path(chemin).is_file(), chemin
+
+            labels = [
+                l for l in tuile.findChildren(QLabel)
+                if not l.pixmap().isNull()
+            ]
+
+            assert labels, tuile.titre
+
+            # Le PNG source est en RGBA (transparence
+            # conservée, pas de conversion).
+            from PySide6.QtGui import QImage
+
+            image = QImage(chemin)
+
+            assert (
+                image.hasAlphaChannel()
+            ), chemin
+
+            pixmap = labels[0].pixmap()
+
+            # Mise à l'échelle homothétique : le ratio
+            # du pixmap affiché respecte le ratio du
+            # PNG source (pas de déformation).
+            ratio_source = (
+                image.width() / image.height()
+            )
+            ratio_affiche = (
+                pixmap.width() / pixmap.height()
             )
 
-            assert "#3b9eff" in contenu, nom
+            assert abs(
+                ratio_affiche - ratio_source
+            ) < 0.05, tuile.titre
+
+            # Centrée horizontalement dans la tuile.
+            assert (
+                labels[0].alignment()
+                & Qt.AlignmentFlag.AlignHCenter
+            ), tuile.titre
+
+        # Zone d'icône de hauteur FIXE identique sur
+        # les trois tuiles : alignement vertical des
+        # libellés conservé quel que soit le ratio PNG.
+        hauteurs = set()
+
+        for tuile in (
+            hub.tuile_nouvelle,
+            hub.tuile_reprendre,
+            hub.tuile_etudes,
+        ):
+            labels = [
+                l for l in tuile.findChildren(QLabel)
+                if not l.pixmap().isNull()
+            ]
+
+            hauteurs.add(labels[0].height())
+
+        assert len(hauteurs) == 1

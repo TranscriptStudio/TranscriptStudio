@@ -39,6 +39,8 @@ if "%PY%"=="" set PY=python
   --file-version=1.0.0.0 ^
   --product-version=1.0.0.0 ^
   --include-data-dir=icons=icons ^
+  --include-data-dir=resources/icons=resources/icons ^
+  --include-data-dir=resources/prompts=resources/prompts ^
   --include-data-files="docs/Manuel utilisateur.pdf=docs/Manuel utilisateur.pdf" ^
   --include-data-files="tools/ffmpeg/ffmpeg.exe=tools/ffmpeg/windows/ffmpeg.exe" ^
   --include-package-data=qdarktheme ^

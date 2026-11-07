@@ -83,8 +83,9 @@ class TuileAccueil(QWidget):
     3:2 (~300 × 200 px), la rangée des trois
     cartes reste centrée.
 
-    Icônes : placeholder sobre en attendant
-    celles fournies par David.
+    Icônes : illustrations PNG fournies par
+    David (resources/icons/, affichées telles
+    quelles, centrées, à l'échelle homothétique).
     """
 
     clique = Signal()
@@ -105,6 +106,18 @@ class TuileAccueil(QWidget):
 
     LARGEUR_CARTE = 300
     HAUTEUR_CARTE = 200
+
+    #
+    # Zone d'icône des tuiles (illustrations PNG
+    # fournies par l'utilisateur, 2026-11-07) :
+    # hauteur FIXE identique pour les trois tuiles
+    # (alignement vertical des libellés conservé),
+    # largeur = largeur disponible de la carte ;
+    # chaque PNG est mis à l'échelle HOMOTHÉTIQUE
+    # (KeepAspectRatio, jamais de rognage) et CENTRÉ
+    # horizontalement.
+    #
+    HAUTEUR_ZONE_ICONE = 64
 
     def __init__(
         self,
@@ -183,17 +196,42 @@ class TuileAccueil(QWidget):
         if icone is not None:
 
             icone_label = QLabel()
-            pixmap = QPixmap(str(icone))
-            icone_label.setPixmap(
-                pixmap.scaled(
-                    34,
-                    34,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
+
+            #
+            # PNG fourni par l'utilisateur : affiché
+            # TEL QUEL (pas de teinte par thème — ce
+            # n'est pas un SVG teinté), centré
+            # horizontalement, à l'échelle
+            # homothétique dans la zone d'icône.
+            #
+            icone_label.setAlignment(
+                Qt.AlignmentFlag.AlignHCenter
             )
 
-            layout.addWidget(icone_label)
+            pixmap = QPixmap(str(icone))
+
+            pixmap = pixmap.scaled(
+                self.LARGEUR_CARTE - 40,
+                self.HAUTEUR_ZONE_ICONE,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+
+            icone_label.setPixmap(pixmap)
+
+            # Hauteur de zone fixe : les libellés des
+            # trois tuiles restent alignés verticalement
+            # quel que soit le ratio du PNG.
+            icone_label.setFixedHeight(
+                self.HAUTEUR_ZONE_ICONE
+            )
+
+            layout.addWidget(
+                icone_label,
+                alignment=(
+                    Qt.AlignmentFlag.AlignHCenter
+                ),
+            )
             layout.addSpacing(10)
 
         titre_label = QLabel(titre)
@@ -662,8 +700,8 @@ class HomeWindow(QWidget):
         # Trois GRANDES tuiles (spec correctifs §1) :
         # icône, titre exact, paragraphe descriptif —
         # le clic sur la tuile déclenche l'action.
-        # Icônes : placeholder sobre en attendant
-        # celles de David.
+        # Icônes : illustrations PNG de David
+        # (resources/icons/).
         #
         self.tuiles_layout = QHBoxLayout()
         tuiles_layout = self.tuiles_layout
@@ -677,7 +715,7 @@ class HomeWindow(QWidget):
             "poursuivre le processus (reformulation, "
             "etc.).",
             icone=resource_path(
-                "icons/tuile-nouvelle-transcription.svg"
+                "resources/icons/microphone.png"
             ),
         )
 
@@ -687,7 +725,7 @@ class HomeWindow(QWidget):
             "laissé : correction de transcription, "
             "reformulation, résumé, etc.",
             icone=resource_path(
-                "icons/tuile-reprendre.svg"
+                "resources/icons/dossier.png"
             ),
         )
 
@@ -698,7 +736,7 @@ class HomeWindow(QWidget):
             "regroupement de réunions ayant pour "
             "objet un thème spécifique.",
             icone=resource_path(
-                "icons/tuile-etudes.svg"
+                "resources/icons/livre_étude.png"
             ),
         )
 
