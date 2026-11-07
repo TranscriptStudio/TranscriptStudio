@@ -32,12 +32,22 @@ from models.ouvrage import (
     ElementOuvrage,
     OuvrageFormatError,
     ProvenanceParagraphe,
+    SOURCE_FUSION,
     SOURCE_GENERATION,
     TYPE_PARAGRAPHE,
 )
 from services.timecodes import horodatage_iso
 
 NOM_FICHIER_OUVRAGE = "ouvrage.json"
+
+
+class FusionPenseesError(ValueError):
+    """
+    Opération de fusion de pensées impossible
+    (P19.4) : paragraphe introuvable, pas un
+    paragraphe, texte fusionné vide, ou dé-fusion
+    demandée sur un paragraphe non fusionné.
+    """
 
 
 def chemin_ouvrage(dossier) -> Path:
@@ -201,6 +211,26 @@ def generer_document(
         except DecoupageError:
             ordre = []
 
+        # Locuteurs du bloc (P19.4 : la provenance
+        # porte FIDs, LOCUTEURS et réunions) —
+        # chaîne vide si le découpage est absent.
+        decoupage = (
+            etude_ouverte.decoupages.get(
+                nom_reunion
+            )
+        )
+
+        locuteurs_par_fid = {
+            bloc.fid: ", ".join(
+                bloc.locuteurs
+            )
+            for bloc in (
+                decoupage.blocs
+                if decoupage is not None
+                else []
+            )
+        }
+
         for fid in ordre:
 
             version = _version_validee(
@@ -217,6 +247,12 @@ def generer_document(
                 fid=fid,
                 numero_reunion=numero,
                 date_reunion=date_reunion,
+                locuteurs=(
+                    locuteurs_par_fid.get(
+                        fid,
+                        ""
+                    )
+                ),
                 numero_version=version.numero,
                 horodatage_version=(
                     version.horodatage
@@ -372,3 +408,199 @@ def reunions_non_placees(
         for nom in etude.ordre_reunions
         if nom not in placees
     ]
+
+
+def fusionner_pensees(
+    document: DocumentOuvrage,
+    id_1: str,
+    id_2: str,
+    texte_fusionne: str
+) -> ElementOuvrage:
+    """
+    **Fusion de pensées** (P19.4, feuille de
+    route v2.1 §P19) : deux paragraphes dont la
+    pensée est très similaire (même locuteur ou
+    locuteurs différents) deviennent UN SEUL
+    paragraphe portant les **provenances
+    multiples** (FIDs, locuteurs, réunions).
+
+    Opération de COMPOSITION DE L'OUVRAGE
+    uniquement — jamais de la page Reformulation
+    (qui reste 1 bloc = 1 reformulation, sans
+    exception d'attribution) : elle ne touche que
+    le document dérivé, jamais les textes validés
+    ni le registre de l'étude.
+
+    - le paragraphe fusionné prend la place du
+      PREMIER des deux dans l'ordre du document ;
+    - ses provenances sont celles des deux
+      paragraphes, dans l'ordre du document ;
+    - l'instantané des deux paragraphes d'origine
+      (texte, provenances, source) est conservé
+      dans l'élément pour la **dé-fusion**.
+
+    Retour : le paragraphe fusionné (déjà en place
+    dans le document).
+    """
+
+    if id_1 == id_2:
+        raise FusionPenseesError(
+            "Un paragraphe ne peut pas être "
+            "fusionné avec lui-même."
+        )
+
+    if (
+        not isinstance(texte_fusionne, str)
+        or not texte_fusionne.strip()
+    ):
+        raise FusionPenseesError(
+            "Le texte du paragraphe fusionné est vide."
+        )
+
+    element_1 = document.element(id_1)
+    element_2 = document.element(id_2)
+
+    for element in (element_1, element_2):
+
+        if element is None:
+            raise FusionPenseesError(
+                "Paragraphe introuvable (il a peut-être "
+                "été supprimé)."
+            )
+
+        if element.type != TYPE_PARAGRAPHE:
+            raise FusionPenseesError(
+                "Seuls deux PARAGRAPHES peuvent être "
+                "fusionnés (pas un titre ni un "
+                "séparateur)."
+            )
+
+    # Ordre du document : le premier des deux
+    # donne la position du paragraphe fusionné
+    # et l'ordre des provenances.
+    if (
+        document.elements.index(element_1)
+        > document.elements.index(element_2)
+    ):
+        element_1, element_2 = (
+            element_2,
+            element_1
+        )
+
+    fusionne = ElementOuvrage(
+        id=document.nouvel_id("pf"),
+        type=TYPE_PARAGRAPHE,
+        texte=texte_fusionne,
+        provenances=(
+            list(element_1.provenances)
+            + list(element_2.provenances)
+        ),
+        source=SOURCE_FUSION,
+        fusion={
+            "elements": [
+                element_1.to_dict(),
+                element_2.to_dict(),
+            ]
+        },
+    )
+
+    position = document.elements.index(
+        element_1
+    )
+
+    document.elements[position] = fusionne
+    document.elements.remove(element_2)
+
+    return fusionne
+
+
+def defusionner_pensees(
+    document: DocumentOuvrage,
+    id_fusionne: str
+) -> ElementOuvrage:
+    """
+    **Dé-fusion** (P19.4) : le paragraphe fusionné
+    disparaît du corps du document et chacun des
+    deux paragraphes d'origine REPREND son texte
+    (et sa provenance), à la place du fusionné,
+    dans l'ordre de la fusion.
+
+    Le paragraphe fusionné est CONSERVÉ dans
+    l'historique de l'ouvrage (son texte n'est
+    pas perdu : il reste consultable et peut
+    relancer une fusion manuelle).
+
+    Retour : le paragraphe fusionné retiré (avec
+    son instantané complet).
+    """
+
+    fusionne = document.element(id_fusionne)
+
+    if fusionne is None:
+        raise FusionPenseesError(
+            "Paragraphe introuvable (il a peut-être "
+            "été supprimé)."
+        )
+
+    if fusionne.type != TYPE_PARAGRAPHE:
+        raise FusionPenseesError(
+            "Seul un PARAGRAPHE issu d'une fusion "
+            "peut être dé-fusionné."
+        )
+
+    if (
+        fusionne.source != SOURCE_FUSION
+        or not fusionne.fusion
+    ):
+        raise FusionPenseesError(
+            "Ce paragraphe n'est pas issu d'une "
+            "fusion de pensées."
+        )
+
+    instantanes = (
+        fusionne.fusion.get("elements")
+    )
+
+    if (
+        not isinstance(instantanes, list)
+        or len(instantanes) != 2
+    ):
+        raise OuvrageFormatError(
+            "ouvrage.json : historique de fusion "
+            "illisible (deux paragraphes attendus)"
+        )
+
+    originaux = [
+        ElementOuvrage.from_dict(instantane)
+        for instantane in instantanes
+    ]
+
+    ids_vivants = {
+        e.id
+        for e in document.elements
+        if e is not fusionne
+    }
+
+    for original in originaux:
+
+        if original.id in ids_vivants:
+            raise FusionPenseesError(
+                f"Conflit d'identifiant « {original.id} » "
+                "à la dé-fusion : le document a été "
+                "régénéré depuis la fusion."
+            )
+
+    position = document.elements.index(
+        fusionne
+    )
+
+    document.elements[
+        position:position + 1
+    ] = originaux
+
+    document.historique.append({
+        "horodatage": horodatage_iso(),
+        "paragraphe": fusionne.to_dict(),
+    })
+
+    return fusionne

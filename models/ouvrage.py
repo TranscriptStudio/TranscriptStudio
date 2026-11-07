@@ -141,6 +141,7 @@ class ProvenanceParagraphe:
     fid: int = 0
     numero_reunion: int = 0
     date_reunion: str = ""
+    locuteurs: str = ""
     numero_version: int = 0
     horodatage_version: str = ""
 
@@ -151,6 +152,7 @@ class ProvenanceParagraphe:
             "fid": self.fid,
             "numero_reunion": self.numero_reunion,
             "date_reunion": self.date_reunion,
+            "locuteurs": self.locuteurs,
             "numero_version": self.numero_version,
             "horodatage_version": (
                 self.horodatage_version
@@ -180,6 +182,14 @@ class ProvenanceParagraphe:
             date_reunion=_texte(
                 data,
                 "date_reunion"
+            ),
+            locuteurs=(
+                data.get("locuteurs")
+                if isinstance(
+                    data.get("locuteurs"),
+                    str
+                )
+                else ""
             ),
             numero_version=(
                 _exiger(data, "numero_version")
@@ -335,11 +345,16 @@ class DocumentOuvrage:
       re-reformulée depuis la génération » (le
       document dérivé n'est JAMAIS mis à jour
       automatiquement).
+    - ``historique`` : paragraphes fusionnés
+      conservés quand une fusion de pensées est
+      DÉFAITE (P19.4) — chaque paragraphe reprend
+      son texte, le texte fusionné n'est pas perdu.
     """
 
     titre: str = ""
     elements: list = field(default_factory=list)
     generation: Optional[dict] = None
+    historique: list = field(default_factory=list)
     format_version: int = FORMAT_OUVRAGE
 
     def to_dict(self) -> dict:
@@ -348,6 +363,7 @@ class DocumentOuvrage:
             "format_version": self.format_version,
             "titre": self.titre,
             "generation": self.generation,
+            "historique": self.historique,
             "elements": [
                 e.to_dict()
                 for e in self.elements
@@ -380,9 +396,28 @@ class DocumentOuvrage:
                 "liste attendue"
             )
 
+        historique = (
+            data.get("historique") or []
+        )
+
+        if not isinstance(historique, list):
+            raise OuvrageFormatError(
+                "ouvrage.json : historique : "
+                "liste attendue"
+            )
+
+        for entree in historique:
+
+            if not isinstance(entree, dict):
+                raise OuvrageFormatError(
+                    "ouvrage.json : historique : "
+                    "objet attendu"
+                )
+
         document = cls(
             titre=_texte(data, "titre"),
             generation=data.get("generation"),
+            historique=historique,
         )
 
         document.elements = [

@@ -1,25 +1,29 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-10-31 (**P16-ter livré — gestion des prompts, spec
-> UI_GESTION_PROMPTS_V2_2026-10-31a.md**). (1) BIBLIOTHÈQUE DE PROMPTS dans le dossier de
-> paramétrage de l'app (`prompts/<usage>.md` : reformulation, résumé) — services/prompts.py ;
-> un usage sans fichier vaut le DÉFAUT EMBARQUÉ (jamais modifié, jamais écrit à la lecture) ;
-> les NOUVELLES études héritent de la bibliothèque (parametres_par_defaut lit la
-> bibliothèque), les études EXISTANTES ne sont jamais touchées. (2) RÉGLAGES : onglet
-> « Prompts » (éditeur multiligne intégré, « Réinitialiser aux défauts embarqués » = suppression
-> du fichier, import/export .md/.txt — l'import n'écrit rien avant « Enregistrer »). (3) BOUTONS
-> « ⚙ Prompts » à GAUCHE de « Traiter les blocs non validés » (page Reformulation) et sur la
-> ligne de lancement (page Résumé) : gestionnaire en MODE ÉTUDE — édition de la copie locale
-> uniquement, indicateurs de divergence locale/bibliothèque (hash court SHA-256 8 hex),
-> « Recharger depuis la bibliothèque » et « Promulguer dans la bibliothèque » avec
-> confirmation (ui/gestion_prompts_dialog.py). (4) TRAÇABILITÉ : chaque version LLM
-> (reformulation ET résumé, tous points de consignation) mémorise le prompt EFFECTIF — texte
-> (stats.prompt) et hash court (stats.prompt_hash) ; le libellé de version l'affiche
-> (« prompt 8f2a1b3c ») — continuité directe de la traçabilité modèle/paramètres de P20-ter.
-> Invariants 1-6 testés dans tests/unit/test_p16ter_gestion_prompts.py (22 tests).
-> **596 tests verts.** P20/P20-bis/P20-ter (réunion autonome, barre sur le stepper,
-> timeline supprimée, molette, sélection, traçabilité LLM) restent livrés comme décrits à
-> leurs commits.
+> **Dernière mise à jour** : 2026-11-07 (**P19.4 LIVRÉ — fusion de pensées**, feuille de
+> route v2.1 §P19.4 ; **P19 est COMPLET**). Fusion MANUELLE (dialogue côte à côte,
+> `ui/fusion_pensees_dialog.py` — le texte fusionné est prérempli avec les deux textes) ou
+> ASSISTÉE LLM (relance avec les deux textes en entrée + consigne embarquée ;
+> `ServiceFusion` dans `services/traitements/fusion.py`, MÊME résolution de configuration
+> que le moteur — fournisseur des réglages app, modèle/température « reformulation »
+> surchargeables par l'étude —, un appel en thread, la PROPOSITION reste éditable puis
+> validée explicitement, jamais d'application automatique) ; le paragraphe fusionné porte
+> les **provenances multiples** (FIDs, **locuteurs** — champ optionnel `locuteurs` de
+> `ProvenanceParagraphe`, rempli à la génération depuis le découpage —, réunions), prend
+> la place du PREMIER des deux paragraphes et conserve un instantané complet des
+> originaux ; **dé-fusion réversible** : chaque paragraphe reprend son texte, le
+> paragraphe fusionné est conservé dans l'**historique** de l'ouvrage (nouvelle clé
+> `historique` de ouvrage.json), opération confirmée ; le rapport signale fusions vives
+> et fusions dé-fusionnées conservées ; invariant central : opération de COMPOSITION DE
+> L'OUVRAGE uniquement — textes validés et registre de l'étude jamais touchés (testé).
+> Interprétation retenue (à confirmer par l'atelier) : « les paragraphes fusionnés
+> survivent aux régénérations comme toute édition d'ouvrage » = une fusion est une
+> ÉDITION du document dérivé : rien ne la défait automatiquement (jamais de mise à jour
+> incrémentale), seule la RÉGÉNÉRATION EXPLICITE (qui écrase toute édition, avec
+> avertissement) la fait disparaître. La détection des pensées similaires rejoint P20.
+> 17 tests dans tests/unit/test_p194_fusion_pensees.py. **613 tests verts.** P16-ter
+> (gestion des prompts), P20/P20-bis/P20-ter et P18.6-bis séries 1-8-quater restent
+> livrés comme décrits à leurs commits.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -1908,33 +1912,138 @@ Bilan tests : **457 verts** (446 + 11 : 3 stepper/accent, 4 hub v4
 
 ---
 
+## SESSION 2026-11-07 (P19.4) — FUSION DE PENSÉES : LIVRÉ
+
+**P19.4** (feuille de route v2.1 §P19.4, décision atelier 2026-10-27)
+— le dernier point de P19 : deux paragraphes dont les pensées sont
+très similaires (même locuteur ou locuteurs différents) sont
+fusionnés en un seul paragraphe portant les **provenances
+multiples** ; opération de **composition de l'ouvrage**, jamais de
+la page Reformulation (1 bloc = 1 reformulation, sans exception
+d'attribution).
+
+1. **Leviers** :
+   - fusion **manuelle** — `ui/fusion_pensees_dialog.py` : dialogue
+     côte à côte (deux sources en lecture seule avec leur
+     provenance, le texte fusionné ÉDITABLE prérempli avec les deux
+     textes joints — base d'une rédaction manuelle) ; « Annuler »
+     ne touche à rien ;
+   - fusion **assistée LLM** — bouton du dialogue,
+     `services/traitements/fusion.py::ServiceFusion` : relance avec
+     les deux textes en entrée + une CONSIGNE EMBARQUÉE
+     (`CONSIGNE_FUSION`), prompt système = prompt de reformulation
+     de l'étude (style de l'ouvrage — même maison que le moteur) ;
+     même résolution de configuration que le moteur/résumé
+     (fournisseur app, modèle/température « reformulation »
+     surchargeables par l'étude, effort selon catalogue) ; UN appel
+     en QThread (dialogue réactif) ; la proposition REMPLIT
+     l'éditeur (toujours éditable) — **jamais appliquée sans
+     validation explicite** (invariant suggestions IA §9.7).
+2. **Document** (`services/ouvrage_document.py`) :
+   - `fusionner_pensees(document, id_1, id_2, texte)` : le
+     paragraphe fusionné (`source = "fusion"`, id `pf<n>`) prend la
+     place du PREMIER des deux dans l'ordre du document ; ses
+     provenances = celles des deux paragraphes dans l'ordre (un
+     paragraphe fusionné peut être re-fusionné : les provenances
+     s'accumulent) ; l'instantané COMPLET des deux originaux
+     (texte, provenances, source) vit dans `element.fusion` ;
+     refus : id identique, paragraphe introuvable, non-paragraphe,
+     texte fusionné vide (`FusionPenseesError`) ;
+   - `defusionner_pensees(document, id)` : réversible — les deux
+     paragraphes d'origine REPRENNENT leur texte à la place du
+     fusionné ; le paragraphe fusionné est conservé dans
+     `document.historique` (nouvelle clé `historique` de
+     ouvrage.json, optionnelle et validée à la lecture — les
+     documents existants restent lisibles) ; garde-fou conflit
+     d'identifiant (régénération après fusion).
+3. **Provenances** : `ProvenanceParagraphe.locuteurs` (champ
+   optionnel, chaîne) rempli à la GÉNÉRATION depuis le découpage
+   (« FIDs, locuteurs, réunions » de la spec) ; affiché au
+   manuscrit, dans le dialogue de fusion ; absent des documents
+   existants = chaîne vide.
+4. **Page Ouvrage** (`ui/ouvrage_window.py`) : sélection MULTIPLE
+   de l'arborescence (fusion = exactement deux paragraphes
+   sélectionnés, ordre du document) ; bouton « Fusionner les
+   pensées… » (actif à deux paragraphes) et « Dé-fusionner » (actif
+   sur un paragraphe `fusion`, confirmation avec conséquences) ;
+   libellé d'arbre multi-réunions (R1/R2 — extrait) ; manuscrit :
+   marqueur « Fusion de pensées » devant les provenances
+   multiples ; rapport : fusions vives (« dé-fusion possible ») et
+   fusions dé-fusionnées conservées dans l'historique.
+5. **Invariants testés** (tests/unit/test_p194_fusion_pensees.py,
+   17 tests) : provenances multiples + position + instantané ;
+   refus (id/inconnu/non-paragraphe/vide) ; fusion imbriquée
+   (3 provenances) ; dé-fusion (textes restitués, historique) ;
+   persistance ouvrage.json (fusion ET historique) ; appel
+   d'assistance (prompt système = prompt étude, deux textes +
+   consigne, aucun écrit dans le document) ; configuration (modèle
+   et température résolus comme le moteur) ; page (boutons selon
+   sélection, fusion appliquée, Annulation intacte, dé-fusion,
+   rapport) ; dialogue (préremplissage — setPlainText, le
+   constructeur de QTextEdit ne doit PAS recevoir le texte sous
+     peine de le lire comme du HTML ; assistance masquée sans
+     service ; proposition éditable) ; la page Reformulation
+     n'expose AUCUN point d'entrée de fusion (source vérifiée).
+6. **Écart/interprétation à arbitrer par l'atelier** :
+   - « Les paragraphes fusionnés survivent aux régénérations
+     comme toute édition d'ouvrage » : lu comme « une fusion est
+     une édition du document dérivé » — jamais défaite
+     automatiquement (pas de mise à jour incrémentale), seule la
+     RÉGÉNÉRATION EXPLICITE (qui écrase toute édition, avec
+     avertissement) l'efface ; si l'atelier veut que les fusions
+     survivent À la régénération, il faut un mécanisme de
+     ré-ancrage (matching FID/texte) — non implémenté ;
+   - la consigne de fusion est EMBARQUÉE (pas d'usage
+     `prompts/<usage>.md`) et le prompt système est celui de la
+     reformulation de l'étude — si l'atelier préfère un usage
+     dédié dans la bibliothèque de prompts (P16-ter), l'ajout est
+     localisé à `ServiceFusion` ;
+   - la détection des pensées similaires (relance LLM parcourant
+     l'ouvrage) rejoint P20 (aides à la relecture), conformément à
+     la feuille de route.
+
+Bilan tests : **613 verts** (596 + 17), suite complète régénérée.
+Synchro atelier faite avant la session (skill v39 via Drive :
+INDEX_SPECS_2026-10-31e…i, SPEC_NAVIGATION_MODIFS_2026-10-31e
+recopiés — séries 6-8 navigation, aucune incidence P19).
+
+---
+
 ## PROCHAINE ÉTAPE RECOMMANDÉE
 
-**P18.6-bis est LIVRÉ dans son intégralité (séries 1 à 7-bis, retours UI du
-31/10 absorbés)** — 495 tests verts. **P19.1 est LIVRÉ** (modèle de données du
-document ouvrage : ouvrage.json, génération, régénération, divergences,
-Réserves). Restent :
+**P19 est LIVRÉ DANS SON INTÉGRALITÉ** (P19.1 :
+modèle de données ouvrage.json ; P19.2 : page
+Ouvrage trois zones ; P19.3 : génération/
+régénération avec avertissement ; P19.4 : fusion
+de pensées avec provenances multiples et
+dé-fusion réversible) — les retours UI de David
+du 31/10 (P18.6-bis séries 6-8, P20, P20-bis,
+P20-ter, P16-ter) ont été absorbés au fil des
+sessions suivantes. **613 tests verts.** Restent :
 
-1. **Recette P16/P17/P18/P18.6 par David** (checklist en fin de session
-   P17 ci-dessus) : réunion Luc 1b de bout en bout avec vraie clé,
-   jugement humain sur la fidélité, les jonctions de méditation et
-   la « mémoire » de la 2ᵉ réunion (synthèse) ; P18 : références
-   complétées vérifiables en un clic (Bibles installables depuis
-   les réglages, onglet « Bibles »), export DOCX relu sous Word ;
-   P18.6/P18.6-bis : parcours hub → réunion → étude (stepper
-   compact, rattachement, changement d'étude, saisie manuelle,
-   exports 3 portées, menu déroulant des études, tuiles et
-   survol) contre les maquettes validées mises à jour.
-2. **P19.2/P19.3** — page Ouvrage trois zones (arborescence à la Word
-   à largeur réglable avec titres manuels et « Réserves », manuscrit
-   compilé éditable au centre, rapport d'analyse à droite) branchée
-   sur services/ouvrage_document.py : génération/régénération avec
-   avertissement, navigation par structure, signalement « réunion
-   re-reformulée depuis la génération ».
-3. **P19.4 puis P20** — fusion de pensées (provenances multiples déjà
-   prévues par le modèle P19.1), mobilité des paragraphes, sous-titres
-   IA, aides à la relecture (récurrences, emphase), export DOCX
-   structuré de l'ouvrage.
+1. **Recette humaine P16/P17/P18/P18.6/P19
+   par David** (checklist en fin de session P17
+   au-dessus) : réunion Luc 1b de bout en bout
+   avec vraie clé, jugement humain sur la
+   fidélité, les jonctions de méditation et la
+   « mémoire » de la 2ᵉ réunion ; P18 :
+   références vérifiables en un clic, export
+   DOCX relu sous Word ; P18.6/P18.6-bis :
+   parcours hub → réunion → étude contre les
+   maquettes ; P19 : ouvrage généré pour une
+   étude de 2+ réunions, structure lisible,
+   chapitres manuels, fusion de pensées entre
+   deux paragraphes voisins (et dé-fusion).
+2. **P20 (v2.1)** — édition avancée de l'ouvrage
+   et aides IA : mobilité des paragraphes
+   (déplacement/suppression entre sections, P20.1),
+   sous-titres proposés par IA à valider (P20.2),
+   aides à la relecture (récurrences d'emphase,
+   expressions récurrentes — sans LLM ;
+   incohérences/redondances par section — à la
+   demande ; P20.3), détection des pensées
+   similaires pour la fusion, export DOCX
+   structuré (styles Titre 1/sous-titres, P20.4).
 
 ---
 

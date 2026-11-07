@@ -1,10 +1,11 @@
 # ui/ouvrage_window.py
 """
-Page Ouvrage — P19.2/P19.3 (feuille de route
-v2.1 §P19, maquette validée 2026-10-29) :
-l'assemblage, l'édition et l'export final de
-l'ouvrage se font ici, sur le document dérivé
-P19.1 (services/ouvrage_document.py).
+Page Ouvrage — P19.2/P19.3/P19.4 (feuille de
+route v2.1 §P19, maquette validée 2026-10-29) :
+l'assemblage, l'édition, la fusion de pensées
+et l'export final de l'ouvrage se font ici,
+sur le document dérivé P19.1
+(services/ouvrage_document.py).
 
 TROIS ZONES :
 
@@ -57,6 +58,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import Qt, QUrl
 
 from models.ouvrage import (
+    SOURCE_FUSION,
     TYPE_PARAGRAPHE,
     TYPE_SEPARATEUR,
     TYPE_SOUS_TITRE,
@@ -66,12 +68,17 @@ from services.etude_io import EtudeOuverte
 from services.help import open_user_manual
 from services.ouvrage_document import (
     charger_ouvrage,
+    defusionner_pensees,
+    fusionner_pensees,
     generer_document,
     reformulees_depuis_generation,
     reunions_non_placees,
     sauvegarder_ouvrage,
 )
 from services.settings import SettingsManager
+from ui.fusion_pensees_dialog import (
+    FusionPenseesDialog,
+)
 
 
 class OuvrageWindow(QWidget):
@@ -270,6 +277,33 @@ class OuvrageWindow(QWidget):
             )
         )
 
+        self.fusion_button = QPushButton(
+            "Fusionner les pensées…"
+        )
+        self.fusion_button.setToolTip(
+            "Fusionner les DEUX paragraphes "
+            "sélectionnés en un seul (P19.4) : le "
+            "paragraphe fusionné porte toutes les "
+            "provenances ; la fusion est réversible "
+            "(dé-fusion)"
+        )
+        self.fusion_button.clicked.connect(
+            self.sur_fusion_pensees
+        )
+
+        self.defusion_button = QPushButton(
+            "Dé-fusionner"
+        )
+        self.defusion_button.setToolTip(
+            "Restaurer les deux paragraphes d'origine "
+            "du paragraphe fusionné sélectionné (le "
+            "texte fusionné est conservé dans "
+            "l'historique de l'ouvrage)"
+        )
+        self.defusion_button.clicked.connect(
+            self.sur_defusion
+        )
+
         self.sauvegarder_button = QPushButton(
             "💾 Sauvegarder"
         )
@@ -300,6 +334,8 @@ class OuvrageWindow(QWidget):
             self.chapitre_button,
             self.sous_titre_button,
             self.separateur_button,
+            self.fusion_button,
+            self.defusion_button,
             self.sauvegarder_button,
             self.exporter_button,
         ):
@@ -364,8 +400,20 @@ class OuvrageWindow(QWidget):
         self.arbre.setHeaderHidden(True)
         self.arbre.setAnimated(True)
 
+        # Sélection multiple : la fusion de pensées
+        # (P19.4) porte sur DEUX paragraphes choisis
+        # dans l'arborescence.
+        self.arbre.setSelectionMode(
+            QTreeWidget.SelectionMode
+            .ExtendedSelection
+        )
+
         self.arbre.itemClicked.connect(
             self._sur_clic_arbre
+        )
+
+        self.arbre.itemSelectionChanged.connect(
+            self._maj_outils
         )
 
         colonne.addWidget(self.arbre, stretch=1)
@@ -641,6 +689,9 @@ class OuvrageWindow(QWidget):
                 else p.reunion
             )
 
+            if p.locuteurs:
+                morceau += f" · {p.locuteurs}"
+
             if p.date_reunion:
                 morceau += f" · {p.date_reunion}"
 
@@ -650,7 +701,12 @@ class OuvrageWindow(QWidget):
             provenances.append(morceau)
 
         provenance_label = QLabel(
-            " — ".join(provenances)
+            (
+                "Fusion de pensées — "
+                if element.source == SOURCE_FUSION
+                else ""
+            )
+            + " — ".join(provenances)
         )
 
         provenance_label.setStyleSheet(
@@ -754,21 +810,10 @@ class OuvrageWindow(QWidget):
             if element.type != TYPE_PARAGRAPHE:
                 continue
 
-            extrait = (
-                (element.texte or "")[:60].strip()
-                or "Paragraphe"
-            )
-
-            numero = (
-                element.provenances[0].numero_reunion
-                if element.provenances
-                else 0
-            )
-
             libelle = (
-                f"R{numero} — {extrait}"
-                if numero
-                else extrait
+                self._libelle_arbre_paragraphe(
+                    element
+                )
             )
 
             item = QTreeWidgetItem([libelle])
@@ -805,22 +850,10 @@ class OuvrageWindow(QWidget):
 
             for element in reserves:
 
-                extrait = (
-                    (element.texte or "")[:60].strip()
-                    or "Paragraphe"
-                )
-
-                numero = (
-                    element.provenances[0]
-                    .numero_reunion
-                    if element.provenances
-                    else 0
-                )
-
                 libelle = (
-                    f"R{numero} — {extrait}"
-                    if numero
-                    else extrait
+                    self._libelle_arbre_paragraphe(
+                        element
+                    )
                 )
 
                 item = QTreeWidgetItem([libelle])
@@ -836,6 +869,38 @@ class OuvrageWindow(QWidget):
             self.arbre.addTopLevelItem(noeud)
 
         self.arbre.expandAll()
+
+    @staticmethod
+    def _libelle_arbre_paragraphe(element) -> str:
+        """
+        Libellé d'un paragraphe dans l'arborescence :
+        réunion(s) source puis extrait du texte —
+        un paragraphe FUSIONNÉ (P19.4) montre
+        toutes ses réunions (R1/R2).
+        """
+
+        extrait = (
+            (element.texte or "")[:60].strip()
+            or "Paragraphe"
+        )
+
+        numeros = []
+
+        for p in element.provenances:
+
+            numero = (
+                f"R{p.numero_reunion}"
+                if p.numero_reunion
+                else (p.reunion or "?")
+            )
+
+            if numero not in numeros:
+                numeros.append(numero)
+
+        if not numeros:
+            return extrait
+
+        return "/".join(numeros) + " — " + extrait
 
     @staticmethod
     def _gras(item):
@@ -926,6 +991,34 @@ class OuvrageWindow(QWidget):
         )
 
         #
+        # Fusions de pensées (P19.4) : paragraphes
+        # fusionnés du corps, fusions dé-faites
+        # conservées dans l'historique.
+        #
+        fusions = [
+            p for p in self.document.paragraphes()
+            if p.source == SOURCE_FUSION
+        ]
+
+        if fusions:
+
+            lignes.append("")
+
+            lignes.append(
+                "Fusions de pensées : "
+                f"{len(fusions)} paragraphe(s) "
+                "fusionné(s) (dé-fusion possible)"
+            )
+
+        if self.document.historique:
+
+            lignes.append(
+                "Historique : "
+                f"{len(self.document.historique)} "
+                "fusion(s) dé-fusionnée(s) conservée(s)"
+            )
+
+        #
         # Signalements de divergence (le document
         # dérivé n'est JAMAIS mis à jour
         # automatiquement).
@@ -998,6 +1091,27 @@ class OuvrageWindow(QWidget):
 
         self.sauvegarder_button.setEnabled(
             avec_document and self.modifie
+        )
+
+        #
+        # Fusion de pensées (P19.4) : deux
+        # paragraphes sélectionnés ; dé-fusion :
+        # un paragraphe issu d'une fusion.
+        #
+        paragraphes = (
+            self._paragraphes_selectionnes()
+            if avec_document
+            else []
+        )
+
+        self.fusion_button.setEnabled(
+            len(paragraphes) == 2
+        )
+
+        self.defusion_button.setEnabled(
+            len(paragraphes) == 1
+            and paragraphes[0].source
+            == SOURCE_FUSION
         )
 
     def generer_ouvrage(self):
@@ -1117,6 +1231,195 @@ class OuvrageWindow(QWidget):
                 return index
 
         return 0
+
+    def _ids_selection(self) -> list:
+        """
+        Identifiants des éléments sélectionnés dans
+        l'arborescence (dédupliqués, ordre de
+        sélection) — la fusion (P19.4) porte sur
+        les PARAGRAPHES sélectionnés.
+        """
+
+        ids = []
+
+        for item in (
+            self.arbre.selectedItems() or []
+        ):
+
+            identifiant = item.data(
+                0,
+                Qt.ItemDataRole.UserRole
+            )
+
+            if identifiant and (
+                identifiant not in ids
+            ):
+                ids.append(identifiant)
+
+        return ids
+
+    def _paragraphes_selectionnes(self) -> list:
+        """
+        Les PARAGRAPHES du document actuellement
+        sélectionnés dans l'arborescence, dans
+        l'ORDRE DU DOCUMENT.
+        """
+
+        if self.document is None:
+            return []
+
+        paragraphes = []
+
+        for identifiant in self._ids_selection():
+
+            element = self.document.element(
+                identifiant
+            )
+
+            if (
+                element is not None
+                and element.type == TYPE_PARAGRAPHE
+                and element not in paragraphes
+            ):
+                paragraphes.append(element)
+
+        paragraphes.sort(
+            key=self.document.elements.index
+        )
+
+        return paragraphes
+
+    def sur_fusion_pensees(self):
+        """
+        **Fusion de pensées** (P19.4) : deux
+        paragraphes sélectionnés deviennent UN
+        SEUL paragraphe portant les provenances
+        multiples — dialogue côte à côte, fusion
+        manuelle ou assistance IA ; « Annuler » ne
+        touche à rien (l'assistance reste une
+        proposition, jamais appliquée sans
+        validation explicite).
+
+        Opération de COMPOSITION DE L'OUVRAGE,
+        uniquement : ni les textes validés ni le
+        registre de l'étude ne bougent.
+        """
+
+        paragraphes = (
+            self._paragraphes_selectionnes()
+        )
+
+        if len(paragraphes) != 2:
+            return
+
+        from services.traitements.fusion import (
+            ServiceFusion,
+        )
+
+        try:
+            service = ServiceFusion(self.etude)
+        except Exception:
+            service = None
+
+        dialogue = FusionPenseesDialog(
+            self,
+            paragraphes[0],
+            paragraphes[1],
+            service=service,
+        )
+
+        if (
+            dialogue.exec()
+            != QDialog.DialogCode.Accepted
+        ):
+            return
+
+        try:
+
+            fusionner_pensees(
+                self.document,
+                paragraphes[0].id,
+                paragraphes[1].id,
+                dialogue.texte_fusionne(),
+            )
+
+        except Exception as e:
+
+            QMessageBox.warning(
+                self,
+                "Fusion impossible",
+                str(e)
+            )
+
+            return
+
+        self.modifie = True
+
+        self._reconstruire_zones()
+
+    def sur_defusion(self):
+        """
+        **Dé-fusion** (P19.4) : le paragraphe fusionné
+        sélectionné disparaît du corps du document ;
+        chacun des deux paragraphes d'origine
+        REPREND son texte — le texte fusionné est
+        conservé dans l'historique de l'ouvrage.
+        """
+
+        paragraphes = (
+            self._paragraphes_selectionnes()
+        )
+
+        if len(paragraphes) != 1:
+            return
+
+        fusionne = paragraphes[0]
+
+        reponse = QMessageBox.question(
+            self,
+            "Dé-fusionner ?",
+            (
+                "Le paragraphe fusionné sera remplacé "
+                "par ses deux paragraphes d'origine "
+                "(chacun reprend son texte). Le texte "
+                "fusionné est conservé dans "
+                "l'historique de l'ouvrage.\n\n"
+                "Continuer ?"
+            ),
+            (
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No
+            ),
+            (
+                QMessageBox.StandardButton.No
+            ),
+        )
+
+        if reponse != (
+            QMessageBox.StandardButton.Yes
+        ):
+            return
+
+        try:
+
+            defusionner_pensees(
+                self.document,
+                fusionne.id
+            )
+
+        except Exception as e:
+
+            QMessageBox.warning(
+                self,
+                "Dé-fusion impossible",
+                str(e)
+            )
+
+            return
+
+        self.modifie = True
+
+        self._reconstruire_zones()
 
     def _sur_texte_element(self, element, texte):
         """
