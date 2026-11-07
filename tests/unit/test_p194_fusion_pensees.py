@@ -55,7 +55,6 @@ from services.ouvrage_document import (
 )
 from services.settings import SettingsManager
 from services.traitements.fusion import (
-    CONSIGNE_FUSION,
     ServiceFusion,
 )
 from tests.unit.test_reformulation_ui import (
@@ -534,12 +533,21 @@ class TestServiceFusion:
         etude_validee
     ):
         """
-        UN appel : prompt système = prompt de
-        reformulation de l'étude (style de
-        l'ouvrage), message = les DEUX textes en
-        entrée + la consigne ; résultat rapporté,
-        rien n'est écrit dans le document.
+        UN appel : prompt système = prompt de FUSION
+        de l'étude (bibliothèque éditable, P19.4-bis
+        — plus le prompt de reformulation), message
+        = les DEUX textes en entrée avec leurs
+        sources (locuteurs, réunions) ; résultat
+        rapporté, rien n'est écrit dans le document.
+        Le prompt EFFECTIF (texte + hash court) est
+        consigné sur le service pour ouvrage.json.
         """
+
+        from services.prompts import (
+            hash_prompt,
+            lire_defaut_embarque,
+            USAGE_FUSION,
+        )
 
         etude, _n, fids, _t = etude_validee
 
@@ -551,7 +559,9 @@ class TestServiceFusion:
 
         resultat = service.proposer(
             p1.texte,
-            p2.texte
+            p2.texte,
+            source_1="R1 · Philippe",
+            source_2="R1 · Daniel",
         )
 
         assert (
@@ -561,10 +571,22 @@ class TestServiceFusion:
 
         appel = client.appels[0]
 
+        # Prompt système : le prompt de FUSION
+        # (copie locale de l'étude = défaut embarqué
+        # à défaut de bibliothèque), PAS le prompt
+        # de reformulation.
         assert appel["prompt_systeme"] == (
-            etude.parametres
-            .reformulation
-            .get("prompt", "")
+            lire_defaut_embarque(USAGE_FUSION)
+        )
+
+        assert service.dernier_prompt == (
+            lire_defaut_embarque(USAGE_FUSION)
+        )
+
+        assert service.dernier_prompt_hash == (
+            hash_prompt(
+                lire_defaut_embarque(USAGE_FUSION)
+            )
         )
 
         assert (
@@ -577,7 +599,15 @@ class TestServiceFusion:
             in appel["message"]
         )
 
-        assert CONSIGNE_FUSION in appel["message"]
+        # Les SOURCES (locuteurs, réunions) sont
+        # données au prompt (P19.4-bis).
+        assert "Source 1 : R1 · Philippe" in (
+            appel["message"]
+        )
+
+        assert "Source 2 : R1 · Daniel" in (
+            appel["message"]
+        )
 
         # Aucune écriture dans le document.
         assert len(document.paragraphes()) == 3
@@ -645,6 +675,9 @@ class DialogueFactice:
 
     def texte_fusionne(self):
         return self.texte
+
+    def stats(self):
+        return None
 
 
 @pytest.fixture

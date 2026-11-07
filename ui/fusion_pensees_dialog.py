@@ -127,6 +127,12 @@ class FusionPenseesDialog(QDialog):
         self.worker = None
         self.annulation = None
 
+        # Traçabilité de l'assistance éventuelle
+        # (P19.4-bis : prompt EFFECTIF texte + hash,
+        # modèle, coûts — consignés dans ouvrage.json
+        # par la page à la fusion).
+        self.stats_assistance = None
+
         self.setWindowTitle("Fusionner les pensées")
         self.resize(760, 560)
 
@@ -294,6 +300,12 @@ class FusionPenseesDialog(QDialog):
             lambda: self.service.proposer(
                 self.element_1.texte or "",
                 self.element_2.texte or "",
+                source_1=libelle_provenance(
+                    self.element_1
+                ),
+                source_2=libelle_provenance(
+                    self.element_2
+                ),
                 annulation=self.annulation
             )
         )
@@ -327,6 +339,48 @@ class FusionPenseesDialog(QDialog):
                 resultat.texte.strip()
             )
 
+            #
+            # Traçabilité (P19.4-bis) : le prompt
+            # EFFECTIF (texte + hash court) et les
+            # conditions de l'appel accompagnet la
+            # fusion — la page les consignera dans
+            # ouvrage.json.
+            #
+            stats = {}
+
+            for cle in (
+                "modele",
+                "fournisseur",
+                "tokens_in",
+                "tokens_out",
+                "duree_ms",
+                "cout_estime",
+            ):
+                if getattr(resultat, cle, None):
+                    stats[cle] = (
+                        getattr(resultat, cle)
+                    )
+
+            if (
+                self.service is not None
+                and getattr(
+                    self.service,
+                    "dernier_prompt",
+                    ""
+                )
+            ):
+                stats["prompt"] = getattr(
+                    self.service,
+                    "dernier_prompt"
+                )
+                stats["prompt_hash"] = getattr(
+                    self.service,
+                    "dernier_prompt_hash",
+                    ""
+                )
+
+            self.stats_assistance = stats
+
     def sur_assistance_erreur(self, message):
 
         if self.thread is not None:
@@ -357,3 +411,13 @@ class FusionPenseesDialog(QDialog):
         return (
             self.editeur_fusion.toPlainText().strip()
         )
+
+    def stats(self) -> dict:
+        """
+        Traçabilité de l'assistance LLM éventuelle
+        (P19.4-bis) : prompt EFFECTIF + hash court,
+        modèle, coûts ; None pour une fusion purement
+        manuelle.
+        """
+
+        return self.stats_assistance

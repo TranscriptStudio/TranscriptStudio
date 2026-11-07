@@ -1,31 +1,23 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
-> **Dernière mise à jour** : 2026-11-07 (**série 8 navigation LIVRÉE** — spec 31e §31,
-> P18.6-bis : fusion de l'outillage du résumé dans la PAGE ③ Résumé du stepper ;
-> la fenêtre secondaire « Résumé… » est SUPPRIMÉE de l'app, invariant complémentaire 17
-> testé). `ui/resume_window.py` devient `PageResume` (QWidget embarqué dans la page
-> Réunion étape ⑤) : barre d'outils en haut de page (Source, Longueur 650-700,
-> ⚙ Prompts, Générer…), zone d'édition au corps (la saisie manuelle se fait
-> DIRECTEMENT dedans, l'ancien texte d'aide disparaît), état des versions en tête
-> (Brouillon/Validé + détails avec hash prompt) et indicateur au pied ; source requise
-> MANQUANTE = message clair à la place de la génération (« Générer… » éteint, zone
-> restant éditable — test vérifié sur reformulations absentes puis source brute
-> disponible) ; actions Sauvegarder/Retour arrière/Relancer/Retravailler/Valider,
-> plus de « Fermer » ; le bouton « Résumé » de la page Étude NAVIGUE vers la page
-> Réunion étape ⑤ (plus de dialogue) ; le callback `sur_changement` rafraîchit le
-> stepper à chaque changement de résumé. Tests : réécriture de
-> test_p17_integration (navigation étape « resume »), test_resume_ui (PageResume +
-> source manquante), test_p16ter / test_p18_6e (PageResume), test_p18_6b
-> (réunion autonome : page embarquée, plus de bouton « Résumé… ») ; NOUVEAU
-> tests/unit/test_p18_6bis_serie8_resume.py (5 tests : outillage dans la page,
-> aucun bouton/fenêtre, saisie manuelle directe, source manquante, stepper).
-> Aussi livré ce jour : **P19.4 fusion de pensées** (détail en session P19.4
-> ci-dessous, 17 tests) ; l'écart d'interprétation soumis à l'atelier est
-> **VALIDÉ** par ARBITRAGE_P19_4_FUSION_REGENERATION_2026-11-07a (une fusion est
-> une édition du document dérivé ; jamais défaite automatiquement ; seule la
-> régénération explicite peut l'écraser — son avertissement doit désormais le
-> mentionner, livré avec P19.4-bis). Synchro atelier v39 : INDEX_SPECS
-> 2026-11-07b/c recopiés.
+> **Dernière mise à jour** : 2026-11-07 (**P19.4-bis LIVRÉ — prompt de fusion dans la
+> BIBLIOTHÈQUE ÉDITABLE**, ARBITRAGE_PROMPT_FUSION_2026-11-07a : usage
+> `prompts/fusion.md`, libellé « Fusion de pensées » au sélecteur de ⚙ Prompts (entrées
+> page Reformulation et page Résumé), défaut embarqué reconstituable
+> `resources/prompts/prompt_fusion_v2.md`, copie LOCALE par étude — bloc `fusion`
+> OPTIONNEL de parametres.json, les études existantes ne sont jamais touchées, les
+> nouvelles héritent de la bibliothèque ; l'assistance envoie les PENSÉES CANDIDATES
+> (textes, locuteurs, réunions sources) au prompt de fusion ; TRAÇABILITÉ texte+hash :
+> chaque fusion assistée consigne le prompt EFFECTIF (texte entier + hash court, modèle,
+> coûts) dans ouvrage.json (`fusion.stats`) — hash visible au manuscrit ; Inv. B de
+> ARBITRAGE_P19_4_FUSION_REGENERATION appliqué : l'avertissement de régénération
+> mentionne désormais explicitement les FUSIONS (et l'historique)). Aussi livrés ce
+> jour : **série 8 navigation** (spec 31e §31 — tout l'outillage du résumé vit dans la
+> page ③ Résumé, la fenêtre « Résumé… » est SUPPRIMÉE, invariant 17, ui/resume_window.py
+> devient PageResume(QWidget) embarquée, 5 nouveaux test_p18_6bis_serie8_resume.py) et
+> **P19.4 fusion de pensées** (17 tests ; interprétation VALIDÉE par
+> ARBITRAGE_P19_4_FUSION_REGENERATION). Synchro atelier v39 : INDEX_SPECS 2026-11-07b/c
+> + les deux arbitrages recopiés dans architecture/spec_v2/.
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
@@ -1992,17 +1984,16 @@ d'attribution).
      une édition du document dérivé » — jamais défaite
      automatiquement (pas de mise à jour incrémentale), seule la
      RÉGÉNÉRATION EXPLICITE (qui écrase toute édition, avec
-     avertissement) l'efface ; si l'atelier veut que les fusions
-     survivent À la régénération, il faut un mécanisme de
-     ré-ancrage (matching FID/texte) — non implémenté ;
-   - la consigne de fusion est EMBARQUÉE (pas d'usage
-     `prompts/<usage>.md`) et le prompt système est celui de la
-     reformulation de l'étude — si l'atelier préfère un usage
-     dédié dans la bibliothèque de prompts (P16-ter), l'ajout est
-     localisé à `ServiceFusion` ;
+     avertissement) l'efface ; **VALIDÉ sans réserve le 07/11** par
+     ARBITRAGE_P19_4_FUSION_REGENERATION_2026-11-07a (inv. A/B/C) ;
+   - ~~la consigne de fusion est EMBARQUÉE (pas d'usage
+     `prompts/<usage>.md`)~~ **TRAITÉ en P19.4-bis** :
+     ARBITRAGE_PROMPT_FUSION_2026-11-07a (VALIDÉ) met le prompt de
+     fusion dans la bibliothèque `prompts/fusion.md` — voir la
+     session P19.4-bis ci-dessous ;
    - la détection des pensées similaires (relance LLM parcourant
      l'ouvrage) rejoint P20 (aides à la relecture), conformément à
-     la feuille de route.
+     la feuille de route et à l'arbitrage du 07/11.
 
 Bilan tests : **613 verts** (596 + 17), suite complète régénérée.
 Synchro atelier faite avant la session (skill v39 via Drive :
@@ -2057,6 +2048,86 @@ de l'app (invariant complémentaire 17).
    « Résumé… » ; c'est exactement l'objet de cette session.
 
 Bilan tests : **618 verts** (613 + 5 nouveaux), suite complète
+régénérée.
+
+---
+
+## SESSION 2026-11-07 (suite, P19.4-bis) — PROMPT DE FUSION DANS LA BIBLIOTHÈQUE : LIVRÉ
+
+**P19.4-bis** (ARBITRAGE_PROMPT_FUSION_2026-11-07a.md — VALIDÉ, fait
+autorité) : le prompt de fusion assistée passe dans la BIBLIOTHÈQUE
+ÉDITABLE de prompts P16-ter, au même titre que reformulation et
+résumé. Règle générale désormais explicite : **tout prompt envoyé à
+un LLM par l'app vit dans `prompts/<usage>.md`** — aucun prompt
+utilisateur-invisible codé en dur.
+
+1. **Bibliothèque** (`services/prompts.py`) : usage
+   `USAGE_FUSION = "fusion"`, libellé « Fusion de pensées »
+   (entrée « Fusion » du sélecteur de ⚙ Prompts — pages
+   Reformulation et Résumé, modes bibliothèque et étude), fichier
+   `prompts/fusion.md`, défaut embarqué reconstituable
+   `resources/prompts/prompt_fusion_v2.md` (migration : le texte
+   actuel codé en dur de P19.4 en devient le contenu initial,
+   enrichi du rôle et du style de l'ouvrage ; lecture = défaut si
+   le fichier est supprimé, jamais de création à la lecture,
+   « Réinitialiser » = suppression du fichier).
+2. **Copie locale par étude** (règles P16-ter) : bloc `fusion`
+   OPTIONNEL de `parametres/parametres.json` (`ParametresEtude.
+   fusion`, précédent du bloc `bible` P18.5) — les NOUVELLES études
+   héritent de la bibliothèque (`parametres_par_defaut` via
+   `prompt_initial`), les études EXISTANTES ne sont jamais touchées
+   (validation `valider_parametres` : bloc optionnel, dict, prompt
+   chaîne si présent). Le gestionnaire ⚙ Prompts en MODE ÉTUDE
+   écrit/recharge/promulgue la copie locale (`GestionPromptsDialog.
+   panneau._parametres_usage` → `parametres.fusion`).
+3. **ServiceFusion** (`services/traitements/fusion.py`) :
+   `prompt_effectif()` = copie locale de l'étude, sinon la
+   bibliothèque (`prompts/fusion.md`), sinon le défaut embarqué ;
+   l'appel envoie le prompt de fusion comme prompt SYSTÈME (plus
+   le prompt de reformulation) et les PENSÉES CANDIDATES comme
+   message utilisateur — textes, locuteurs et réunions SOURCES
+   (« Source 1 : R1 · Philippe · … »), la CONSIGNE codée en dur
+   (`CONSIGNE_FUSION`) est SUPPRIMÉE du module (migrée dans le
+   défaut embarqué). Résolution modèle/température inchangée (bloc
+   reformulation de l'étude).
+4. **Traçabilité texte + hash** (P19.4-bis) : après chaque
+   assistance, le service consigne le prompt EFFECTIF
+   (`dernier_prompt` + `dernier_prompt_hash` — SHA-256 court,
+   mécanique P16-ter) ; le dialogue les collecte avec modèle et
+   coûts (`FusionPenseesDialog.stats()`), la page Ouvrage les
+   transmet à `fusionner_pensees(..., stats=...)` qui les
+   consigne dans l'instantané de fusion (`fusion.stats` dans
+   ouvrage.json) ; ils accompagnent la dé-fusion (l'instantané
+   complet vit dans l'historique) ; le manuscrit du paragraphe
+   fusionné assisté affiche le hash (« · prompt 8f2a1b3c »). Une
+   fusion purement MANUELLE ne consigne rien.
+5. **Inv. B de l'arbitrage P19.4** appliqué
+   (ARBITRAGE_P19_4_FUSION_REGENERATION : avertissement explicite)
+   : le message de régénération de la page Ouvrage mentionne
+   désormais « Y COMPRIS les FUSIONS de pensées (et l'historique) ».
+6. **Lecture des variables** documentée : l'arbitrage demande des
+   variables `{{...}}` « selon la convention des autres prompts »
+   — or les prompts reformulation et résumé n'en UTILISENT aucun
+   (instructions pures ; textes et consignes assemblés dans le
+   message utilisateur par le service) ; le prompt de fusion suit
+   la même convention : instructions pures dans le fichier,
+   pensées candidates assemblées par le service. À signaler à
+   l'atelier si des variables venaient à être souhaitées.
+7. **Tests** : `tests/unit/test_p194bis_prompt_fusion.py` (12
+   tests : usage/libellé, défaut embarqué fourni, bibliothèque +
+   réinitialisation, héritage des nouvelles études, étude
+   antérieure sans bloc (chargement + validation), validation du
+   bloc fusion, copie locale prioritaire (le prompt envoyé change,
+   hash suivi), bibliothèque puis défaut, pensées candidates avec
+   sources, stats consignées + persistance ouvrage.json + survie
+   à la dé-fusion via l'historique, page : stats transmises +
+   hash au manuscrit + avertissement régénération mentionnant les
+   FUSIONS, entrée « Fusion de pensées » de ⚙ Prompts + édition
+   locale → prompt_effectif mis à jour) ; test_p194 adapté (prompt
+   système = prompt de fusion, sources « Source 1/2 » au message,
+   dernier_prompt/hash, DialogueFactice.stats()).
+
+Bilan tests : **630 verts** (618 + 12 nouveaux), suite complète
 régénérée.
 
 ---

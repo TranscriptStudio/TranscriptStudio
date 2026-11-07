@@ -28,10 +28,15 @@ from services.resources import resource_path
 
 USAGE_REFORMULATION = "reformulation"
 USAGE_RESUME = "resume"
+USAGE_FUSION = "fusion"
 
 LIBELLES_USAGES = {
     USAGE_REFORMULATION: "Reformulation",
     USAGE_RESUME: "Résumé",
+    # P19.4-bis (ARBITRAGE_PROMPT_FUSION) : usage
+    # « Fusion de pensées » — entrée « Fusion » du
+    # sélecteur de ⚙ Prompts.
+    USAGE_FUSION: "Fusion de pensées",
 }
 
 FICHIERS_DEFAUT_EMBARQUES = {
@@ -40,6 +45,9 @@ FICHIERS_DEFAUT_EMBARQUES = {
     ),
     USAGE_RESUME: (
         "prompt_resume_v2.md"
+    ),
+    USAGE_FUSION: (
+        "prompt_fusion_v2.md"
     ),
 }
 

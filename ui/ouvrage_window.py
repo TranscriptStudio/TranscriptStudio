@@ -709,6 +709,22 @@ class OuvrageWindow(QWidget):
             + " — ".join(provenances)
         )
 
+        # P19.4-bis : traçabilité du prompt de
+        # l'assistance éventuelle (hash court).
+        if element.source == SOURCE_FUSION and (
+            element.fusion
+        ):
+
+            stats = (
+                element.fusion.get("stats") or {}
+            )
+
+            if stats.get("prompt_hash"):
+                provenance_label.setText(
+                    provenance_label.text()
+                    + f" · prompt {stats['prompt_hash']}"
+                )
+
         provenance_label.setStyleSheet(
             "color: #8a8b92; font-size: 11px;"
         )
@@ -1131,9 +1147,11 @@ class OuvrageWindow(QWidget):
                     "Régénérer ÉCRASE le document "
                     "ouvrage actuel : chapitres, "
                     "sous-titres, séparateurs et "
-                    "éditions disparaissent — seuls "
-                    "les textes validés de l'étude "
-                    "sont réimportés.\n\n"
+                    "éditions disparaissent — "
+                    "Y COMPRIS les FUSIONS de "
+                    "pensées (et l'historique) — "
+                    "seuls les textes validés de "
+                    "l'étude sont réimportés.\n\n"
                     "Continuer ?"
                 ),
                 (
@@ -1341,6 +1359,7 @@ class OuvrageWindow(QWidget):
                 paragraphes[0].id,
                 paragraphes[1].id,
                 dialogue.texte_fusionne(),
+                stats=dialogue.stats(),
             )
 
         except Exception as e:

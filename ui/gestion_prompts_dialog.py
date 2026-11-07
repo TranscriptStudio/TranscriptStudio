@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
 
 from services.prompts import (
     LIBELLES_USAGES,
+    USAGE_FUSION,
     USAGE_REFORMULATION,
     chemin_bibliotheque,
     ecrire_bibliotheque,
@@ -257,6 +258,13 @@ class PanneauGestionPrompts(QWidget):
 
         if self.usage == USAGE_REFORMULATION:
             return self.etude.parametres.reformulation
+
+        if self.usage == USAGE_FUSION:
+            # P19.4-bis : bloc optionnel (les études
+            # antérieures n'ont pas de copie locale
+            # — la lecture vaut la bibliothèque,
+            # l'édition ENRISTRE la copie).
+            return self.etude.parametres.fusion
 
         return self.etude.parametres.resume
 

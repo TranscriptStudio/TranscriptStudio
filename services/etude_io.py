@@ -65,6 +65,7 @@ from services.etude_schema import (
     valider_synthese,
 )
 from services.prompts import (
+    USAGE_FUSION,
     USAGE_REFORMULATION,
     USAGE_RESUME,
     prompt_initial,
@@ -279,6 +280,18 @@ def parametres_par_defaut(
         # révisée, décision David 2026-10-28).
         bible={
             "version": "darbyR",
+        },
+        # P19.4-bis (ARBITRAGE_PROMPT_FUSION) :
+        # copie locale du prompt de fusion pour les
+        # NOUVELLES études (bibliothèque
+        # prompts/fusion.md, à défaut embarqué) ;
+        # les études EXISTANTES ne sont jamais
+        # touchées (règle P16-ter).
+        fusion={
+            "prompt": prompt_initial(
+                USAGE_FUSION,
+                dossier_prompts
+            ),
         },
     )
 

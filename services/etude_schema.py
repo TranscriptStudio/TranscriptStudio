@@ -1056,6 +1056,33 @@ def valider_parametres(
                 "bible.version : chaine attendue"
             )
 
+    #
+    # P19.4-bis (ARBITRAGE_PROMPT_FUSION) : bloc
+    # fusion OPTIONNEL - le prompt de fusion de
+    # pensees de l'etude (copie locale). Les
+    # etudes anterieures n'ont pas ce bloc :
+    # jamais requis, jamais migre, jamais
+    # bloquant ; present, il doit etre un dict
+    # avec un prompt chaine.
+    #
+    if "fusion" in data and data["fusion"] is not None:
+
+        if not isinstance(data["fusion"], dict):
+            _erreur(
+                fichier,
+                "fusion : objet attendu"
+            )
+
+        prompt_fusion = data["fusion"].get("prompt")
+
+        if prompt_fusion is not None and (
+            not isinstance(prompt_fusion, str)
+        ):
+            _erreur(
+                fichier,
+                "fusion.prompt : chaine attendue"
+            )
+
     fournisseurs = llm.get("fournisseurs", [])
 
     if not isinstance(fournisseurs, list):

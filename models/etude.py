@@ -793,6 +793,18 @@ class ParametresEtude:
     #
     bible: dict = field(default_factory=dict)
 
+    #
+    # P19.4-bis (ARBITRAGE_PROMPT_FUSION) : copie
+    # locale du prompt de fusion de pensées —
+    # bloc ``fusion`` de parametres.json. Les
+    # études antérieures n'ont pas ce bloc : lu
+    # comme vide (l'assistance utilise alors la
+    # BIBLIOTHÈQUE prompts/fusion.md, à défaut le
+    # défaut embarqué), jamais bloquant, jamais
+    # migré.
+    #
+    fusion: dict = field(default_factory=dict)
+
     def to_dict(self) -> dict:
 
         return {
@@ -803,6 +815,7 @@ class ParametresEtude:
                 self.controle_qualite,
             "llm": self.llm,
             "bible": self.bible,
+            "fusion": self.fusion,
         }
 
     @classmethod
@@ -824,4 +837,8 @@ class ParametresEtude:
             # Bloc optionnel (études antérieures à
             # P18.5) : jamais requis, jamais migré.
             bible=data.get("bible", {}) or {},
+            # Bloc optionnel (études antérieures à
+            # P19.4-bis) : idem bibliotheque ->
+            # defaut embarque.
+            fusion=data.get("fusion", {}) or {},
         )

@@ -414,7 +414,8 @@ def fusionner_pensees(
     document: DocumentOuvrage,
     id_1: str,
     id_2: str,
-    texte_fusionne: str
+    texte_fusionne: str,
+    stats: dict = None
 ) -> ElementOuvrage:
     """
     **Fusion de pensées** (P19.4, feuille de
@@ -437,7 +438,13 @@ def fusionner_pensees(
       paragraphes, dans l'ordre du document ;
     - l'instantané des deux paragraphes d'origine
       (texte, provenances, source) est conservé
-      dans l'élément pour la **dé-fusion**.
+      dans l'élément pour la **dé-fusion** ;
+    - ``stats`` (facultatif, P19.4-bis) : traçabilité
+      de l'ASSISTANCE LLM éventuelle — texte du
+      prompt EFFECTIF (``prompt``) et hash court
+      (``prompt_hash``), plus modèle/coût si fournis ;
+      consignée dans l'instantané de fusion, donc
+      dans ouvrage.json.
 
     Retour : le paragraphe fusionné (déjà en place
     dans le document).
@@ -503,6 +510,9 @@ def fusionner_pensees(
             ]
         },
     )
+
+    if stats:
+        fusionne.fusion["stats"] = dict(stats)
 
     position = document.elements.index(
         element_1
