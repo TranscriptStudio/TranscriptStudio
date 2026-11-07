@@ -806,7 +806,8 @@ class TestRelancesResume:
         # Inv. S3 : consigne en dernier, prioritaire.
         assert "PRIORITAIRE" in message
         assert message.rstrip().endswith(
-            "aucun texte hors passage."
+            "sans reproduire "
+            "aucun fragment du texte original."
         )
         assert message.index(
             "traduis en français"

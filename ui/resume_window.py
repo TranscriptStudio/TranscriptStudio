@@ -473,6 +473,15 @@ class PageResume(QWidget):
                         "le passage — vérifier"
                     )
 
+                # Série 2 (Inv. S7) : fragment du texte
+                # original dans la réponse.
+                if stats.get("avertissement_residu"):
+                    details += (
+                        " · la réponse contient un "
+                        "fragment du texte original — "
+                        "vérifiez la zone retravaillée"
+                    )
+
             self.version_label.setText(details)
 
         else:

@@ -1034,7 +1034,8 @@ class TestCriteresP15:
         assert "PRIORITAIRE" in message
         assert "traduis en français" in message
         assert message.rstrip().endswith(
-            "aucun texte hors passage."
+            "sans reproduire "
+            "aucun fragment du texte original."
         )
 
         # Inv. S2 : raccord applicatif — la réponse

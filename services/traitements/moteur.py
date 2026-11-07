@@ -893,7 +893,8 @@ class MoteurTraitements:
         consigne: str = None,
         selection: dict = None,
         parametres: ParametresCompletion = None,
-        avertissement: str = None
+        avertissement: str = None,
+        avertissement_residu: bool = False
     ):
         """
         P20-ter (retour David 31/10) : la version
@@ -950,6 +951,12 @@ class MoteurTraitements:
         #
         if avertissement:
             stats["avertissement"] = avertissement
+
+        # Série 2 (Inv. S7) : fragment du texte
+        # original dans la réponse — signalé, jamais
+        # bloquant.
+        if avertissement_residu:
+            stats["avertissement_residu"] = True
 
         version = ajouter_version_reformulation(
             self.etude,
@@ -1295,6 +1302,7 @@ class MoteurTraitements:
             raise
 
         avertissement = None
+        avertissement_residu = False
 
         if selection is not None:
             #
@@ -1306,6 +1314,7 @@ class MoteurTraitements:
             # octet, garanti par construction.
             #
             from services.traitements.ciblee import (
+                AVERTISSEMENT_RESIDU,
                 extraire_passage,
                 raccorder,
                 verifier_reponse,
@@ -1339,12 +1348,25 @@ class MoteurTraitements:
 
             # Garde-fous : réponse vide → erreur
             # propre (rien n'est consigné) ; réponse
-            # > 3× le passage → version marquée.
-            reponse, avertissement = (
+            # > 3× le passage → version marquée ;
+            # fragment du texte original (≥ 6 mots,
+            # Inv. S7) → version marquée aussi.
+            reponse, avertissements = (
                 verifier_reponse(
                     resultat.texte,
                     passage
                 )
+            )
+
+            avertissement = (
+                avertissements[0]
+                if avertissements
+                else None
+            )
+
+            avertissement_residu = (
+                AVERTISSEMENT_RESIDU
+                in avertissements
             )
 
             texte_final = raccorder(
@@ -1372,4 +1394,5 @@ class MoteurTraitements:
             selection=selection,
             parametres=parametres,
             avertissement=avertissement,
+            avertissement_residu=avertissement_residu,
         )

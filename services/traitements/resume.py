@@ -862,6 +862,7 @@ class ServiceResume:
         """
 
         from services.traitements.ciblee import (
+            AVERTISSEMENT_RESIDU,
             extraire_passage,
             message_ciblee,
             raccorder,
@@ -924,7 +925,7 @@ class ServiceResume:
         # passage retravaillé SEUL ; l'application
         # raccorde la tranche.
         #
-        reponse, avertissement = verifier_reponse(
+        reponse, avertissements = verifier_reponse(
             appel.texte,
             passage
         )
@@ -935,8 +936,14 @@ class ServiceResume:
             reponse
         )
 
-        if avertissement:
-            stats["avertissement"] = avertissement
+        if avertissements:
+            stats["avertissement"] = avertissements[0]
+
+        # Série 2 (Inv. S7) : fragment du texte
+        # original dans la réponse — signalé, jamais
+        # bloquant.
+        if AVERTISSEMENT_RESIDU in avertissements:
+            stats["avertissement_residu"] = True
 
         return (
             self._consigner(

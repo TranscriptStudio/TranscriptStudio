@@ -1768,6 +1768,18 @@ class ReformulationWindow(QWidget):
                 "passage — vérifier"
             )
 
+        #
+        # Série 2 relance ciblée (Inv. S7) : fragment
+        # du texte original dans la réponse — signalé,
+        # jamais bloquant.
+        #
+        if stats.get("avertissement_residu"):
+            lignes.append(
+                "La réponse contient un fragment "
+                "du texte original — vérifiez la "
+                "zone retravaillée."
+            )
+
         return "\n".join(lignes)
 
     @staticmethod
