@@ -1757,6 +1757,17 @@ class ReformulationWindow(QWidget):
         if hash_court:
             lignes.append(f"prompt {hash_court}")
 
+        #
+        # Relance ciblée : garde-fou « réponse plus
+        # longue que le passage » — la version est
+        # marquée (le retour arrière reste le filet).
+        #
+        if stats.get("avertissement"):
+            lignes.append(
+                "réponse plus longue que le "
+                "passage — vérifier"
+            )
+
         return "\n".join(lignes)
 
     @staticmethod

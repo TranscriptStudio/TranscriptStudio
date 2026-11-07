@@ -996,30 +996,184 @@ class TestCriteresP15:
         # exécution directe (relance ciblée).
         version = moteur.traiter_bloc(
             1,
+            consigne="traduis en français",
             selection={"debut": 0, "fin": 10}
         )
 
         assert version.type == "relance_ciblee"
         assert len(client.appels) == 4
 
-        # Relance ciblée : la formulation courante et
-        # les versions antérieures du bloc sont dans
-        # le contexte.
+        # CORRECTIFS_RELANCE_CIBLEE_V2_2026-11-07a :
+        # le message contient le TEXTE du passage
+        # (pas des offsets), le texte courant en
+        # contexte lecture seule, JAMAIS la source ni
+        # les versions antérieures ; consigne en
+        # dernier, prioritaire.
         dernier_appel = client.appels[-1]
 
-        assert "Formulation actuelle" in (
-            dernier_appel["message"]
+        message = dernier_appel["message"]
+
+        texte_courant = (
+            etude.reformulations[1]
+            .versions[0]
+            .texte
         )
 
-        assert "Versions antérieures" in (
-            dernier_appel["message"]
+        passage = texte_courant[:10]
+
+        assert "Passage à retravailler" in message
+        assert passage in message
+        assert "offsets" not in message
+
+        assert "pour contexte seulement" in message
+        assert "Texte à reformuler" not in message
+        assert "Versions antérieures" not in (
+            message
         )
+
+        assert "PRIORITAIRE" in message
+        assert "traduis en français" in message
+        assert message.rstrip().endswith(
+            "aucun texte hors passage."
+        )
+
+        # Inv. S2 : raccord applicatif — la réponse
+        # (passage seul, 4ᵉ appel factice) remplace la
+        # tranche [0, 10] ; le reste est conservé octet
+        # pour octet.
+        attendu = (
+            "Reformulation du bloc #4."
+            + texte_courant[10:]
+        )
+
+        assert version.texte == attendu
+
+        # La sélection stockée contient debut/fin +
+        # le texte du passage.
+        assert version.selection == {
+            "debut": 0,
+            "fin": 10,
+            "texte": passage,
+        }
 
         # Après réouverture, tout est en place.
         reouverte = ouvrir_etude(etude.dossier)
 
         for fid in (1, 2, 3):
             assert reouverte.reformulations[fid].versions
+
+
+class TestRelanceCibleeGardeFous:
+    """
+    CORRECTIFS_RELANCE_CIBLEE_V2_2026-11-07a :
+    garde-fous de la relance ciblée (moteur) —
+    réponse vide → erreur propre, rien consigné ;
+    réponse > 3× le passage → version marquée.
+    """
+
+    def _moteur_avec_version(
+        self,
+        tmp_path,
+        client
+    ):
+        etude, nom = creer_etude_avec_blocs(
+            tmp_path,
+            nb_blocs=2
+        )
+
+        moteur = fabriquer_moteur(
+            etude,
+            nom,
+            client
+        )
+
+        # Une version courante (passe d'un bloc).
+        moteur.traiter_bloc(1)
+
+        return etude, nom, moteur
+
+    def test_reponse_vide_rien_consigne(
+        self,
+        tmp_path
+    ):
+
+        from services.traitements.ciblee import (
+            RelanceVideError,
+        )
+
+        client = ClientFactice(
+            fournisseur=(
+                catalogue_par_defaut()
+                .chercher_fournisseur("openai")
+            ),
+            cle="",
+            reponses=["ok", "   "],
+        )
+
+        etude, nom, moteur = (
+            self._moteur_avec_version(
+                tmp_path,
+                client
+            )
+        )
+
+        nb_avant = len(
+            etude.reformulations[1].versions
+        )
+
+        with pytest.raises(RelanceVideError):
+            moteur.traiter_bloc(
+                1,
+                selection={"debut": 0, "fin": 3}
+            )
+
+        assert (
+            len(etude.reformulations[1].versions)
+            == nb_avant
+        )
+
+    def test_reponse_trop_longue_marquee(
+        self,
+        tmp_path
+    ):
+
+        client = ClientFactice(
+            fournisseur=(
+                catalogue_par_defaut()
+                .chercher_fournisseur("openai")
+            ),
+            cle="",
+            reponses=["ok", "x" * 200],
+        )
+
+        etude, nom, moteur = (
+            self._moteur_avec_version(
+                tmp_path,
+                client
+            )
+        )
+
+        version = moteur.traiter_bloc(
+            1,
+            selection={"debut": 0, "fin": 3}
+        )
+
+        assert version.type == "relance_ciblee"
+
+        assert version.stats.get(
+            "avertissement"
+        ) == "reponse_plus_longue_que_le_passage"
+
+        # Le raccord a bien eu lieu (réponse + reste).
+        texte_courant = (
+            etude.reformulations[1]
+            .versions[0]
+            .texte
+        )
+
+        assert version.texte == (
+            "x" * 200 + texte_courant[3:]
+        )
 
 
 class TestJournalRegles:

@@ -38,7 +38,11 @@ l'appel (règle d'invariance 1 de la spec).
 """
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import (
+    dataclass,
+    field,
+    replace,
+)
 
 from services.llm.catalogue import (
     CatalogueError,
@@ -55,6 +59,7 @@ from services.llm.client import (
 )
 from services.decoupage import blocs_actifs
 from services.etude_io import (
+    EtudeError,
     EtudeOuverte,
     ajouter_version_reformulation,
     sauvegarder_etude,
@@ -454,10 +459,22 @@ class MoteurTraitements:
         """
         Message utilisateur assemblé, dans l'ordre de
         la spec §2 : synthèse d'étude → fenêtre
-        glissante → unité courante (+ formulation
-        courante et versions antérieures pour une
-        relance ciblée) → consigne libre éventuelle.
+        glissante → unité courante → consigne.
+
+        Relance Ciblée (CORRECTIFS_RELANCE_CIBLEE_V2_
+        2026-11-07a) : le passage sélectionné est
+        envoyé EN CLAIR (Inv. S1), le texte courant
+        sert de contexte EN LECTURE SEULE (Inv. S4 —
+        jamais la source du bloc ni les versions
+        antérieures), la consigne est énoncée EN
+        DERNIER, prioritaire (Inv. S3). La fenêtre
+        glissante reste envoyée pour le style.
         """
+
+        from services.traitements.ciblee import (
+            extraire_passage,
+            message_ciblee,
+        )
 
         parties = []
 
@@ -477,6 +494,23 @@ class MoteurTraitements:
                 "Reformulations précédentes "
                 "(continuité de style) :\n" + extraits
             )
+
+        if selection is not None:
+
+            passage = extraire_passage(
+                texte_courant or "",
+                selection
+            )
+
+            parties.append(
+                message_ciblee(
+                    passage,
+                    consigne,
+                    contexte=texte_courant,
+                )
+            )
+
+            return "\n\n".join(parties)
 
         parties.append(
             "Texte à reformuler :\n" + bloc.source
@@ -568,10 +602,21 @@ class MoteurTraitements:
                     resultat.versions[-1].texte
                 )
 
-                versions_bloc = [
-                    (version.numero, version.texte)
-                    for version in resultat.versions
-                ]
+            #
+            # Inv. S4 (relance ciblée) : JAMAIS les
+            # versions antérieures du bloc — c'est ce
+            # qui poussait le modèle à régénérer le
+            # document de bout en bout.
+            #
+            versions_bloc = []
+
+            if texte_courant is None:
+                raise EtudeError(
+                    f"Bloc {bloc.fid} : aucune "
+                    "formulation courante — la relance "
+                    "ciblée exige une version "
+                    "préalable."
+                )
 
         def construire(fenetre_courante):
 
@@ -847,7 +892,8 @@ class MoteurTraitements:
         contexte: ContexteAssemble,
         consigne: str = None,
         selection: dict = None,
-        parametres: ParametresCompletion = None
+        parametres: ParametresCompletion = None,
+        avertissement: str = None
     ):
         """
         P20-ter (retour David 31/10) : la version
@@ -896,6 +942,14 @@ class MoteurTraitements:
             stats["prompt_hash"] = hash_prompt(
                 contexte.prompt_systeme
             )
+
+        #
+        # Relance ciblée : garde-fou « réponse plus
+        # longue que le passage » (marqueur sur la
+        # version — le retour arrière reste le filet).
+        #
+        if avertissement:
+            stats["avertissement"] = avertissement
 
         version = ajouter_version_reformulation(
             self.etude,
@@ -1240,6 +1294,75 @@ class MoteurTraitements:
 
             raise
 
+        avertissement = None
+
+        if selection is not None:
+            #
+            # Inv. S2 (CORRECTIFS_RELANCE_CIBLEE
+            # 2026-11-07a) : raccord APPLICATIF — la
+            # réponse (le passage retravaillé SEUL)
+            # remplace la tranche [debut, fin] ; le
+            # reste du texte est conservé octet pour
+            # octet, garanti par construction.
+            #
+            from services.traitements.ciblee import (
+                extraire_passage,
+                raccorder,
+                verifier_reponse,
+            )
+
+            resultat_courant = (
+                self.etude.reformulations.get(fid)
+            )
+
+            texte_courant = (
+                resultat_courant.versions[-1].texte
+                if (
+                    resultat_courant
+                    and resultat_courant.versions
+                )
+                else None
+            )
+
+            if texte_courant is None:
+                raise EtudeError(
+                    f"Bloc {fid} : aucune "
+                    "formulation courante — la "
+                    "relance ciblée exige une "
+                    "version préalable."
+                )
+
+            passage = extraire_passage(
+                texte_courant,
+                selection
+            )
+
+            # Garde-fous : réponse vide → erreur
+            # propre (rien n'est consigné) ; réponse
+            # > 3× le passage → version marquée.
+            reponse, avertissement = (
+                verifier_reponse(
+                    resultat.texte,
+                    passage
+                )
+            )
+
+            texte_final = raccorder(
+                texte_courant,
+                selection,
+                reponse
+            )
+
+            resultat = replace(
+                resultat,
+                texte=texte_final
+            )
+
+            # La sélection stockée dans la version
+            # contient debut/fin + le texte du passage.
+            selection = dict(selection)
+            selection["texte"] = passage
+
         return self._consigner_resultat(
             bloc,
             resultat,
@@ -1247,5 +1370,6 @@ class MoteurTraitements:
             contexte,
             consigne=consigne,
             selection=selection,
-            parametres=parametres
+            parametres=parametres,
+            avertissement=avertissement,
         )

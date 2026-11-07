@@ -465,6 +465,14 @@ class PageResume(QWidget):
                         f"{stats['prompt_hash']}"
                     )
 
+                # Relance ciblée : garde-fou « réponse
+                # plus longue que le passage ».
+                if stats.get("avertissement"):
+                    details += (
+                        " · réponse plus longue que "
+                        "le passage — vérifier"
+                    )
+
             self.version_label.setText(details)
 
         else:

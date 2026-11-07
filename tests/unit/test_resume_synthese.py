@@ -740,10 +740,14 @@ class TestRelancesResume:
         self, tmp_path
     ):
         """
-        Relance ciblée : contexte identique +
-        versions antérieures + portion délimitée ; la
-        version contient le résumé entier retravaillé
-        partiellement.
+        CORRECTIFS_RELANCE_CIBLEE_V2_2026-11-07a :
+        relance ciblée — le message contient le TEXTE
+        du passage (pas des offsets), le résumé courant
+        en contexte LECTURE SEULE, JAMAIS la source ni
+        les versions antérieures ; la consigne est
+        énoncée EN DERNIER, prioritaire. L'application
+        raccorde la tranche : le reste est conservé
+        octet pour octet.
         """
 
         etude, reunion, service = (
@@ -751,33 +755,142 @@ class TestRelancesResume:
         )
 
         client = ClientFactice(
-            reponses=["Résumé partiellement retravaillé."]
+            reponses=["résumé traduit."]
         )
 
         service._client_factory = (
             lambda fournisseur, cle: client
         )
 
+        texte_courant = (
+            etude.resumes[reunion]
+            .versions[-1]
+            .texte
+        )
+
+        assert texte_courant == "Premier résumé."
+
         selection = {
-            "debut": 10,
-            "fin": 42,
-            "texte": "passage visé",
+            "debut": 8,
+            "fin": 15,
         }
 
         version, _stats = service.relancer_selection(
             reunion,
             selection=selection,
-            consigne=None
+            consigne="traduis en français",
         )
 
         assert version.numero == 2
         assert version.origine == "relance_ciblee"
+        assert version.consigne == (
+            "traduis en français"
+        )
 
-        message = client.appels[0]["message"]
+        message = client.appels[-1]["message"]
 
-        assert "10" in message
-        assert "42" in message
-        assert "conservé tel quel" in message
+        # Inv. S1 : le passage EN CLAIR, pas d'offsets.
+        assert "Passage à retravailler" in message
+        assert "résumé." in message
+        assert "offsets" not in message
+
+        # Inv. S4 : contexte lecture seule, PAS la
+        # source ni les versions antérieures.
+        assert "pour contexte seulement" in message
+        assert "Premier résumé." in message
+        assert "Versions antérieures" not in (
+            message
+        )
+        assert "Document à résumer" not in message
+
+        # Inv. S3 : consigne en dernier, prioritaire.
+        assert "PRIORITAIRE" in message
+        assert message.rstrip().endswith(
+            "aucun texte hors passage."
+        )
+        assert message.index(
+            "traduis en français"
+        ) > message.index("Passage à retravailler")
+
+        # Inv. S2 : raccord applicatif — le reste est
+        # conservé octet pour octet.
+        assert version.texte == (
+            "Premier " + "résumé traduit."
+        )
+
+    def test_relance_ciblee_reponse_vide(
+        self, tmp_path
+    ):
+        """
+        Garde-fou : réponse vide → erreur propre
+        (RelanceVideError), RIEN n'est consigné.
+        """
+
+        from services.traitements.ciblee import (
+            RelanceVideError,
+        )
+
+        etude, reunion, service = (
+            self._etude_avec_resume(tmp_path)
+        )
+
+        client = ClientFactice(reponses=["   "])
+
+        service._client_factory = (
+            lambda fournisseur, cle: client
+        )
+
+        nb_avant = len(
+            etude.resumes[reunion].versions
+        )
+
+        with pytest.raises(RelanceVideError):
+            service.relancer_selection(
+                reunion,
+                selection={"debut": 0, "fin": 5},
+            )
+
+        assert (
+            len(etude.resumes[reunion].versions)
+            == nb_avant
+        )
+
+    def test_relance_ciblee_reponse_trop_longue(
+        self, tmp_path
+    ):
+        """
+        Garde-fou : réponse > 3× le passage →
+        acceptée mais la version est MARQUÉE
+        (stats.avertissement) — le retour arrière
+        reste le filet.
+        """
+
+        etude, reunion, service = (
+            self._etude_avec_resume(tmp_path)
+        )
+
+        client = ClientFactice(
+            reponses=["x" * 200]
+        )
+
+        service._client_factory = (
+            lambda fournisseur, cle: client
+        )
+
+        version, stats = service.relancer_selection(
+            reunion,
+            selection={"debut": 0, "fin": 5},
+        )
+
+        assert version.numero == 2
+
+        assert stats.get("avertissement") == (
+            "reponse_plus_longue_que_le_passage"
+        )
+
+        assert version.texte == (
+            "x" * 200 + "Premier résumé."[5:]
+        )
 
     def test_edition_manuelle_puis_validation(
         self, tmp_path

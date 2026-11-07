@@ -841,12 +841,32 @@ class ServiceResume:
         annulation: Annulation = None
     ):
         """
-        Relance ciblée sur une sélection du résumé :
-        contexte identique + formulation courante et
-        versions antérieures ; seule la portion visée
-        est retravaillée, le reste est conservé tel
-        quel (la version contient le résumé entier).
+        Relance ciblée sur une sélection du résumé
+        (CORRECTIFS_RELANCE_CIBLEE_V2_2026-11-07a) :
+
+        - Inv. S1 : le message contient le TEXTE du
+          passage sélectionné (pas des offsets) ;
+        - Inv. S4 : contexte minimal, en lecture seule
+          (le résumé courant marqué « ne pas
+          reproduire ») — JAMAIS la source ni les
+          versions antérieures ;
+        - Inv. S3 : consigne énoncée en dernier,
+          prioritaire (y compris sur la langue) ;
+        - Inv. S2 : l'application raccorde la tranche
+          [debut, fin] avec la réponse ; le reste du
+          résumé est conservé octet pour octet.
+
+        Garde-fous : réponse vide → erreur propre
+        (rien n'est consigné) ; réponse > 3× le
+        passage → version marquée.
         """
+
+        from services.traitements.ciblee import (
+            extraire_passage,
+            message_ciblee,
+            raccorder,
+            verifier_reponse,
+        )
 
         resultat = self.etude.resumes.get(reunion)
 
@@ -858,13 +878,13 @@ class ServiceResume:
 
         courante = resultat.versions[-1]
 
-        texte = texte_source(
-            self.etude,
-            reunion,
-            courante.source
+        texte_courant = courante.texte
+
+        passage = extraire_passage(
+            texte_courant,
+            selection
         )
 
-        longueur = self.longueur_cible()
         prompt = (
             self._parametres_resume().get("prompt", "")
         )
@@ -872,42 +892,10 @@ class ServiceResume:
         fournisseur, modele = self.resoudre()
         client = self._creer_client(fournisseur)
 
-        message = self._message_final(
-            texte,
-            longueur,
-            consigne
-        )
-
-        message += (
-            "\n\nFormulation actuelle du résumé :\n"
-            + courante.texte
-        )
-
-        anterieures = self._versions_anterieures(
-            reunion
-        )
-
-        if anterieures:
-
-            historique = "\n\n".join(
-                f"Version {numero} : {texte}"
-                for numero, texte in anterieures
-            )
-
-            message += (
-                "\n\nVersions antérieures du résumé "
-                "(ne pas reproduire leurs défauts) :\n"
-                + historique
-            )
-
-        message += (
-            "\n\nRetravailler uniquement le passage "
-            f"délimité (offsets caractères "
-            f"{selection.get('debut')} à "
-            f"{selection.get('fin')}) ; le reste du "
-            "résumé est conservé tel quel. Le résultat "
-            "est le résumé complet, retravaillé "
-            "partiellement."
+        message = message_ciblee(
+            passage,
+            consigne,
+            contexte=texte_courant,
         )
 
         stats = {
@@ -931,11 +919,30 @@ class ServiceResume:
 
         self._cumuler(stats, appel)
 
+        #
+        # Inv. S2 + garde-fous : la réponse est le
+        # passage retravaillé SEUL ; l'application
+        # raccorde la tranche.
+        #
+        reponse, avertissement = verifier_reponse(
+            appel.texte,
+            passage
+        )
+
+        texte_final = raccorder(
+            texte_courant,
+            selection,
+            reponse
+        )
+
+        if avertissement:
+            stats["avertissement"] = avertissement
+
         return (
             self._consigner(
                 reunion,
                 courante.source,
-                appel.texte,
+                texte_final,
                 stats,
                 origine="relance_ciblee",
                 consigne=consigne
