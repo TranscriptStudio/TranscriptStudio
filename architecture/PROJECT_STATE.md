@@ -1,5 +1,10 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
+> **Dernière mise à jour** : 2026-11-09 soir (**session P20 — reliquat v2 en cours :
+> synchro atelier v41 (INDEX_SPECS_2026-11-09c rév. 5, FEUILLE_DE_ROUTE_V2_2026-11-09c,
+> BIBLE_JND_V2_2026-11-09d, SPEC_PAGE_ETUDE_ET_SYNTHESE_MODIFS_2026-11-09d recopiés) ;
+> origin/master vérifié à l'état v1 (P13, 74a6b09) ; 9 commits prévus : P18.9, P18.10,
+> P20.1, P20.2, P20.3, P20.4, P20.5, P20.6, P20 fin (retrait compatibilité FID nu + README/manuel)**).
 > **Dernière mise à jour** : 2026-11-09 (**P18.8 — correctifs de
 > relecture David du 08/11 : titre de réunion éditable dans le ruban,
 > bouton « Paramètres de l'étude », sélecteur de version de la Bible
@@ -40,7 +45,14 @@
 > **Branche** : v2 (développement v2 ; master reste à l'état v1, dernier commit P13)
 > **Poussées** : en direct sur origin/v2 depuis le CLI (HTTPS + Git Credential
 > Manager ; chaque poussée reste soumise à approbation)
-> **Modifications locales** : aucune (tout est commité)
+> **Modifications locales** : reprises dans le commit de synchro initial —
+> réordonnancement des imports de `services/diagnostics` dans `TranscriptStudio.py`
+> (`install_excepthook` avant `install_qt_message_handler`), remplacement de
+> `icons/livre_étude.png` et `resources/icons/livre_étude.png` (illustration
+> fournie), nouvelles illustrations non encore câblées (`icons/*.jpg`,
+> `icons/microphone_transparent.png`), et nettoyage des specs supersédées
+> dans `architecture/spec_v2/` (suffixées : la lettre la plus récente prime,
+> règle de l'INDEX_SPECS).
 
 ---
 
@@ -104,6 +116,13 @@
   aucune écriture en retour + 8 invariants §12 (4ad6577) ;
   P18.7f migration one-shot v1→v2 à l'ouverture (e734f10) — 697 tests verts ;
   conformité au contrat publié ACTÉE le 09/11 (ARBITRAGE_P18_7_ECARTS_2026-11-09a).
+- **P20 : EN COURS** (session du 2026-11-09 soir — décision David : P20 reste
+  dans la v2 ; 9 commits prévus : P18.9 correctifs page Étude, P18.10 lecteur
+  de Bible intégré, P20.1 mobilité inter-blocs, P20.2 sous-titres IA, P20.3
+  aide à l'écriture globale (page Ouvrage seule), P20.4 export DOCX structuré,
+  P20.5 référence de contrôle qualité par portée, P20.6 synthèse d'étude
+  repensée, P20 fin : retrait de la compatibilité FID nu
+  (ARBITRAGE_P18_7_ECARTS écart 5) + README/manuel).
 - **P18.8 : LIVRÉ** (correctifs de relecture David du 08/11,
   FEUILLE_DE_ROUTE_V2_2026-11-09a §P18.8) : P18.8a titre de réunion éditable
   en place dans le ruban du volet Réunion, persisté (titre_1 si rattachée,
@@ -2533,3 +2552,63 @@ Aucun écart bloquant. Rappel arbitré (ARBITRAGE_P18_7_ECARTS) : la
 compatibilité de lecture par FID nu sera retirée en P20 (point explicite
 des critères P20). Reste ensuite : recette humaine P16/P17/P18/P18.6/
 P18.7/P18.8/P19 par David (checklist PROJECT_STATE), puis P20.
+
+---
+
+## SESSION 2026-11-09 (soir) — P20 : RELIQUAT V2 EN UNE SESSION (9 COMMITS)
+
+Rituel de synchro effectué en début de session : 4 nouveaux documents atelier
+publiés le 2026-11-09 soir, recopiés verbatim dans `architecture/spec_v2/` :
+INDEX_SPECS_2026-11-09c (rév. 5), FEUILLE_DE_ROUTE_V2_2026-11-09c (P18.9,
+P18.10, P20.3 amendé, P20.6), BIBLE_JND_V2_2026-11-09d (§7 lecteur de Bible
+intégré P18.10 + invariants 6-9), SPEC_PAGE_ETUDE_ET_SYNTHESE_MODIFS_2026-11-09d
+(P18.9 + P20.6 — fait autorité, prime sur les specs navigation pour les points
+traités). origin/master vérifié à l'état v1 (P13, 74a6b09) — aucun force-push
+nécessaire. Baseline : suite complète verte (709 tests) avant la session.
+
+Modifications locales préexistantes reprises dans le commit de synchro :
+réordonnancement des imports diagnostics dans `TranscriptStudio.py`,
+remplacement des PNG `livre_étude.png`, illustrations jpg/PNG non câblées,
+nettoyage des specs supersédées de `architecture/spec_v2/`.
+
+### Ordre d'implémentation (une étape de développement par commit)
+
+1. P18.9 — correctifs page Étude (tuiles glisser-déposer, clic droit, badge
+   Bible simplifié, « Édition ouvrage final », fonds, scroll, survol non
+   rogné) — invariants 1-7 du document d'autorité.
+2. P18.10 — lecteur de Bible intégré (page consultative, icônes Réunion /
+   éditeur / Ouvrage, pile unique, sélecteurs pilotés OSIS, dernier passage
+   mémorisé, saisie directe normalisée P18.1, renvoi téléchargeur) —
+   invariants 6-9 de BIBLE_JND_V2 §5.
+3. P20.1 — mobilité inter-blocs des paragraphes + contrôle des renvois
+   orphelins (détection locale).
+4. P20.2 — sous-titres proposés par IA (une passe LLM par section,
+   suggestions à valider, jamais d'insertion automatique).
+5. P20.3 — aide à l'écriture globale, emplacement UNIQUE page Ouvrage :
+   récurrence d'emphase (lexique paramétrable, sans LLM), expressions
+   récurrentes (local + passe LLM optionnelle), occurrences cliquables,
+   filtres, incohérences/redondances par passe LLM à la demande.
+6. P20.4 — export DOCX de l'ouvrage structuré.
+7. P20.5 — référence de contrôle qualité par portée : sélecteur Bible du
+   volet Réunion persisté au tier ; référence d'uniformité ouvrage dans
+   ouvrage.json, jamais réécrite vers les tiers (§8bis).
+8. P20.6 — synthèse d'étude repensée : abrogation de la génération auto à
+   la validation, alimentation manuelle incrémentale, mémoire des
+   contributions, prompt éditable prompts/synthese_etude.md, « (Re)générer »
+   avec avertissement, « Annuler l'édition », injection de contexte
+   conservée, détection des pensées redondantes (page Ouvrage) —
+   invariants 8-14.
+9. P20 fin — retrait de la compatibilité FID nu (ARBITRAGE_P18_7_ECARTS,
+   écart 5) + README et manuel utilisateur à jour.
+
+PROJECT_STATE.md remonté vers Drive Synchro à chaque commit (hook
+post-commit) et en fin de session.
+
+### Avancement
+
+- Commit de synchro atelier v41 (4 documents + reprises locales).
+- (à compléter au fil des commits)
+
+### Écarts signalés pour arbitrage
+
+- (aucun pour l'instant)

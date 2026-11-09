@@ -7,8 +7,8 @@ from ui.app_window import AppWindow
 from ui.settings_dialog import SettingsDialog
 from services.settings import SettingsManager
 from services.theme_manager import ThemeManager
-from services.diagnostics import install_excepthook
 from services.diagnostics import install_qt_message_handler
+from services.diagnostics import install_excepthook
 
 install_excepthook()
 install_qt_message_handler()
