@@ -251,7 +251,7 @@ class EtudeWindow(QWidget):
         Page Étude (P18.6c, spec navigation §4) :
         ruban (titre, thème, nombre de réunions,
         badge Bible · versification, boutons
-        Modifier l'étude / Accueil / ⚙ / ?), liste
+        Paramètres de l'étude / Accueil / ⚙ / ?), liste
         des réunions en une colonne (mini-tuiles :
         titre, rang, date, durée, avancement ①→⑤
         SANS ⑥, coût, ouverture, réordonnancement),
@@ -334,12 +334,17 @@ class EtudeWindow(QWidget):
 
         ruban_layout.addStretch()
 
+        #
+        # P18.8b : « Paramètres de l'étude » (anciennement
+        # « Modifier l'étude ») — ouvre les paramètres de
+        # l'étude (bloc Général : titre + thème inclus).
+        #
         self.modifier_button = QPushButton(
-            "Modifier l'étude"
+            "Paramètres de l'étude"
         )
         self.modifier_button.setToolTip(
-            "Modifier le titre et le thème de "
-            "l'étude"
+            "Paramètres de l'étude : titre, thème, "
+            "prompts, modèles, Bible retenue..."
         )
         self.modifier_button.clicked.connect(
             self.modifier_etude
@@ -694,30 +699,23 @@ class EtudeWindow(QWidget):
 
     def modifier_etude(self):
         """
-        « Modifier l'étude » : mini-fenêtre titre +
-        thème (extensible — spec §4.1).
+        P18.8b : « Paramètres de l'étude » — ouvre le
+        dialogue des paramètres de l'étude (le bloc
+        Général reprend titre + thème de l'ancienne
+        mini-fenêtre « Modifier l'étude »).
         """
 
-        from ui.modifier_etude_dialog import (
-            ModifierEtudeDialog
+        from ui.parametres_etude_dialog import (
+            ParametresEtudeDialog,
         )
 
-        dialogue = ModifierEtudeDialog(
-            self.etude.etude.titre,
-            self.etude.etude.theme,
+        dialogue = ParametresEtudeDialog(
+            self.etude,
             parent=self
         )
 
         if not dialogue.exec():
             return
-
-        titre, theme = dialogue.resultat()
-
-        if titre:
-            self.etude.etude.titre = titre
-
-        if theme:
-            self.etude.etude.theme = theme
 
         sauvegarder_etude(self.etude)
 

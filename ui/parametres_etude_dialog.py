@@ -75,11 +75,17 @@ class ParametresEtudeDialog(QDialog):
         layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(10)
 
+        general = self._bloc_general()
         reformulation = self._onglet_reformulation()
         resume = self._onglet_resume()
         bible = self._bloc_bible()
 
-        for onglet in (reformulation, resume, bible):
+        for onglet in (
+            general,
+            reformulation,
+            resume,
+            bible
+        ):
             layout.addWidget(onglet)
 
         interdits_label = QLabel(
@@ -109,6 +115,60 @@ class ParametresEtudeDialog(QDialog):
         boutons.addWidget(self.enregistrer_button)
 
         layout.addLayout(boutons)
+
+    def _bloc_general(self) -> QWidget:
+        """
+        P18.8b : bloc Général — titre et thème de
+        l'étude (repris de l'ancienne mini-fenêtre
+        « Modifier l'étude »).
+        """
+
+        from PySide6.QtWidgets import (
+            QComboBox,
+            QLineEdit,
+        )
+
+        bloc = QWidget()
+
+        formulaire = QFormLayout(bloc)
+        formulaire.setContentsMargins(0, 8, 0, 8)
+        formulaire.setSpacing(8)
+
+        titre = QLabel("<b>Général</b>")
+        formulaire.addRow(titre)
+
+        self.titre_etude_edit = QLineEdit(
+            self.etude.etude.titre or ""
+        )
+
+        formulaire.addRow(
+            "Titre de l'étude :",
+            self.titre_etude_edit
+        )
+
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItem(
+            "Livre biblique",
+            "livre"
+        )
+        self.theme_combo.addItem(
+            "Thème libre",
+            "libre"
+        )
+
+        index = self.theme_combo.findData(
+            self.etude.etude.theme
+        )
+
+        if index >= 0:
+            self.theme_combo.setCurrentIndex(index)
+
+        formulaire.addRow(
+            "Thème :",
+            self.theme_combo
+        )
+
+        return bloc
 
     def _onglet_reformulation(self) -> QWidget:
         """
@@ -430,6 +490,17 @@ class ParametresEtudeDialog(QDialog):
         Écrit les valeurs actives dans les paramètres
         de l'étude et sauvegarde.
         """
+
+        # P18.8b : bloc Général — titre + thème.
+        titre = self.titre_etude_edit.text().strip()
+
+        if titre:
+            self.etude.etude.titre = titre
+
+        theme = self.theme_combo.currentData()
+
+        if theme:
+            self.etude.etude.theme = theme
 
         reformulation = (
             self.etude.parametres.reformulation

@@ -113,7 +113,7 @@ class TestRuban:
         ]
 
         for attendu in (
-            "Modifier l'étude",
+            "Paramètres de l'étude",
             "Accueil",
             "⚙ Paramètres",
             "? Aide",
@@ -138,26 +138,35 @@ class TestRuban:
         assert bandeaux == []
 
     def test_modifier_etude(self, page):
+        """
+        P18.8b : le bouton est « Paramètres de l'étude »
+        et ouvre le dialogue des paramètres (bloc
+        Général : titre + thème).
+        """
 
         fenetre, tmp_path, _s = page
 
+        assert (
+            fenetre.modifier_button.text()
+            == "Paramètres de l'étude"
+        )
+
         class DialogueFictif:
 
-            def __init__(self, titre, theme, parent):
-                pass
+            def __init__(self, etude_ouverte, parent=None):
+                self.etude = etude_ouverte
 
             def exec(self):
+                # Simule l'enregistrement du bloc Général.
+                self.etude.etude.titre = (
+                    "Évangile selon Luc"
+                )
+                self.etude.etude.theme = "libre"
                 return True
 
-            def resultat(self):
-                return (
-                    "Évangile selon Luc",
-                    "libre"
-                )
-
         with patch(
-            "ui.modifier_etude_dialog"
-            ".ModifierEtudeDialog",
+            "ui.parametres_etude_dialog"
+            ".ParametresEtudeDialog",
             DialogueFictif
         ):
             fenetre.modifier_etude()
