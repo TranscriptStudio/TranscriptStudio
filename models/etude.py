@@ -55,6 +55,24 @@ DECLENCHEURS_SYNTHESE = (
 STATUT_VALIDATION = "valide"
 
 
+#
+# P18.7 — versions du format étude : la v1 stocke blocs et
+# traitements au niveau de l'étude ; la v2 les descend au niveau
+# réunion (tier ``transcriptstudio\\`` dans le projet v1) et
+# l'étude ne garde que etude.json, reunions/, synthese/,
+# parametres/ (surcharges synthèse uniquement) et journal_etude.json.
+#
+
+ETUDE_FORMAT_VERSION_V1 = 1
+ETUDE_FORMAT_VERSION = 2
+
+#
+# Version du fichier reunion.json du tier réunion.
+#
+
+REUNION_TIER_VERSION = 1
+
+
 def normaliser_nom_fichier(nom: str) -> str:
     """
     Normalise un nom de fichier de l'étude :
@@ -279,6 +297,66 @@ class RegistreFID:
         return cls(
             prochain_fid=data["prochain_fid"],
             entrees=entrees,
+        )
+
+
+@dataclass
+class ReunionTier:
+    """
+    ``reunion.json`` du tier réunion (``transcriptstudio\\``
+    dans le projet v1, P18.7a).
+
+    ``etudes`` : chemins des dossiers étude référençant cette
+    réunion (chemin relatif au dossier du projet v1 quand
+    possible, absolu sinon). L'exclusivité (au plus une étude)
+    est contrôlée à l'écriture ; à l'ouverture, toute
+    divergence entre ``etudes`` et ``ordre_reunions`` de
+    l'étude est SIGNALÉE, jamais auto-corrigée.
+
+    ``resume_valide`` a migré ici depuis ``reunions/<nom>.json``
+    de l'étude (P18.7c).
+
+    ``migration_v2`` : horodatage de la migration one-shot
+    v1→v2 si la réunion provient d'une étude v1 (marqueur
+    d'idempotence), chaîne vide sinon.
+    """
+
+    nom: str = ""
+    etudes: list = field(default_factory=list)
+    resume_valide: bool = False
+    migration_v2: str = ""
+    creation: str = ""
+    modification: str = ""
+
+    def to_dict(self) -> dict:
+
+        return {
+            "reunion_tier_version":
+                REUNION_TIER_VERSION,
+            "nom": self.nom,
+            "etudes": list(self.etudes),
+            "resume_valide": self.resume_valide,
+            "migration_v2": self.migration_v2,
+            "creation": self.creation,
+            "modification": self.modification,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ReunionTier":
+
+        return cls(
+            nom=data["nom"],
+            etudes=list(data.get("etudes", [])),
+            resume_valide=data.get(
+                "resume_valide",
+                False
+            ),
+            migration_v2=data.get(
+                "migration_v2",
+                ""
+            ),
+            creation=data["creation"],
+            modification=data["modification"],
         )
 
 

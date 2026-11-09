@@ -12,6 +12,7 @@ message indiquant le fichier et le problème exact.
 
 from models.etude import (
     DECLENCHEURS_SYNTHESE,
+    REUNION_TIER_VERSION,
     SOURCES_RESUME,
     THEMES_ETUDE,
     TYPES_VERSION_REFORMULATION,
@@ -164,7 +165,13 @@ def valider_etude(data: dict, fichier: str = "etude.json") -> None:
         int
     )
 
-    if version != 1:
+    #
+    # P18.7c : la version 2 descend le stockage des
+    # traitements au niveau réunion (tier transcriptstudio\
+    # du projet v1) ; la version 1 reste lisible (migration
+    # one-shot à l'ouverture, P18.7f).
+    #
+    if version not in (1, 2):
         _erreur(
             fichier,
             (
@@ -257,12 +264,19 @@ def valider_reunion(
     _exiger_cle(data, "numero", fichier, int)
     _exiger_cle(data, "titre_1", fichier, str)
 
-    _exiger_cle(
-        data,
-        "resume_valide",
-        fichier,
-        bool
-    )
+    #
+    # P18.7c : en version 2, resume_valide a migré vers le
+    # tier réunion (transcriptstudio\reunion.json) ; la clé
+    # reste acceptée en lecture (étude v1 en cours de
+    # migration).
+    #
+    if "resume_valide" in data:
+        _exiger_cle(
+            data,
+            "resume_valide",
+            fichier,
+            bool
+        )
 
 
 def valider_registre_fid(
@@ -712,6 +726,38 @@ def valider_reformulation(
                 "liste attendue"
             )
 
+        #
+        # P18.7b : identité de bloc = (réunion, FID) — les
+        # entrées de contexte sont des objets
+        # {"reunion": ..., "fid": ...} ; les entiers nus
+        # (étude v1) restent acceptés en lecture.
+        #
+        for entree in contexte:
+
+            if isinstance(entree, int):
+                continue
+
+            if not isinstance(entree, dict):
+                _erreur(
+                    fichier,
+                    f"{prefixe}.contexte : entrée "
+                    "entier (v1) ou objet "
+                    "{reunion, fid} attendus"
+                )
+
+            _exiger_cle(
+                entree,
+                "fid",
+                fichier,
+                int
+            )
+            _exiger_cle(
+                entree,
+                "reunion",
+                fichier,
+                str
+            )
+
     if numeros != sorted(numeros):
         _erreur(
             fichier,
@@ -1103,3 +1149,121 @@ def valider_parametres(
 
         for cle in ("nom", "url", "cle_ref"):
             _exiger_cle(fournisseur, cle, fichier, str)
+
+
+def valider_reunion_tier(
+    data: dict,
+    fichier: str = "transcriptstudio/reunion.json"
+) -> None:
+    """
+    Valide ``reunion.json`` du tier réunion (P18.7a,
+    contrat stockage réunions §2).
+
+    ``etudes`` : liste de chemins (texte) des dossiers étude
+    référençant la réunion ; ``resume_valide`` a migré ici
+    depuis l'étude (P18.7c) ; ``migration_v2`` : horodatage
+    de migration one-shot v1→v2 (chaîne vide sinon).
+    """
+
+    if not isinstance(data, dict):
+        _erreur(fichier, "objet JSON attendu")
+
+    version = _exiger_cle(
+        data,
+        "reunion_tier_version",
+        fichier,
+        int
+    )
+
+    if version != REUNION_TIER_VERSION:
+        _erreur(
+            fichier,
+            (
+                "reunion_tier_version non supporté : "
+                f"{version}"
+            )
+        )
+
+    _exiger_cle(data, "nom", fichier, str)
+
+    etudes = _exiger_cle(
+        data,
+        "etudes",
+        fichier,
+        list
+    )
+
+    for chemin in etudes:
+        if not isinstance(chemin, str) or not chemin:
+            _erreur(
+                fichier,
+                "etudes : chemins (texte) attendus"
+            )
+
+    _exiger_cle(
+        data,
+        "resume_valide",
+        fichier,
+        bool
+    )
+
+    #
+    # Chaîne vide = non migrée (marqueur d'idempotence
+    # renseigné par la migration one-shot v1→v2).
+    #
+    if "migration_v2" in data and (
+        data["migration_v2"] not in (None, "")
+    ):
+        _valider_horodatage(
+            data["migration_v2"],
+            "migration_v2",
+            fichier
+        )
+
+    _exiger_cle(data, "creation", fichier, str)
+    _exiger_cle(data, "modification", fichier, str)
+
+    _valider_horodatage(
+        data["creation"],
+        "creation",
+        fichier
+    )
+
+    _valider_horodatage(
+        data["modification"],
+        "modification",
+        fichier
+    )
+
+
+def valider_parametres_synthese_seule(
+    data: dict,
+    fichier: str = "parametres/parametres.json"
+) -> None:
+    """
+    Valide ``parametres/parametres.json`` d'une étude v2
+    (P18.7c) : seules les SURCHARGES DE SYNTHÈSE restent au
+    niveau étude ; tous les autres paramètres (reformulation,
+    résumé, contrôle qualité, llm, bible, fusion) vivent dans
+    le tier de chaque réunion.
+    """
+
+    if not isinstance(data, dict):
+        _erreur(fichier, "objet JSON attendu")
+
+    synthese = _exiger_cle(
+        data,
+        "synthese",
+        fichier,
+        dict
+    )
+
+    for cle in ("tokens_max", "modele"):
+        _exiger_cle(synthese, cle, fichier)
+
+    if not isinstance(synthese["tokens_max"], int):
+        _erreur(
+            fichier,
+            "synthese.tokens_max : "
+            "entier attendu"
+        )
