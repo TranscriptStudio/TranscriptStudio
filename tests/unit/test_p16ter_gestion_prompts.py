@@ -56,6 +56,7 @@ from services.prompts import (
     reinitialiser_bibliotheque,
 )
 from services.etude_io import (
+    ajouter_reunion,
     creer_etude,
     ouvrir_etude,
     parametres_par_defaut,
@@ -70,6 +71,7 @@ from tests.unit.test_moteur_traitements import (
     ClientFactice,
     fabriquer_moteur,
     creer_etude_avec_blocs,
+    creer_projet_v1,
 )
 from tests.unit.test_resume_synthese import (
     ServiceResume,
@@ -366,8 +368,13 @@ class TestEtudeEtBibliotheque:
             "Évangile de Luc"
         )
 
+        # P18.7e : la copie locale du prompt est figée dans
+        # le tier de la réunion à l'attachement.
+        projet = creer_projet_v1(tmp_path, "projet_a")
+        nom = ajouter_reunion(etude, projet)
+
         assert (
-            etude.parametres.reformulation[
+            etude.tier_de(nom).parametres.reformulation[
                 "prompt"
             ]
             == PROMPT_A
@@ -382,13 +389,14 @@ class TestEtudeEtBibliotheque:
             dossier
         )
 
-        # ... l'étude existante ne bouge pas.
+        # ... l'étude existante ne bouge pas (son tier
+        # garde le prompt figé).
         rouverte = ouvrir_etude(
             tmp_path / "Etude"
         )
 
         assert (
-            rouverte.parametres.reformulation[
+            rouverte.tier_de(nom).parametres.reformulation[
                 "prompt"
             ]
             == PROMPT_A
@@ -400,8 +408,11 @@ class TestEtudeEtBibliotheque:
             "Deuxième étude"
         )
 
+        projet2 = creer_projet_v1(tmp_path, "projet_b")
+        nom2 = ajouter_reunion(etude2, projet2)
+
         assert (
-            etude2.parametres.reformulation[
+            etude2.tier_de(nom2).parametres.reformulation[
                 "prompt"
             ]
             == PROMPT_B
@@ -445,12 +456,14 @@ class TestVersionsMemorisentLePrompt:
 
         moteur.traiter_reunion()
 
-        fid = next(
+        couple = next(
             iter(etude.reformulations)
         )
 
+        fid = couple[1]
+
         version = (
-            etude.reformulations[fid].versions[-1]
+            etude.reformulation_de(nom, fid).versions[-1]
         )
 
         assert version.stats["prompt"] == prompt
@@ -460,8 +473,10 @@ class TestVersionsMemorisentLePrompt:
 
         # Le texte persisté sur disque porte aussi
         # le hash.
+        # P18.7 : le résultat vit dans le tier de la
+        # réunion, nommé par le FID (nu).
         chemin = (
-            etude.dossier
+            etude.tier_de(nom).dossier
             / "traitements"
             / "reformulation"
             / f"{fid}.json"
@@ -733,6 +748,12 @@ class TestPanneauEtude:
             PROMPT_A
         )
 
+        # P18.7e : la copie locale vit dans le tier de la
+        # réunion — on en attache une.
+        from services.etude_io import ajouter_reunion
+        projet = creer_projet_v1(tmp_path, "projet_a")
+        ajouter_reunion(etude, projet)
+
         from ui.gestion_prompts_dialog import (
             MODE_ETUDE,
             PanneauGestionPrompts,
@@ -796,10 +817,12 @@ class TestPanneauEtude:
             == "PROMPT LOCAL RETRAVAILLE 04"
         )
 
-        # Persisté dans parametres.json.
+        # Persisté dans le parametres.json DU TIER
+        # (P18.7e).
+        nom = etude.etude.ordre_reunions[0]
         donnees = json.loads(
             (
-                etude.dossier
+                etude.tier_de(nom).dossier
                 / "parametres"
                 / "parametres.json"
             ).read_text(encoding="utf-8")

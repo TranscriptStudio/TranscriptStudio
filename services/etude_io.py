@@ -1,31 +1,44 @@
 # services/etude_io.py
 """
-Lecture, écriture et manipulation d'une étude v2 (P14.1).
+Lecture, écriture et manipulation d'une étude v2 (P14.1,
+refondue P18.7).
 
-Le dossier étude (contrat CONTRAT_FORMAT_ETUDE_V2.md §2) :
+P18.7 — stockage des traitements au niveau RÉUNION :
 
-    Etude_Luc/
-    ├── etude.json                     contrat de l'étude
-    ├── reunions/<nom>.json            références aux projets v1
-    ├── blocs/journal-fid.json         registre FID (unique pour l'étude)
-    ├── blocs/decoupage/<reunion>.json segmentation d'une réunion
-    ├── traitements/reformulation/<FID>.json   résultats versionnés par bloc
-    ├── traitements/resume/<reunion>.json      résumés versionnés par réunion
-    ├── synthese/synthese.json         synthèse d'étude versionnée
-    └── parametres/parametres.json     réglages de l'étude
+- le **tier réunion** vit dans le projet v1
+  (``transcriptstudio\\``, services/tier_reunion.py) :
+  reunion.json, blocs/journal-fid.json + decoupage.json,
+  traitements/reformulation/<FID>.json + resume.json +
+  journal_operations.json, parametres/parametres.json ;
+- **identité de bloc = (réunion, FID)** : le registre FID
+  est PAR RÉUNION dans le tier ; le registre global d'étude
+  est abrogé pour les nouvelles données (les études v1 sont
+  migrées à l'ouverture, P18.7f) ;
+- l'**étude v2** ne garde que etude.json, reunions/<nom>.json
+  (titre_1, chemins ; resume_valide a migré vers le tier),
+  synthese/, parametres/ (surcharges synthèse uniquement) et
+  journal_etude.json — blocs\\ et traitements\\ disparaissent
+  du dossier étude ;
+- **aucune écriture en retour** : sauvegarder_etude n'écrit
+  JAMAIS dans les tiers ; seules les opérations sur les
+  traitements d'une réunion y écrivent (elles sauvegardent
+  le tier explicitement) ;
+- toute divergence etudes[] du tier vs ordre_reunions de
+  l'étude est signalée à l'ouverture (``divergences``),
+  jamais auto-corrigée.
 
-Règles de fond :
+Règles de fond conservées :
 - ouvrir ou manipuler une étude ne modifie jamais un projet
-  v1 référencé (règle d'invariance 1) ;
-- un FID, une fois attribué, désigne pour toujours le même
-  discours ; les versions ne s'écrasent pas (règle 2) ;
-- retirer une réunion retire sa référence et ses résultats
-  d'étude, mais ne touche ni le projet v1 ni le registre
-  FID (règle 3) ;
+  v1 référencé, HORS la création additive de son tier
+  ``transcriptstudio\\`` quand il n'existe pas encore ;
+- un couple (réunion, FID), une fois attribué, désigne pour
+  toujours le même discours ; les versions ne s'écrasent
+  pas ;
+- le détachement d'une réunion est non destructif : la
+  réunion garde tout son travail (son tier reste dans le
+  projet v1) ;
 - les chemins se résolvent par ordre relatif, puis absolu,
-  puis relocalisation guidée (règle 4) ;
-- un projet v1 peut être référencé par plusieurs études
-  simultanément (règle 5).
+  puis relocalisation guidée.
 
 Un projet introuvable n'empêche pas l'ouverture : l'étude
 s'ouvre en mode dégradé (réunions joignables uniquement).
@@ -41,6 +54,8 @@ from models.etude import (
     DecoupageReunion,
     EntreeFID,
     Etude,
+    ETUDE_FORMAT_VERSION,
+    ETUDE_FORMAT_VERSION_V1,
     ParametresEtude,
     RegistreFID,
     ResultatReformulation,
@@ -58,6 +73,7 @@ from services.etude_schema import (
     valider_decoupage,
     valider_etude,
     valider_parametres,
+    valider_parametres_synthese_seule,
     valider_registre_fid,
     valider_reformulation,
     valider_reunion,
@@ -85,22 +101,33 @@ from services.traitements.journal import (
     TYPE_SYNTHESE,
     TYPE_VALIDATION,
 )
+from services.tier_reunion import (
+    DOSSIER_TIER,
+    FICHIER_REUNION as FICHIER_REUNION_TIER,
+    TierReunion,
+    creer_tier,
+    ouvrir_tier,
+    sauvegarder_tier,
+    tier_existe,
+)
 
 
 FICHIER_ETUDE = "etude.json"
 
 DOSSIER_REUNIONS = "reunions"
-DOSSIER_BLOCS = "blocs"
-DOSSIER_DECOUPAGE = "decoupage"
-DOSSIER_TRAITEMENTS = "traitements"
+DOSSIER_BLOCS = "blocs"                    # v1 uniquement
+DOSSIER_DECOUPAGE = "decoupage"            # v1 uniquement
+DOSSIER_TRAITEMENTS = "traitements"        # v1 uniquement
 DOSSIER_REFORMULATION = "reformulation"
-DOSSIER_RESUME = "resume"
+DOSSIER_RESUME = "resume"                  # v1 uniquement (dossier)
 DOSSIER_SYNTHESE = "synthese"
 DOSSIER_PARAMETRES = "parametres"
+DOSSIER_SAUVEGARDES = "sauvegardes"        # migration §11
 
 FICHIER_REGISTRE_FID = "journal-fid.json"
 FICHIER_SYNTHESE = "synthese.json"
 FICHIER_PARAMETRES = "parametres.json"
+FICHIER_JOURNAL_ETUDE = "journal_etude.json"   # v2 (niveau étude)
 
 
 class EtudeError(Exception):
@@ -211,15 +238,18 @@ def parametres_par_defaut(
     dossier_prompts=None
 ) -> ParametresEtude:
     """
-    Paramètres initiaux d'une étude (contrat §10) :
-    prompts v2 intégrés comme valeurs actives —
-    depuis la BIBLIOTHÈQUE depuis P16-ter
-    (fichier prompts/<usage>.md du dossier de
-    paramétrage s'il existe, défaut embarqué
-    sinon) — températures par défaut venant des
-    réglages de l'app (décision C2 : reformulation
-    0.3, résumé 0.2 — surchargeables par étude),
-    aucun secret (CredentialStore v1).
+    Paramètres initiaux (contrat §10) : prompts v2
+    intégrés comme valeurs actives — depuis la
+    BIBLIOTHÈQUE depuis P16-ter (fichier
+    prompts/<usage>.md du dossier de paramétrage s'il
+    existe, défaut embarqué sinon) — températures par
+    défaut venant des réglages de l'app (décision C2 :
+    reformulation 0.3, résumé 0.2), aucun secret
+    (CredentialStore v1).
+
+    En v2 (P18.7e), ces paramètres sont ceux DU TIER de
+    chaque réunion ; l'étude ne garde que la surcharge
+    de synthèse.
     """
 
     return ParametresEtude(
@@ -261,7 +291,7 @@ def parametres_par_defaut(
             ],
             # Interdits stylistiques (feuille de route
             # §5.3, P16.4) : liste éditable dans les
-            # paramètres de l'étude.
+            # paramètres.
             "interdits_stylistiques": (
                 INTERDITS_STYLISTIQUES_DEFAUT
             ),
@@ -282,11 +312,8 @@ def parametres_par_defaut(
             "version": "darbyR",
         },
         # P19.4-bis (ARBITRAGE_PROMPT_FUSION) :
-        # copie locale du prompt de fusion pour les
-        # NOUVELLES études (bibliothèque
-        # prompts/fusion.md, à défaut embarqué) ;
-        # les études EXISTANTES ne sont jamais
-        # touchées (règle P16-ter).
+        # copie locale du prompt de fusion (bibliothèque
+        # prompts/fusion.md, à défaut embarqué).
         fusion={
             "prompt": prompt_initial(
                 USAGE_FUSION,
@@ -296,32 +323,142 @@ def parametres_par_defaut(
     )
 
 
+class _VueEntrees(dict):
+    """
+    Vue agrégée des entrées de registre de plusieurs
+    réunions (lecture seule) : ``values()`` retourne
+    TOUTES les entrées (les FID peuvent se chevaucher
+    entre réunions) ; ``[fid]`` résout un FID unique.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._toutes = []
+
+    def ajouter_tier(self, registre: RegistreFID) -> None:
+        for fid, entree in registre.entrees.items():
+            self._toutes.append(entree)
+            if fid not in self:
+                dict.__setitem__(self, fid, entree)
+
+    def values(self):
+        return list(self._toutes)
+
+    def __getitem__(self, fid):
+        candidats = [
+            e for e in self._toutes
+            if e.fid == fid
+        ]
+        if len(candidats) > 1:
+            raise EtudeError(
+                f"FID {fid} ambigu (plusieurs réunions) : "
+                "utiliser registre_de(nom)"
+            )
+        if not candidats:
+            raise KeyError(fid)
+        return candidats[0]
+
+    def __contains__(self, fid):
+        return any(e.fid == fid for e in self._toutes)
+
+
+class _VueReformulations(dict):
+    """
+    Reformulations agrégées, indexées par le couple
+    (réunion, FID). Un FID nu résout vers l'unique
+    couple le portant quand il n'y a pas d'ambiguïté
+    (compatibilité de lecture).
+    """
+
+    def _resoudre(self, cle):
+        if isinstance(cle, tuple):
+            return cle
+        if isinstance(cle, int):
+            candidats = [
+                k for k in self.keys()
+                if k[1] == cle
+            ]
+            if len(candidats) == 1:
+                return candidats[0]
+            if len(candidats) > 1:
+                raise EtudeError(
+                    f"FID {cle} ambigu (plusieurs réunions) "
+                    ": utiliser reformulation_de(nom, fid)"
+                )
+        return cle
+
+    def get(self, cle, default=None):
+        return dict.get(self, self._resoudre(cle), default)
+
+    def __getitem__(self, cle):
+        return dict.__getitem__(self, self._resoudre(cle))
+
+    def __contains__(self, cle):
+        return dict.__contains__(self, self._resoudre(cle))
+
+
+def _reunion_pour_fid(etude_ouverte: "EtudeOuverte", fid: int) -> str:
+    """
+    Retrouve la réunion portant un FID (registre par
+    réunion) — exige l'unicité.
+    """
+
+    trouves = [
+        nom
+        for nom, tier in etude_ouverte.tiers.items()
+        if fid in tier.registre.entrees
+    ]
+
+    if len(trouves) == 1:
+        return trouves[0]
+
+    if not trouves:
+        raise EtudeError(f"FID {fid} inconnu de toute réunion")
+
+    raise EtudeError(
+        f"FID {fid} ambigu (plusieurs réunions : "
+        f"{trouves}) : passer la réunion explicitement"
+    )
+
+
 class EtudeOuverte:
     """
     Une étude chargée en mémoire, avec l'état de
     résolution de ses réunions.
 
+    P18.7 : les traitements de chaque réunion vivent dans
+    son **tier** (``tiers[nom]``, stocké dans le projet v1) ;
+    l'identité de bloc est le couple **(réunion, FID)**.
+
     ``reunions_introuvables`` liste les réunions dont le
     projet v1 est introuvable (mode dégradé : elles
     n'empêchent pas l'ouverture des autres).
+
+    ``divergences`` : signalements à l'ouverture — toute
+    divergence entre etudes[] du tier et ordre_reunions de
+    l'étude (P18.7d), jamais auto-corrigée.
+
+    ``mode_autonome`` : étude synthétique portée par un
+    projet v1 seul (réunion autonome) — la sauvegarde
+    n'écrit alors que le tier.
     """
 
     def __init__(self):
 
         self.dossier: Path = None
         self.etude: Etude = None
-        self.registre: RegistreFID = None
         self.parametres: ParametresEtude = None
         self.synthese: SyntheseEtude = None
 
         self.reunions: dict = {}
-        self.decoupages: dict = {}
-        self.reformulations: dict = {}
-        self.resumes: dict = {}
 
-        # Log des opérations de l'étude (P15.4) :
-        # append-only, écrit à chaque opération ;
-        # document d'audit, jamais consommé ici.
+        # P18.7 : tier de chaque réunion joignable.
+        self.tiers: dict = {}
+
+        # Log des opérations de NIVEAU ÉTUDE (synthèse,
+        # rattachements...) : journal_etude.json en v2,
+        # traitements/journal_operations.json en v1.
+        # Le journal de chaque réunion vit dans son tier.
         self.journal = None
 
         self.reunions_introuvables: list = []
@@ -329,6 +466,128 @@ class EtudeOuverte:
         # Chemin du projet v1 résolu pour chaque réunion
         # joignable (None sinon).
         self.chemins_resolus: dict = {}
+
+        # Signalements etudes[] vs ordre_reunions (P18.7d).
+        self.divergences: list = []
+
+        # Réunion autonome (pas de dossier étude).
+        self.mode_autonome: bool = False
+
+        # Registre global : études v1 uniquement (en v2,
+        # abrogé — les registres sont par réunion, dans les
+        # tiers).
+        self._registre_v1: RegistreFID = None
+
+    #
+    # Accès par réunion — identité de bloc = (réunion, FID).
+    #
+
+    def est_v2(self) -> bool:
+        return (
+            self.etude is not None
+            and self.etude.etude_format_version == 2
+        )
+
+    def tier_de(self, nom: str) -> TierReunion:
+        """
+        Le tier de la réunion (stocké dans son projet v1).
+        """
+
+        tier = self.tiers.get(nom)
+
+        if tier is None:
+            raise EtudeError(
+                f"Aucun tier pour la réunion {nom} "
+                "(projet v1 introuvable ?)"
+            )
+
+        return tier
+
+    def registre_de(self, nom: str) -> RegistreFID:
+        """
+        Le registre FID DE LA RÉUNION (P18.7b).
+        """
+
+        if self.est_v2():
+            return self.tier_de(nom).registre
+
+        return self._registre_v1
+
+    def decoupage_de(self, nom: str):
+        return self.tier_de(nom).decoupage
+
+    def reformulation_de(self, nom: str, fid: int):
+        return self.tier_de(nom).reformulations.get(fid)
+
+    def resume_de(self, nom: str):
+        return self.tier_de(nom).resume
+
+    @property
+    def registre(self) -> RegistreFID:
+        """
+        Registre global — études v1 uniquement. En v2 il
+        est ABROGÉ pour les nouvelles données : utiliser
+        ``registre_de(nom)`` (registre par réunion, dans
+        le tier).
+
+        En v2, cette propriété retourne une VUE AGRÉGÉE en
+        lecture seule (fusion des registres des tiers) pour
+        compatibilité ; les écritures passent par
+        ``attribuer_fid`` / ``marquer_fid_inactif`` /
+        ``reactiver_fid``.
+        """
+
+        if not self.est_v2():
+            return self._registre_v1
+
+        if len(self.tiers) == 1:
+            return next(iter(self.tiers.values())).registre
+
+        entrees = _VueEntrees()
+
+        for tier in self.tiers.values():
+            entrees.ajouter_tier(tier.registre)
+
+        prochain = max(
+            (t.registre.prochain_fid for t in self.tiers.values()),
+            default=1
+        )
+
+        return RegistreFID(
+            prochain_fid=prochain,
+            entrees=entrees
+        )
+
+    #
+    # Vues agrégées (lecture seule) — reformulations
+    # indexées par le couple (réunion, FID). Un FID nu
+    # résout vers l'unique couple le portant quand il
+    # n'y a pas d'ambiguïté (compatibilité de lecture).
+    #
+
+    @property
+    def decoupages(self) -> dict:
+        return {
+            nom: tier.decoupage
+            for nom, tier in self.tiers.items()
+            if tier.decoupage is not None
+        }
+
+    @property
+    def reformulations(self) -> dict:
+        return _VueReformulations({
+            (nom, fid): resultat
+            for nom, tier in self.tiers.items()
+            for fid, resultat in tier.reformulations.items()
+        })
+
+    @property
+    def resumes(self) -> dict:
+        return {
+            nom: tier.resume
+            for nom, tier in self.tiers.items()
+            if tier.resume is not None
+        }
 
     def reunion_joignable(self, nom: str) -> bool:
         """
@@ -340,6 +599,32 @@ class EtudeOuverte:
             nom in self.chemins_resolus
             and self.chemins_resolus[nom] is not None
         )
+
+    def journal_traitement(self, nom: str) -> JournalEtude:
+        """
+        Le journal des opérations de traitement de la
+        réunion : celui DU TIER en v2 (chaque opération
+        sur les traitements d'une réunion y est consignée),
+        le journal d'étude en v1.
+        """
+
+        if self.est_v2():
+            return self.tier_de(nom).journal
+
+        return self.journal
+
+    def parametres_traitement_de(self, nom: str) -> ParametresEtude:
+        """
+        P18.7e : les paramètres utilisés par TOUTE opération
+        sur les traitements d'une réunion, où qu'elle soit
+        lancée, sont ceux DU TIER de la réunion. En v1
+        (avant migration), ceux de l'étude.
+        """
+
+        if self.est_v2():
+            return self.tier_de(nom).parametres
+
+        return self.parametres
 
 
 def _dossier_projet_v1(chemin: Path) -> Path:
@@ -362,15 +647,20 @@ def creer_etude(
     theme: str = "livre",
     gabarit_titre_1: str = (
         "Chapitre {chapitre} — {section}"
-    )
+    ),
+    format_version: int = ETUDE_FORMAT_VERSION
 ) -> EtudeOuverte:
     """
-    Crée le dossier étude et sa structure complète.
+    Crée le dossier étude et sa structure.
+
+    En v2 (P18.7c, défaut) : etude.json (version 2),
+    reunions/, synthese/, parametres/ (surcharges synthèse
+    uniquement) et journal_etude.json — PAS de blocs/ ni
+    traitements/ (ils vivent dans le tier de chaque
+    réunion, dans le projet v1).
 
     Le dossier peut exister et être non vide
-    (ARBITRAGE_CREATION_ETUDE : placer l'étude à
-    côté des projets référencés rend les chemins
-    relatifs robustes) — la confirmation est à la
+    (ARBITRAGE_CREATION_ETUDE) — la confirmation est à la
     charge de l'UI ; le service garantit lui :
 
     - refus dur si le dossier contient déjà une
@@ -379,8 +669,7 @@ def creer_etude(
       existant occupe l'emplacement d'un
       sous-dossier de l'étude ;
     - aucun fichier préexistant n'est modifié ni
-      supprimé (la création n'écrit que etude.json
-      et les sous-dossiers de l'étude).
+      supprimé.
     """
 
     dossier = Path(dossier)
@@ -394,16 +683,23 @@ def creer_etude(
             "dossier pour créer l'étude dedans."
         )
 
-    sous_dossiers = (
-        DOSSIER_REUNIONS,
-        DOSSIER_BLOCS,
-        f"{DOSSIER_BLOCS}/{DOSSIER_DECOUPAGE}",
-        DOSSIER_TRAITEMENTS,
-        f"{DOSSIER_TRAITEMENTS}/{DOSSIER_REFORMULATION}",
-        f"{DOSSIER_TRAITEMENTS}/{DOSSIER_RESUME}",
-        DOSSIER_SYNTHESE,
-        DOSSIER_PARAMETRES,
-    )
+    if format_version == 2:
+        sous_dossiers = (
+            DOSSIER_REUNIONS,
+            DOSSIER_SYNTHESE,
+            DOSSIER_PARAMETRES,
+        )
+    else:
+        sous_dossiers = (
+            DOSSIER_REUNIONS,
+            DOSSIER_BLOCS,
+            f"{DOSSIER_BLOCS}/{DOSSIER_DECOUPAGE}",
+            DOSSIER_TRAITEMENTS,
+            f"{DOSSIER_TRAITEMENTS}/{DOSSIER_REFORMULATION}",
+            f"{DOSSIER_TRAITEMENTS}/{DOSSIER_RESUME}",
+            DOSSIER_SYNTHESE,
+            DOSSIER_PARAMETRES,
+        )
 
     #
     # Conflits de nom : un fichier existant occupant
@@ -439,7 +735,7 @@ def creer_etude(
 
     etude_ouverte.dossier = dossier
     etude_ouverte.etude = Etude(
-        etude_format_version=1,
+        etude_format_version=format_version,
         titre=titre,
         theme=theme,
         gabarit_titre_1=gabarit_titre_1,
@@ -448,18 +744,25 @@ def creer_etude(
         modification=maintenant,
     )
 
-    etude_ouverte.registre = RegistreFID()
+    etude_ouverte._registre_v1 = RegistreFID()
     etude_ouverte.parametres = parametres_par_defaut()
     etude_ouverte.synthese = SyntheseEtude()
 
     #
-    # Log des opérations : fichier créé vide à
-    # l'ouverture de l'étude (append-only ensuite).
+    # Log des opérations : en v2, journal_etude.json à la
+    # racine (niveau étude ; les opérations de traitement
+    # de chaque réunion vont dans le journal de son tier) ;
+    # en v1, traitements/journal_operations.json (historique).
     #
-    etude_ouverte.journal = JournalEtude(
-        dossier / DOSSIER_TRAITEMENTS
-        / FICHIER_JOURNAL
-    )
+    if format_version == 2:
+        etude_ouverte.journal = JournalEtude(
+            dossier / FICHIER_JOURNAL_ETUDE
+        )
+    else:
+        etude_ouverte.journal = JournalEtude(
+            dossier / DOSSIER_TRAITEMENTS
+            / FICHIER_JOURNAL
+        )
 
     etude_ouverte.journal.initialiser()
 
@@ -468,13 +771,55 @@ def creer_etude(
     return etude_ouverte
 
 
+def _dict_reunion_v2(reunion: ReunionEtude) -> dict:
+    """
+    ``reunions/<nom>.json`` en v2 : titre_1 et chemins ;
+    resume_valide a migré vers le tier (P18.7c).
+    """
+
+    data = reunion.to_dict()
+    data.pop("resume_valide", None)
+
+    return data
+
+
+def _parametres_etude_v2_dict(
+    parametres: ParametresEtude
+) -> dict:
+    """
+    ``parametres/parametres.json`` d'une étude v2 :
+    surcharges de SYNTHÈSE uniquement (P18.7c/§8bis) —
+    tous les autres paramètres vivent dans le tier de
+    chaque réunion.
+    """
+
+    return {
+        "synthese": dict(parametres.synthese),
+    }
+
+
 def sauvegarder_etude(etude_ouverte: EtudeOuverte) -> None:
     """
-    Écrit l'intégralité de l'étude sur disque.
+    Écrit les fichiers de NIVEAU ÉTUDE sur disque.
+
+    **Aucune écriture en retour dans les tiers** (P18.7) :
+    ni l'étude ni l'ouvrage n'écrivent jamais dans le tier
+    d'une réunion — seules les opérations sur les
+    traitements de la réunion y écrivent (elles
+    sauvegardent le tier explicitement). En mode autonome,
+    seule la sauvegarde du tier a un effet.
 
     Seuls les fichiers de l'étude sont écrits : jamais
-    un projet v1 référencé (règle d'invariance 1).
+    un projet v1 référencé (hors création additive de
+    son tier, faite à l'attachement).
     """
+
+    if etude_ouverte.mode_autonome:
+
+        for tier in etude_ouverte.tiers.values():
+            sauvegarder_tier(tier)
+
+        return
 
     dossier = etude_ouverte.dossier
 
@@ -487,6 +832,8 @@ def sauvegarder_etude(etude_ouverte: EtudeOuverte) -> None:
         horodatage_courant()
     )
 
+    v2 = etude_ouverte.est_v2()
+
     _ecrire_json(
         dossier / FICHIER_ETUDE,
         etude_ouverte.etude.to_dict()
@@ -496,42 +843,52 @@ def sauvegarder_etude(etude_ouverte: EtudeOuverte) -> None:
         _ecrire_json(
             dossier / DOSSIER_REUNIONS
             / f"{nom}.json",
-            reunion.to_dict()
+            (
+                _dict_reunion_v2(reunion)
+                if v2
+                else reunion.to_dict()
+            ),
         )
 
-    _ecrire_json(
-        dossier / DOSSIER_BLOCS
-        / FICHIER_REGISTRE_FID,
-        etude_ouverte.registre.to_dict()
-    )
-
-    for decoupage in (
-        etude_ouverte.decoupages.values()
-    ):
+    if not v2:
+        #
+        # v1 (historique) : blocs/ et traitements/ reconstruits
+        # depuis les tiers. En v2 ces dossiers n'existent
+        # plus au niveau étude.
+        #
         _ecrire_json(
             dossier / DOSSIER_BLOCS
-            / DOSSIER_DECOUPAGE
-            / f"{decoupage.reunion}.json",
-            decoupage.to_dict()
+            / FICHIER_REGISTRE_FID,
+            etude_ouverte._registre_v1.to_dict()
         )
 
-    for resultat in (
-        etude_ouverte.reformulations.values()
-    ):
-        _ecrire_json(
-            dossier / DOSSIER_TRAITEMENTS
-            / DOSSIER_REFORMULATION
-            / f"{resultat.fid}.json",
-            resultat.to_dict()
-        )
+        for nom, tier in etude_ouverte.tiers.items():
 
-    for resultat in etude_ouverte.resumes.values():
-        _ecrire_json(
-            dossier / DOSSIER_TRAITEMENTS
-            / DOSSIER_RESUME
-            / f"{resultat.reunion}.json",
-            resultat.to_dict()
-        )
+            if tier.decoupage is not None:
+                _ecrire_json(
+                    dossier / DOSSIER_BLOCS
+                    / DOSSIER_DECOUPAGE
+                    / f"{nom}.json",
+                    tier.decoupage.to_dict()
+                )
+
+            for resultat in (
+                tier.reformulations.values()
+            ):
+                _ecrire_json(
+                    dossier / DOSSIER_TRAITEMENTS
+                    / DOSSIER_REFORMULATION
+                    / f"{resultat.fid}.json",
+                    resultat.to_dict()
+                )
+
+            if tier.resume is not None:
+                _ecrire_json(
+                    dossier / DOSSIER_TRAITEMENTS
+                    / DOSSIER_RESUME
+                    / f"{nom}.json",
+                    tier.resume.to_dict()
+                )
 
     _ecrire_json(
         dossier / DOSSIER_SYNTHESE
@@ -542,7 +899,13 @@ def sauvegarder_etude(etude_ouverte: EtudeOuverte) -> None:
     _ecrire_json(
         dossier / DOSSIER_PARAMETRES
         / FICHIER_PARAMETRES,
-        etude_ouverte.parametres.to_dict()
+        (
+            _parametres_etude_v2_dict(
+                etude_ouverte.parametres
+            )
+            if v2
+            else etude_ouverte.parametres.to_dict()
+        ),
     )
 
 
@@ -550,10 +913,23 @@ def ouvrir_etude(dossier) -> EtudeOuverte:
     """
     Ouvre une étude existante.
 
+    - étude **v1** : migration one-shot v1→v2 à
+      l'ouverture (P18.7f, §11 — sauvegarde complète dans
+      sauvegardes\\, éclatement par réunion dans les
+      tiers, requalification des références de blocs,
+      contrôle d'intégrité avant toute suppression) ;
+    - étude **v2** : chargement direct ; le tier de chaque
+      réunion joignable est ouvert dans son projet v1
+      (créé additif s'il manque, avec etudes[] renseigné).
+
     Chaque réunion est résolue par ordre : chemin relatif
     au dossier étude, puis chemin absolu historique ; une
     réunion introuvable place l'étude en mode dégradé sans
     bloquer les autres.
+
+    Toute divergence etudes[] du tier vs ordre_reunions est
+    consignée dans ``divergences`` (signalée, jamais
+    auto-corrigée).
 
     Lève EtudeFormatError si le dossier n'est pas une
     étude ou si un fichier viole le schéma.
@@ -570,12 +946,28 @@ def ouvrir_etude(dossier) -> EtudeOuverte:
             "ce dossier n'est pas une étude"
         )
 
-    etude_ouverte = EtudeOuverte()
-    etude_ouverte.dossier = dossier
-
     donnees = _lire_json(fichier_etude)
     valider_etude(donnees, str(fichier_etude))
+
+    if donnees["etude_format_version"] == 1:
+        #
+        # P18.7f (§11) : migration one-shot v1→v2 à
+        # l'ouverture, puis relecture en v2.
+        #
+        from services.migration_etude import (
+            migrer_etude_v1_vers_v2,
+        )
+
+        migrer_etude_v1_vers_v2(dossier)
+
+        donnees = _lire_json(fichier_etude)
+        valider_etude(donnees, str(fichier_etude))
+
+    etude_ouverte = EtudeOuverte()
+    etude_ouverte.dossier = dossier
     etude_ouverte.etude = Etude.from_dict(donnees)
+
+    v2 = etude_ouverte.est_v2()
 
     #
     # Réunions : seuls les fichiers listés dans
@@ -610,7 +1002,221 @@ def ouvrir_etude(dossier) -> EtudeOuverte:
         )
 
     #
-    # Registre FID.
+    # Paramètres.
+    #
+
+    chemin_parametres = (
+        dossier / DOSSIER_PARAMETRES
+        / FICHIER_PARAMETRES
+    )
+
+    if chemin_parametres.exists():
+
+        donnees_parametres = _lire_json(
+            chemin_parametres
+        )
+
+        if v2:
+            valider_parametres_synthese_seule(
+                donnees_parametres,
+                str(chemin_parametres)
+            )
+
+            # Surcharge synthèse seule : les autres
+            # sections prennent les défauts (elles vivent
+            # dans les tiers en v2).
+            defauts = parametres_par_defaut()
+            defauts.synthese = dict(
+                donnees_parametres["synthese"]
+            )
+            etude_ouverte.parametres = defauts
+
+        else:
+            valider_parametres(
+                donnees_parametres,
+                str(chemin_parametres)
+            )
+            etude_ouverte.parametres = (
+                ParametresEtude.from_dict(
+                    donnees_parametres
+                )
+            )
+
+    else:
+        etude_ouverte.parametres = parametres_par_defaut()
+
+    #
+    # Synthèse d'étude.
+    #
+
+    chemin_synthese = (
+        dossier / DOSSIER_SYNTHESE / FICHIER_SYNTHESE
+    )
+
+    if chemin_synthese.exists():
+
+        donnees_synthese = _lire_json(chemin_synthese)
+        valider_synthese(
+            donnees_synthese,
+            str(chemin_synthese)
+        )
+
+        etude_ouverte.synthese = (
+            SyntheseEtude.from_dict(donnees_synthese)
+        )
+
+    else:
+        etude_ouverte.synthese = SyntheseEtude()
+
+    #
+    # Log des opérations de niveau étude.
+    #
+
+    if v2:
+        etude_ouverte.journal = JournalEtude(
+            dossier / FICHIER_JOURNAL_ETUDE
+        )
+    else:
+        etude_ouverte.journal = JournalEtude(
+            dossier / DOSSIER_TRAITEMENTS
+            / FICHIER_JOURNAL
+        )
+
+    #
+    # Résolution des réunions : relatif, puis absolu,
+    # puis mode dégradé. Le tier de chaque réunion
+    # joignable est ouvert dans son projet v1 (créé
+    # additif s'il manque).
+    #
+
+    for nom in etude_ouverte.etude.ordre_reunions:
+
+        reunion = etude_ouverte.reunions[nom]
+
+        chemin_resolu = _resoudre_reunion(
+            etude_ouverte,
+            reunion
+        )
+
+        etude_ouverte.chemins_resolus[nom] = (
+            chemin_resolu
+        )
+
+        if chemin_resolu is None:
+            etude_ouverte.reunions_introuvables.append(
+                nom
+            )
+            continue
+
+        dossier_projet = _dossier_projet_v1(
+            Path(chemin_resolu)
+        )
+
+        tier = ouvrir_tier(dossier_projet)
+
+        if tier is None:
+
+            #
+            # Tier absent : construit EN MÉMOIRE, sans
+            # aucune écriture dans le projet v1 (ouvrir
+            # une étude ne modifie jamais un projet v1).
+            # Le tier se matérialisera à la première
+            # opération sur les traitements de la réunion.
+            #
+            from services.tier_reunion import (
+                nouveau_tier,
+            )
+
+            tier = nouveau_tier(
+                dossier_projet,
+                nom=nom,
+                parametres=(
+                    ParametresEtude.from_dict(
+                        etude_ouverte.parametres.to_dict()
+                    )
+                    if not v2
+                    else parametres_par_defaut()
+                ),
+            )
+
+        if not v2:
+            # v1 : resume_valide reste porté par la
+            # référence d'étude.
+            tier.reunion.resume_valide = (
+                reunion.resume_valide
+            )
+
+        etude_ouverte.tiers[nom] = tier
+
+    if not v2:
+
+        #
+        # v1 (avant migration P18.7f) : lecture de l'ancien
+        # layout étude (blocs/, traitements/) — éclaté en
+        # mémoire dans les tiers par réunion.
+        #
+        _charger_v1_dans_tiers(etude_ouverte, dossier)
+
+    #
+    # P18.7d : signalement des divergences etudes[] du
+    # tier vs ordre_reunions de l'étude — jamais
+    # auto-corrigé.
+    #
+    if v2:
+        #
+        # Signalement des divergences etudes[] du tier
+        # vs ordre_reunions — AVANT toute inscription en
+        # mémoire, et jamais auto-corrigé.
+        #
+        _signaler_divergences(etude_ouverte)
+
+        #
+        # Inscription en mémoire seulement (aucune
+        # écriture à l'ouverture) : le tier se
+        # matérialisera dans le projet v1 à la première
+        # opération sur les traitements de la réunion.
+        #
+        import os as _os
+
+        for nom in etude_ouverte.etude.ordre_reunions:
+
+            tier = etude_ouverte.tiers.get(nom)
+
+            if tier is None:
+                continue
+
+            dossier_projet = tier.dossier_projet
+
+            try:
+                relatif = _os.path.relpath(
+                    str(dossier.resolve()),
+                    str(dossier_projet.resolve())
+                ).replace("\\", "/")
+            except (ValueError, OSError):
+                relatif = _normaliser_chemin(
+                    str(dossier.resolve())
+                )
+
+            if relatif not in tier.reunion.etudes:
+                tier.reunion.etudes.append(relatif)
+
+    return etude_ouverte
+
+
+def _charger_v1_dans_tiers(
+    etude_ouverte: EtudeOuverte,
+    dossier: Path
+) -> None:
+    """
+    Charge l'ancien layout v1 (blocs/, traitements/ au
+    niveau étude) en mémoire, éclaté par réunion dans les
+    tiers. Le registre global est conservé tel quel
+    (``_registre_v1``) ; chaque tier reçoit le sous-ensemble
+    de ses entrées. Aucune écriture disque ici.
+    """
+
+    #
+    # Registre global.
     #
 
     chemin_registre = (
@@ -620,21 +1226,19 @@ def ouvrir_etude(dossier) -> EtudeOuverte:
 
     if chemin_registre.exists():
 
-        donnees_registre = _lire_json(chemin_registre)
-        valider_registre_fid(
-            donnees_registre,
-            str(chemin_registre)
-        )
-
-        etude_ouverte.registre = (
-            RegistreFID.from_dict(donnees_registre)
+        donnees = _lire_json(chemin_registre)
+        valider_registre_fid(donnees, str(chemin_registre))
+        etude_ouverte._registre_v1 = (
+            RegistreFID.from_dict(donnees)
         )
 
     else:
-        etude_ouverte.registre = RegistreFID()
+        etude_ouverte._registre_v1 = RegistreFID()
+
+    registre = etude_ouverte._registre_v1
 
     #
-    # Découpages existants.
+    # Découpages.
     #
 
     dossier_decoupage = (
@@ -654,12 +1258,16 @@ def ouvrir_etude(dossier) -> EtudeOuverte:
                 donnees
             )
 
-            etude_ouverte.decoupages[
-                decoupage.reunion
-            ] = decoupage
+            nom = decoupage.reunion
+
+            if nom in etude_ouverte.tiers:
+                etude_ouverte.tiers[nom].decoupage = (
+                    decoupage
+                )
 
     #
-    # Résultats de reformulation (par FID).
+    # Reformulations (par FID) : aiguillées vers le tier
+    # de la réunion du registre.
     #
 
     dossier_reformulation = (
@@ -680,12 +1288,29 @@ def ouvrir_etude(dossier) -> EtudeOuverte:
                 donnees
             )
 
-            etude_ouverte.reformulations[
-                resultat.fid
-            ] = resultat
+            entree = registre.entrees.get(resultat.fid)
+            nom = (
+                entree.reunion
+                if entree is not None
+                else resultat.reunion
+            )
+
+            resultat.reunion = nom or ""
+
+            if nom in etude_ouverte.tiers:
+                etude_ouverte.tiers[
+                    nom
+                ].reformulations[resultat.fid] = resultat
+
+            # Le registre de chaque tier reçoit le
+            # sous-ensemble de ses entrées.
+            if nom in etude_ouverte.tiers and entree:
+                etude_ouverte.tiers[
+                    nom
+                ].registre.entrees[resultat.fid] = entree
 
     #
-    # Résumés (par réunion).
+    # Résumé par réunion.
     #
 
     dossier_resume = (
@@ -695,100 +1320,102 @@ def ouvrir_etude(dossier) -> EtudeOuverte:
 
     if dossier_resume.exists():
 
-        for chemin in sorted(dossier_resume.glob("*.json")):
+        for chemin in sorted(
+            dossier_resume.glob("*.json")
+        ):
 
             donnees = _lire_json(chemin)
             valider_resume(donnees, str(chemin))
 
             resultat = ResultatResume.from_dict(donnees)
 
-            etude_ouverte.resumes[
-                resultat.reunion
-            ] = resultat
+            if resultat.reunion in etude_ouverte.tiers:
+                etude_ouverte.tiers[
+                    resultat.reunion
+                ].resume = resultat
 
     #
-    # Synthèse d'étude.
+    # Registres des tiers : sous-ensembles du global.
     #
 
-    chemin_synthese = (
-        dossier / DOSSIER_SYNTHESE / FICHIER_SYNTHESE
-    )
+    for nom, tier in etude_ouverte.tiers.items():
 
-    if chemin_synthese.exists():
+        entrees = {
+            fid: entree
+            for fid, entree in registre.entrees.items()
+            if entree.reunion == nom
+        }
 
-        donnees = _lire_json(chemin_synthese)
-        valider_synthese(donnees, str(chemin_synthese))
-
-        etude_ouverte.synthese = (
-            SyntheseEtude.from_dict(donnees)
+        prochain = (
+            max(entrees.keys(), default=0) + 1
+            if entrees
+            else 1
         )
 
-    else:
-        etude_ouverte.synthese = SyntheseEtude()
-
-    #
-    # Paramètres.
-    #
-
-    chemin_parametres = (
-        dossier / DOSSIER_PARAMETRES
-        / FICHIER_PARAMETRES
-    )
-
-    if chemin_parametres.exists():
-
-        donnees = _lire_json(chemin_parametres)
-        valider_parametres(
-            donnees,
-            str(chemin_parametres)
+        tier.registre = RegistreFID(
+            prochain_fid=max(
+                prochain,
+                tier.registre.prochain_fid
+            ),
+            entrees=entrees,
         )
 
-        etude_ouverte.parametres = (
-            ParametresEtude.from_dict(donnees)
-        )
-
-    else:
-        etude_ouverte.parametres = parametres_par_defaut()
-
     #
-    # Log des opérations de l'étude (P15.4) :
-    # chargé en lecture-écriture ; absent, il
-    # démarre vide (études créées avant P15.4) et
-    # se créera à la première opération.
+    # Paramètres de l'étude v1 : partagés par tous les
+    # tiers en mémoire (la migration f les éclatera).
     #
-    chemin_journal = (
-        dossier / DOSSIER_TRAITEMENTS
-        / FICHIER_JOURNAL
-    )
 
-    etude_ouverte.journal = JournalEtude(
-        chemin_journal
-    )
+    for tier in etude_ouverte.tiers.values():
+        tier.parametres = etude_ouverte.parametres
 
-    #
-    # Résolution des réunions : relatif, puis absolu,
-    # puis mode dégradé.
-    #
+
+def _signaler_divergences(etude_ouverte: EtudeOuverte) -> None:
+    """
+    P18.7d : à l'ouverture, toute divergence entre
+    etudes[] du tier d'une réunion et ordre_reunions de
+    l'étude est consignée dans ``divergences`` —
+    SIGNALÉE, jamais auto-corrigée.
+    """
+
+    dossier = etude_ouverte.dossier.resolve()
 
     for nom in etude_ouverte.etude.ordre_reunions:
 
-        reunion = etude_ouverte.reunions[nom]
+        tier = etude_ouverte.tiers.get(nom)
 
-        chemin_resolu = _resoudre_reunion(
-            etude_ouverte,
-            reunion
-        )
+        if tier is None:
+            continue
 
-        etude_ouverte.chemins_resolus[nom] = (
-            chemin_resolu
-        )
+        etudes_tier = set()
 
-        if chemin_resolu is None:
-            etude_ouverte.reunions_introuvables.append(
-                nom
+        for chemin in tier.reunion.etudes:
+
+            candidat = (
+                (tier.dossier_projet / chemin)
+                if not Path(chemin).is_absolute()
+                else Path(chemin)
             )
 
-    return etude_ouverte
+            try:
+                etudes_tier.add(str(candidat.resolve()))
+            except OSError:
+                etudes_tier.add(str(candidat))
+
+        if str(dossier) not in etudes_tier:
+            etude_ouverte.divergences.append(
+                f"Réunion « {nom} » : le tier liste "
+                f"etudes={tier.reunion.etudes} mais "
+                "l'étude courante n'y figure pas "
+                "(ordre_reunions)."
+            )
+
+        for autre in etudes_tier:
+            if autre != str(dossier):
+                etude_ouverte.divergences.append(
+                    f"Réunion « {nom} » : le tier est "
+                    f"aussi rattaché à {autre}, hors "
+                    "ordre_reunions de cette étude."
+                )
 
 
 def _resoudre_reunion(
@@ -921,6 +1548,23 @@ def relocaliser_reunion(
 
     etude_ouverte.chemins_resolus[nom] = dossier_projet
 
+    #
+    # Le tier suit la réunion : ouvert dans le nouveau
+    # projet (créé additif s'il manque).
+    #
+    tier = ouvrir_tier(dossier_projet)
+
+    if tier is None:
+        tier = creer_tier(dossier_projet, nom=nom)
+
+    if etude_ouverte.est_v2():
+        tier.enregistrer_etude(
+            etude_ouverte.dossier,
+            ajouter=True
+        )
+
+    etude_ouverte.tiers[nom] = tier
+
     if nom in etude_ouverte.reunions_introuvables:
         etude_ouverte.reunions_introuvables.remove(nom)
 
@@ -936,6 +1580,13 @@ def ajouter_reunion(
     Ajoute un projet v1 existant comme réunion de
     l'étude (référence, jamais copie) et l'ajoute en
     fin d'ordre de lecture.
+
+    P18.7d : à l'attachement, la réunion HÉRITE
+    TOTALEMENT et SILENCIEUSEMENT de son tier
+    (transcriptstudio\\ dans le projet v1) — tout son
+    travail est conservé tel quel ; si le projet n'a
+    pas encore de tier, il est créé (vide, paramètres
+    par défaut) et l'étude y est enregistrée (etudes[]).
 
     Le nom de la réunion dérive du dossier projet. Un
     même projet ne peut pas être référencé deux fois
@@ -1000,6 +1651,45 @@ def ajouter_reunion(
     if date is None:
         date = datetime.now().strftime("%Y-%m-%d")
 
+    #
+    # Tier de la réunion : héritage total silencieux —
+    # le tier existant est repris tel quel (aucune
+    # copie, aucune perte) ; sinon il est créé.
+    #
+    tier = ouvrir_tier(dossier_projet)
+
+    if tier is None:
+        tier = creer_tier(
+            dossier_projet,
+            nom=nom,
+            parametres=(
+                ParametresEtude.from_dict(
+                    etude_ouverte.parametres.to_dict()
+                )
+                if not etude_ouverte.est_v2()
+                else parametres_par_defaut()
+            ),
+        )
+
+    if etude_ouverte.est_v2():
+        tier.enregistrer_etude(
+            etude_ouverte.dossier,
+            ajouter=True
+        )
+
+        #
+        # Une seule réunion : les paramètres de traitement
+        # en mémoire sont ceux de l'étude (objet partagé) —
+        # à partir de la deuxième réunion, chaque tier a sa
+        # copie propre.
+        #
+        if len(etude_ouverte.reunions) == 0:
+            tier.parametres = etude_ouverte.parametres
+        else:
+            tier.parametres = ParametresEtude.from_dict(
+                etude_ouverte.parametres.to_dict()
+            )
+
     reunion = ReunionEtude(
         nom=nom,
         reference=f"{nom}.json",
@@ -1013,11 +1703,12 @@ def ajouter_reunion(
         date=date,
         numero=numero,
         titre_1=titre_1,
-        resume_valide=False,
+        resume_valide=tier.reunion.resume_valide,
     )
 
     etude_ouverte.reunions[nom] = reunion
     etude_ouverte.chemins_resolus[nom] = dossier_projet
+    etude_ouverte.tiers[nom] = tier
 
     etude_ouverte.etude.ordre_reunions.append(nom)
 
@@ -1029,12 +1720,18 @@ def retirer_reunion(
     nom: str
 ) -> None:
     """
-    Retire une réunion de l'étude : sa référence et ses
-    résultats d'étude disparaissent (découpage, résumé,
-    reformulations de ses FIDs).
+    Retire une réunion de l'étude.
 
-    Le projet v1 n'est jamais touché, pas plus que le
-    registre FID (règle d'invariance 3).
+    - **v2 (P18.7d)** : détachement NON DESTRUCTIF — la
+      référence disparaît de l'étude et l'étude est
+      retirée d'etudes[] du tier, mais la réunion GARDE
+      TOUT SON TRAVAIL : le tier (découpage, registre,
+      reformulations, résumé, journal, paramètres) reste
+      intact dans le projet v1, qui n'est pas touché
+      sinon.
+    - **v1** : comportement historique (la référence et
+      les résultats d'étude disparaissent ; le projet v1
+      et le registre ne sont pas touchés).
     """
 
     if nom not in etude_ouverte.reunions:
@@ -1050,24 +1747,45 @@ def retirer_reunion(
 
     etude_ouverte.etude.ordre_reunions.remove(nom)
 
+    tier = etude_ouverte.tiers.pop(nom, None)
+
+    if etude_ouverte.est_v2():
+
+        #
+        # Détachement non destructif : la référence
+        # disparaît du dossier étude, l'étude se retire
+        # d'etudes[] du tier, et le reste du tier est
+        # conservé tel quel dans le projet v1.
+        #
+        if not etude_ouverte.mode_autonome:
+            (dossier / DOSSIER_REUNIONS
+             / f"{nom}.json").unlink(missing_ok=True)
+
+            if tier is not None:
+                tier.enregistrer_etude(
+                    dossier,
+                    ajouter=False
+                )
+
+        return
+
+    #
+    # v1 (historique).
+    #
+
     etude_ouverte.decoupages.pop(nom, None)
     etude_ouverte.resumes.pop(nom, None)
 
     fids = [
         fid
         for fid, entree
-        in etude_ouverte.registre.entrees.items()
+        in etude_ouverte._registre_v1.entrees.items()
         if entree.reunion == nom
     ]
 
     for fid in fids:
-        etude_ouverte.reformulations.pop(fid, None)
-
-    #
-    # Fichiers de résultats retirés (la référence, le
-    # découpage, le résumé et les reformulations) ;
-    # le registre FID reste intact.
-    #
+        if tier is not None:
+            tier.reformulations.pop(fid, None)
 
     chemins = [
         dossier / DOSSIER_REUNIONS / f"{nom}.json",
@@ -1120,16 +1838,23 @@ def attribuer_fid(
     """
     Attribue un nouveau FID pour un bloc de la réunion.
 
-    Le FID est un entier séquentiel, jamais réutilisé :
-    prochain_fid avance même après suppression ou fusion
-    (règle d'invariance 2).
+    P18.7b : en v2, le FID est un entier séquentiel DU
+    REGISTRE DE LA RÉUNION (dans le tier) — identité de
+    bloc = (réunion, FID), jamais réutilisé. En v1, le
+    registre global de l'étude fait encore autorité.
     """
 
-    fid = etude_ouverte.registre.prochain_fid
+    if etude_ouverte.est_v2():
+        tier = etude_ouverte.tier_de(reunion)
+        registre = tier.registre
+    else:
+        registre = etude_ouverte._registre_v1
 
-    etude_ouverte.registre.prochain_fid = fid + 1
+    fid = registre.prochain_fid
 
-    etude_ouverte.registre.entrees[fid] = EntreeFID(
+    registre.prochain_fid = fid + 1
+
+    entree = EntreeFID(
         fid=fid,
         reunion=reunion,
         cree=horodatage_courant(),
@@ -1137,45 +1862,71 @@ def attribuer_fid(
         fin=None,
     )
 
+    registre.entrees[fid] = entree
+
+    if etude_ouverte.est_v2():
+        sauvegarder_tier(tier)
+
     return fid
 
 
-def marquer_fid_inactif(
+def _entree_fid(
     etude_ouverte: EtudeOuverte,
+    reunion: str,
+    fid: int
+) -> EntreeFID:
+
+    registre = etude_ouverte.registre_de(reunion)
+
+    entree = registre.entrees.get(fid)
+
+    if entree is None:
+        raise EtudeError(
+            f"FID {fid} inconnu de la réunion {reunion}"
+        )
+
+    return entree
+
+
+def _marquer_fid_inactif_impl(
+    etude_ouverte: EtudeOuverte,
+    reunion: str,
     fid: int
 ) -> None:
     """
     Marque un FID comme inactif (bloc supprimé ou
-    fusionné). Le FID reste au registre, les résultats
-    associés aussi.
+    fusionné). Le couple (réunion, FID) reste au registre
+    de la réunion, les résultats associés aussi.
     """
 
-    entree = etude_ouverte.registre.entrees.get(fid)
-
-    if entree is None:
-        raise EtudeError(f"FID inconnu : {fid}")
+    entree = _entree_fid(etude_ouverte, reunion, fid)
 
     entree.actif = False
     entree.fin = horodatage_courant()
 
+    if etude_ouverte.est_v2():
+        sauvegarder_tier(etude_ouverte.tier_de(reunion))
 
-def reactiver_fid(
+
+def _reactiver_fid_impl(
     etude_ouverte: EtudeOuverte,
+    reunion: str,
     fid: int
 ) -> None:
     """
     Réactive un FID inactif (dé-fusion : le bloc
     redevient la segmentation active avec ses
-    données d'origine — même discours, même FID).
+    données d'origine — même discours, même couple
+    (réunion, FID)).
     """
 
-    entree = etude_ouverte.registre.entrees.get(fid)
-
-    if entree is None:
-        raise EtudeError(f"FID inconnu : {fid}")
+    entree = _entree_fid(etude_ouverte, reunion, fid)
 
     entree.actif = True
     entree.fin = None
+
+    if etude_ouverte.est_v2():
+        sauvegarder_tier(etude_ouverte.tier_de(reunion))
 
 
 def enregistrer_decoupage(
@@ -1183,11 +1934,13 @@ def enregistrer_decoupage(
     decoupage: DecoupageReunion
 ) -> None:
     """
-    Enregistre la segmentation d'une réunion.
+    Enregistre la segmentation d'une réunion — dans
+    SON TIER (``blocs/decoupage.json`` du projet v1 en
+    v2).
 
     Chaque bloc doit porter un FID attribué du registre
-    et appartenir à la réunion ; le texte source est
-    immuable après enregistrement.
+    de la réunion ; le texte source est immuable après
+    enregistrement.
     """
 
     if decoupage.reunion not in etude_ouverte.reunions:
@@ -1195,15 +1948,18 @@ def enregistrer_decoupage(
             f"Réunion inconnue : {decoupage.reunion}"
         )
 
+    registre = etude_ouverte.registre_de(
+        decoupage.reunion
+    )
+
     for bloc in decoupage.blocs:
 
-        entree = etude_ouverte.registre.entrees.get(
-            bloc.fid
-        )
+        entree = registre.entrees.get(bloc.fid)
 
         if entree is None:
             raise EtudeError(
-                f"FID {bloc.fid} absent du registre"
+                f"FID {bloc.fid} absent du registre de "
+                f"la réunion {decoupage.reunion}"
             )
 
         if entree.reunion != decoupage.reunion:
@@ -1217,13 +1973,51 @@ def enregistrer_decoupage(
             bloc.source
         )
 
-    etude_ouverte.decoupages[
-        decoupage.reunion
-    ] = decoupage
+    tier = etude_ouverte.tier_de(decoupage.reunion)
+
+    tier.decoupage = decoupage
+
+    if etude_ouverte.est_v2():
+        sauvegarder_tier(tier)
 
 
-def ajouter_version_reformulation(
+def _couple_contexte(
+    reunion: str,
+    contexte: list
+) -> list:
+    """
+    Requalifie une liste de références de contexte en
+    couples (réunion, FID) — objets ``{"reunion", "fid"}``
+    (P18.7b). Les entiers nus (v1) sont acceptés.
+    """
+
+    couples = []
+
+    for entree in contexte or []:
+
+        if isinstance(entree, dict):
+            couples.append(
+                {
+                    "reunion": str(
+                        entree.get("reunion", reunion)
+                    ),
+                    "fid": int(entree["fid"]),
+                }
+            )
+        else:
+            couples.append(
+                {
+                    "reunion": reunion,
+                    "fid": int(entree),
+                }
+            )
+
+    return couples
+
+
+def _ajouter_version_reformulation_impl(
     etude_ouverte: EtudeOuverte,
+    reunion: str,
     fid: int,
     texte: str,
     type_version: str = "passe",
@@ -1235,23 +2029,33 @@ def ajouter_version_reformulation(
 ) -> VersionReformulation:
     """
     Ajoute une version au résultat de reformulation d'un
-    bloc. L'historique est complet : jamais d'écrasement
-    (règle d'invariance 2).
+    bloc — dans le TIER de la réunion
+    (``traitements/reformulation/<FID>.json`` du projet v1
+    en v2). L'historique est complet : jamais d'écrasement.
+
+    ``reunion`` + ``fid`` : identité de bloc (P18.7b).
+    ``contexte`` : références de la fenêtre glissante,
+    requalifiées en couples (réunion, FID).
 
     Règle d'invariance 4 de la spec moteur : l'opération
     produit exactement une entrée de log, horodatée,
     avant retour à l'UI (reformulation_bloc, ou
-    edition_manuelle pour une correction à la main).
+    edition_manuelle pour une correction à la main) —
+    dans le journal DU TIER.
     """
 
-    if fid not in etude_ouverte.registre.entrees:
-        raise EtudeError(f"FID inconnu : {fid}")
+    entree = _entree_fid(etude_ouverte, reunion, fid)
 
-    resultat = etude_ouverte.reformulations.get(fid)
+    tier = etude_ouverte.tier_de(reunion)
+
+    resultat = tier.reformulations.get(fid)
 
     if resultat is None:
-        resultat = ResultatReformulation(fid=fid)
-        etude_ouverte.reformulations[fid] = resultat
+        resultat = ResultatReformulation(
+            fid=fid,
+            reunion=reunion
+        )
+        tier.reformulations[fid] = resultat
 
     numeros = [
         version.numero
@@ -1267,21 +2071,17 @@ def ajouter_version_reformulation(
         selection=selection,
         stats=stats,
         validation=None,
-        contexte=list(contexte or []),
+        contexte=_couple_contexte(reunion, contexte),
     )
 
     resultat.versions.append(version)
 
-    etude_ouverte.journal.ajouter(
+    etude_ouverte.journal_traitement(reunion).ajouter(
         TYPE_EDITION_MANUELLE
         if type_version == "edition_manuelle"
         else TYPE_REFORMULATION_BLOC,
         fid=fid,
-        reunion=(
-            etude_ouverte
-            .registre.entrees[fid]
-            .reunion
-        ),
+        reunion=reunion,
         modele=modele,
         version=version.numero,
         resultat=RESULTAT_SUCCES,
@@ -1295,11 +2095,15 @@ def ajouter_version_reformulation(
         }
     )
 
+    if etude_ouverte.est_v2():
+        sauvegarder_tier(tier)
+
     return version
 
 
-def valider_version_reformulation(
+def _valider_version_reformulation_impl(
     etude_ouverte: EtudeOuverte,
+    reunion: str,
     fid: int,
     numero: int,
     validateur: str
@@ -1310,12 +2114,14 @@ def valider_version_reformulation(
     la version figée du bloc.
     """
 
-    resultat = etude_ouverte.reformulations.get(fid)
+    tier = etude_ouverte.tier_de(reunion)
+
+    resultat = tier.reformulations.get(fid)
 
     if resultat is None:
         raise EtudeError(
             f"Aucun résultat de reformulation "
-            f"pour le FID {fid}"
+            f"pour le bloc ({reunion}, {fid})"
         )
 
     for version in resultat.versions:
@@ -1328,14 +2134,12 @@ def valider_version_reformulation(
                 validateur=validateur,
             )
 
-            etude_ouverte.journal.ajouter(
+            etude_ouverte.journal_traitement(
+                reunion
+            ).ajouter(
                 TYPE_VALIDATION,
                 fid=fid,
-                reunion=(
-                    etude_ouverte
-                    .registre.entrees[fid]
-                    .reunion
-                ),
+                reunion=reunion,
                 version=numero,
                 resultat=RESULTAT_SUCCES,
                 message=(
@@ -1344,16 +2148,20 @@ def valider_version_reformulation(
                 )
             )
 
+            if etude_ouverte.est_v2():
+                sauvegarder_tier(tier)
+
             return
 
     raise EtudeError(
         f"Version {numero} introuvable "
-        f"pour le FID {fid}"
+        f"pour le bloc ({reunion}, {fid})"
     )
 
 
-def devalider_version_reformulation(
+def _devalider_version_reformulation_impl(
     etude_ouverte: EtudeOuverte,
+    reunion: str,
     fid: int,
     numero: int
 ) -> None:
@@ -1363,12 +2171,14 @@ def devalider_version_reformulation(
     est consignée.
     """
 
-    resultat = etude_ouverte.reformulations.get(fid)
+    tier = etude_ouverte.tier_de(reunion)
+
+    resultat = tier.reformulations.get(fid)
 
     if resultat is None:
         raise EtudeError(
             f"Aucun résultat de reformulation "
-            f"pour le FID {fid}"
+            f"pour le bloc ({reunion}, {fid})"
         )
 
     for version in resultat.versions:
@@ -1377,14 +2187,12 @@ def devalider_version_reformulation(
 
             version.validation = None
 
-            etude_ouverte.journal.ajouter(
+            etude_ouverte.journal_traitement(
+                reunion
+            ).ajouter(
                 TYPE_DEVALIDATION,
                 fid=fid,
-                reunion=(
-                    etude_ouverte
-                    .registre.entrees[fid]
-                    .reunion
-                ),
+                reunion=reunion,
                 version=numero,
                 resultat=RESULTAT_SUCCES,
                 message=(
@@ -1392,11 +2200,135 @@ def devalider_version_reformulation(
                 )
             )
 
+            if etude_ouverte.est_v2():
+                sauvegarder_tier(tier)
+
             return
 
     raise EtudeError(
         f"Version {numero} introuvable "
-        f"pour le FID {fid}"
+        f"pour le bloc ({reunion}, {fid})"
+    )
+
+
+
+#
+# Wrappers publics à double signature (P18.7b) : le
+# couple (réunion, FID) est l'identité de bloc, mais
+# l'ancien appel (etude, fid, ...) reste accepté quand
+# le FID n'est pas ambigu.
+#
+
+
+def marquer_fid_inactif(etude_ouverte, a, b=None) -> None:
+    if b is None and isinstance(a, int):
+        return _marquer_fid_inactif_impl(
+            etude_ouverte,
+            _reunion_pour_fid(etude_ouverte, a),
+            a
+        )
+    return _marquer_fid_inactif_impl(etude_ouverte, a, b)
+
+
+def reactiver_fid(etude_ouverte, a, b=None) -> None:
+    if b is None and isinstance(a, int):
+        return _reactiver_fid_impl(
+            etude_ouverte,
+            _reunion_pour_fid(etude_ouverte, a),
+            a
+        )
+    return _reactiver_fid_impl(etude_ouverte, a, b)
+
+
+def ajouter_version_reformulation(
+    etude_ouverte,
+    a,
+    b=None,
+    *args,
+    **kwargs
+) -> VersionReformulation:
+    if isinstance(a, int):
+        # ancien style : (etude, fid, texte, ...)
+        return _ajouter_version_reformulation_impl(
+            etude_ouverte,
+            _reunion_pour_fid(etude_ouverte, a),
+            a,
+            b,
+            *args,
+            **kwargs
+        )
+    return _ajouter_version_reformulation_impl(
+        etude_ouverte,
+        a,
+        b,
+        *args,
+        **kwargs
+    )
+
+
+def valider_version_reformulation(
+    etude_ouverte,
+    a,
+    b=None,
+    *args,
+    numero=None,
+    validateur=None
+) -> None:
+    if isinstance(a, int):
+        # ancien style : (etude, fid, [numero], [validateur])
+        reste = [b] + list(args)
+        if reste and numero is None:
+            numero = reste.pop(0)
+        if reste and validateur is None:
+            validateur = reste.pop(0)
+        return _valider_version_reformulation_impl(
+            etude_ouverte,
+            _reunion_pour_fid(etude_ouverte, a),
+            a,
+            numero=numero,
+            validateur=validateur
+        )
+    # nouveau style : (etude, reunion, fid, [numero], [validateur])
+    reste = list(args)
+    if reste and numero is None:
+        numero = reste.pop(0)
+    if reste and validateur is None:
+        validateur = reste.pop(0)
+    return _valider_version_reformulation_impl(
+        etude_ouverte,
+        a,
+        b,
+        numero=numero,
+        validateur=validateur
+    )
+
+
+def devalider_version_reformulation(
+    etude_ouverte,
+    a,
+    b=None,
+    *args,
+    numero=None
+) -> None:
+    if isinstance(a, int):
+        # ancien style : (etude, fid, [numero])
+        reste = [b] + list(args)
+        if reste and numero is None:
+            numero = reste.pop(0)
+        return _devalider_version_reformulation_impl(
+            etude_ouverte,
+            _reunion_pour_fid(etude_ouverte, a),
+            a,
+            numero=numero
+        )
+    reste = list(args)
+    if reste and numero is None:
+        numero = reste.pop(0)
+    return _devalider_version_reformulation_impl(
+        etude_ouverte,
+        a,
+        b,
+        numero=numero
     )
 
 
@@ -1410,9 +2342,10 @@ def ajouter_version_resume(
     consigne: str = None
 ) -> VersionResume:
     """
-    Ajoute une version au résumé d'une réunion. La
-    source utilisée est stockée avec le résultat ;
-    ``origine`` : generation | relance |
+    Ajoute une version au résumé d'une réunion — dans
+    SON TIER (``traitements/resume.json`` du projet v1
+    en v2). La source utilisée est stockée avec le
+    résultat ; ``origine`` : generation | relance |
     relance_ciblee | edition_manuelle (stats None
     pour une édition manuelle).
     """
@@ -1420,11 +2353,13 @@ def ajouter_version_resume(
     if reunion not in etude_ouverte.reunions:
         raise EtudeError(f"Réunion inconnue : {reunion}")
 
-    resultat = etude_ouverte.resumes.get(reunion)
+    tier = etude_ouverte.tier_de(reunion)
+
+    resultat = tier.resume
 
     if resultat is None:
         resultat = ResultatResume(reunion=reunion)
-        etude_ouverte.resumes[reunion] = resultat
+        tier.resume = resultat
 
     numeros = [
         version.numero
@@ -1444,7 +2379,7 @@ def ajouter_version_resume(
 
     resultat.versions.append(version)
 
-    etude_ouverte.journal.ajouter(
+    etude_ouverte.journal_traitement(reunion).ajouter(
         TYPE_EDITION_MANUELLE
         if origine == "edition_manuelle"
         else TYPE_RESUME,
@@ -1463,6 +2398,9 @@ def ajouter_version_resume(
         }
     )
 
+    if etude_ouverte.est_v2():
+        sauvegarder_tier(tier)
+
     return version
 
 
@@ -1474,10 +2412,13 @@ def valider_version_resume(
 ) -> None:
     """
     Valide une version précise du résumé d'une réunion
-    (resume_valide devient True pour la réunion).
+    (resume_valide devient True — porté par le TIER de
+    la réunion en v2, P18.7c).
     """
 
-    resultat = etude_ouverte.resumes.get(reunion)
+    tier = etude_ouverte.tier_de(reunion)
+
+    resultat = tier.resume
 
     if resultat is None:
         raise EtudeError(
@@ -1494,11 +2435,15 @@ def valider_version_resume(
                 validateur=validateur,
             )
 
+            tier.reunion.resume_valide = True
+
             etude_ouverte.reunions[
                 reunion
             ].resume_valide = True
 
-            etude_ouverte.journal.ajouter(
+            etude_ouverte.journal_traitement(
+                reunion
+            ).ajouter(
                 TYPE_VALIDATION,
                 fid=None,
                 reunion=reunion,
@@ -1509,6 +2454,9 @@ def valider_version_resume(
                     f"par {validateur}."
                 )
             )
+
+            if etude_ouverte.est_v2():
+                sauvegarder_tier(tier)
 
             return
 
@@ -1530,7 +2478,9 @@ def devalider_version_resume(
     devalidation est consignée.
     """
 
-    resultat = etude_ouverte.resumes.get(reunion)
+    tier = etude_ouverte.tier_de(reunion)
+
+    resultat = tier.resume
 
     if resultat is None:
         raise EtudeError(
@@ -1543,11 +2493,15 @@ def devalider_version_resume(
 
             version.validation = None
 
+            tier.reunion.resume_valide = False
+
             etude_ouverte.reunions[
                 reunion
             ].resume_valide = False
 
-            etude_ouverte.journal.ajouter(
+            etude_ouverte.journal_traitement(
+                reunion
+            ).ajouter(
                 TYPE_DEVALIDATION,
                 fid=None,
                 reunion=reunion,
@@ -1557,6 +2511,9 @@ def devalider_version_resume(
                     f"Résumé version {numero} dévalidé."
                 )
             )
+
+            if etude_ouverte.est_v2():
+                sauvegarder_tier(tier)
 
             return
 
@@ -1574,8 +2531,8 @@ def ajouter_version_synthese(
 ) -> VersionSynthese:
     """
     Ajoute une version à la synthèse d'étude
-    (déclencheur : validation de bloc, manuel, ou
-    création de l'étude) ; ``stats`` pour l'appel
+    (niveau étude — surcharge de paramètres de synthèse
+    au niveau étude, P18.7e) ; ``stats`` pour l'appel
     LLM ayant produit la version (None sinon).
     """
 
@@ -1610,3 +2567,98 @@ def ajouter_version_synthese(
     )
 
     return version
+
+
+def ouvrir_reunion_autonome(dossier_projet, creer: bool = True):
+    """
+    Ouvre un projet v1 comme RÉUNION AUTONOME (P18.7d) :
+    son tier ``transcriptstudio\\`` porte tous ses
+    traitements, sans aucune étude.
+
+    Retourne (EtudeOuverte, nom) — l'EtudeOuverte est une
+    vue synthétique v2 à une seule réunion, en
+    ``mode_autonome`` : ``sauvegarder_etude`` n'y écrit que
+    le tier (aucune écriture hors de ``transcriptstudio\\``
+    dans le projet v1).
+
+    ``creer=False`` : ne crée jamais le tier ; retourne
+    None s'il n'existe pas.
+    """
+
+    dossier_projet = _dossier_projet_v1(
+        Path(dossier_projet)
+    )
+
+    if not _est_projet_v1(dossier_projet):
+        raise EtudeError(
+            f"{dossier_projet} n'est pas un projet v1 "
+            "(fichier .sttproj attendu)."
+        )
+
+    dossier_projet = dossier_projet.resolve()
+
+    tier = ouvrir_tier(dossier_projet)
+
+    if tier is None:
+
+        if not creer:
+            return None
+
+        tier = creer_tier(
+            dossier_projet,
+            nom=dossier_projet.name
+        )
+
+    nom = normaliser_nom_fichier(dossier_projet.name)
+
+    if not nom:
+        nom = normaliser_nom_fichier("reunion_1")
+
+    maintenant = horodatage_courant()
+
+    etude_ouverte = EtudeOuverte()
+    etude_ouverte.mode_autonome = True
+    etude_ouverte.dossier = None
+    etude_ouverte.etude = Etude(
+        etude_format_version=2,
+        titre=dossier_projet.name,
+        theme="libre",
+        gabarit_titre_1="",
+        ordre_reunions=[nom],
+        creation=maintenant,
+        modification=maintenant,
+    )
+
+    try:
+        from services.avancement import date_audio_projet
+        date = date_audio_projet(dossier_projet)
+    except Exception:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    etude_ouverte.reunions[nom] = ReunionEtude(
+        nom=nom,
+        reference=f"{nom}.json",
+        chemin_projet=".",
+        chemin_absolu=_normaliser_chemin(
+            str(dossier_projet)
+        ),
+        date=date or datetime.now().strftime("%Y-%m-%d"),
+        numero=1,
+        titre_1="",
+        resume_valide=tier.reunion.resume_valide,
+    )
+
+    etude_ouverte.tiers[nom] = tier
+    etude_ouverte.chemins_resolus[nom] = dossier_projet
+
+    # En autonome, pas de surcharge de synthèse d'étude.
+    parametres = parametres_par_defaut()
+    parametres.synthese = dict(tier.parametres.synthese)
+    etude_ouverte.parametres = parametres
+
+    etude_ouverte.synthese = SyntheseEtude()
+
+    # En autonome, le journal d'étude est celui du tier.
+    etude_ouverte.journal = tier.journal
+
+    return etude_ouverte, nom

@@ -692,6 +692,7 @@ def generer_decoupage(
             if ancien_bloc.fid not in fids_nouveaux:
                 marquer_fid_inactif(
                     etude_ouverte,
+                    nom_reunion,
                     ancien_bloc.fid
                 )
 
@@ -707,6 +708,24 @@ def generer_decoupage(
 # P14.5 — Fusion de segmentation, dé-fusion et
 # ordre d'ouvrage par réunion.
 #
+
+
+def _sauvegarder_tier_de(etude_ouverte, nom_reunion) -> None:
+    """
+    P18.7 : après une mutation de la segmentation ou de
+    l'ordre d'ouvrage d'une réunion, le TIER est
+    sauvegardé (les traitements vivent dans le projet v1).
+    """
+
+    if etude_ouverte.est_v2():
+
+        from services.tier_reunion import (
+            sauvegarder_tier,
+        )
+
+        sauvegarder_tier(etude_ouverte.tier_de(nom_reunion))
+
+
 
 def blocs_actifs(
     etude_ouverte: EtudeOuverte,
@@ -733,7 +752,9 @@ def blocs_actifs(
     return [
         bloc
         for bloc in decoupage.blocs
-        if etude_ouverte.registre.entrees[
+        if etude_ouverte.registre_de(
+            nom_reunion
+        ).entrees[
             bloc.fid
         ].actif
     ]
@@ -809,7 +830,9 @@ def fusionner_blocs(
                 f"{nom_reunion}"
             )
 
-        entree = etude_ouverte.registre.entrees.get(fid)
+        entree = etude_ouverte.registre_de(
+            nom_reunion
+        ).entrees.get(fid)
 
         if entree is None or not entree.actif:
             raise DecoupageError(
@@ -922,7 +945,11 @@ def fusionner_blocs(
     )
 
     for fid in fids_chronologiques:
-        marquer_fid_inactif(etude_ouverte, fid)
+        marquer_fid_inactif(
+            etude_ouverte,
+            nom_reunion,
+            fid
+        )
 
     #
     # Ordre d'ouvrage stocké : les FID sources
@@ -955,7 +982,11 @@ def fusionner_blocs(
 
         decoupage.ordre_ouvrage = nouvel_ordre
 
-    etude_ouverte.journal.ajouter(
+    _sauvegarder_tier_de(etude_ouverte, nom_reunion)
+
+    etude_ouverte.journal_traitement(
+        nom_reunion
+    ).ajouter(
         TYPE_FUSION_BLOCS,
         fid=nouveau_fid,
         reunion=nom_reunion,
@@ -1025,7 +1056,9 @@ def defusionner_bloc(
             "bloc fusionné"
         )
 
-    entree = etude_ouverte.registre.entrees.get(
+    entree = etude_ouverte.registre_de(
+        nom_reunion
+    ).entrees.get(
         fid_fusionne
     )
 
@@ -1051,7 +1084,9 @@ def defusionner_bloc(
             )
 
         entree_source = (
-            etude_ouverte.registre.entrees.get(fid)
+            etude_ouverte.registre_de(
+                nom_reunion
+            ).entrees.get(fid)
         )
 
         if entree_source is None:
@@ -1068,6 +1103,7 @@ def defusionner_bloc(
 
     marquer_fid_inactif(
         etude_ouverte,
+        nom_reunion,
         fid_fusionne
     )
 
@@ -1076,7 +1112,7 @@ def defusionner_bloc(
     # mêmes FID.
     #
     for fid in fids_sources:
-        reactiver_fid(etude_ouverte, fid)
+        reactiver_fid(etude_ouverte, nom_reunion, fid)
 
     #
     # Ordre d'ouvrage stocké : le FID fusionné
@@ -1112,7 +1148,11 @@ def defusionner_bloc(
 
         decoupage.ordre_ouvrage = nouvel_ordre
 
-    etude_ouverte.journal.ajouter(
+    _sauvegarder_tier_de(etude_ouverte, nom_reunion)
+
+    etude_ouverte.journal_traitement(
+        nom_reunion
+    ).ajouter(
         TYPE_FUSION_BLOCS,
         fid=fid_fusionne,
         reunion=nom_reunion,
@@ -1215,6 +1255,8 @@ def definir_ordre_ouvrage(
 
     decoupage.ordre_ouvrage = list(fids)
 
+    _sauvegarder_tier_de(etude_ouverte, nom_reunion)
+
 
 def reinitialiser_ordre_ouvrage(
     etude_ouverte: EtudeOuverte,
@@ -1235,3 +1277,5 @@ def reinitialiser_ordre_ouvrage(
         )
 
     decoupage.ordre_ouvrage = None
+
+    _sauvegarder_tier_de(etude_ouverte, nom_reunion)

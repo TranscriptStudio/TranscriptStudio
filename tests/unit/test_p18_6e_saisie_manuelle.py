@@ -342,7 +342,7 @@ class TestTraceJournal:
         )
 
         dernieres = (
-            etude.journal.dernieres(20)
+            etude.tier_de(nom).journal.dernieres(20)
         )
 
         types = [

@@ -634,17 +634,21 @@ class VersionReformulation:
 class ResultatReformulation:
     """
     Résultats versionnés d'un bloc :
-    ``traitements/reformulation/<FID>.json``
-    (contrat §7).
+    ``traitements/reformulation/<FID>.json`` (contrat §7) ;
+    en v2, le fichier vit dans le tier de la réunion
+    (``transcriptstudio\\`` du projet v1) et porte la
+    réunion : identité de bloc = (réunion, FID) (P18.7b).
     """
 
     fid: int
     versions: list = field(default_factory=list)
+    reunion: str = ""
 
     def to_dict(self) -> dict:
 
         return {
             "fid": self.fid,
+            "reunion": self.reunion,
             "versions": [
                 version.to_dict()
                 for version in self.versions
@@ -666,6 +670,7 @@ class ResultatReformulation:
                 for version
                 in data.get("versions", [])
             ],
+            reunion=data.get("reunion", ""),
         )
 
 

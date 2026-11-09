@@ -239,10 +239,15 @@ def fabriquer_service(service_cls, etude, client):
     )
 
 
-def lire_journal(etude) -> list:
+def lire_journal(etude, reunion=None) -> list:
+
+    if reunion is not None and etude.est_v2():
+        base = etude.tier_de(reunion).dossier
+    else:
+        base = etude.dossier
 
     chemin = (
-        etude.dossier
+        base
         / "traitements"
         / "journal_operations.json"
     )
@@ -432,7 +437,7 @@ class TestGenerationResume:
         assert "700" in client.appels[0]["message"]
 
         # Journal : une entrée resume.
-        entrees = lire_journal(etude)
+        entrees = lire_journal(etude, reunion)
         assert sum(
             1
             for entree in entrees
@@ -1155,16 +1160,18 @@ class TestSynthese:
 
         for bloc in etude.decoupages[reunion].blocs:
 
-            if bloc.fid not in etude.reformulations:
+            if etude.reformulation_de(reunion, bloc.fid) is None:
 
                 ajouter_version_reformulation(
                     etude,
+                    reunion,
                     bloc.fid,
                     f"Reformulation {bloc.fid}."
                 )
 
             valider_version_reformulation(
                 etude,
+                reunion,
                 bloc.fid,
                 numero=numero,
                 validateur="David"
@@ -1274,7 +1281,7 @@ class TestSynthese:
 
         self._valider_tout(etude, reunion)
 
-        avant = len(lire_journal(etude))
+        avant = len(json.loads((etude.dossier / 'journal_etude.json').read_text(encoding='utf-8'))['entrees'])
 
         client = ClientFactice(
             reponses=["Synthèse de l'étude."]
@@ -1294,8 +1301,13 @@ class TestSynthese:
         assert version.declencheur == "manuel"
         assert version.texte == "Synthèse de l'étude."
 
-        # Une entrée synthese (pas deux).
-        entrees = lire_journal(etude)
+        # Une entrée synthese (pas deux) — journal de
+        # l'ÉTUDE (journal_etude.json en v2, P18.7c).
+        entrees = json.loads(
+            (etude.dossier / "journal_etude.json").read_text(
+                encoding="utf-8"
+            )
+        )["entrees"]
 
         nouvelles = entrees[avant:]
 
@@ -1504,6 +1516,7 @@ class TestRecurrences:
 
                 ajouter_version_reformulation(
                     etude,
+                    reunion,
                     bloc.fid,
                     (
                         etude.decoupages[reunion]
@@ -1513,6 +1526,7 @@ class TestRecurrences:
 
                 valider_version_reformulation(
                     etude,
+                    reunion,
                     bloc.fid,
                     numero=1,
                     validateur="David"

@@ -851,7 +851,8 @@ def _textes_valides_etude(etude_ouverte):
 
         for bloc in blocs_actifs(etude_ouverte, reunion):
 
-            resultat = etude_ouverte.reformulations.get(
+            resultat = etude_ouverte.reformulation_de(
+                reunion,
                 bloc.fid
             )
 

@@ -117,7 +117,10 @@ def texte_source(
             continue
 
         resultat = (
-            etude_ouverte.reformulations.get(bloc.fid)
+            etude_ouverte.reformulation_de(
+                reunion,
+                bloc.fid
+            )
         )
 
         if not resultat or not resultat.versions:
@@ -300,11 +303,19 @@ class ServiceResume:
 
         return charger_catalogue()
 
-    def _parametres_resume(self) -> dict:
+    def _parametres_resume(self, reunion: str = None) -> dict:
+
+        if reunion is not None:
+            # P18.7e : paramètres DU TIER de la réunion.
+            return (
+                self.etude
+                .parametres_traitement_de(reunion)
+                .resume
+            )
 
         return self.etude.parametres.resume
 
-    def resoudre(self):
+    def resoudre(self, reunion: str = None):
         """
         Résout (fournisseur, modèle) : fournisseur des
         réglages app ; modèle surchargé par l'étude
@@ -325,7 +336,7 @@ class ServiceResume:
                 "vérifiez les réglages."
             )
 
-        modele_id = self._parametres_resume().get(
+        modele_id = self._parametres_resume(reunion).get(
             "modele"
         )
 
@@ -352,14 +363,14 @@ class ServiceResume:
 
         return fournisseur, modele
 
-    def temperature_effective(self) -> float:
+    def temperature_effective(self, reunion: str = None) -> float:
         """
         Surcharge étude si définie, sinon réglage app
         (température « résumé »), sinon 0.2.
         """
 
         surcharge = (
-            self._parametres_resume().get("temperature")
+            self._parametres_resume(reunion).get("temperature")
         )
 
         if surcharge is not None:
@@ -379,7 +390,7 @@ class ServiceResume:
 
         return float(valeur)
 
-    def longueur_cible(self, lancement: list = None):
+    def longueur_cible(self, lancement: list = None, reunion: str = None):
         """
         Longueur cible en mots (paramétrable au
         lancement, défaut de l'étude 650-700).
@@ -392,7 +403,7 @@ class ServiceResume:
             )
 
         longueurs = (
-            self._parametres_resume().get(
+            self._parametres_resume(reunion).get(
                 "longueur_cible_mots"
             )
             or [650, 700]
@@ -430,7 +441,7 @@ class ServiceResume:
         longueur_cible: list = None
     ) -> dict:
 
-        _fournisseur, modele = self.resoudre()
+        _fournisseur, modele = self.resoudre(reunion)
 
         texte = texte_source(
             self.etude,
@@ -439,7 +450,7 @@ class ServiceResume:
         )
 
         prompt = (
-            self._parametres_resume().get("prompt", "")
+            self._parametres_resume(reunion).get("prompt", "")
         )
 
         segments = segmenter_source(texte)
@@ -456,7 +467,7 @@ class ServiceResume:
             #
             tokens_in += tokens_in // 2
 
-        minimum, maximum = self.longueur_cible(
+        minimum, maximum = self.longueur_cible(reunion=reunion, lancement=
             longueur_cible
         )
 
@@ -495,7 +506,8 @@ class ServiceResume:
         modele,
         prompt_systeme: str,
         message: str,
-        annulation
+        annulation,
+        reunion: str = None
     ) -> ResultatCompletion:
 
         return client.completions(
@@ -509,7 +521,7 @@ class ServiceResume:
             ParametresCompletion(
                 modele=modele.id,
                 temperature=(
-                    self.temperature_effective()
+                    self.temperature_effective(reunion)
                     if modele.capacite_temperature
                     else None
                 ),
@@ -552,7 +564,7 @@ class ServiceResume:
 
         if source is None:
             source = (
-                self._parametres_resume().get(
+                self._parametres_resume(reunion).get(
                     "source_defaut"
                 )
                 or SOURCE_REFORMULEES
@@ -560,13 +572,13 @@ class ServiceResume:
 
         texte = texte_source(self.etude, reunion, source)
 
-        longueur = self.longueur_cible(longueur_cible)
+        longueur = self.longueur_cible(longueur_cible, reunion=reunion)
 
         prompt = (
-            self._parametres_resume().get("prompt", "")
+            self._parametres_resume(reunion).get("prompt", "")
         )
 
-        fournisseur, modele = self.resoudre()
+        fournisseur, modele = self.resoudre(reunion)
         client = self._creer_client(fournisseur)
 
         stats = {
@@ -595,7 +607,8 @@ class ServiceResume:
                 modele,
                 prompt,
                 message,
-                annulation
+                annulation,
+                reunion=reunion
             )
 
             self._cumuler(stats, resultat)
@@ -637,7 +650,8 @@ class ServiceResume:
                 modele,
                 prompt,
                 message,
-                annulation
+                annulation,
+                reunion=reunion
             )
 
             self._cumuler(stats, resultat)
@@ -666,7 +680,8 @@ class ServiceResume:
             modele,
             prompt,
             message,
-            annulation
+            annulation,
+            reunion=reunion
         )
 
         self._cumuler(stats, resultat)
@@ -725,7 +740,7 @@ class ServiceResume:
 
     def _versions_anterieures(self, reunion) -> list:
 
-        resultat = self.etude.resumes.get(reunion)
+        resultat = self.etude.resume_de(reunion)
 
         if not resultat:
             return []
@@ -748,7 +763,7 @@ class ServiceResume:
         pas tourner en rond) + la consigne libre.
         """
 
-        resultat = self.etude.resumes.get(reunion)
+        resultat = self.etude.resume_de(reunion)
 
         if not resultat or not resultat.versions:
             raise EtudeError(
@@ -764,12 +779,12 @@ class ServiceResume:
             courante.source
         )
 
-        longueur = self.longueur_cible()
+        longueur = self.longueur_cible(reunion=reunion)
         prompt = (
-            self._parametres_resume().get("prompt", "")
+            self._parametres_resume(reunion).get("prompt", "")
         )
 
-        fournisseur, modele = self.resoudre()
+        fournisseur, modele = self.resoudre(reunion)
         client = self._creer_client(fournisseur)
 
         message = self._message_final(
@@ -816,7 +831,8 @@ class ServiceResume:
             modele,
             prompt,
             message,
-            annulation
+            annulation,
+            reunion=reunion
         )
 
         self._cumuler(stats, appel)
@@ -869,7 +885,7 @@ class ServiceResume:
             verifier_reponse,
         )
 
-        resultat = self.etude.resumes.get(reunion)
+        resultat = self.etude.resume_de(reunion)
 
         if not resultat or not resultat.versions:
             raise EtudeError(
@@ -887,10 +903,10 @@ class ServiceResume:
         )
 
         prompt = (
-            self._parametres_resume().get("prompt", "")
+            self._parametres_resume(reunion).get("prompt", "")
         )
 
-        fournisseur, modele = self.resoudre()
+        fournisseur, modele = self.resoudre(reunion)
         client = self._creer_client(fournisseur)
 
         message = message_ciblee(
@@ -915,7 +931,8 @@ class ServiceResume:
             modele,
             prompt,
             message,
-            annulation
+            annulation,
+            reunion=reunion
         )
 
         self._cumuler(stats, appel)
@@ -993,7 +1010,9 @@ class ServiceResume:
 
         except Exception as e:
 
-            self.etude.journal.ajouter(
+            self.etude.journal_traitement(
+                reunion
+            ).ajouter(
                 TYPE_RESUME,
                 reunion=reunion,
                 resultat=RESULTAT_ERREUR,

@@ -241,17 +241,68 @@ class TierReunion:
         sauvegarder_reunion_tier(self)
 
 
+def nouveau_tier(
+    dossier_projet,
+    nom: str = None,
+    parametres: ParametresEtude = None
+) -> TierReunion:
+    """
+    Construit un tier EN MÉMOIRE sans rien écrire sur
+    disque : le tier ne matérialise dans le projet v1
+    qu'à la première sauvegarde (``sauvegarder_tier``)
+    — typiquement la première opération sur les
+    traitements de la réunion. Ainsi, ouvrir une étude
+    ne modifie JAMAIS un projet v1.
+    """
+
+    dossier_projet = Path(dossier_projet)
+
+    maintenant = horodatage_iso()
+
+    tier = TierReunion(dossier_projet)
+
+    tier.reunion = ReunionTier(
+        nom=nom or dossier_projet.name,
+        etudes=[],
+        resume_valide=False,
+        creation=maintenant,
+        modification=maintenant,
+    )
+
+    tier.registre = RegistreFID()
+
+    if parametres is None:
+
+        from services.etude_io import (
+            parametres_par_defaut,
+        )
+
+        parametres = parametres_par_defaut()
+
+    tier.parametres = parametres
+
+    tier.journal = JournalEtude(
+        tier.dossier
+        / DOSSIER_TRAITEMENTS
+        / FICHIER_JOURNAL
+    )
+
+    return tier
+
+
 def creer_tier(
     dossier_projet,
     nom: str = None,
     parametres: ParametresEtude = None
 ) -> TierReunion:
     """
-    Crée le tier d'un projet v1 (structure exacte §2).
+    Crée le tier d'un projet v1 (structure exacte §2) et
+    l'écrit sur disque.
 
     Additif : ne modifie aucun fichier existant du projet
-    v1 hors ``transcriptstudio\\``. Refuse si un fichier
-    occupe l'emplacement d'un sous-dossier du tier.
+    v1 hors ``transcriptstudio\\``. Refuse si le tier
+    existe déjà ou si un fichier occupe l'emplacement
+    d'un fichier du tier.
     """
 
     dossier_projet = Path(dossier_projet)
@@ -278,6 +329,20 @@ def creer_tier(
                 "créé ici."
             )
 
+    if (tier.dossier / FICHIER_REUNION).exists():
+        raise TierError(
+            f"Le projet {dossier_projet} a déjà un "
+            "tier réunion (transcriptstudio/"
+            f"{FICHIER_REUNION}) : il ne s'écrase "
+            "pas."
+        )
+
+    tier = nouveau_tier(
+        dossier_projet,
+        nom=nom,
+        parametres=parametres
+    )
+
     #
     # Le dossier reformulation/ existe dès la création
     # (structure exacte §2), même vide.
@@ -288,43 +353,6 @@ def creer_tier(
         / DOSSIER_TRAITEMENTS
         / DOSSIER_REFORMULATION
     ).mkdir(parents=True, exist_ok=True)
-
-    if (tier.dossier / FICHIER_REUNION).exists():
-        raise TierError(
-            f"Le projet {dossier_projet} a déjà un "
-            "tier réunion (transcriptstudio/"
-            f"{FICHIER_REUNION}) : il ne s'écrase "
-            "pas."
-        )
-
-    maintenant = horodatage_iso()
-
-    tier.reunion = ReunionTier(
-        nom=nom or dossier_projet.name,
-        etudes=[],
-        resume_valide=False,
-        creation=maintenant,
-        modification=maintenant,
-    )
-
-    tier.registre = RegistreFID()
-
-    if parametres is None:
-
-        # Import tardif : etude_io importe ce module.
-        from services.etude_io import (
-            parametres_par_defaut,
-        )
-
-        parametres = parametres_par_defaut()
-
-    tier.parametres = parametres
-
-    tier.journal = JournalEtude(
-        tier.dossier
-        / DOSSIER_TRAITEMENTS
-        / FICHIER_JOURNAL
-    )
 
     sauvegarder_tier(tier)
 

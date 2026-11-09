@@ -143,12 +143,14 @@ def etude_deux_reunions(tmp_path):
 
             version = ajouter_version_reformulation(
                 etude,
+                nom,
                 fid,
                 f"Reformulation {nom} bloc {fid}",
             )
 
             valider_version_reformulation(
                 etude,
+                nom,
                 fid,
                 version.numero,
                 "Test"
@@ -535,6 +537,7 @@ class TestRegeneration:
 
         ajouter_version_reformulation(
             etude,
+            r1,
             fid,
             "Nouvelle passe non validée"
         )

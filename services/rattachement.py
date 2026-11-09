@@ -330,14 +330,17 @@ def detacher_reunion(
     """
     Détache une réunion de son étude SANS toucher
     aux traitements (option A de l'arbitrage,
-    invariant §9.5) :
+    invariant §9.5 ; P18.7d : détachement NON
+    DESTRUCTIF) :
 
     - la référence (``reunions/<nom>.json``) et
-      l'entrée d'ordre disparaissent ;
-    - le découpage, les reformulations, le résumé
-      et les entrées du registre FID RESTENT à
-      l'ancienne étude (aucun déplacement, aucune
-      copie, aucune suppression).
+      l'entrée d'ordre disparaissent de l'étude, et
+      l'étude est retirée d'``etudes[]`` du tier ;
+    - le tier de la réunion (découpage, registre FID,
+      reformulations, résumé, journal, paramètres)
+      RESTE intact dans le projet v1 — la réunion
+      garde tout son travail (aucun déplacement,
+      aucune copie, aucune suppression).
 
     Utilisé par le changement d'étude et par
     « Détacher de l'étude » (Gestion de l'étude).
@@ -347,6 +350,22 @@ def detacher_reunion(
         raise EtudeError(
             f"Réunion inconnue : {nom}"
         )
+
+    if etude_ouverte.est_v2():
+        #
+        # P18.7d : en v2, le détachement est non
+        # destructif — retirer_reunion retire la
+        # référence et met à jour etudes[] du tier,
+        # mais conserve tout le travail de la réunion
+        # dans son projet v1.
+        #
+        from services.etude_io import (
+            retirer_reunion,
+        )
+
+        retirer_reunion(etude_ouverte, nom)
+
+        return
 
     dossier = etude_ouverte.dossier
 

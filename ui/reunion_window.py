@@ -192,11 +192,13 @@ class ReunionWindow(QWidget):
         traitements du stepper appartiennent au
         processus RÉUNION, pas au processus étude.
         Une réunion AUTONOME reçoit donc les mêmes
-        traitements — portés par une étude INTERNE
-        enregistrée DANS le dossier du projet v1
-        (sous-dossier « _traitements ») : la réunion
-        reste autonome (aucun rattachement), ses
-        données de traitements vivent avec elle.
+        traitements — portés par son TIER
+        (transcriptstudio\, P18.7) enregistré DANS
+        le dossier du projet v1 : la réunion reste
+        autonome (aucun rattachement), ses données de
+        traitements vivent avec elle. L'ancienne étude
+        interne « _traitements » (P20) est migrée vers
+        le tier à la première ouverture.
 
         ``creer=False`` : ne JAMAIS créer le
         dossier — seulement réouvrir l'étude interne
@@ -230,47 +232,35 @@ class ReunionWindow(QWidget):
             return None
 
         from services.etude_io import (
-            ajouter_reunion,
-            creer_etude,
-            ouvrir_etude,
+            ouvrir_reunion_autonome,
+        )
+        from services.migration_etude import (
+            migrer_traitements_internes,
         )
 
-        dossier_interne = (
-            Path(chemin).parent / "_traitements"
-        )
+        dossier_projet = Path(chemin).parent
 
         try:
 
-            if (
-                dossier_interne / "etude.json"
-            ).is_file():
+            #
+            # P18.7 : la réunion autonome porte ses
+            # traitements dans SON TIER
+            # (transcriptstudio\ du projet v1). Une
+            # ancienne « étude interne » _traitements
+            # (P20) est migrée une fois pour toutes vers
+            # le tier, puis archivée (jamais supprimée).
+            #
+            migrer_traitements_internes(dossier_projet)
 
-                etude = ouvrir_etude(
-                    dossier_interne
-                )
+            resultat = ouvrir_reunion_autonome(
+                dossier_projet,
+                creer=creer
+            )
 
-                if not etude.etude.ordre_reunions:
-                    return None
-
-                nom = (
-                    etude.etude.ordre_reunions[0]
-                )
-
-            elif not creer:
-
+            if resultat is None:
                 return None
 
-            else:
-
-                etude = creer_etude(
-                    dossier_interne,
-                    Path(chemin).parent.name
-                )
-
-                nom = ajouter_reunion(
-                    etude,
-                    chemin
-                )
+            etude, nom = resultat
 
         except Exception:
             return None
@@ -580,9 +570,18 @@ class ReunionWindow(QWidget):
                 version_bible_etude,
             )
 
-            version = version_bible_etude(
-                self.etude.parametres
-            )
+            # P18.7e : version de Bible DU TIER de la
+            # réunion (paramètre de traitement).
+            if self.nom is not None:
+                version = version_bible_etude(
+                    self.etude.parametres_traitement_de(
+                        self.nom
+                    )
+                )
+            else:
+                version = version_bible_etude(
+                    self.etude.parametres
+                )
 
             # Nom COURT (spec correctifs §9) :
             # « Bible : Darby révisée », pas de

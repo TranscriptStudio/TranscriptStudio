@@ -146,7 +146,10 @@ def assembler_ouvrage(
         for fid in ordre:
 
             resultat = (
-                etude_ouverte.reformulations.get(fid)
+                etude_ouverte.reformulation_de(
+                    nom_reunion,
+                    fid
+                )
             )
 
             version = _derniere_version_validee(
@@ -253,7 +256,10 @@ def assembler_reunion(
     for fid in ordre:
 
         resultat = (
-            etude_ouverte.reformulations.get(fid)
+            etude_ouverte.reformulation_de(
+                nom_reunion,
+                fid
+            )
         )
 
         version = _derniere_version_validee(

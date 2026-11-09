@@ -269,13 +269,15 @@ class TestRegleDeux:
             construire_etude_test,
         )
 
-        _p, _v, _e, nom = construire_etude_test(
+        _p, _v, etude, nom = construire_etude_test(
             tmp_path
         )
 
+        # P18.7e : en v2, le bloc bible vit dans le tier
+        # de la réunion (parametres/parametres.json du
+        # projet v1).
         chemin = (
-            tmp_path
-            / "Etude"
+            etude.tier_de(nom).dossier
             / "parametres"
             / "parametres.json"
         )
@@ -293,10 +295,10 @@ class TestRegleDeux:
 
         etude = ouvrir_etude(tmp_path / "Etude")
 
-        assert etude.parametres.bible == {}
+        assert etude.tier_de(nom).parametres.bible == {}
 
         assert version_bible_etude(
-            etude.parametres
+            etude.tier_de(nom).parametres
         ) == "darbyR"
 
         #
@@ -856,11 +858,17 @@ class TestRegleCinq:
 
         sauvegarder_etude(etude)
 
-        etude.parametres.bible = {
+        # P18.7e : la version retenue se règle dans le
+        # tier de la réunion.
+        from services.tier_reunion import (
+            sauvegarder_tier,
+        )
+
+        etude.tier_de(nom).parametres.bible = {
             "version": "darby"
         }
 
-        sauvegarder_etude(etude)
+        sauvegarder_tier(etude.tier_de(nom))
 
         relue = ouvrir_etude(tmp_path / "Etude")
 
@@ -868,14 +876,14 @@ class TestRegleCinq:
         # La nouvelle version retenue est en place.
         #
         assert version_bible_etude(
-            relue.parametres
+            relue.tier_de(nom).parametres
         ) == "darby"
 
         #
         # Les reformulations, résumés et journal
         # sont intacts : rien n'a été re-traité.
         #
-        resultat = relue.reformulations.get(1)
+        resultat = relue.reformulation_de(nom, 1)
 
         assert resultat is not None
 
@@ -886,8 +894,7 @@ class TestRegleCinq:
         assert relue.resumes == {}
 
         journal = (
-            tmp_path
-            / "Etude"
+            etude.tier_de(nom).dossier
             / "traitements"
             / "journal_operations.json"
         )

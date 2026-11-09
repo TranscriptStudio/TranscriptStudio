@@ -302,7 +302,7 @@ def etat_reformulation(etude_ouverte, nom) -> str:
     for fid in fids:
 
         resultat = (
-            etude_ouverte.reformulations.get(fid)
+            etude_ouverte.reformulation_de(nom, fid)
         )
 
         if resultat is None:
@@ -562,7 +562,7 @@ def cout_reunion(etude_ouverte, nom) -> float:
     for fid in _fids_reunion(etude_ouverte, nom):
 
         resultat = (
-            etude_ouverte.reformulations.get(fid)
+            etude_ouverte.reformulation_de(nom, fid)
         )
 
         if resultat is None:
@@ -580,7 +580,7 @@ def cout_reunion(etude_ouverte, nom) -> float:
                 )
 
     resultat_resume = (
-        etude_ouverte.resumes.get(nom)
+        etude_ouverte.resume_de(nom)
     )
 
     if resultat_resume is not None:

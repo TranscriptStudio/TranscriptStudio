@@ -79,8 +79,15 @@ def reunion_autonome(qapp, tmp_path):
     étude).
     """
 
-    projet, projet_v1, _etude, _nom = (
-        construire_etude_test(tmp_path)
+    # Projet v1 seul, SANS étude : la réunion est
+    # autonome, son tier transcriptstudio\ est vierge
+    # (P18.7).
+    from tests.unit.test_reformulation_ui import (
+        construire_projet_test,
+    )
+
+    projet, projet_v1 = construire_projet_test(
+        tmp_path
     )
 
     settings = SettingsManager(
@@ -408,11 +415,10 @@ class TestContenu:
         """
         P20 (retour David 31/10, UI reformulation
         point 1) : une réunion AUTONOME reçoit la
-        reformulation — portée par son étude
-        INTERNE dans le dossier du projet
-        (sous-dossier « _traitements »), SANS
-        rattachement. La segmentation est générée
-        depuis la diarisation validée.
+        reformulation — portée par son TIER
+        (transcriptstudio\, P18.7) dans le dossier du
+        projet, SANS rattachement. La segmentation est
+        générée depuis la diarisation validée.
         """
 
         from unittest.mock import patch
@@ -446,14 +452,23 @@ class TestContenu:
 
         dossier = (
             Path(projet_v1.project_file).parent
-            / "_traitements"
+            / "transcriptstudio"
         )
 
         assert (
-            dossier / "etude.json"
+            dossier / "reunion.json"
         ).exists()
 
-        assert page.etude.dossier == dossier
+        # Facade autonome v2 : pas de dossier étude, le
+        # tier porte les traitements (P18.7).
+        assert page.etude.mode_autonome
+        assert page.etude.dossier is None
+        assert (
+            page.etude.tier_de(
+                page.etude.etude.ordre_reunions[0]
+            ).dossier
+            == dossier
+        )
 
         #
         # La table de relecture est construite sur

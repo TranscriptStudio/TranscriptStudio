@@ -90,7 +90,10 @@ def reunion_entierement_validee(
     for bloc in blocs:
 
         resultat = (
-            etude_ouverte.reformulations.get(bloc.fid)
+            etude_ouverte.reformulation_de(
+                reunion,
+                bloc.fid
+            )
         )
 
         valide = False
@@ -141,7 +144,7 @@ def texte_reunion_valide(
     """
 
     resume = _texte_valide(
-        etude_ouverte.resumes.get(reunion)
+        etude_ouverte.resume_de(reunion)
     )
 
     if resume:
@@ -152,7 +155,10 @@ def texte_reunion_valide(
     for bloc in blocs_actifs(etude_ouverte, reunion):
 
         texte = _texte_valide(
-            etude_ouverte.reformulations.get(bloc.fid)
+            etude_ouverte.reformulation_de(
+                reunion,
+                bloc.fid
+            )
         )
 
         if texte:

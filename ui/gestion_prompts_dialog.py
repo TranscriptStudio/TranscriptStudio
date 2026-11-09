@@ -485,6 +485,39 @@ class PanneauGestionPrompts(QWidget):
 
             sauvegarder_etude(self.etude)
 
+            #
+            # P18.7e : la copie locale du prompt vit dans
+            # les paramètres DU TIER de chaque réunion —
+            # on propage explicitement la valeur éditée
+            # vers tous les tiers et on les sauvegarde.
+            #
+            from services.tier_reunion import (
+                sauvegarder_tier,
+            )
+
+            for tier in self.etude.tiers.values():
+
+                parametres = (
+                    self.etude.parametres_traitement_de(
+                        tier.nom
+                    )
+                )
+
+                if self.usage == USAGE_REFORMULATION:
+                    parametres.reformulation["prompt"] = (
+                        self.prompt_edit.toPlainText()
+                    )
+                elif self.usage == USAGE_FUSION:
+                    parametres.fusion["prompt"] = (
+                        self.prompt_edit.toPlainText()
+                    )
+                else:
+                    parametres.resume["prompt"] = (
+                        self.prompt_edit.toPlainText()
+                    )
+
+                sauvegarder_tier(tier)
+
             self.maj_indicateurs()
 
             return True

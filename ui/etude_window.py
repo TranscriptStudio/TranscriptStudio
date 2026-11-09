@@ -226,6 +226,26 @@ class EtudeWindow(QWidget):
         self.refresh_reunions()
         self.maj_synthese()
 
+        #
+        # P18.7d : toute divergence etudes[] du tier d'une
+        # réunion vs ordre_reunions de l'étude est SIGNALÉE
+        # à l'ouverture — jamais auto-corrigée.
+        #
+        if self.etude.divergences:
+            QMessageBox.warning(
+                self,
+                "Divergences de rattachement signalées",
+                (
+                    "Le tier d'une ou plusieurs réunions "
+                    "référence des études qui ne correspondent "
+                    "pas à l'ordre des réunions de cette étude "
+                    ":\n\n"
+                    + "\n".join(self.etude.divergences)
+                    + "\n\nAucune correction automatique n'a "
+                    "été faite."
+                )
+            )
+
     def build_ui(self):
         """
         Page Étude (P18.6c, spec navigation §4) :

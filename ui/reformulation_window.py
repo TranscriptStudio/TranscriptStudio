@@ -1645,7 +1645,10 @@ class ReformulationWindow(QWidget):
 
     def versions_bloc(self, fid: int):
 
-        resultat = self.etude.reformulations.get(fid)
+        resultat = self.etude.reformulation_de(
+            self.reunion,
+            fid
+        )
 
         if not resultat:
             return []
@@ -2206,6 +2209,7 @@ class ReformulationWindow(QWidget):
 
         ajouter_version_reformulation(
             self.etude,
+            self.reunion,
             fid,
             ligne.cellule_reformee.toPlainText(),
             type_version="edition_manuelle",
@@ -2552,6 +2556,7 @@ class ReformulationWindow(QWidget):
 
         valider_version_reformulation(
             self.etude,
+            self.reunion,
             fid,
             numero=derniere.numero,
             validateur=VALIDATEUR_DEFAUT
@@ -2584,6 +2589,7 @@ class ReformulationWindow(QWidget):
 
         devalider_version_reformulation(
             self.etude,
+            self.reunion,
             fid,
             numero=derniere.numero
         )
@@ -3461,7 +3467,7 @@ class ReformulationWindow(QWidget):
             self._autres_bibles_cache = (
                 autres_versions_installees(
                     version_bible_etude(
-                        self.etude.parametres
+                         self.etude.parametres_traitement_de(self.reunion)
                     )
                 )
             )

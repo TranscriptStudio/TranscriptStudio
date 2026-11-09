@@ -8,6 +8,7 @@ invariant §9.5).
 """
 
 import json
+from pathlib import Path
 import os
 from unittest.mock import patch
 
@@ -605,14 +606,21 @@ class TestRattachement:
 
         dossier_etude = tmp_path / "Etude"
 
+        # P18.7 : les traitements vivent dans le TIER de la
+        # réunion (transcriptstudio\ du projet v1).
+        racine_tier = (
+            Path(projet) / "transcriptstudio"
+            if not str(projet).endswith(".sttproj")
+            else Path(projet).parent / "transcriptstudio"
+        )
+
         fichier_decoupage = (
-            dossier_etude
-            / "blocs" / "decoupage"
-            / f"{nom}.json"
+            racine_tier
+            / "blocs" / "decoupage.json"
         )
 
         fichier_reformulation = (
-            dossier_etude
+            racine_tier
             / "traitements" / "reformulation"
             / f"{fids[0]}.json"
         )
@@ -698,9 +706,17 @@ class TestRattachement:
             nouveau_nom
         )
 
-        # Les traitements restent à l'ancienne étude.
+        # P18.7d : les traitements restent avec la RÉUNION
+        # (son tier dans le projet v1) — ni déplacés ni
+        # copiés vers la nouvelle étude.
+        racine_tier = (
+            Path(projet) / "transcriptstudio"
+            if not str(projet).endswith(".sttproj")
+            else Path(projet).parent / "transcriptstudio"
+        )
+
         assert (
-            tmp_path / "Etude"
+            racine_tier
             / "traitements" / "reformulation"
             / f"{fids[0]}.json"
         ).is_file()

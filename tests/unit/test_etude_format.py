@@ -142,18 +142,21 @@ class TestCreationEtude:
 
         assert (dossier / "etude.json").exists()
         assert (dossier / "reunions").is_dir()
-        assert (dossier / "blocs" / "journal-fid.json").exists()
-        assert (dossier / "blocs" / "decoupage").is_dir()
-        assert (dossier / "traitements" / "reformulation").is_dir()
-        assert (dossier / "traitements" / "resume").is_dir()
         assert (dossier / "synthese" / "synthese.json").exists()
         assert (dossier / "parametres" / "parametres.json").exists()
+        assert (dossier / "journal_etude.json").exists()
+
+        # P18.7c : blocs\ et traitements\ disparaissent du
+        # dossier étude (ils vivent dans le tier de chaque
+        # réunion, dans le projet v1).
+        assert not (dossier / "blocs").exists()
+        assert not (dossier / "traitements").exists()
 
         donnees = json.loads(
             (dossier / "etude.json").read_text(encoding="utf-8")
         )
 
-        assert donnees["etude_format_version"] == 1
+        assert donnees["etude_format_version"] == 2
         assert donnees["titre"] == "Évangile de Luc"
         assert donnees["theme"] == "livre"
         assert donnees["ordre_reunions"] == []
@@ -217,22 +220,21 @@ class TestCreationEtude:
         """
         dossier = tmp_path / "conflit"
         dossier.mkdir()
-        (dossier / "blocs").write_text("un fichier")
+        (dossier / "reunions").write_text("un fichier")
 
         with pytest.raises(EtudeError) as infos:
             creer_etude(dossier, "Étude")
 
-        assert "blocs" in str(infos.value)
+        assert "reunions" in str(infos.value)
 
         # Rien n'a été écrit : ni l'étude, ni ses
         # sous-dossiers ; le fichier d'origine est
         # intact.
         assert not (dossier / "etude.json").exists()
-        assert not (dossier / "reunions").exists()
         assert not (dossier / "synthese").exists()
 
         assert (
-            dossier / "blocs"
+            dossier / "reunions"
         ).read_text(encoding="utf-8") == "un fichier"
 
     def test_messages_incluent_l_aide(self, tmp_path):
@@ -252,7 +254,7 @@ class TestCreationEtude:
 
         conflit = tmp_path / "conflit"
         conflit.mkdir()
-        (conflit / "blocs").write_text("un fichier")
+        (conflit / "synthese").write_text("un fichier")
 
         with pytest.raises(EtudeError) as infos_conflit:
             creer_etude(conflit, "Étude")
@@ -261,7 +263,15 @@ class TestCreationEtude:
         assert "Rien n'a été écrit" in str(infos_conflit.value)
 
     def test_parametres_par_defaut(self, tmp_path):
+        """
+        P18.7c/§8bis : en v2, parametres/parametres.json de
+        l'étude ne porte que les SURCHARGES DE SYNTHÈSE ;
+        les paramètres des traitements vivent dans le tier
+        de chaque réunion.
+        """
+        projet = creer_projet_v1(tmp_path, "projet_a")
         etude = creer_etude(tmp_path / "E", "Étude")
+        nom = ajouter_reunion(etude, projet)
 
         donnees = json.loads(
             (
@@ -270,25 +280,36 @@ class TestCreationEtude:
             ).read_text(encoding="utf-8")
         )
 
-        reformulation = donnees["reformulation"]
+        # Étude v2 : surcharge synthèse uniquement.
+        assert set(donnees.keys()) == {"synthese"}
+        assert donnees["synthese"]["tokens_max"] == 1500
+
+        # Tier de la réunion : paramètres complets.
+        parametres_tier = etude.tier_de(nom).parametres.to_dict()
+
+        reformulation = parametres_tier["reformulation"]
 
         assert "Agent" in reformulation["prompt"]
         assert reformulation["fenetre_glissante_tokens"] == 2000
-        assert donnees["resume"]["source_defaut"] == (
+        assert parametres_tier["resume"]["source_defaut"] == (
             "reformulations_valides"
         )
-        assert donnees["resume"]["longueur_cible_mots"] == [650, 700]
-        assert donnees["synthese"]["tokens_max"] == 1500
+        assert parametres_tier["resume"]["longueur_cible_mots"] == [650, 700]
+        assert parametres_tier["synthese"]["tokens_max"] == 1500
         assert "puissamment" in (
-            donnees["controle_qualite"]["lexique_emphase"]
+            parametres_tier["controle_qualite"]["lexique_emphase"]
         )
-        assert donnees["llm"]["fournisseurs"][0][
+        assert parametres_tier["llm"]["fournisseurs"][0][
             "cle_ref"
         ] == "credential_store"
 
         # Aucune clé API en clair nulle part.
-        contenu = json.dumps(donnees)
+        contenu = json.dumps(parametres_tier)
         assert "sk-" not in contenu
+
+        # Le tier est écrit dans le projet v1 (structure §2).
+        racine_tier = projet / "transcriptstudio"
+        assert (racine_tier / "parametres" / "parametres.json").is_file()
 
 
 class TestSchema:
@@ -328,7 +349,7 @@ class TestSchema:
     def test_etude_version_future(self):
         with pytest.raises(EtudeFormatError):
             valider_etude({
-                "etude_format_version": 2,
+                "etude_format_version": 3,
                 "titre": "T",
                 "theme": "livre",
                 "gabarit_titre_1": "G",
@@ -719,23 +740,38 @@ class TestInvariance1:
         ajouter_reunion(etude, projet)
         sauvegarder_etude(etude)
 
+        # L'attachement crée UNIQUEMENT le sous-dossier
+        # additif transcriptstudio\ dans le projet v1.
+        assert sorted(p.name for p in projet.iterdir()) == [
+            "project.sttproj",
+            "transcriptstudio",
+        ]
+
+        contenu_tier = sorted(
+            p.relative_to(projet).as_posix()
+            for p in (projet / "transcriptstudio").rglob("*")
+        )
+
         for _ in range(2):
             etude = ouvrir_etude(tmp_path / "E")
             sauvegarder_etude(etude)
 
         assert empreinte(sttproj) == avant
 
-        # Aucun fichier ajouté au dossier projet v1.
-        assert sorted(p.name for p in projet.iterdir()) == [
-            "project.sttproj"
-        ]
+        # Ouvrir/sauvegarder l'étude n'écrit JAMAIS dans le
+        # projet v1 : le tier n'a pas bougé.
+        assert sorted(
+            p.relative_to(projet).as_posix()
+            for p in (projet / "transcriptstudio").rglob("*")
+        ) == contenu_tier
 
 
 class TestInvariance3:
     """
-    La suppression d'une réunion de l'étude retire sa
-    référence et ses résultats d'étude, mais ne touche
-    ni le projet v1 ni le registre FID.
+    P18.7d : le retrait/détachement d'une réunion est NON
+    DESTRUCTIF — la réunion garde tout son travail (son
+    tier reste intact dans le projet v1) ; seule la
+    référence d'étude disparaît.
     """
 
     def test_retrait_reunion(self, tmp_path):
@@ -774,38 +810,49 @@ class TestInvariance3:
 
         sauvegarder_etude(etude)
 
+        tier = etude.tiers[nom]
+
         retirer_reunion(etude, nom)
         sauvegarder_etude(etude)
 
-        # Référence et résultats retirés.
+        # La référence d'étude disparaît.
         dossier = tmp_path / "E"
 
         assert not (
             dossier / "reunions" / f"{nom}.json"
         ).exists()
 
-        assert not (
-            dossier / "blocs" / "decoupage"
-            / f"{nom}.json"
-        ).exists()
-
-        assert not (
-            dossier / "traitements" / "resume"
-            / f"{nom}.json"
-        ).exists()
-
-        assert not (
-            dossier / "traitements" / "reformulation"
-            / f"{fid}.json"
-        ).exists()
-
         assert etude.etude.ordre_reunions == []
 
-        # Le registre FID garde l'attribution, active.
-        assert fid in etude.registre.entrees
-        assert etude.registre.entrees[fid].actif is True
+        # P18.7d : NON DESTRUCTIF — la réunion garde tout
+        # son travail : le tier reste intact dans le projet
+        # v1 (découpage, registre, reformulation, résumé),
+        # et etudes[] ne contient plus l'étude.
+        racine_tier = projet / "transcriptstudio"
 
-        # Le projet v1 est intact.
+        assert (
+            racine_tier / "blocs" / "decoupage.json"
+        ).exists()
+        assert (
+            racine_tier / "traitements" / "reformulation"
+            / f"{fid}.json"
+        ).exists()
+        assert (
+            racine_tier / "traitements" / "resume.json"
+        ).exists()
+
+        assert fid in tier.registre.entrees
+        assert tier.registre.entrees[fid].actif is True
+        assert tier.reformulations[fid].versions[0].texte == "R1"
+
+        donnees_tier = json.loads(
+            (racine_tier / "reunion.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert donnees_tier["etudes"] == []
+
+        # Le projet v1 est intact (hors son tier).
         assert empreinte(sttproj) == avant
 
         reouverte = ouvrir_etude(dossier)

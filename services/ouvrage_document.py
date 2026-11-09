@@ -235,8 +235,10 @@ def generer_document(
 
             version = _version_validee(
                 etude_ouverte
-                .reformulations
-                .get(fid)
+                .reformulation_de(
+                    nom_reunion,
+                    fid
+                )
             )
 
             if version is None:
@@ -340,8 +342,10 @@ def reformulees_depuis_generation(
 
             resultat = (
                 etude_ouverte
-                .reformulations
-                .get(fid)
+                .reformulation_de(
+                    nom_reunion,
+                    fid
+                )
             )
 
             if not resultat or (

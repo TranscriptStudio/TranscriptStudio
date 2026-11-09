@@ -503,6 +503,39 @@ class ParametresEtudeDialog(QDialog):
 
         sauvegarder_etude(self.etude)
 
+        #
+        # P18.7e : en v2, les paramètres de traitement
+        # (reformulation, résumé, contrôle qualité, bible)
+        # vivent dans le TIER de chaque réunion — on propage
+        # explicitement les valeurs de l'étude vers tous les
+        # tiers et on les sauvegarde. L'étude ne persiste que
+        # la surcharge de synthèse.
+        #
+        from services.tier_reunion import (
+            sauvegarder_tier,
+        )
+
+        for nom, tier in self.etude.tiers.items():
+
+            parametres = (
+                self.etude.parametres_traitement_de(nom)
+            )
+
+            parametres.reformulation.update(
+                self.etude.parametres.reformulation
+            )
+            parametres.resume.update(
+                self.etude.parametres.resume
+            )
+            parametres.controle_qualite.update(
+                self.etude.parametres.controle_qualite
+            )
+            parametres.bible.update(
+                self.etude.parametres.bible
+            )
+
+            sauvegarder_tier(tier)
+
         if not version_installee(version_bible):
 
             reponse = QMessageBox.question(

@@ -318,14 +318,18 @@ class TestChangementEtudeUI:
         # Option A : les traitements RESTENT à
         # l'ancienne étude (aucun déplacement,
         # aucune copie).
+        # P18.7d : les traitements restent avec la RÉUNION
+        # (son tier dans le projet v1).
         assert (
-            tmp_path / "Etude"
+            data["dossier_v1"]
+            / "transcriptstudio"
             / "traitements" / "reformulation"
             / f"{data['fids'][0]}.json"
         ).is_file()
 
         assert not (
             tmp_path / "SecondeEtude"
+            / "transcriptstudio"
             / "traitements" / "reformulation"
             / f"{data['fids'][0]}.json"
         ).exists()
@@ -444,7 +448,8 @@ class TestGestionEtudeReunion:
             # Option A : les traitements restent
             # à l'étude sur le disque.
             assert (
-                tmp_path / "Etude"
+                data["dossier_v1"]
+                / "transcriptstudio"
                 / "traitements" / "reformulation"
                 / f"{data['fids'][0]}.json"
             ).is_file()

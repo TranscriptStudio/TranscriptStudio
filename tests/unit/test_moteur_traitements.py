@@ -258,14 +258,20 @@ def fabriquer_moteur(
     )
 
 
-def lire_journal(etude) -> list:
+def lire_journal(etude, nom=None) -> list:
     """
     Lit le fichier journal sur le disque (l'état
-    réel, pas la mémoire).
+    réel, pas la mémoire) — journal DU TIER de la
+    réunion en v2 (P18.7).
     """
 
+    if nom is not None and etude.est_v2():
+        base = etude.tier_de(nom).dossier
+    else:
+        base = etude.dossier
+
     chemin = (
-        etude.dossier
+        base
         / "traitements"
         / "journal_operations.json"
     )
@@ -317,7 +323,7 @@ class TestInvariant1:
         assert etude.reformulations == {}
 
         dossier_resultats = (
-            etude.dossier
+            etude.tier_de(nom).dossier
             / "traitements"
             / "reformulation"
         )
@@ -328,7 +334,7 @@ class TestInvariant1:
 
         # L'erreur est consignée, message du
         # fournisseur compris.
-        entrees = lire_journal(etude)
+        entrees = lire_journal(etude, nom)
 
         assert compter(entrees, TYPE_ERREUR_API) == 1
         assert compter(entrees, TYPE_PASSE_COMPLETE) == 1
@@ -448,7 +454,7 @@ class TestInvariant2:
 
         # L'annulation est consignée, avec la
         # position d'arrêt et les résultats conservés.
-        entrees = lire_journal(etude)
+        entrees = lire_journal(etude, nom)
 
         assert compter(entrees, TYPE_ANNULATION_PASSE) == 1
 
@@ -639,7 +645,7 @@ class TestInvariant4:
         assert resultat.statut == "terminee"
         assert resultat.nb_traites == 3
 
-        entrees = lire_journal(etude)
+        entrees = lire_journal(etude, nom)
 
         # 3 reformulations + 1 passe = 4 entrées.
         assert compter(entrees, TYPE_REFORMULATION_BLOC) == 3
@@ -682,7 +688,7 @@ class TestInvariant4:
     def test_edition_validation_fusion_une_entree_chacune(self, tmp_path):
         etude, nom = creer_etude_avec_blocs(tmp_path)
 
-        avant = len(lire_journal(etude))
+        avant = len(lire_journal(etude, nom))
 
         ajouter_version_reformulation(
             etude,
@@ -691,7 +697,7 @@ class TestInvariant4:
             type_version="edition_manuelle",
         )
 
-        entrees = lire_journal(etude)
+        entrees = lire_journal(etude, nom)
 
         assert len(entrees) == avant + 1
         assert compter(entrees, TYPE_EDITION_MANUELLE) == 1
@@ -703,21 +709,21 @@ class TestInvariant4:
             validateur="David"
         )
 
-        entrees = lire_journal(etude)
+        entrees = lire_journal(etude, nom)
 
         assert len(entrees) == avant + 2
         assert compter(entrees, TYPE_VALIDATION) == 1
 
         devalider_version_reformulation(etude, 1, numero=1)
 
-        entrees = lire_journal(etude)
+        entrees = lire_journal(etude, nom)
 
         assert len(entrees) == avant + 3
         assert compter(entrees, "devalidation") == 1
 
         fusionner_blocs(etude, nom, [1, 2])
 
-        entrees = lire_journal(etude)
+        entrees = lire_journal(etude, nom)
 
         assert len(entrees) == avant + 4
         assert compter(entrees, TYPE_FUSION_BLOCS) == 1
@@ -935,7 +941,7 @@ class TestInvariant6:
 
         assert len(etude.reformulations[2].versions) == 2
 
-        entrees = lire_journal(etude)
+        entrees = lire_journal(etude, nom)
 
         assert compter(entrees, TYPE_REFORMULATION_BLOC) == 4
 
@@ -987,10 +993,10 @@ class TestCriteresP15:
         ].versions[0].contexte == []
         assert etude.reformulations[
             2
-        ].versions[0].contexte == [1]
+        ].versions[0].contexte == [{"reunion": nom, "fid": 1}]
         assert etude.reformulations[
             3
-        ].versions[0].contexte == [1, 2]
+        ].versions[0].contexte == [{"reunion": nom, "fid": 1}, {"reunion": nom, "fid": 2}]
 
         # Aucune confirmation pour un bloc isolé :
         # exécution directe (relance ciblée).
@@ -1255,7 +1261,7 @@ class TestJournalRegles:
         etude, nom = creer_etude_avec_blocs(tmp_path)
 
         chemin = (
-            etude.dossier
+            etude.tier_de(nom).dossier
             / "traitements"
             / "journal_operations.json"
         )
@@ -1270,7 +1276,9 @@ class TestJournalRegles:
 
         reouverte = ouvrir_etude(etude.dossier)
 
-        assert reouverte.journal.nb_entrees() == 0
+        # En v2 (P18.7), l'opération de traitement est
+        # consignée dans le journal DU TIER de la réunion.
+        assert reouverte.tier_de(nom).journal.nb_entrees() == 0
 
         # La première opération recrée le fichier.
         ajouter_version_reformulation(
@@ -1281,7 +1289,7 @@ class TestJournalRegles:
 
         assert chemin.exists()
 
-        assert reouverte.journal.nb_entrees() == 1
+        assert reouverte.tier_de(nom).journal.nb_entrees() == 1
 
 
 class TestEffortRaisonnement:

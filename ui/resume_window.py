@@ -342,7 +342,7 @@ class PageResume(QWidget):
 
     def resultat(self):
 
-        return self.etude.resumes.get(self.reunion)
+        return self.etude.resume_de(self.reunion)
 
     def derniere_version(self):
 

@@ -213,7 +213,9 @@ class MoteurTraitements:
         """
 
         return (
-            self.etude.parametres.reformulation
+            self.etude
+            .parametres_traitement_de(self.reunion)
+            .reformulation
         )
 
     def resoudre(self):
@@ -347,7 +349,10 @@ class MoteurTraitements:
         seulement_validees: bool
     ):
 
-        resultat = self.etude.reformulations.get(fid)
+        resultat = self.etude.reformulation_de(
+            self.reunion,
+            fid
+        )
 
         if not resultat or not resultat.versions:
             return None
@@ -594,7 +599,10 @@ class MoteurTraitements:
         if selection is not None:
 
             resultat = (
-                self.etude.reformulations.get(bloc.fid)
+                self.etude.reformulation_de(
+                    self.reunion,
+                    bloc.fid
+                )
             )
 
             if resultat and resultat.versions:
@@ -697,7 +705,8 @@ class MoteurTraitements:
             for bloc in actifs:
 
                 resultat = (
-                    self.etude.reformulations.get(
+                    self.etude.reformulation_de(
+                        self.reunion,
                         bloc.fid
                     )
                 )
@@ -726,7 +735,10 @@ class MoteurTraitements:
 
     def _a_un_resultat(self, fid: int) -> bool:
 
-        resultat = self.etude.reformulations.get(fid)
+        resultat = self.etude.reformulation_de(
+            self.reunion,
+            fid
+        )
 
         return bool(
             resultat and resultat.versions
@@ -960,6 +972,7 @@ class MoteurTraitements:
 
         version = ajouter_version_reformulation(
             self.etude,
+            self.reunion,
             bloc.fid,
             resultat.texte,
             type_version=type_version,
@@ -1084,7 +1097,9 @@ class MoteurTraitements:
             (time.monotonic() - debut) * 1000
         )
 
-        self.etude.journal.ajouter(
+        self.etude.journal_traitement(
+            self.reunion
+        ).ajouter(
             TYPE_PASSE_COMPLETE,
             fid=None,
             reunion=self.reunion,
@@ -1129,7 +1144,9 @@ class MoteurTraitements:
             (time.monotonic() - debut) * 1000
         )
 
-        self.etude.journal.ajouter(
+        self.etude.journal_traitement(
+            self.reunion
+        ).ajouter(
             TYPE_ANNULATION_PASSE,
             fid=fid_arret,
             reunion=self.reunion,
@@ -1178,7 +1195,9 @@ class MoteurTraitements:
             (time.monotonic() - debut) * 1000
         )
 
-        self.etude.journal.ajouter(
+        self.etude.journal_traitement(
+            self.reunion
+        ).ajouter(
             TYPE_ERREUR_API,
             fid=fid_erreur,
             reunion=self.reunion,
@@ -1187,7 +1206,9 @@ class MoteurTraitements:
             message=message
         )
 
-        self.etude.journal.ajouter(
+        self.etude.journal_traitement(
+            self.reunion
+        ).ajouter(
             TYPE_PASSE_COMPLETE,
             fid=None,
             reunion=self.reunion,
@@ -1290,7 +1311,9 @@ class MoteurTraitements:
 
             if e.type != "annulation":
 
-                self.etude.journal.ajouter(
+                self.etude.journal_traitement(
+            self.reunion
+        ).ajouter(
                     TYPE_ERREUR_API,
                     fid=fid,
                     reunion=self.reunion,
@@ -1321,7 +1344,10 @@ class MoteurTraitements:
             )
 
             resultat_courant = (
-                self.etude.reformulations.get(fid)
+                self.etude.reformulation_de(
+                    self.reunion,
+                    fid
+                )
             )
 
             texte_courant = (
