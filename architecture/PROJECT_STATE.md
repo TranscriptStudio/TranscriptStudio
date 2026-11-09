@@ -1,5 +1,13 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
+> **Dernière mise à jour** : 2026-11-09 (**P18.8 — correctifs de
+> relecture David du 08/11 : titre de réunion éditable dans le ruban,
+> bouton « Paramètres de l'étude », sélecteur de version de la Bible
+> avec propagation vers les tiers, badge « Bibles mixtes » — commits
+> cc8e0c3, b591d83, 0ef0066, 0313c9e ; synchro atelier v40 :
+> CONTRAT_STOCKAGE_REUNIONS_V2_2026-11-09a + ARBITRAGE_P18_7_ECARTS
+> (conformité P18.7 ACTÉE) + FEUILLE_DE_ROUTE_V2_2026-11-09a recopiés ;
+> 709 tests verts**).
 > **Dernière mise à jour** : 2026-11-08 (**P18.7 — stockage des
 > traitements au niveau réunion : tier `transcriptstudio\` dans le projet v1,
 > identité de bloc = (réunion, FID), étude v2, migration one-shot v1→v2 à
@@ -94,7 +102,20 @@
   (6e1aa46) ; P18.7d rattachement non destructif + divergences signalées
   (a33eb0a) ; P18.7e paramètres du tier, surcharge étude = synthèse seule,
   aucune écriture en retour + 8 invariants §12 (4ad6577) ;
-  P18.7f migration one-shot v1→v2 à l'ouverture (e734f10) — 697 tests verts.
+  P18.7f migration one-shot v1→v2 à l'ouverture (e734f10) — 697 tests verts ;
+  conformité au contrat publié ACTÉE le 09/11 (ARBITRAGE_P18_7_ECARTS_2026-11-09a).
+- **P18.8 : LIVRÉ** (correctifs de relecture David du 08/11,
+  FEUILLE_DE_ROUTE_V2_2026-11-09a §P18.8) : P18.8a titre de réunion éditable
+  en place dans le ruban du volet Réunion, persisté (titre_1 si rattachée,
+  champ « titre » du tier si autonome), sans effet sur les noms de fichiers
+  ni les références (cc8e0c3) ; P18.8b bouton « Paramètres de l'étude »
+  ouvrant le dialogue des paramètres avec bloc Général titre+thème
+  (b591d83) ; P18.8c sélecteur de version de la Bible : libellé explicite
+  de propagation, propagation vers les tiers des réunions rattachées à
+  l'enregistrement (ARBITRAGE_P18_7_ECARTS écarts 2 et 3), avertissement
+  de versification au changement, jamais de ré-alignement automatique
+  (0ef0066) ; P18.8d badge Bible page Étude : version commune ou
+  « Bibles mixtes » + info-bulle par réunion (0313c9e) — 709 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -2453,3 +2474,62 @@ contrat publié et vérifier la conformité (écarts à arbitrer : voir ci-desso
    lecture quand le FID n'est pas ambigu (couche de compatibilité) ; le
    couple (réunion, FID) est l'identité partout dans le stockage et les
    références.
+
+---
+
+## SESSION 2026-11-09 — P18.8 : CORRECTIFS DE RELECTURE DAVID DU 08/11 : LIVRÉ
+
+Rituel de synchro effectué : 4 nouveaux documents atelier publiés le
+2026-11-09 18h16 et recopiés verbatim dans `architecture/spec_v2/`
+(commit 085dce6, « synchro atelier v40 ») : INDEX_SPECS_2026-11-09a,
+CONTRAT_STOCKAGE_REUNIONS_V2_2026-11-09a (P18.7 fait autorité, prime sur
+CONTRAT_FORMAT_ETUDE_V2 pour les points traités), ARBITRAGE_P18_7_ECARTS_2026-11-09a
+(**conformité de la livraison P18.7 ACTÉE**, écarts 1-5 tranchés :
+écart 2 validé avec exigence d'explicité du libellé de propagation ;
+écart 3 validé en « version commune + Bibles mixtes » avec propagation
+du sélecteur P18.8c vers les tiers ; écart 5 = compatibilité FID nu
+acceptée en transitoire, à retirer en P20), FEUILLE_DE_ROUTE_V2_2026-11-09a
+(section P18.8). PROJECT_STATE.md remonté vers Drive à chaque commit (hook).
+
+### Livré (un commit par sous-étape)
+
+- **P18.8a** (cc8e0c3) — titre de réunion éditable EN PLACE dans le
+  ruban du volet Réunion (QLineEdit sans cadre, édition au clic) ;
+  persisté : `titre_1` dans `reunions/<nom>.json` si rattachée, champ
+  `titre` du tier `transcriptstudio/reunion.json` si autonome (nouveau
+  champ optionnel, schema tolérant) ; titre vide refusé ; **sans effet
+  sur les noms de dossiers/fichiers ni les références** (le nom de la
+  réunion ne change pas). `renommer_reunion` (menu Gestion) fonctionne
+  aussi en autonome. 3 tests (test_p18_8a_titre.py).
+- **P18.8b** (b591d83) — bouton « Modifier l'étude » renommé
+  **« Paramètres de l'étude »** (page Étude) ; il ouvre désormais le
+  dialogue des paramètres de l'étude, qui comporte un nouveau **bloc
+  Général** (titre + thème) persistés — l'ancienne mini-fenêtre
+  ModifierEtudeDialog n'est plus ouverte depuis la page Étude.
+  3 tests (test_p18_8b_parametres.py + test_p18_6c_etude.py ajusté).
+- **P18.8c** (0ef0066) — sélecteur de version de la Bible dans les
+  paramètres de l'étude : **libellé explicite** « À l'enregistrement,
+  la version choisie est propagée vers les tiers des N réunion(s)
+  rattachée(s) » (écart 2, test UI du libellé) ; à l'enregistrement la
+  version choisie **propage vers le tier de chaque réunion rattachée**
+  et est persistée (écart 3) ; **avertissement de versification** au
+  changement de versification (QMessageBox d'information : écart =
+  information, jamais de ré-alignement automatique, écarts réévalués au
+  prochain contrôle qualité — BIBLE_JND_V2) ; aucun avertissement si
+  même versification (darby → darbyR). Nouveaux helpers
+  `versions_bibles_reunions` / `version_commune_etude` dans
+  services/bibles.py. 4 tests (test_p18_8c_bible.py).
+- **P18.8d** (0313c9e) — badge « Bible » de la page Étude : affiche la
+  **version commune** aux tiers des réunions rattachées
+  (« Bible : Darby révisée · versification : Darby »), ou
+  **« Bibles mixtes »** si divergence, avec info-bulle listant les
+  versions par réunion (écart 3). 2 tests (test_p18_8d_badge.py).
+
+**Bilan tests : 709 verts** (suite Qt complète, env conda `transcript`).
+
+### Écarts signalés pour arbitrage
+
+Aucun écart bloquant. Rappel arbitré (ARBITRAGE_P18_7_ECARTS) : la
+compatibilité de lecture par FID nu sera retirée en P20 (point explicite
+des critères P20). Reste ensuite : recette humaine P16/P17/P18/P18.6/
+P18.7/P18.8/P19 par David (checklist PROJECT_STATE), puis P20.
