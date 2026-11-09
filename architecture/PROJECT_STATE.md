@@ -1,5 +1,10 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
+> **Dernière mise à jour** : 2026-11-08 (**P18.7 — stockage des
+> traitements au niveau réunion : tier `transcriptstudio\` dans le projet v1,
+> identité de bloc = (réunion, FID), étude v2, migration one-shot v1→v2 à
+> l'ouverture — commits a962a5f, 6e1aa46, a33eb0a, 4ad6577, e734f10 ;
+> 697 tests verts**).
 > **Dernière mise à jour** : 2026-11-07 (**fenêtre de chargement pour TOUTE
 > interrogation du LLM** — règle David 2026-11-07, livrée en fin de journée).
 > Nouvelle `ui/fenetre_chargement_llm.py` (`FenetreChargementLLM`, non modale) :
@@ -80,6 +85,16 @@
   autorité et prime sur SPEC_NAVIGATION_V2 et la version 30c
   pour ses points ; invariant 1 réécrit + 9 invariants
   complémentaires testés) — 436 tests verts.
+- **P18.7 : LIVRÉ** (stockage des traitements au niveau réunion — cahier des
+  charges du 2026-11-08 ; le contrat `CONTRAT_STOCKAGE_REUNIONS_V2.md` n'était
+  PAS encore publié par l'atelier au moment de la synchro : le cahier des
+  charges du message fait autorité, écart signalé ci-dessous) :
+  P18.7a tier `transcriptstudio\` dans le projet v1 (a962a5f) ;
+  P18.7b/c identité (réunion, FID), registre par réunion, étude v2
+  (6e1aa46) ; P18.7d rattachement non destructif + divergences signalées
+  (a33eb0a) ; P18.7e paramètres du tier, surcharge étude = synthèse seule,
+  aucune écriture en retour + 8 invariants §12 (4ad6577) ;
+  P18.7f migration one-shot v1→v2 à l'ouverture (e734f10) — 697 tests verts.
 - origin/master vérifié : resté à l'état v1 (74a6b09, P13), rien à réécrire.
 
 ---
@@ -2347,3 +2362,94 @@ seulement étendu de façon additive).
 *Ce fichier est mis à jour après chaque étape significative du développement.
 Il est copié vers `G:\Mon Drive\TranscriptStudio\Synchro\PROJECT_STATE.md` à
 chaque commit (hook post-commit) et lors du rituel de synchro.*
+
+---
+
+## SESSION 2026-11-08 — P18.7 : STOCKAGE DES TRAITEMENTS AU NIVEAU RÉUNION : LIVRÉ
+
+Rituel de synchro effectué en début de session : le dossier Drive
+`TranscriptStudio/Synchro` (canal de l'atelier) est à jour avec
+`architecture/spec_v2/` (INDEX_SPECS_2026-11-07e = skill v39) — **le contrat
+`CONTRAT_STOCKAGE_REUNIONS_V2.md` et la section P18.7 de la feuille de route
+n'existent PAS encore côté atelier** (ni Drive, ni GitHub, ni le dépôt local).
+ÉCART SIGNALÉ POUR ARBITRAGE : le cahier des charges du message du 2026-11-08
+fait autorité pour cette livraison ; à la prochaine synchro, recopier le
+contrat publié et vérifier la conformité (écarts à arbitrer : voir ci-dessous).
+
+### Ce qui a été livré (un commit par étape)
+
+- **P18.7a** (a962a5f) — `services/tier_reunion.py` : sous-dossier additif
+  `transcriptstudio\` dans le projet v1, structure exacte §2 (`reunion.json`,
+  `blocs/journal-fid.json` + `decoupage.json`,
+  `traitements/reformulation/<FID>.json` + `resume.json` +
+  `journal_operations.json`, `parametres/parametres.json`). Aucune autre
+  modification du projet v1. `ReunionTier` (etudes[], resume_valide,
+  migration_v2) dans `models/etude.py` ; validation de schéma
+  (`valider_reunion_tier`, `valider_parametres_synthese_seule`, versions 1/2,
+  contexte en couples {reunion, fid}). 9 tests.
+- **P18.7b/c** (6e1aa46) — identité de bloc = **(réunion, FID)** : registre
+  FID par réunion dans le tier (registre global abrogé pour les nouvelles
+  données), `EtudeOuverte.tiers` + accesseurs (`tier_de`, `registre_de`,
+  `reformulation_de`, `resume_de`, `decoupage_de`, `parametres_traitement_de`,
+  `journal_traitement`) + vues agrégées en lecture seule (compatibles avec
+  l'ancien accès par FID nu quand non ambigu) et signatures à double style.
+  **Étude v2** (`etude_format_version: 2`) : etude.json, `reunions/<nom>.json`
+  (titre_1, chemins ; resume_valide migré vers le tier), `synthese/`,
+  `parametres/` (surcharges synthèse uniquement), `journal_etude.json` ;
+  `blocs\` et `traitements\` disparaissent du dossier étude. Le contexte des
+  versions est requalifié en couples. **Aucune écriture en retour** :
+  `sauvegarder_etude` n'écrit jamais dans les tiers ; seules les opérations
+  sur les traitements d'une réunion y écrivent (elles sauvegardent le tier
+  explicitement). Réunion autonome = façade v2 sur le tier du projet
+  (`ouvrir_reunion_autonome`), l'ancienne étude interne `_traitements` est
+  migrée/archivée à la première ouverture. 668 tests verts à ce stade.
+- **P18.7d** (a33eb0a) — rattachement : héritage total silencieux à
+  l'attachement (le tier existant est repris tel quel, etudes[] renseigné) ;
+  détachement non destructif (la réunion garde tout son travail) ;
+  exclusivité inchangée ; divergence etudes[] vs ordre_reunions signalée à
+  l'ouverture (`divergences`, affichée dans la page Étude), jamais
+  auto-corrigée. 8 tests.
+- **P18.7e** (4ad6577) — paramètres : toute opération sur les traitements
+  d'une réunion, où qu'elle soit lancée, utilise les paramètres DU TIER
+  (moteur, résumé, contrôle qualité, bible lus via `parametres_traitement_de`)
+  ; l'étude ne persiste que la surcharge de synthèse ; les dialogues
+  (prompts, paramètres d'étude) propagent explicitement vers les tiers et
+  sauvegardent. Aucune écriture en retour (testée à l'octet). Les 8
+  invariants du §12 testés. 13 tests.
+- **P18.7f** (e734f10) — `services/migration_etude.py` : migration one-shot
+  v1→v2 à l'ouverture d'une étude version 1 (§11) — sauvegarde complète dans
+  `sauvegardes/v1_avant_migration_v2/`, éclatement par réunion dans les
+  tiers (découpage, registre FID, reformulations aiguillées par le registre,
+  résumé + resume_valide, paramètres initialisés, journal éclaté),
+  requalification en couples (réunion, FID) de toutes les références de
+  blocs (provenances ouvrage.json y compris instantanés de fusion et
+  historique de dé-fusion, instantané de génération, contexte des versions
+  = fenêtre glissante), contrôle d'intégrité (fichiers, FID, versions)
+  AVANT toute suppression de blocs\/traitements\, idempotente et
+  reprenable après crash (marqueur migration_v2 par réunion). Non-régression
+  P19 testée (ouvrage identique après migration : génération, fusion,
+  dé-fusion, signalements). 8 tests.
+
+**Bilan tests : 697 verts** (suite Qt complète, env conda `transcript`).
+
+### Écarts / points à arbitrer à l'atelier
+
+1. **Contrat P18.7 non publié** à la synchro (voir ci-dessus) : livraison
+   faite sur le cahier des charges du message ; à rapprocher du contrat publié.
+2. **Dialogues de paramètres au niveau étude** (paramètres de
+   reformulation/résumé/bible/interdits) : en v2 ces valeurs vivent dans le
+   tier de chaque réunion ; le dialogue de la page Étude propage
+   explicitement les valeurs vers tous les tiers à l'enregistrement (choix
+   d'implémentation pour garder l'UX étude) — arbitrer si une édition par
+   réunion est préférée.
+3. **Badge « Bible » de la page Étude** : version affichée au niveau étude ;
+   le contrôle qualité en reformulation utilise la version DU TIER de la
+   réunion (peut différer entre réunions) — arbitrer l'affichage.
+4. **Invariant 1 reformulé** : ouvrir une étude ne modifie jamais un projet
+   v1 ; l'attachement crée le sous-dossier additif `transcriptstudio\`
+   (et y inscrit etudes[]), et la première opération de traitement
+   matérialise le tier.
+5. Les signatures historiques `(etude, fid, ...)` restent acceptées en
+   lecture quand le FID n'est pas ambigu (couche de compatibilité) ; le
+   couple (réunion, FID) est l'identité partout dans le stockage et les
+   références.
