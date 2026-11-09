@@ -392,6 +392,30 @@ class ParametresEtudeDialog(QDialog):
             self.version_bible_combo
         )
 
+        #
+        # P18.8c (ARBITRAGE_P18_7_ECARTS écart 2, validé
+        # avec exigence d'explicité) : libellé EXPLICITE —
+        # jamais silencieux — indiquant que l'enregistrement
+        # propage la version choisie vers les tiers des
+        # réunions rattachées.
+        #
+        nb_reunions = len(
+            self.etude.etude.ordre_reunions
+        )
+
+        self.propagation_label = QLabel(
+            "À l'enregistrement, la version choisie "
+            "est propagée vers les tiers des "
+            f"{nb_reunions} réunion(s) rattachée(s) "
+            "de l'étude."
+        )
+        self.propagation_label.setWordWrap(True)
+        self.propagation_label.setStyleSheet(
+            "color: #757575; font-size: 11px;"
+        )
+
+        formulaire.addRow(self.propagation_label)
+
         return bloc
 
     def charger_valeurs(self):
@@ -464,8 +488,17 @@ class ParametresEtudeDialog(QDialog):
             max(0, index)
         )
 
+        from services.bibles import (
+            version_commune_etude,
+        )
+
+        version_courante, _mixte = version_commune_etude(
+            self.etude
+        )
+
         index_bible = self.version_bible_combo.findData(
-            version_bible_etude(self.etude.parametres)
+            version_courante
+            or version_bible_etude(self.etude.parametres)
         )
 
         self.version_bible_combo.setCurrentIndex(
@@ -554,6 +587,16 @@ class ParametresEtudeDialog(QDialog):
             self.source_defaut_combo.currentData()
         )
 
+        from services.bibles import (
+            versification_bible,
+            version_commune_etude,
+        )
+
+        # Ancienne version commune (avant changement).
+        ancienne, _mixte_avant = version_commune_etude(
+            self.etude
+        )
+
         version_bible = (
             self.version_bible_combo.currentData()
         )
@@ -601,11 +644,48 @@ class ParametresEtudeDialog(QDialog):
             parametres.controle_qualite.update(
                 self.etude.parametres.controle_qualite
             )
-            parametres.bible.update(
-                self.etude.parametres.bible
-            )
+
+            #
+            # P18.8c : la version de Bible choisie PROPAGE
+            # vers le tier de chaque réunion rattachée
+            # (ARBITRAGE_P18_7_ECARTS écart 3).
+            #
+            parametres.bible["version"] = version_bible
 
             sauvegarder_tier(tier)
+
+        #
+        # P18.8c : avertissement de VERSIFICATION au
+        # changement (écart = information, jamais de
+        # ré-alignement automatique — BIBLE_JND_V2 §4).
+        #
+        if (
+            ancienne
+            and version_bible
+            and version_bible != ancienne
+            and (
+                versification_bible(version_bible)
+                != versification_bible(ancienne)
+            )
+        ):
+            QMessageBox.warning(
+                self,
+                "Versifications différentes",
+                (
+                    "La version retenue change de "
+                    "versification ("
+                    f"{versification_bible(ancienne)} → "
+                    f"{versification_bible(version_bible)}) : "
+                    "une même référence peut exister dans "
+                    "l'une et pas dans l'autre. "
+                    + chr(10) + chr(10)
+                    + "C'est une INFORMATION : aucun "
+                    "ré-alignement automatique n'est fait ; "
+                    "les écarts sont réévalués au prochain "
+                    "contrôle qualité (jamais de décision "
+                    "automatique — BIBLE_JND_V2)."
+                )
+            )
 
         if not version_installee(version_bible):
 

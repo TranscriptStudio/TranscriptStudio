@@ -215,6 +215,52 @@ def versions_installees(dossier=None) -> list:
 # Version retenue par étude (spec §3).
 #
 
+def versions_bibles_reunions(etude_ouverte) -> dict:
+    """
+    P18.8c/d : version de Bible retenue par le TIER de
+    chaque réunion rattachée : ``{nom_reunion: version}``.
+    """
+
+    resultat = {}
+
+    for nom in etude_ouverte.etude.ordre_reunions:
+
+        tier = etude_ouverte.tiers.get(nom)
+
+        if tier is None:
+            continue
+
+        resultat[nom] = version_bible_etude(
+            etude_ouverte.parametres_traitement_de(nom)
+        )
+
+    return resultat
+
+
+def version_commune_etude(etude_ouverte) -> tuple:
+    """
+    P18.8d : ``(version, est_mixte)`` — version commune
+    aux tiers des réunions rattachées ; ``est_mixte`` à
+    True si les versions divergent entre réunions
+    (badge « Bibles mixtes »).
+    """
+
+    versions = versions_bibles_reunions(etude_ouverte)
+
+    if not versions:
+        return (
+            version_bible_etude(etude_ouverte.parametres),
+            False
+        )
+
+    distinctes = set(versions.values())
+
+    if len(distinctes) == 1:
+        return next(iter(distinctes)), False
+
+    return "", True
+
+
 def version_bible_etude(parametres) -> str:
     """
     Version de Bible retenue par une étude : bloc
