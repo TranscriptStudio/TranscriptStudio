@@ -319,13 +319,12 @@ class EtudeWindow(QWidget):
         self.badge_bible_label.setStyleSheet(
             "font-size: 12px; color: #1565C0;"
         )
+        #
+        # P18.8d : info-bulle = version commune, ou
+        # liste par réunion si « Bibles mixtes ».
+        #
         self.badge_bible_label.setToolTip(
-            "Version de Bible retenue par l'étude "
-            "(paramètres de l'étude) et sa "
-            "versification — un écart de "
-            "versification est une information "
-            "consultable, jamais une décision "
-            "automatique (P18.5)"
+            self._tooltip_badge_bible()
         )
 
         ruban_layout.addWidget(
@@ -658,19 +657,28 @@ class EtudeWindow(QWidget):
         Darby » — les détails d'édition restent
         consultables dans les réglages, jamais
         affichés dans le ruban.
+
+        P18.8d (ARBITRAGE_P18_7_ECARTS écart 3) : le
+        badge affiche la version COMMUNE aux tiers des
+        réunions rattachées ; si les versions divergent,
+        « Bibles mixtes » (info-bulle listant les
+        versions par réunion).
         """
 
         from services.bibles import (
             nom_court_bible,
-            version_bible_etude,
+            version_commune_etude,
             versification_bible,
         )
 
         try:
 
-            version = version_bible_etude(
-                self.etude.parametres
+            version, mixte = version_commune_etude(
+                self.etude
             )
+
+            if mixte:
+                return "Bibles mixtes"
 
             return (
                 "Bible : "
@@ -681,6 +689,68 @@ class EtudeWindow(QWidget):
 
         except Exception:
             return "Bible : —"
+
+    def _tooltip_badge_bible(self) -> str:
+        """
+        P18.8d : info-bulle du badge Bible — version
+        commune, ou liste des versions par réunion si
+        elles divergent (« Bibles mixtes »).
+        """
+
+        from services.bibles import (
+            nom_court_bible,
+            version_bible_etude,
+            versions_bibles_reunions,
+        )
+
+        versions = versions_bibles_reunions(self.etude)
+
+        lignes = []
+
+        for nom, version in versions.items():
+
+            reunion = self.etude.reunions.get(nom)
+
+            titre = (
+                (reunion.titre_1 if reunion else "")
+                or nom
+            )
+
+            lignes.append(
+                f"{titre} : {nom_court_bible(version)}"
+            )
+
+        if not lignes:
+
+            version = version_bible_etude(
+                self.etude.parametres
+            )
+
+            return (
+                "Version de Bible retenue par l'étude : "
+                + nom_court_bible(version)
+            )
+
+        if len({v for v in versions.values()}) == 1:
+
+            return (
+                "Version de Bible commune aux "
+                f"{len(lignes)} réunion(s) rattachée(s) : "
+                + nom_court_bible(next(iter(versions.values())))
+                + " — les écarts de versification sont "
+                "une information consultable, jamais une "
+                "décision automatique (P18.5)."
+            )
+
+        return (
+            "Versions de Bible par réunion (mixtes) :"
+            + chr(10)
+            + chr(10).join(lignes)
+            + chr(10) + chr(10)
+            + "Un écart de versification est une "
+            "information, jamais une décision "
+            "automatique (P18.5)."
+        )
 
     def ouvrir_parametres(self):
         """
