@@ -1186,6 +1186,10 @@ def valider_reunion_tier(
 
     _exiger_cle(data, "nom", fichier, str)
 
+    # P18.8a : titre d'affichage optionnel (autonome).
+    if "titre" in data and data["titre"] is not None:
+        _exiger_cle(data, "titre", fichier, str)
+
     etudes = _exiger_cle(
         data,
         "etudes",

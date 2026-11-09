@@ -325,6 +325,10 @@ class ReunionTier:
     etudes: list = field(default_factory=list)
     resume_valide: bool = False
     migration_v2: str = ""
+    # P18.8a : titre d'AFFICHAGE de la réunion autonome
+    # (persisté dans le tier) — sans effet sur les noms
+    # de dossiers/fichiers ni les références.
+    titre: str = ""
     creation: str = ""
     modification: str = ""
 
@@ -337,6 +341,7 @@ class ReunionTier:
             "etudes": list(self.etudes),
             "resume_valide": self.resume_valide,
             "migration_v2": self.migration_v2,
+            "titre": self.titre,
             "creation": self.creation,
             "modification": self.modification,
         }
@@ -355,6 +360,7 @@ class ReunionTier:
                 "migration_v2",
                 ""
             ),
+            titre=data.get("titre", "") or "",
             creation=data["creation"],
             modification=data["modification"],
         )

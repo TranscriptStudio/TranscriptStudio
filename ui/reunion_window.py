@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QMenu,
     QMessageBox,
     QPushButton,
@@ -383,9 +384,24 @@ class ReunionWindow(QWidget):
 
         titre = self._titre_reunion()
 
-        self.titre_label = QLabel(titre)
+        #
+        # P18.8a : titre de réunion éditable EN PLACE
+        # dans le ruban (clic), persisté — titre
+        # d'affichage seul, sans effet sur les noms
+        # de dossiers/fichiers ni les références.
+        #
+        self.titre_label = QLineEdit(titre)
+        self.titre_label.setFrame(False)
         self.titre_label.setStyleSheet(
             "font-size: 18px; font-weight: 600;"
+        )
+        self.titre_label.setToolTip(
+            "Titre de la réunion (affichage) — "
+            "modifiable en place ; aucun effet sur "
+            "les noms de fichiers ni les références."
+        )
+        self.titre_label.editingFinished.connect(
+            self._enregistrer_titre
         )
 
         #
@@ -493,6 +509,22 @@ class ReunionWindow(QWidget):
             if reunion and reunion.titre_1:
                 return reunion.titre_1
 
+        else:
+            # P18.8a : réunion autonome — titre
+            # d'affichage persisté dans le tier.
+            interne = self._etude_interne(creer=False)
+
+            if interne is not None:
+
+                etude, nom = interne
+                tier = etude.tiers.get(nom)
+
+                if (
+                    tier is not None
+                    and tier.reunion.titre
+                ):
+                    return tier.reunion.titre
+
         nom = getattr(
             self.projet,
             "name",
@@ -512,6 +544,66 @@ class ReunionWindow(QWidget):
             Path(chemin).parent.name
             if chemin
             else "Réunion"
+        )
+
+    def _enregistrer_titre(self):
+        """
+        P18.8a : le titre édité en place dans le ruban
+        est persisté — titre d'affichage seul (titre_1
+        dans l'étude si rattachée, champ « titre » du
+        tier sinon). Aucun effet sur les noms de
+        dossiers/fichiers ni les références (le nom
+        de la réunion, lui, ne change pas).
+        """
+
+        texte = self.titre_label.text().strip()
+
+        if not texte:
+            # Titre vide refusé : on restaure l'ancien.
+            self.titre_label.setText(
+                self._titre_reunion()
+            )
+            return
+
+        if self.rattachee():
+
+            reunion = (
+                self.etude.reunions.get(self.nom)
+            )
+
+            if reunion is None:
+                return
+
+            if reunion.titre_1 == texte:
+                return
+
+            reunion.titre_1 = texte
+
+            sauvegarder_etude(self.etude)
+
+        else:
+
+            interne = self._etude_interne(creer=True)
+
+            if interne is None:
+                return
+
+            etude, nom = interne
+            tier = etude.tiers.get(nom)
+
+            if tier is None:
+                return
+
+            if tier.reunion.titre == texte:
+                return
+
+            tier.reunion.titre = texte
+
+            # mode autonome : sauvegarde le tier.
+            sauvegarder_etude(etude)
+
+        self.titre_label.setText(
+            self._titre_reunion()
         )
 
     def _ligne_infos(self) -> str:
@@ -1527,29 +1619,56 @@ class ReunionWindow(QWidget):
         n'est jamais modifié.
         """
 
-        if not self.rattachee():
-            return
+        if self.rattachee():
 
-        reunion = (
-            self.etude.reunions.get(self.nom)
-        )
+            reunion = (
+                self.etude.reunions.get(self.nom)
+            )
 
-        if reunion is None:
-            return
+            if reunion is None:
+                return
 
-        titre, ok = QInputDialog.getText(
-            self,
-            "Renommer la réunion",
-            "Titre de la réunion :",
-            text=reunion.titre_1 or ""
-        )
+            titre, ok = QInputDialog.getText(
+                self,
+                "Renommer la réunion",
+                "Titre de la réunion :",
+                text=reunion.titre_1 or ""
+            )
 
-        if not ok:
-            return
+            if not ok:
+                return
 
-        reunion.titre_1 = titre.strip()
+            reunion.titre_1 = titre.strip()
 
-        sauvegarder_etude(self.etude)
+            sauvegarder_etude(self.etude)
+
+        else:
+            # P18.8a : autonome — titre persisté dans
+            # le tier.
+            interne = self._etude_interne(creer=True)
+
+            if interne is None:
+                return
+
+            etude, nom = interne
+            tier = etude.tiers.get(nom)
+
+            if tier is None:
+                return
+
+            titre, ok = QInputDialog.getText(
+                self,
+                "Renommer la réunion",
+                "Titre de la réunion :",
+                text=tier.reunion.titre or ""
+            )
+
+            if not ok:
+                return
+
+            tier.reunion.titre = titre.strip()
+
+            sauvegarder_etude(etude)
 
         self.titre_label.setText(
             self._titre_reunion()
