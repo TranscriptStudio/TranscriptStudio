@@ -29,6 +29,7 @@ autonome ou intermédiaire).
 from pathlib import Path
 
 from PySide6.QtWidgets import (
+    QComboBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -285,6 +286,12 @@ class ReunionWindow(QWidget):
         )
 
         #
+        # P20.5a : sélecteur Bible du volet Réunion
+        # (version du tier, repli défaut app).
+        #
+        self._remplir_selecteur_bible()
+
+        #
         # Stepper compact en haut (P18.6-bis, spec
         # correctifs §19), cliquable — VISIBLE
         # uniquement si la transcription est faite.
@@ -470,6 +477,28 @@ class ReunionWindow(QWidget):
             ligne_infos.addWidget(
                 self.badge_label
             )
+
+        #
+        # P20.5a : sélecteur de la version de Bible
+        # utilisée pour le CONTRÔLE QUALITÉ de la
+        # réunion — persisté dans le TIER (repli :
+        # défaut des réglages de l'app), aucun effet
+        # rétroactif sur les blocs déjà validés.
+        #
+        self.bible_select = QComboBox()
+        self.bible_select.setToolTip(
+            "Version de la Bible pour le contrôle "
+            "qualité de cette réunion (persistée "
+            "dans le tier de la réunion ; aucun "
+            "effet rétroactif)"
+        )
+        self.bible_select.currentIndexChanged.connect(
+            self._sur_changement_bible
+        )
+
+        ligne_infos.addSpacing(8)
+
+        ligne_infos.addWidget(self.bible_select)
 
         ligne_infos.addStretch()
 
@@ -717,6 +746,144 @@ class ReunionWindow(QWidget):
             )
 
         return " · ".join(parties)
+
+    def _version_bible_courante(self) -> str:
+        """
+        P20.5a : version de Bible retenue pour le
+        contrôle qualité de la réunion = version DU
+        TIER (repli : défaut des réglages de
+        l'app, darbyR).
+        """
+
+        from services.bibles import (
+            VERSION_BIBLE_DEFAUT,
+            version_bible_etude,
+        )
+
+        try:
+
+            interne = self._etude_interne(creer=False)
+
+            if interne is not None:
+
+                etude, nom = interne
+
+                return version_bible_etude(
+                    etude.parametres_traitement_de(nom)
+                )
+
+        except Exception:
+            pass
+
+        return VERSION_BIBLE_DEFAUT
+
+    def _remplir_selecteur_bible(self):
+        """
+        P20.5a : le sélecteur liste les versions
+        connues, positionné sur la version du tier
+        (repli : défaut de l'app).
+        """
+
+        from services.bibles import (
+            VERSIONS_BIBLE,
+            libelle_bible_selecteur,
+        )
+
+        self.bible_select.blockSignals(True)
+
+        self.bible_select.clear()
+
+        for identifiant, infos in VERSIONS_BIBLE.items():
+
+            self.bible_select.addItem(
+                libelle_bible_selecteur(identifiant),
+                identifiant
+            )
+
+        courant = self._version_bible_courante()
+
+        index = self.bible_select.findData(courant)
+
+        self.bible_select.setCurrentIndex(
+            index if index >= 0 else 0
+        )
+
+        self.bible_select.blockSignals(False)
+
+    def _sur_changement_bible(self, index):
+        """
+        P20.5a : le sélecteur Bible du volet Réunion
+        persiste la version DANS LE TIER de la
+        réunion (jamais ailleurs) ; avertissement de
+        versification au changement (information,
+        jamais de ré-alignement) ; AUCUN effet
+        rétroactif sur les blocs déjà validés.
+        """
+
+        from services.bibles import (
+            nom_court_bible,
+            versification_bible,
+            version_bible_etude,
+        )
+
+        version = self.bible_select.currentData()
+
+        if not version:
+            return
+
+        interne = self._etude_interne(creer=True)
+
+        if interne is None:
+            return
+
+        etude, nom = interne
+
+        tier = etude.tiers.get(nom)
+
+        if tier is None:
+            return
+
+        ancienne = version_bible_etude(
+            tier.parametres
+        )
+
+        if ancienne == version:
+            return
+
+        # Persisté au tier — et UNIQUEMENT là.
+        tier.parametres.bible["version"] = version
+
+        from services.tier_reunion import (
+            sauvegarder_tier,
+        )
+
+        sauvegarder_tier(tier)
+
+        # Avertissement de versification (écart =
+        # information, BIBLE_JND_V2 §4).
+        if (
+            versification_bible(ancienne)
+            != versification_bible(version)
+        ):
+
+            QMessageBox.information(
+                self,
+                "Versification différente",
+                (
+                    f"La version « {nom_court_bible(version)} » "
+                    "présente une versification différente "
+                    f"de « {nom_court_bible(ancienne)} ».\n\n"
+                    "Les écarts de références sont signalés "
+                    "comme des informations au prochain "
+                    "contrôle qualité — aucun ré-alignement "
+                    "automatique, aucun effet rétroactif "
+                    "sur les blocs déjà validés."
+                )
+            )
+
+        self.badge_label.setText(
+            self._texte_badge()
+        )
 
     def _texte_badge(self) -> str:
 
@@ -1862,3 +2029,4 @@ class ReunionWindow(QWidget):
         """
 
         self.maj_stepper()
+        self._appliquer_fond_page()

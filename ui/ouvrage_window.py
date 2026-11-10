@@ -204,6 +204,117 @@ class OuvrageWindow(QWidget):
 
         self._reconstruire_zones()
 
+        self._remplir_selecteur_bible_ouvrage()
+
+    def _texte_badge_bible_ouvrage(self) -> str:
+        """
+        P20.5b : le badge Bible de la page Ouvrage
+        affiche la version ouvrage DÈS QU'ELLE est
+        choisie (référence d'uniformité).
+        """
+
+        if (
+            self.document is not None
+            and getattr(
+                self.document,
+                "reference_bible",
+                ""
+            )
+        ):
+
+            from services.bibles import (
+                nom_court_bible,
+            )
+
+            return (
+                "Bible : "
+                + nom_court_bible(
+                    self.document.reference_bible
+                )
+            )
+
+        return ""
+
+    def _remplir_selecteur_bible_ouvrage(self):
+        """
+        P20.5b : sélecteur de la référence
+        d'uniformité de l'ouvrage (« Non définie »
+        + versions connues), positionné sur la
+        valeur persistée dans ouvrage.json.
+        """
+
+        from services.bibles import (
+            VERSIONS_BIBLE,
+            libelle_bible_selecteur,
+        )
+
+        self.bible_select.blockSignals(True)
+
+        self.bible_select.clear()
+
+        self.bible_select.addItem(
+            "Non définie",
+            None
+        )
+
+        for identifiant in VERSIONS_BIBLE:
+
+            self.bible_select.addItem(
+                libelle_bible_selecteur(identifiant),
+                identifiant
+            )
+
+        courant = (
+            getattr(
+                self.document,
+                "reference_bible",
+                ""
+            )
+            if self.document is not None
+            else ""
+        )
+
+        index = self.bible_select.findData(
+            courant or None
+        )
+
+        self.bible_select.setCurrentIndex(
+            index if index >= 0 else 0
+        )
+
+        self.bible_select.blockSignals(False)
+
+    def _sur_changement_bible_ouvrage(self, index):
+        """
+        P20.5b : persiste la référence d'uniformité
+        DANS ouvrage.json (couche ouvrage) —
+        JAMAIS réécrite vers les tiers des réunions
+        (§8bis du CONTRAT_STOCKAGE_REUNIONS).
+        """
+
+        if self.document is None:
+            return
+
+        version = self.bible_select.currentData() or ""
+
+        if version == getattr(
+            self.document,
+            "reference_bible",
+            ""
+        ):
+            return
+
+        self.document.reference_bible = version
+
+        sauvegarder_ouvrage(
+            self.document,
+            self.etude.dossier
+        )
+
+        self.badge_bible_label.setText(
+            self._texte_badge_bible_ouvrage()
+        )
+
     # ==================================================
     # Construction de l'interface.
     # ==================================================
@@ -237,6 +348,36 @@ class OuvrageWindow(QWidget):
         )
 
         ruban_layout.addWidget(self.titre_label)
+
+        #
+        # P20.5b : référence d'uniformité de
+        # l'ouvrage — badge + sélecteur ; persistée
+        # dans ouvrage.json, JAMAIS réécrite vers
+        # les tiers (§8bis).
+        #
+        self.badge_bible_label = QLabel(
+            self._texte_badge_bible_ouvrage()
+        )
+        self.badge_bible_label.setStyleSheet(
+            "font-size: 12px; color: #1565C0;"
+        )
+
+        ruban_layout.addWidget(self.badge_bible_label)
+
+        self.bible_select = QComboBox()
+        self.bible_select.setToolTip(
+            "Référence d'uniformité de l'ouvrage "
+            "(contrôle qualité : re-vérification des "
+            "versets) — persistée dans ouvrage.json, "
+            "jamais réécrite vers les tiers des "
+            "réunions"
+        )
+        self.bible_select.currentIndexChanged.connect(
+            self._sur_changement_bible_ouvrage
+        )
+
+        ruban_layout.addWidget(self.bible_select)
+
         ruban_layout.addStretch()
 
         self.etude_button = QPushButton(
@@ -522,8 +663,14 @@ class OuvrageWindow(QWidget):
             self.separateur_button,
             self.fusion_button,
             self.defusion_button,
+            self.monter_button,
+            self.descendre_button,
+            self.supprimer_button,
+            self.sous_titres_ia_button,
             self.sauvegarder_button,
             self.exporter_button,
+            self.export_docx_button,
+            self.reverifier_versets_button,
         ):
             actions.addWidget(bouton)
 

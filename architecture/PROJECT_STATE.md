@@ -2617,8 +2617,10 @@ post-commit) et en fin de session.
   7 tests verts avant commit.
 - P20.3 — aide à l'écriture globale (page Ouvrage seule, amendement 09/11) :
   commit bba505c, 11 tests verts avant commit.
-- P20.4 — export DOCX de l'ouvrage structuré : en cours de commit ;
-  test_p20_4_export_docx.py vert avant commit.
+- P20.4 — export DOCX de l'ouvrage structuré : commit fa2591e,
+  5 tests verts avant commit.
+- P20.5 — référence de contrôle qualité par portée : en cours de commit ;
+  test_p20_5_reference_cq.py vert avant commit.
 - (à compléter au fil des commits)
 
 ### Écarts signalés pour arbitrage

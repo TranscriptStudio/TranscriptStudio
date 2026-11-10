@@ -349,12 +349,20 @@ class DocumentOuvrage:
       conservés quand une fusion de pensées est
       DÉFAITE (P19.4) — chaque paragraphe reprend
       son texte, le texte fusionné n'est pas perdu.
+    - ``reference_bible`` : **référence d'uniformité
+      de l'ouvrage** (P20.5b) — version utilisée pour
+      « Re-vérifier les versets » et le contrôle
+      qualité d'ouvrage ; persistée ICI (couche
+      ouvrage), JAMAIS réécrite vers les tiers des
+      réunions (§8bis du CONTRAT_STOCKAGE_REUNIONS).
+      Chaîne vide = non choisie.
     """
 
     titre: str = ""
     elements: list = field(default_factory=list)
     generation: Optional[dict] = None
     historique: list = field(default_factory=list)
+    reference_bible: str = ""
     format_version: int = FORMAT_OUVRAGE
 
     def to_dict(self) -> dict:
@@ -364,6 +372,7 @@ class DocumentOuvrage:
             "titre": self.titre,
             "generation": self.generation,
             "historique": self.historique,
+            "reference_bible": self.reference_bible,
             "elements": [
                 e.to_dict()
                 for e in self.elements
@@ -418,6 +427,17 @@ class DocumentOuvrage:
             titre=_texte(data, "titre"),
             generation=data.get("generation"),
             historique=historique,
+            # P20.5b : bloc optionnel (ouvrages
+            # antérieurs) — jamais migré, lu comme
+            # chaîne vide.
+            reference_bible=(
+                data.get("reference_bible")
+                if isinstance(
+                    data.get("reference_bible"),
+                    str
+                )
+                else ""
+            ),
         )
 
         document.elements = [
