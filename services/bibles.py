@@ -138,6 +138,24 @@ def nom_court_bible(version: str) -> str:
     )
 
 
+def libelle_bible_selecteur(identifiant: str) -> str:
+    """
+    Libellé d'une version dans un sélecteur :
+    « Darby révisée — Édition 2026 (rév. 2.3) ».
+    """
+
+    version = VERSIONS_BIBLE.get(identifiant)
+
+    if version is None:
+        return nom_court_bible(identifiant)
+
+    return (
+        nom_court_bible(identifiant)
+        + " — "
+        + version["edition"]
+    )
+
+
 def versification_bible(version: str) -> str:
     """
     Versification d'une version (nom court).
@@ -259,6 +277,85 @@ def version_commune_etude(etude_ouverte) -> tuple:
         return next(iter(distinctes)), False
 
     return "", True
+
+
+def badge_bible_etude(etude_ouverte, version_ouvrage=None) -> tuple:
+    """
+    P18.9c — badge « Bible » de la page Étude, simplifié :
+    une seule version affichée, JAMAIS de champ
+    « versification » distinct (la versification découle
+    de la version retenue) :
+
+    - ``version_ouvrage`` (P20.5) prime dès qu'elle est
+      choisie : la référence d'uniformité de l'ouvrage
+      s'affiche sur le badge ;
+    - sinon version COMMUNE aux tiers des réunions
+      rattachées (« Bible : Darby révisée ») ;
+    - si les versions divergent entre réunions :
+      « Bibles mixtes ».
+
+    Retour : ``(texte_badge, info_bulle)`` — l'info-bulle
+    est ÉPURÉE : libellé simple, aucun commentaire de
+    spec (aucune mention P18.5 ou autre référence
+    interne).
+    """
+
+    if version_ouvrage in VERSIONS_BIBLE:
+
+        return (
+            "Bible : " + nom_court_bible(version_ouvrage),
+            "Version de Bible retenue pour l'ouvrage : "
+            + nom_court_bible(version_ouvrage),
+        )
+
+    versions = versions_bibles_reunions(etude_ouverte)
+
+    if not versions:
+
+        version = version_bible_etude(
+            etude_ouverte.parametres
+        )
+
+        return (
+            "Bible : " + nom_court_bible(version),
+            "Version de Bible retenue par l'étude : "
+            + nom_court_bible(version),
+        )
+
+    distinctes = set(versions.values())
+
+    if len(distinctes) == 1:
+
+        version = next(iter(distinctes))
+
+        return (
+            "Bible : " + nom_court_bible(version),
+            "Version de Bible commune aux "
+            f"{len(versions)} réunion(s) rattachée(s) : "
+            + nom_court_bible(version),
+        )
+
+    lignes = []
+
+    for nom, version in versions.items():
+
+        reunion = etude_ouverte.reunions.get(nom)
+
+        titre = (
+            (reunion.titre_1 if reunion else "")
+            or nom
+        )
+
+        lignes.append(
+            f"{titre} : {nom_court_bible(version)}"
+        )
+
+    return (
+        "Bibles mixtes",
+        "Versions de Bible par réunion (mixtes) :"
+        + chr(10)
+        + chr(10).join(lignes),
+    )
 
 
 def version_bible_etude(parametres) -> str:

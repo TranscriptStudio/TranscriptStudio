@@ -99,11 +99,12 @@ class TestRuban:
             fenetre.sous_titre_label.text()
         )
 
-        # Badge Bible · versification.
+        # Badge Bible simplifié (P18.9c) : une
+        # version, JAMAIS de champ « versification ».
         assert fenetre.badge_bible_label \
             .text().startswith("Bible :")
 
-        assert "versification :" in (
+        assert "versification" not in (
             fenetre.badge_bible_label.text()
         )
 
@@ -250,17 +251,17 @@ class TestListeReunions:
             )
         ]
 
-        assert "Ouvrir" in boutons
+        # P18.9a (invariant 2) : PLUS de bouton
+        # « Ouvrir » ni de flèches de
+        # réordonnancement sur la page.
+        assert "Ouvrir" not in boutons
+        assert "↑" not in boutons
+        assert "↓" not in boutons
 
         # Boutons par tuile supprimés (spec
-        # correctifs §14) : seul « Ouvrir » reste,
-        # avec la poignée de réordonnancement.
+        # correctifs §14).
         assert "Reformulation…" not in boutons
         assert "Résumé…" not in boutons
-
-        # Poignée de réordonnancement.
-        assert "↑" in boutons
-        assert "↓" in boutons
 
         # Coût affiché par réunion.
         couts = [
@@ -409,8 +410,22 @@ class TestRenvoiOuvrage:
 
         fenetre = page[0]
 
+        # P18.9d : « Édition ouvrage final », en haut
+        # de page à droite de « ＋ Ajouter une
+        # réunion… » (invariant 5).
         assert fenetre.ouvrage_button.text() == (
-            "Ouvrage…"
+            "Édition ouvrage final"
+        )
+
+        boutons_entete = [
+            b.text()
+            for b in (
+                fenetre.findChildren(QPushButton)
+            )
+        ]
+
+        assert "＋ Ajouter une réunion…" in (
+            boutons_entete
         )
 
     def test_renvoi_pile(self, qapp, tmp_path):

@@ -558,9 +558,10 @@ class TestEtudeSerie1:
                 page.badge_bible_label.text()
             )
 
+            # P18.9c : badge simplifié, JAMAIS de champ
+            # « versification » distinct.
             assert badge == (
-                "Bible : Darby révisée "
-                "· versification : Darby"
+                "Bible : Darby révisée"
             )
 
         finally:

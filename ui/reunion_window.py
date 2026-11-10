@@ -362,6 +362,39 @@ class ReunionWindow(QWidget):
 
         self.maj_stepper()
 
+        #
+        # P18.9e : fond de page des maquettes, ruban
+        # et labels à la teinte EXACTE du fond de
+        # page (correctif transverse).
+        #
+        self._appliquer_fond_page()
+
+    def _appliquer_fond_page(self):
+        """
+        P18.9e : fond de page des maquettes dans les
+        DEUX thèmes, ruban et labels transparents —
+        teinte EXACTE du fond de page (helper partagé
+        ``feuille_fond_page``).
+        """
+
+        from services.theme_manager import (
+            est_sombre,
+            feuille_fond_page,
+        )
+
+        self.setAttribute(
+            Qt.WidgetAttribute
+            .WA_StyledBackground,
+            True
+        )
+
+        self.setStyleSheet(
+            feuille_fond_page(
+                "ReunionWindow",
+                est_sombre(self)
+            )
+        )
+
     def _construire_ruban(self) -> QWidget:
         """
         Ruban : titre, puis sur UNE MÊME LIGNE la

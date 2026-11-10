@@ -93,11 +93,23 @@ class TestBadgeBible:
         fenetre, tmp_path, noms = page
 
         # Toutes les réunions sur darbyR (défaut).
+        # P18.9c : badge simplifié, JAMAIS de champ
+        # « versification » distinct.
         assert fenetre._texte_badge_bible() == (
-            "Bible : Darby révisée · versification : Darby"
+            "Bible : Darby révisée"
         )
 
-        assert "commune" in fenetre._tooltip_badge_bible()
+        assert "versification" not in (
+            fenetre._texte_badge_bible()
+        )
+
+        tooltip = fenetre._tooltip_badge_bible()
+
+        assert "commune" in tooltip
+        # Info-bulle épurée : aucun commentaire de
+        # spec (P18.9c, invariant 4).
+        assert "P18.5" not in tooltip
+        assert "versification" not in tooltip.lower()
 
     def test_badge_bibles_mixtes(self, page):
         fenetre, tmp_path, noms = page

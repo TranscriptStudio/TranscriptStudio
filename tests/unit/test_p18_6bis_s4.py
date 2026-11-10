@@ -325,11 +325,15 @@ class TestTuilesEtude:
                 tuiles[0].styleSheet()
             )
 
-            # Curseur main (cliquable).
+            # P18.9a : le clic gauche sur le corps de
+            # la tuile sert UNIQUEMENT au
+            # glisser-déposer — curseur flèche (la
+            # navigation passe par le stepper et le
+            # menu contextuel).
             from PySide6.QtCore import Qt
 
             assert tuiles[0].cursor().shape() == (
-                Qt.CursorShape.PointingHandCursor
+                Qt.CursorShape.ArrowCursor
             )
 
         finally:
@@ -337,10 +341,12 @@ class TestTuilesEtude:
 
     def test_bouton_unique_ouvrir(self, qapp, tmp_path):
         """
-        §22 : tuiles-rangées sobres — un seul
-        bouton « Ouvrir » (avec la poignée de
-        réordonnancement préservée, sans régression
-        ⠿) et le coût ; pas de boutons empilés.
+        §22 + P18.9a : tuiles sobres — PLUS de bouton
+        « Ouvrir » ni de flèches de réordonnancement
+        sur la tuile (clic gauche = glisser-déposer
+        uniquement ; navigation par stepper et menu
+        contextuel clic droit) ; pas de boutons
+        empilés.
         """
 
         _p, _pv, _e, _n = (
@@ -381,12 +387,11 @@ class TestTuilesEtude:
                 )
             ]
 
-            assert boutons.count("Ouvrir") == 1
-
-            # Poignée de réordonnancement préservée
-            # (livraison : aucune régression ⠿).
-            assert "↑" in boutons
-            assert "↓" in boutons
+            # P18.9a (invariant 2) : plus de bouton
+            # « Ouvrir » ni de flèches sur la tuile.
+            assert boutons.count("Ouvrir") == 0
+            assert "↑" not in boutons
+            assert "↓" not in boutons
 
             # Pas de boutons empilés par tuile.
             assert (

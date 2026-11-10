@@ -2607,6 +2607,9 @@ post-commit) et en fin de session.
 ### Avancement
 
 - Commit de synchro atelier v41 (4 documents + reprises locales).
+- P18.9 — correctifs page Étude (invariants 1-7) : en cours de commit ;
+  tests ciblés verts avant commit (test_p18_9_etude + test_p18_6c_etude +
+  test_p18_8d_badge + test_p18_6bis_s1/s4).
 - (à compléter au fil des commits)
 
 ### Écarts signalés pour arbitrage

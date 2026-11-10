@@ -15,6 +15,7 @@ joignables uniquement).
 from pathlib import Path
 
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QDialog,
     QDialogButtonBox,
@@ -180,6 +181,86 @@ def assurer_decoupage(
     return True
 
 
+#
+# Rôle de données portant les étapes affichées d'une
+# tuile (pour le menu contextuel clic droit).
+#
+ROLE_ETATS = Qt.ItemDataRole.UserRole + 1
+
+
+class ListeReunionsEtude(QListWidget):
+    """
+    P18.9a : conteneur des tuiles de réunion de la
+    page Étude — réordonnancement par GLISSER-DÉPOSER
+    (clic gauche sur le corps d'une tuile = déplacement
+    uniquement, aucune navigation) ; le conteneur
+    DÉFILE INDÉPENDAMMENT (P18.9f : une étude peut
+    compter plusieurs dizaines de réunions).
+
+    Le signal ``ordre_modifie`` est émis avec la liste
+    des noms de réunions dans le nouvel ordre après
+    chaque dépôt (la page persiste alors l'ordre dans
+    etude.json).
+    """
+
+    ordre_modifie = Signal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setDragDropMode(
+            QAbstractItemView.DragDropMode.InternalMove
+        )
+
+        self.setDefaultDropAction(
+            Qt.DropAction.MoveAction
+        )
+
+        self.setMovement(
+            QListWidget.Movement.Snap
+        )
+
+        self.setVerticalScrollMode(
+            QAbstractItemView.ScrollMode.ScrollPerPixel
+        )
+
+        #
+        # P18.9b : marge intérieure du viewport pour
+        # que l'effet de rehaussement au survol (~2 px
+        # vers le haut) ne soit PAS rogné sur la
+        # première tuile en haut du conteneur.
+        #
+        from ui.tuiles import ELEVATION_SURVOL
+
+        self.setViewportMargins(
+            6,
+            ELEVATION_SURVOL + 4,
+            6,
+            ELEVATION_SURVOL + 4,
+        )
+
+        self.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+
+    def dropEvent(self, event):
+        """
+        Après un dépôt (glisser-déposer interne) :
+        émet le nouvel ordre des réunions.
+        """
+
+        super().dropEvent(event)
+
+        noms = [
+            self.item(index).data(
+                Qt.ItemDataRole.UserRole
+            )
+            for index in range(self.count())
+        ]
+
+        self.ordre_modifie.emit(noms)
+
+
 class EtudeWindow(QWidget):
 
     def __init__(self, dossier_etude, settings=None):
@@ -248,16 +329,19 @@ class EtudeWindow(QWidget):
 
     def build_ui(self):
         """
-        Page Étude (P18.6c, spec navigation §4) :
-        ruban (titre, thème, nombre de réunions,
-        badge Bible · versification, boutons
-        Paramètres de l'étude / Accueil / ⚙ / ?), liste
-        des réunions en une colonne (mini-tuiles :
-        titre, rang, date, durée, avancement ①→⑤
-        SANS ⑥, coût, ouverture, réordonnancement),
-        synthèse d'étude (régénérer / éditer),
-        récurrences, renvoi export ouvrage vers la
-        page Ouvrage.
+        Page Étude (P18.6c, spec navigation §4 ;
+        correctifs P18.9) : ruban (titre, thème,
+        nombre de réunions, badge Bible simplifié,
+        boutons Paramètres de l'étude / Accueil /
+        ⚙ / ?), liste des réunions en une colonne
+        de tuiles GLISSER-DÉPOSER (titre, rang,
+        date, durée, avancement ①→⑤ SANS ⑥,
+        stepper cliquable, coût — PAS de bouton
+        « Ouvrir » ni de flèches ; menu contextuel
+        clic droit : étapes, retirer, relocaliser),
+        « ＋ Ajouter une réunion… » puis « Édition
+        ouvrage final » en tête de liste, synthèse
+        d'étude (boutons à côté), récurrences.
         """
 
         layout = QVBoxLayout(self)
@@ -414,76 +498,44 @@ class EtudeWindow(QWidget):
             self.ajouter_reunion_ui
         )
 
+        #
+        # P18.9d : accès à l'ouvrage EN HAUT DE PAGE,
+        # à droite de « ＋ Ajouter une réunion… »,
+        # libellé « Édition ouvrage final » (les
+        # boutons liés à la synthèse seront placés
+        # à côté, P20.6).
+        #
+        self.ouvrage_button = QPushButton(
+            "Édition ouvrage final"
+        )
+        self.ouvrage_button.setToolTip(
+            "Ouvrir la page Ouvrage : édition de "
+            "l'ouvrage final (structure, paragraphs, "
+            "aides à la relecture, export)"
+        )
+        self.ouvrage_button.clicked.connect(
+            self.ouvrir_ouvrage
+        )
+
         entete_reunions.addStretch()
         entete_reunions.addWidget(self.ajouter_button)
-
-        layout.addLayout(entete_reunions)
-
-        self.reunions_liste = QListWidget()
-        self.reunions_liste.setToolTip(
-            "Sélectionnez une réunion : les boutons "
-            "de la mini-tuile ouvrent la page Réunion "
-            "(correction, reformulation, résumé)"
-        )
-        self.reunions_liste.itemDoubleClicked.connect(
-            self.ouvrir_reunion_editeur
-        )
-
-        layout.addWidget(
-            self.reunions_liste,
-            stretch=1
-        )
-
-        boutons_reunions = QHBoxLayout()
-
-        self.retirer_button = QPushButton(
-            "Retirer la réunion"
-        )
-        self.retirer_button.clicked.connect(
-            self.retirer_reunion_ui
-        )
-
-        self.relocaliser_button = QPushButton(
-            "Relocaliser..."
-        )
-        self.relocaliser_button.clicked.connect(
-            self.relocaliser_reunion_ui
-        )
-
-        for bouton in (
-            self.retirer_button,
-            self.relocaliser_button,
-        ):
-            boutons_reunions.addWidget(bouton)
-
-        boutons_reunions.addStretch()
-
-        layout.addLayout(boutons_reunions)
+        entete_reunions.addWidget(self.ouvrage_button)
 
         #
-        # Synthèse d'étude (P17.2) : contexte de
-        # niveau 2 des réunions suivantes.
+        # P18.9d + P20.6 : les boutons liés à la
+        # synthèse sont placés à côté du bouton
+        # « Édition ouvrage final » (invariant 5).
         #
-        layout.addWidget(QLabel("Synthèse d'étude"))
-
-        self.synthese_edit = QPlainTextEdit()
-        self.synthese_edit.setReadOnly(True)
-        self.synthese_edit.setPlaceholderText(
-            "Aucune synthèse : elle est générée quand "
-            "une réunion devient entièrement validée, "
-            "ou via « Régénérer… »."
-        )
-        self.synthese_edit.setMaximumHeight(140)
-        layout.addWidget(self.synthese_edit)
-
-        boutons_synthese = QHBoxLayout()
-
         self.synthese_regenerer_button = QPushButton(
-            "Régénérer…"
+            "(Re)générer la synthèse…"
         )
         self.synthese_regenerer_button.setToolTip(
-            "Régénérer la synthèse d'étude à partir "
-            "des textes validés (coût marginal)"
+            "P20.6 : régénérer INTÉGRALEMENT la "
+            "synthèse d'étude à partir de toutes les "
+            "réunions à blocs validés (avertissement "
+            "de remplacement intégral, confirmation "
+            "requise) — ou l'alimenter réunion par "
+            "réunion (clic droit sur une tuile)"
         )
         self.synthese_regenerer_button.clicked.connect(
             self.regenerer_synthese
@@ -514,117 +566,143 @@ class EtudeWindow(QWidget):
         )
         self.synthese_sauver_button.setVisible(False)
 
-        self.recurrences_button = QPushButton(
-            "Récurrences…"
+        #
+        # P20.6e : « Annuler l'édition », à côté de
+        # la sauvegarde, EN MODE ÉDITION UNIQUEMENT
+        # — restaure le texte antérieur à l'édition.
+        #
+        self.synthese_annuler_button = QPushButton(
+            "Annuler l'édition"
         )
-        self.recurrences_button.setToolTip(
-            "Expressions récurrentes entre réunions "
-            "(gratuit, indicatif)"
+        self.synthese_annuler_button.setToolTip(
+            "Annuler l'édition en cours et "
+            "restaurer le texte antérieur"
         )
-        self.recurrences_button.clicked.connect(
-            self.afficher_recurrences
+        self.synthese_annuler_button.clicked.connect(
+            self.annuler_edition_synthese
         )
+        self.synthese_annuler_button.setVisible(False)
+
+        for bouton in (
+            self.synthese_regenerer_button,
+            self.synthese_editer_button,
+            self.synthese_sauver_button,
+            self.synthese_annuler_button,
+        ):
+            entete_reunions.addWidget(bouton)
+
+        self.entete_reunions = entete_reunions
+
+        layout.addLayout(entete_reunions)
+
+        #
+        # P18.9a/f : conteneur des tuiles —
+        # glisser-déposer (réordonnancement) et
+        # défilement indépendant.
+        #
+        self.reunions_liste = ListeReunionsEtude()
+        self.reunions_liste.setToolTip(
+            "Glissez-déposez une tuile pour "
+            "réordonner l'étude (l'ordre vaut ordre "
+            "d'ouvrage) ; clic droit sur une tuile : "
+            "menu (étapes, retirer, relocaliser) ; "
+            "clic sur une pastille du stepper : ouvrir "
+            "la page Réunion à cette étape"
+        )
+        self.reunions_liste.ordre_modifie.connect(
+            self._persister_ordre
+        )
+        self.reunions_liste.customContextMenuRequested.connect(
+            self._sur_menu_contextuel_liste
+        )
+
+        layout.addWidget(
+            self.reunions_liste,
+            stretch=1
+        )
+
+        #
+        # Synthèse d'étude (P17.2) : contexte de
+        # niveau 2 des réunions suivantes.
+        #
+        layout.addWidget(QLabel("Synthèse d'étude"))
+
+        self.synthese_edit = QPlainTextEdit()
+        self.synthese_edit.setReadOnly(True)
+        self.synthese_edit.setPlaceholderText(
+            "Aucune synthèse : elle est générée quand "
+            "une réunion devient entièrement validée, "
+            "ou via « Régénérer… »."
+        )
+        self.synthese_edit.setMaximumHeight(140)
+        layout.addWidget(self.synthese_edit)
+
+        #
+        # P20.3 (amendement du 09/11) : l'outillage
+        # « récurrences » vit EXCLUSIVEMENT dans la
+        # page Ouvrage — plus rien sur la page Étude
+        # (P17.3/P18.6c abrogés sur ce seul point).
+        # Les boutons de la synthèse sont en haut de
+        # page, à côté de « Édition ouvrage final ».
+        #
+        ligne_statut = QHBoxLayout()
 
         self.synthese_statut_label = QLabel("")
         self.synthese_statut_label.setStyleSheet(
             "font-size: 12px; color: #666666;"
         )
 
-        boutons_synthese.addWidget(
-            self.synthese_regenerer_button
-        )
-        boutons_synthese.addWidget(
-            self.synthese_editer_button
-        )
-        boutons_synthese.addWidget(
-            self.synthese_sauver_button
-        )
-        boutons_synthese.addWidget(
-            self.recurrences_button
-        )
-        boutons_synthese.addWidget(
+        ligne_statut.addWidget(
             self.synthese_statut_label
         )
 
-        boutons_synthese.addStretch()
+        ligne_statut.addStretch()
 
-        layout.addLayout(boutons_synthese)
-
-        #
-        # Renvoi export ouvrage vers la page
-        # Ouvrage (spec §4.5 : l'assemblage et
-        # l'export final s'y font).
-        #
-        ouvrage_layout = QHBoxLayout()
-
-        self.ouvrage_button = QPushButton(
-            "Ouvrage…"
-        )
-        self.ouvrage_button.setToolTip(
-            "Ouvrir la page Ouvrage : assemblage des "
-            "textes validés et export final de "
-            "l'étude"
-        )
-        self.ouvrage_button.clicked.connect(
-            self.ouvrir_ouvrage
-        )
-
-        ouvrage_note = QLabel(
-            "L'assemblage et l'export final de "
-            "l'ouvrage se font sur la page Ouvrage."
-        )
-        ouvrage_note.setStyleSheet(
-            "font-size: 12px; color: #757575;"
-        )
-
-        ouvrage_layout.addWidget(self.ouvrage_button)
-        ouvrage_layout.addWidget(ouvrage_note)
-        ouvrage_layout.addStretch()
-
-        layout.addLayout(ouvrage_layout)
+        layout.addLayout(ligne_statut)
 
         #
-        # §22 : les tuiles se détachent du fond de
-        # page — en thème sombre, fond de page des
-        # maquettes (#1e1f24).
+        # P18.9e : fond de page des maquettes, bandeau
+        # et labels à la teinte EXACTE du fond de page
+        # (correctif transverse, helper partagé).
         #
         self._appliquer_fond_page()
 
     def _appliquer_fond_page(self):
         """
-        Thème sombre : fond de page des maquettes
-        (#1e1f24) sur la fenêtre ET sur la liste
-        des réunions (spec 30f §27) — qdarktheme
-        peint sinon le viewport de la QListWidget
-        d'une teinte différente du fond de page.
+        P18.9e : fond de page des maquettes dans les
+        DEUX thèmes, bandeau (ruban) et labels à la
+        teinte EXACTE du fond de page — helper partagé
+        ``feuille_fond_page`` (correctif transverse aux
+        pages concernées). La liste des réunions reste
+        transparente (spec 30f §27 : qdarktheme peindrait
+        sinon son viewport d'une autre teinte).
         """
 
         from services.theme_manager import (
-            FOND_PAGE_SOMBRE,
             est_sombre,
+            feuille_fond_page,
         )
 
-        if est_sombre(self):
-            self.setAttribute(
-                Qt.WidgetAttribute
-                .WA_StyledBackground,
-                True
+        self.setAttribute(
+            Qt.WidgetAttribute
+            .WA_StyledBackground,
+            True
+        )
+
+        self.setStyleSheet(
+            feuille_fond_page(
+                "EtudeWindow",
+                est_sombre(self)
             )
-            self.setStyleSheet(
-                "EtudeWindow {"
-                "background-color: "
-                + FOND_PAGE_SOMBRE
-                + ";"
-                "}"
-                "QListWidget {"
-                "background: transparent;"
-                "border: none;"
-                "}"
-                "QListWidget::item {"
-                "background: transparent;"
-                "border: none;"
-                "}"
-            )
+            + "QListWidget {"
+            "background: transparent;"
+            "border: none;"
+            "}"
+            "QListWidget::item {"
+            "background: transparent;"
+            "border: none;"
+            "}"
+        )
 
     def _libelle_theme(self) -> str:
 
@@ -650,107 +728,85 @@ class EtudeWindow(QWidget):
 
         return f"{nombre} réunion"
 
-    def _texte_badge_bible(self) -> str:
+    def _version_ouvrage(self):
         """
-        Badge COURT (P18.6-bis, spec correctifs §11) :
-        « Bible : Darby révisée · versification :
-        Darby » — les détails d'édition restent
-        consultables dans les réglages, jamais
-        affichés dans le ruban.
-
-        P18.8d (ARBITRAGE_P18_7_ECARTS écart 3) : le
-        badge affiche la version COMMUNE aux tiers des
-        réunions rattachées ; si les versions divergent,
-        « Bibles mixtes » (info-bulle listant les
-        versions par réunion).
+        P20.5b : référence d'uniformité de l'ouvrage
+        persistée dans ouvrage.json (chaîne vide si
+        non choisie) — le badge de la page Étude
+        l'affiche dès qu'elle est choisie.
         """
-
-        from services.bibles import (
-            nom_court_bible,
-            version_commune_etude,
-            versification_bible,
-        )
 
         try:
 
-            version, mixte = version_commune_etude(
-                self.etude
+            from services.ouvrage_document import (
+                charger_ouvrage,
             )
 
-            if mixte:
-                return "Bibles mixtes"
+            if not self.etude.dossier:
+                return ""
 
-            return (
-                "Bible : "
-                + nom_court_bible(version)
-                + " · versification : "
-                + versification_bible(version)
+            document = charger_ouvrage(
+                self.etude.dossier
             )
 
+            if document is None:
+                return ""
+
+            return getattr(
+                document,
+                "reference_bible",
+                ""
+            ) or ""
+
+        except Exception:
+            return ""
+
+    def _texte_badge_bible(self) -> str:
+        """
+        P18.9c : badge simplifié — « Bible : Darby
+        révisée », JAMAIS de champ « versification »
+        distinct (la versification découle de la
+        version retenue) ; « Bibles mixtes » si les
+        tiers divergent. P20.5b : la version ouvrage
+        prime dès qu'elle est choisie. Logique dans
+        services.bibles.badge_bible_etude.
+        """
+
+        from services.bibles import (
+            badge_bible_etude,
+        )
+
+        try:
+            texte, _tooltip = badge_bible_etude(
+                self.etude,
+                version_ouvrage=self._version_ouvrage()
+                or None
+            )
+            return texte
         except Exception:
             return "Bible : —"
 
     def _tooltip_badge_bible(self) -> str:
         """
-        P18.8d : info-bulle du badge Bible — version
-        commune, ou liste des versions par réunion si
-        elles divergent (« Bibles mixtes »).
+        P18.9c : info-bulle ÉPURÉE du badge Bible —
+        libellé simple, aucun commentaire de spec
+        (aucune mention P18.5 ou autre référence
+        interne).
         """
 
         from services.bibles import (
-            nom_court_bible,
-            version_bible_etude,
-            versions_bibles_reunions,
+            badge_bible_etude,
         )
 
-        versions = versions_bibles_reunions(self.etude)
-
-        lignes = []
-
-        for nom, version in versions.items():
-
-            reunion = self.etude.reunions.get(nom)
-
-            titre = (
-                (reunion.titre_1 if reunion else "")
-                or nom
+        try:
+            _texte, tooltip = badge_bible_etude(
+                self.etude,
+                version_ouvrage=self._version_ouvrage()
+                or None
             )
-
-            lignes.append(
-                f"{titre} : {nom_court_bible(version)}"
-            )
-
-        if not lignes:
-
-            version = version_bible_etude(
-                self.etude.parametres
-            )
-
-            return (
-                "Version de Bible retenue par l'étude : "
-                + nom_court_bible(version)
-            )
-
-        if len({v for v in versions.values()}) == 1:
-
-            return (
-                "Version de Bible commune aux "
-                f"{len(lignes)} réunion(s) rattachée(s) : "
-                + nom_court_bible(next(iter(versions.values())))
-                + " — les écarts de versification sont "
-                "une information consultable, jamais une "
-                "décision automatique (P18.5)."
-            )
-
-        return (
-            "Versions de Bible par réunion (mixtes) :"
-            + chr(10)
-            + chr(10).join(lignes)
-            + chr(10) + chr(10)
-            + "Un écart de versification est une "
-            "information, jamais une décision "
-            "automatique (P18.5)."
-        )
+            return tooltip
+        except Exception:
+            return ""
 
     def ouvrir_parametres(self):
         """
@@ -810,9 +866,38 @@ class EtudeWindow(QWidget):
         « manuel »).
         """
 
+        self._texte_avant_edition = (
+            self.synthese_edit.toPlainText()
+        )
+
         self.synthese_edit.setReadOnly(False)
         self.synthese_sauver_button.setVisible(True)
+        self.synthese_annuler_button.setVisible(True)
         self.synthese_editer_button.setVisible(False)
+
+    def annuler_edition_synthese(self):
+        """
+        P20.6e : « Annuler l'édition » (visible en
+        mode édition uniquement) — restaure le
+        texte antérieur à l'édition et quitte le
+        mode édition, sans rien consigner.
+        """
+
+        if self.synthese_edit.isReadOnly():
+            return
+
+        self.synthese_edit.setPlainText(
+            getattr(
+                self,
+                "_texte_avant_edition",
+                ""
+            )
+        )
+
+        self.synthese_edit.setReadOnly(True)
+        self.synthese_sauver_button.setVisible(False)
+        self.synthese_annuler_button.setVisible(False)
+        self.synthese_editer_button.setVisible(True)
 
     def sauvegarder_edition_synthese(self):
         """
@@ -879,8 +964,11 @@ class EtudeWindow(QWidget):
         """
         Broadcast de ThemeManager : reconstruit la
         liste des réunions (les mini-tuiles portent
-        leurs couleurs à la construction).
+        leurs couleurs à la construction) et
+        réapplique le fond de page (P18.9e).
         """
+
+        self._appliquer_fond_page()
 
         if getattr(self, "reunions_liste", None) is not None:
             self.refresh_reunions()
@@ -953,6 +1041,15 @@ class EtudeWindow(QWidget):
                 nom
             )
 
+            #
+            # P18.9a : les étapes affichées de la tuile
+            # (pour le menu contextuel clic droit).
+            #
+            item.setData(
+                ROLE_ETATS,
+                list(etats.keys()) if etats else [],
+            )
+
             self.reunions_liste.addItem(item)
 
             self.reunions_liste.setItemWidget(
@@ -1000,10 +1097,18 @@ class EtudeWindow(QWidget):
         fichier brut), rang en information annexe,
         DATE DE RÉUNION (audio, jamais la date
         technique de rattachement), durée ;
-        avancement ; coût ; « Ouvrir » et la
-        poignée de réordonnancement (l'ordre vaut
-        ordre d'ouvrage). Le clic sur la tuile ouvre
-        la page Réunion (spec correctifs §12-§14).
+        avancement ; coût.
+
+        P18.9a : PLUS de bouton « Ouvrir » ni de
+        flèches de réordonnancement sur la tuile —
+        le clic gauche sur le corps sert UNIQUEMENT
+        au glisser-déposer (aucune navigation) ; la
+        navigation se fait par le clic sur une
+        pastille du stepper (ouvre la page Réunion à
+        l'étape visée) ou par le menu contextuel du
+        clic droit (étapes, « Retirer la réunion »,
+        « Relocaliser »). L'ordre vaut ordre
+        d'ouvrage et persiste (etude.json).
         """
 
         from ui.stepper import StepperBar
@@ -1166,13 +1271,24 @@ class EtudeWindow(QWidget):
 
         else:
 
+            #
+            # P18.9a : stepper CLIQUABLE — le clic
+            # gauche sur une pastille ouvre la page
+            # Réunion directement à l'étape visée.
+            #
             stepper = StepperBar(
                 etapes=etats.keys(),
-                cliquable=False,
+                cliquable=True,
                 compact=True
             )
 
             stepper.definir_etats(etats)
+
+            stepper.etape_cliquee.connect(
+                lambda etape, n=nom: (
+                    self._ouvrir_etape(n, etape)
+                )
+            )
 
             ligne_stepper.addWidget(stepper)
 
@@ -1191,65 +1307,28 @@ class EtudeWindow(QWidget):
 
         layout.addLayout(ligne_stepper)
 
-        ligne_actions = QHBoxLayout()
-
-        ouvrir_button = QPushButton("Ouvrir")
-        ouvrir_button.setFixedHeight(26)
-        ouvrir_button.setToolTip(
-            "Ouvrir la page Réunion de cette "
-            "réunion (correction, reformulation, "
-            "résumé, export)"
-        )
-        ouvrir_button.clicked.connect(
-            lambda checked=False, n=nom: (
-                self._ouvrir_reunion(n)
-            )
-        )
-
-        monter_button = QPushButton("↑")
-        monter_button.setFixedHeight(26)
-        monter_button.setToolTip(
-            "Réordonner : la réunion monte dans "
-            "l'ordre d'ouvrage"
-        )
-        monter_button.clicked.connect(
-            lambda checked=False, n=nom: (
-                self._deplacer_reunion(n, -1)
-            )
-        )
-
-        descendre_button = QPushButton("↓")
-        descendre_button.setFixedHeight(26)
-        descendre_button.setToolTip(
-            "Réordonner : la réunion descend dans "
-            "l'ordre d'ouvrage"
-        )
-        descendre_button.clicked.connect(
-            lambda checked=False, n=nom: (
-                self._deplacer_reunion(n, 1)
-            )
-        )
-
-        for bouton in (
-            ouvrir_button,
-            monter_button,
-            descendre_button,
-        ):
-            ligne_actions.addWidget(bouton)
-
-        ligne_actions.addStretch()
-
-        layout.addLayout(ligne_actions)
-
+        #
+        # P18.9a : le clic gauche sur le corps de la
+        # tuile NE DÉCLENCHE AUCUNE navigation ni
+        # ouverture — il sert uniquement au
+        # glisser-déposer (l'événement est ignoré pour
+        # laisser la liste amorcer le drag interne).
+        # La navigation passe par le stepper (pastilles
+        # cliquables) et le menu contextuel (clic
+        # droit, géré par la liste).
+        #
         cadre.setCursor(
-            Qt.CursorShape.PointingHandCursor
+            Qt.CursorShape.ArrowCursor
         )
 
-        cadre.mousePressEvent = (
-            lambda event, n=nom: (
-                self._ouvrir_reunion(n)
-            )
-        )
+        cadre.nom_reunion = nom
+
+        def _presse(event, n=nom):
+
+            if event is not None:
+                event.ignore()
+
+        cadre.mousePressEvent = _presse
 
         return cadre
 
@@ -1284,31 +1363,199 @@ class EtudeWindow(QWidget):
 
     def _ouvrir_reunion(self, nom: str):
         """
-        Bouton « Ouvrir » d'une mini-tuile : page
-        Réunion de la réunion (objet de premier
-        rang), avec l'étude et le nom connus.
+        Page Réunion de la réunion (objet de
+        premier rang), avec l'étude et le nom connus
+        — appelé par le stepper (pastille
+        « Transcription ») et le menu contextuel.
         """
 
         self._selectionner(nom)
 
         self.ouvrir_reunion_editeur(nom)
 
-    def _ouvrir_reformulation(self, nom: str):
+    def _ouvrir_etape(self, nom: str, etape: str):
+        """
+        P18.9a : navigation par tuile — ouvre la page
+        Réunion directement à l'étape visée (clic sur
+        une pastille du stepper ou menu contextuel).
+        """
 
-        self._selectionner(nom)
+        from services.avancement import (
+            ETAPE_REFORMULATION,
+            ETAPE_RESUME,
+            ETAPE_TRANSCRIPTION,
+        )
 
-        self.ouvrir_reunion_reformulation()
+        if etape == ETAPE_REFORMULATION:
+            self._selectionner(nom)
+            self.ouvrir_reunion_reformulation()
+            return
 
-    def _ouvrir_resume(self, nom: str):
+        if etape == ETAPE_RESUME:
+            self._selectionner(nom)
+            self.ouvrir_reunion_resume()
+            return
 
-        self._selectionner(nom)
+        if etape == ETAPE_TRANSCRIPTION:
+            self._ouvrir_reunion(nom)
+            return
 
-        self.ouvrir_reunion_resume()
+    def _persister_ordre(self, noms: list):
+        """
+        P18.9a : après un glisser-déposer, persiste le
+        nouvel ordre des réunions (l'ordre vaut ordre
+        d'ouvrage, etude.json) — seulement si c'est une
+        permutation valide.
+        """
+
+        ordre = self.etude.etude.ordre_reunions
+
+        if (
+            not noms
+            or sorted(noms) != sorted(ordre)
+        ):
+            self.refresh_reunions()
+            return
+
+        selection = self.reunion_selectionnee()
+
+        ordre[:] = noms
+
+        sauvegarder_etude(self.etude)
+
+        self.refresh_reunions()
+
+        if selection in ordre:
+            self.reunions_liste.setCurrentRow(
+                ordre.index(selection)
+            )
+
+    def _sur_menu_contextuel_liste(self, position):
+        """
+        P18.9a : clic droit sur une tuile — ouvre
+        UNIQUEMENT le menu contextuel (étapes,
+        « Retirer la réunion », « Relocaliser »).
+        """
+
+        item = self.reunions_liste.itemAt(position)
+
+        if item is None:
+            return
+
+        nom = item.data(Qt.ItemDataRole.UserRole)
+
+        if not nom:
+            return
+
+        menu = self._construire_menu_tuile(nom, item)
+
+        self._executer_menu(
+            menu,
+            self.reunions_liste.viewport()
+            .mapToGlobal(position)
+        )
+
+    def _executer_menu(self, menu, position_globale):
+        """
+        Exécute le menu contextuel (séparé pour les
+        tests — ``QMenu.exec`` n'est pas monkeypatchable
+        sous PySide6).
+        """
+
+        menu.exec(position_globale)
+
+    def _construire_menu_tuile(self, nom: str, item=None) -> QMenu:
+        """
+        P18.9a : menu contextuel d'une tuile de
+        réunion : accès aux étapes (idem clic sur une
+        pastille du stepper), « Retirer la réunion »,
+        « Relocaliser ».
+
+        ``item`` : l'item de liste porteur (les étapes
+        affichées y sont rattachées) — sinon
+        l'item courant.
+        """
+
+        from services.avancement import (
+            LIBELLES_ETAPES,
+        )
+
+        if item is None:
+            item = self.reunions_liste.currentItem()
+
+        menu = QMenu(self)
+
+        etats = (
+            item.data(ROLE_ETATS)
+            if item is not None
+            else []
+        ) or []
+
+        for etape in etats:
+
+            action = menu.addAction(
+                LIBELLES_ETAPES.get(etape, etape)
+            )
+
+            action.triggered.connect(
+                lambda checked=False, n=nom, e=etape: (
+                    self._ouvrir_etape(n, e)
+                )
+            )
+
+        if etats:
+            menu.addSeparator()
+
+        retirer = menu.addAction(
+            "Retirer la réunion"
+        )
+        retirer.triggered.connect(
+            lambda checked=False, n=nom: (
+                self._retirer_reunion(n)
+            )
+        )
+
+        relocaliser = menu.addAction(
+            "Relocaliser…"
+        )
+        relocaliser.triggered.connect(
+            lambda checked=False, n=nom: (
+                self._relocaliser_reunion(n)
+            )
+        )
+
+        #
+        # P20.6b : alimentation manuelle de la
+        # synthèse — proposée UNIQUEMENT pour une
+        # réunion à blocs validés (invariant 9).
+        #
+        from services.traitements.synthese import (
+            reunion_entierement_validee,
+        )
+
+        if reunion_entierement_validee(
+            self.etude,
+            nom
+        ):
+            menu.addSeparator()
+
+            alimenter = menu.addAction(
+                "Alimenter la synthèse globale"
+            )
+
+            alimenter.triggered.connect(
+                lambda checked=False, n=nom: (
+                    self.alimenter_synthese(n)
+                )
+            )
+
+        return menu
 
     def _deplacer_reunion(self, nom: str, offset: int):
         """
-        Poignée de réordonnancement (l'ordre vaut
-        ordre d'ouvrage, spec §4.2).
+        Réordonnancement par déplacement relatif
+        (l'ordre vaut ordre d'ouvrage, spec §4.2) —
+        conservé pour les tests et appels internes.
         """
 
         index = (
@@ -1547,15 +1794,27 @@ class EtudeWindow(QWidget):
 
     def retirer_reunion_ui(self):
         """
-        Retire la réunion sélectionnée de l'étude :
-        sa référence et ses résultats d'étude ;
-        jamais le projet v1 ni le registre FID.
+        Retire la réunion sélectionnée de l'étude
+        (délègue à ``_retirer_reunion``).
         """
 
         nom = self.reunion_selectionnee()
 
         if nom is None:
             return
+
+        self._retirer_reunion(nom)
+
+    def _retirer_reunion(self, nom: str):
+        """
+        P18.9a : « Retirer la réunion » (menu
+        contextuel de la tuile) : retire la réunion
+        de l'étude — sa référence et ses résultats
+        d'étude ; jamais le projet v1 ni le
+        registre FID.
+        """
+
+        self._selectionner(nom)
 
         resultat = QMessageBox.question(
             self,
@@ -1577,14 +1836,27 @@ class EtudeWindow(QWidget):
 
     def relocaliser_reunion_ui(self):
         """
-        Relocalisation guidée d'une réunion au
-        projet v1 introuvable.
+        Relocalisation guidée de la réunion
+        sélectionnée (délègue à
+        ``_relocaliser_reunion``).
         """
 
         nom = self.reunion_selectionnee()
 
         if nom is None:
             return
+
+        self._relocaliser_reunion(nom)
+
+    def _relocaliser_reunion(self, nom: str):
+        """
+        P18.9a : « Relocaliser » (menu contextuel de
+        la tuile) : relocalisation guidée d'une
+        réunion au projet v1 introuvable — garde
+        son rôle de résolution du dossier déplacé.
+        """
+
+        self._selectionner(nom)
 
         dossier, _ = QFileDialog.getOpenFileName(
             self,

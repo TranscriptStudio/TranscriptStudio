@@ -651,6 +651,64 @@ FOND_PAGE_SOMBRE = "#1e1f24"
 #
 FOND_PAGE_CLAIR = "#f3f3f3"
 
+
+def fond_page(sombre: bool) -> str:
+    """
+    Teinte EXACTE du fond de page (maquettes) :
+    #1e1f24 en sombre, #f3f3f3 en clair.
+    """
+
+    return FOND_PAGE_SOMBRE if sombre else FOND_PAGE_CLAIR
+
+
+def feuille_fond_page(nom_classe: str, sombre: bool) -> str:
+    """
+    P18.9e — feuille de style « fond de page unique »
+    d'une page (correctif transverse : bandeau
+    supérieur, ruban et labels à la TEINTE EXACTE du
+    fond de page — reliquat de la série 5 du hub) :
+
+    - la page elle-même reçoit le fond de page des
+      maquettes (dans les DEUX thèmes) ;
+    - ses widgets DIRECTEMENT enfants (ruban,
+      bandeau, conteneurs de section) et TOUS ses
+      labels deviennent transparents : plus aucune
+      teinte qdarktheme (#202124 en sombre) ne perce —
+      le bandeau et les labels affichent exactement le
+      fond de page ;
+    - les QScrollArea et leur viewport restent
+      transparents (comme sur le hub).
+
+    Les tuiles et éléments possédant leur propre
+    feuille de style (couleurs propres) priment sur
+    ces règles.
+    """
+
+    return (
+        f"{nom_classe} {{"
+        "background-color: "
+        + fond_page(sombre)
+        + ";"
+        "}"
+        f"{nom_classe} > QWidget {{"
+        "background: transparent;"
+        "border: none;"
+        "}"
+        f"{nom_classe} QLabel {{"
+        "background: transparent;"
+        "border: none;"
+        "}"
+        "QScrollArea {"
+        "background: transparent;"
+        "border: none;"
+        "}"
+        "QScrollArea > QWidget > QWidget {"
+        "background: transparent;"
+        "border: none;"
+        "}"
+    )
+
+
 #
 # Série 5 (spec 30f §24) : stepper — couleurs
 # affirmées, identiques dans les deux thèmes
