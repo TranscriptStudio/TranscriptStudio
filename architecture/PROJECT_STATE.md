@@ -2613,8 +2613,10 @@ post-commit) et en fin de session.
   commit e152341, 15 tests verts avant commit.
 - P20.1 — mobilité inter-blocs + renvois orphelins : commit 808e20b,
   9 tests verts avant commit.
-- P20.2 — sous-titres proposés par IA : en cours de commit ;
-  test_p20_2_sous_titres.py vert avant commit.
+- P20.2 — sous-titres proposés par IA : commit 6398ae0,
+  7 tests verts avant commit.
+- P20.3 — aide à l'écriture globale (page Ouvrage seule, amendement 09/11) :
+  en cours de commit ; test_p20_3_relecture.py vert avant commit.
 - (à compléter au fil des commits)
 
 ### Écarts signalés pour arbitrage

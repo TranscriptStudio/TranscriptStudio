@@ -2297,58 +2297,13 @@ class EtudeWindow(QWidget):
         self.maj_synthese()
 
     #
-    # Récurrences entre réunions (P17.3).
+    # P20.3 (amendement du 09/11) : les récurrences
+    # ne s'affichent PLUS sur la page Étude —
+    # l'outillage vit exclusivement dans la page
+    # Ouvrage (P17.3/P18.6c abrogés sur ce seul
+    # point ; le mécanisme de détection local est
+    # repris par P20.3).
     #
-
-    def afficher_recurrences(self):
-
-        from services.controle_qualite import (
-            expressions_recurrentes
-        )
-
-        recurrentes = expressions_recurrentes(self.etude)
-
-        if not recurrentes:
-
-            QMessageBox.information(
-                self,
-                "Expressions récurrentes",
-                (
-                    "Aucune expression récurrente "
-                    "signalée entre les réunions "
-                    "(il faut des textes validés dans "
-                    "au moins deux réunions)."
-                )
-            )
-
-            return
-
-        lignes = []
-
-        for item in recurrentes:
-
-            reunions = ", ".join(
-                reunion
-                for reunion in item["reunions"]
-            )
-
-            lignes.append(
-                f"« {item['expression']} » — "
-                f"{item['occurrences']} occurrence(s), "
-                f"réunions : {reunions}"
-            )
-
-        QMessageBox.information(
-            self,
-            "Expressions récurrentes (indicatif)",
-            (
-                "Formules les plus fréquentes de "
-                "l'étude, présentes dans plusieurs "
-                "réunions — signalement indicatif, "
-                "jamais de remplacement suggéré :\n\n"
-                + "\n".join(lignes[:20])
-            )
-        )
 
     def retour_accueil(self):
         """
