@@ -2607,9 +2607,10 @@ post-commit) et en fin de session.
 ### Avancement
 
 - Commit de synchro atelier v41 (4 documents + reprises locales).
-- P18.9 — correctifs page Étude (invariants 1-7) : en cours de commit ;
-  tests ciblés verts avant commit (test_p18_9_etude + test_p18_6c_etude +
-  test_p18_8d_badge + test_p18_6bis_s1/s4).
+- P18.9 — correctifs page Étude (invariants 1-7) : commit 4f049c1,
+  60 tests ciblés verts avant commit.
+- P18.10 — lecteur de Bible intégré (BIBLE_JND_V2 §7, invariants 6-9) :
+  en cours de commit ; test_p18_10_bible.py vert avant commit.
 - (à compléter au fil des commits)
 
 ### Écarts signalés pour arbitrage

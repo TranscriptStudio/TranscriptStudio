@@ -214,8 +214,16 @@ class SettingsDialog(QDialog):
             "LLM (reformulation)"
         )
 
+        #
+        # P18.10d : onglet « Bibles » repérable pour le
+        # renvoi du lecteur de Bible (téléchargeur).
+        #
+        self._onglet_bibles = (
+            self._construire_onglet_bibles()
+        )
+
         self.tabs.addTab(
-            self._construire_onglet_bibles(),
+            self._onglet_bibles,
             "Bibles"
         )
 
@@ -332,6 +340,21 @@ class SettingsDialog(QDialog):
         self.llm_catalogue_button.clicked.connect(
             self.ouvrir_editeur_catalogue
         )
+
+    def selecter_onglet_bibles(self):
+        """
+        P18.10d : sélectionne l'onglet « Bibles »
+        (renvoi du lecteur de Bible vers le
+        téléchargeur quand aucune version n'est
+        installée).
+        """
+
+        index = self.tabs.indexOf(
+            self._onglet_bibles
+        )
+
+        if index >= 0:
+            self.tabs.setCurrentIndex(index)
 
     def _construire_onglet_general(self) -> QWidget:
         """

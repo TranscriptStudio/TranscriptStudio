@@ -144,6 +144,32 @@ class SettingsManager:
 
             "projects_root": "",
             "initial_setup_completed": False,
+
+            # P18.10b : dernier passage consulté dans le
+            # lecteur de Bible intégré — mémorisé dans
+            # les réglages de l'app (seule écriture de
+            # la page Bible) ; premier lancement :
+            # darbyR, livre 1, chapitre 1, verset 1.
+            # « livre » est un index 1-based dans la
+            # structure OSIS de la version (jamais de
+            # liste en dur) ; « livre_osis » mémorise
+            # en plus l'identifiant OSIS (robustesse aux
+            # versifications différentes).
+            "bible_lecteur": {
+                "version": "darbyR",
+                "livre": 1,
+                "livre_osis": None,
+                "chapitre": 1,
+                "verset": 1,
+            },
+
+            # P20.4 : export DOCX structuré de
+            # l'ouvrage — métadonnées de réunion en
+            # « note » (sous chaque paragraphe) ou en
+            # « annexe » (section en fin de document).
+            "export_ouvrage": {
+                "metadonnees": "note",
+            },
         }
     
     def get_default_projects_root(self) -> str:
@@ -565,6 +591,93 @@ class SettingsManager:
             self.save()
 
         return existing_projects
+
+    def get_dernier_passage_bible(self) -> dict:
+        """
+        P18.10b : dernier passage consulté dans le
+        lecteur de Bible intégré — ``{"version",
+        "livre", "livre_osis", "chapitre", "verset"}``.
+        Premier lancement (clé absente) : darbyR,
+        livre 1, chapitre 1, verset 1.
+        """
+
+        passage = dict(
+            self.settings.get(
+                "bible_lecteur",
+                {}
+            )
+        )
+
+        defaut = (
+            self.default_settings()["bible_lecteur"]
+        )
+
+        for cle, valeur in defaut.items():
+
+            passage.setdefault(cle, valeur)
+
+        return passage
+
+    def set_dernier_passage_bible(
+        self,
+        version: str,
+        livre: int,
+        chapitre: int,
+        verset: int,
+        livre_osis=None
+    ):
+        """
+        Mémorise le dernier passage consulté (seule
+        écriture de la page Bible — jamais dans un
+        dossier d'étude ni un projet v1).
+        """
+
+        self.settings["bible_lecteur"] = {
+            "version": version,
+            "livre": int(livre),
+            "livre_osis": livre_osis,
+            "chapitre": int(chapitre),
+            "verset": int(verset),
+        }
+
+        self.save()
+
+    def get_export_ouvrage_prefs(self) -> dict:
+        """
+        P20.4 : préférences d'export DOCX structuré
+        de l'ouvrage (``{"metadonnees": "note" |
+        "annexe"}``) — défaut « note ».
+        """
+
+        prefs = dict(
+            self.settings.get(
+                "export_ouvrage",
+                {}
+            )
+        )
+
+        prefs.setdefault(
+            "metadonnees",
+            "note"
+        )
+
+        if prefs["metadonnees"] not in ("note", "annexe"):
+            prefs["metadonnees"] = "note"
+
+        return prefs
+
+    def set_export_ouvrage_prefs(self, prefs: dict):
+
+        actuelles = self.settings.get(
+            "export_ouvrage",
+            {}
+        )
+
+        actuelles.update(prefs)
+
+        self.settings["export_ouvrage"] = actuelles
+
+        self.save()
 
     def get_theme(self):
         return self.settings.get(

@@ -360,6 +360,39 @@ class MainWindow(QMainWindow):
             self.cleanup_speakers_button
         )
 
+        #
+        # P18.10 : icône d'accès au lecteur de Bible
+        # intégré (page consultative, pile unique).
+        #
+        self.bible_button = QPushButton()
+
+        from services.resources import resource_path
+
+        self.bible_button.setIcon(
+            QIcon(
+                str(
+                    resource_path(
+                        "resources/icons/livre_étude.png"
+                    )
+                )
+            )
+        )
+
+        self.bible_button.setIconSize(QSize(20, 20))
+
+        self.bible_button.setToolTip(
+            "Lecteur de Bible intégré (consultation "
+            "des versions installées)"
+        )
+
+        self.bible_button.clicked.connect(
+            self.ouvrir_bible
+        )
+
+        action_layout.addWidget(
+            self.bible_button
+        )
+
         # action_layout.addStretch()
 
         action_layout.addSpacing(50)
@@ -441,6 +474,7 @@ class MainWindow(QMainWindow):
             self.zoom_minus_button,
             self.zoom_plus_button,
             self.cleanup_speakers_button,
+            self.bible_button,
             self.btn_prev,
             self.btn_play,
             self.btn_next,
@@ -836,6 +870,34 @@ class MainWindow(QMainWindow):
                     )
 
         return resultats
+
+    def ouvrir_bible(self):
+        """
+        P18.10 : ouvre le lecteur de Bible intégré
+        (page consultative, pile unique — « Retour »
+        ramène à cette page).
+        """
+
+        navigation = getattr(
+            self,
+            "navigation",
+            None
+        )
+
+        if (
+            navigation is not None
+            and hasattr(navigation, "ouvrir_bible")
+        ):
+            navigation.ouvrir_bible()
+            return
+
+        from ui.bible_window import BibleWindow
+
+        self.fenetre_bible = BibleWindow(
+            settings=self.settings_manager
+        )
+
+        self.fenetre_bible.show()
 
     def ouvrir_reformulation(self):
         """

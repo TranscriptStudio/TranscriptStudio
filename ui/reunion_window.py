@@ -501,6 +501,19 @@ class ReunionWindow(QWidget):
             self.afficher_menu_gestion
         )
 
+        #
+        # P18.10 : icône d'accès au lecteur de Bible
+        # intégré (page consultative, pile unique).
+        #
+        self.bible_button = QPushButton("📖 Bible")
+        self.bible_button.setToolTip(
+            "Lecteur de Bible intégré (consultation "
+            "des versions installées)"
+        )
+        self.bible_button.clicked.connect(
+            self.ouvrir_bible
+        )
+
         self.accueil_button = QPushButton(
             "Accueil"
         )
@@ -523,6 +536,7 @@ class ReunionWindow(QWidget):
         for bouton in (
             self.sauvegarder_button,
             self.gestion_button,
+            self.bible_button,
             self.accueil_button,
             self.parametres_button,
             self.aide_button,
@@ -530,6 +544,33 @@ class ReunionWindow(QWidget):
             layout.addWidget(bouton)
 
         return ruban
+
+    def ouvrir_bible(self):
+        """
+        P18.10 : ouvre le lecteur de Bible intégré
+        (pile unique — « Retour » ramène ici).
+        """
+
+        navigation = getattr(
+            self,
+            "navigation",
+            None
+        )
+
+        if (
+            navigation is not None
+            and hasattr(navigation, "ouvrir_bible")
+        ):
+            navigation.ouvrir_bible()
+            return
+
+        from ui.bible_window import BibleWindow
+
+        self.fenetre_bible = BibleWindow(
+            settings=self.settings
+        )
+
+        self.fenetre_bible.show()
 
     def _titre_reunion(self) -> str:
 

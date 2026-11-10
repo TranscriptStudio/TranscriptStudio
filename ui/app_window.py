@@ -340,6 +340,95 @@ class AppWindow(QMainWindow):
 
         return self.ouvrir_page(cle, fabrique)
 
+    def ouvrir_bible(self):
+        """
+        P18.10 : page Bible (lecteur intégré) — pile
+        unique ; la page APPELANTE est mémorisée pour
+        le « Retour » (invariant 8 : retour = page
+        appelante).
+        """
+
+        cle = ("bible",)
+
+        appelante = self.pile.currentWidget()
+
+        if appelante is not None and (
+            self._cle_de_page(appelante) != cle
+        ):
+            self._cle_appelante_bible = (
+                self._cle_de_page(appelante)
+            )
+
+        def fabrique():
+
+            from ui.bible_window import BibleWindow
+
+            return BibleWindow(
+                settings=self.settings
+            )
+
+        return self.ouvrir_page(cle, fabrique)
+
+    def _cle_de_page(self, page):
+        """
+        Clé d'une page ouverte (None si inconnue).
+        """
+
+        for cle, p in self.pages.items():
+
+            if p is page:
+                return cle
+
+        return None
+
+    def retour_bible(self):
+        """
+        P18.10 (invariant 8) : « Retour » depuis la
+        page Bible ramène TOUJOURS à la page
+        appelante (pile unique inchangée).
+        """
+
+        cle = getattr(
+            self,
+            "_cle_appelante_bible",
+            None
+        )
+
+        page = (
+            self.pages.get(cle)
+            if cle is not None
+            else None
+        )
+
+        if page is None:
+            return self.ouvrir_accueil()
+
+        courante = self.pile.currentWidget()
+
+        if courante is not page:
+
+            sortie = getattr(
+                courante,
+                "sur_navigation_sortante",
+                None
+            )
+
+            if sortie is not None:
+                sortie()
+
+        self.pile.setCurrentWidget(page)
+
+        entree = getattr(
+            page,
+            "sur_navigation_entrante",
+            None
+        )
+
+        if entree is not None:
+            entree()
+
+        return page
+
     def ouvrir_reformulation(self, etude_ouverte, nom):
         """
         Page Réunion « Reformulation littéraire » —

@@ -213,6 +213,21 @@ for _osis, _nom, _variantes in _TABLE_LIVRES:
         if _cle not in _INDEX_LIVRES:
             _INDEX_LIVRES[_cle] = (_osis, _nom)
 
+_NOMS_LIVRES = {
+    _osis: _nom
+    for _osis, _nom, _variantes in _TABLE_LIVRES
+}
+
+
+def nom_livre(osis_id: str) -> str:
+    """
+    Nom français canonique d'un livre (à partir de
+    son identifiant OSIS) — repli sur l'identifiant
+    lui-même si le livre est inconnu de la table.
+    """
+
+    return _NOMS_LIVRES.get(osis_id, osis_id or "?")
+
 
 @dataclass
 class ReferenceBiblique:
@@ -669,6 +684,66 @@ class BibleJND:
             chapitre[numero]
             for numero in numeros
         ).strip()
+
+    def structure(self) -> list:
+        """
+        Structure de la Bible chargée, dérivée des
+        données OSIS (dans l'ordre du document —
+        JAMAIS de liste en dur, P18.10a) :
+
+        ``[{"osis_id", "nom", "chapitres": [{"numero",
+        "nb_versets"}]}]``
+        """
+
+        livres = []
+
+        for osis_id, chapitres in self.versets.items():
+
+            livres.append({
+                "osis_id": osis_id,
+                "nom": nom_livre(osis_id),
+                "chapitres": [
+                    {
+                        "numero": numero_chapitre,
+                        "nb_versets": len(versets),
+                    }
+                    for numero_chapitre, versets in (
+                        sorted(chapitres.items())
+                    )
+                ],
+            })
+
+        return livres
+
+    def existe_reference(
+        self,
+        reference: "ReferenceBiblique"
+    ) -> bool:
+        """
+        La référence existe-t-elle dans cette version
+        (au moins un verset) ? — écarts de versification
+        signalés comme information (BIBLE_JND_V2 §4).
+        """
+
+        chapitre = (
+            self.versets
+            .get(reference.osis_id, {})
+            .get(reference.chapitre, {})
+        )
+
+        if not chapitre:
+            return False
+
+        if reference.verset_debut is None:
+            return True
+
+        return any(
+            reference.verset_debut <= numero <= (
+                reference.verset_fin
+                or reference.verset_debut
+            )
+            for numero in chapitre
+        )
 
     def rechercher(
         self,
