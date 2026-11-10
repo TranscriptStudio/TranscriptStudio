@@ -414,6 +414,214 @@ def reunions_non_placees(
     ]
 
 
+#
+# P20.1 — mobilité inter-blocs des paragraphes :
+# déplacement (à travers blocs et sections),
+# suppression, et contrôle des renvois orphelins
+# après déplacement (détection locale).
+#
+
+
+def deplacer_element(
+    document: DocumentOuvrage,
+    id_element: str,
+    nouvelle_position: int
+) -> int:
+    """
+    **Déplacement inter-blocs** (P20.1) : déplace un
+    élément (paragraphe le plus souvent) à la
+    position demandée dans la liste PLATTE du
+    document — à travers blocs et sections, la
+    provenance du paragraphe est conservée (l'élément
+    entier est déplacé).
+
+    Retour : la nouvelle position effective.
+    """
+
+    element = document.element(id_element)
+
+    if element is None:
+        raise FusionPenseesError(
+            "Élément introuvable (il a peut-être "
+            "été supprimé)."
+        )
+
+    ancienne_position = document.elements.index(
+        element
+    )
+
+    document.elements.pop(ancienne_position)
+
+    nouvelle_position = max(
+        0,
+        min(
+            int(nouvelle_position),
+            len(document.elements)
+        )
+    )
+
+    document.elements.insert(
+        nouvelle_position,
+        element
+    )
+
+    return nouvelle_position
+
+
+def supprimer_element(
+    document: DocumentOuvrage,
+    id_element: str
+) -> ElementOuvrage:
+    """
+    **Suppression** (P20.1) : retire un élément du
+    document (la suppression porte sur le document
+    dérivé — jamais sur les textes validés des
+    réunions, §8bis). Retour : l'élément retiré.
+    """
+
+    element = document.element(id_element)
+
+    if element is None:
+        raise FusionPenseesError(
+            "Élément introuvable (il a peut-être "
+            "été supprimé)."
+        )
+
+    document.elements.remove(element)
+
+    return element
+
+
+#
+# Renvois orphelins (P20.1) : expressions de renvoi
+# (« comme on l'a dit », « précédemment »…) détectées
+# LOCALEMENT (sans LLM) dans un paragraphe déplacé.
+#
+
+import re as _re
+
+_MOTIFS_RENVOI = [
+    r"comme (?:on|nous) l['’]a (?:dit|vu)",
+    r"comme (?:nous )?l['’]avons (?:dit|vu)",
+    r"comme (?:cela|ceci) (?:a|à) été (?:dit|vu)",
+    r"(?:dit|vu) (?:plus|précédemment|plus haut)",
+    r"précédemment",
+    r"plus haut",
+    r"déjà (?:dit|vu|mentionné|souligné)",
+    r"on l['’]a (?:dit|vu)",
+    r"nous (?:l['’])?avons (?:déjà )?(?:dit|vu)",
+    r"rappelons(?:[- ]le)?",
+    r"comme on l['’]a (?:déjà )?(?:dit|vu)",
+]
+
+_MOTIF_RENVOI_COMPILE = _re.compile(
+    "|".join(f"(?:{_m})" for _m in _MOTIFS_RENVOI),
+    _re.IGNORECASE,
+)
+
+
+def _normaliser_renvoi(texte: str) -> str:
+    """
+    Normalisation pour la détection des renvois :
+    minuscules, apostrophes ramenées, ponctuation
+    retirée, espaces resserrés.
+    """
+
+    if not texte:
+        return ""
+
+    nettoye = (
+        texte.lower()
+        .replace("’", "'")
+    )
+
+    nettoye = _re.sub(
+        r"[^\w\s']",
+        " ",
+        nettoye,
+        flags=_re.UNICODE,
+    )
+
+    return _re.sub(r"\s+", " ", nettoye).strip()
+
+
+def detecter_renvois(texte: str) -> list:
+    """
+    Expressions de renvoi trouvées dans un texte
+    (détection locale, sans LLM) — liste des
+    occurrences normalisées.
+    """
+
+    normalise = _normaliser_renvoi(texte)
+
+    if not normalise:
+        return []
+
+    return _MOTIF_RENVOI_COMPILE.findall(normalise)
+
+
+def controler_renvois_apres_deplacement(
+    document: DocumentOuvrage,
+    id_element: str,
+    ancienne_position: int,
+    precedent_avant_id: str = None
+) -> list:
+    """
+    **Contrôle des renvois orphelins** (P20.1) après
+    déplacement d'un paragraphe : si le paragraphe
+    contient des renvois (« comme on l'a dit »…) et
+    que l'élément qui le PRÉCÉDAIT avant le
+    déplacement (``precedent_avant_id``, capturé
+    AVANT le déplacement par l'appelant) ne le
+    précède PLUS, le renvoi peut être orphelin —
+    signalement local (liste de ``{"id", "renvois",
+    "precedent_avant", "precedent_apres"}``),
+    jamais de modification.
+    """
+
+    element = document.element(id_element)
+
+    if element is None:
+        return []
+
+    if element.type != TYPE_PARAGRAPHE:
+        return []
+
+    renvois = detecter_renvois(element.texte)
+
+    if not renvois:
+        return []
+
+    nouvelle_position = document.elements.index(
+        element
+    )
+
+    if nouvelle_position == ancienne_position:
+        return []
+
+    precedent_apres = (
+        document.elements[nouvelle_position - 1]
+        if nouvelle_position > 0
+        else None
+    )
+
+    precedent_apres_id = (
+        precedent_apres.id
+        if precedent_apres is not None
+        else None
+    )
+
+    if precedent_avant_id == precedent_apres_id:
+        return []
+
+    return [{
+        "id": element.id,
+        "renvois": renvois,
+        "precedent_avant": precedent_avant_id,
+        "precedent_apres": precedent_apres_id,
+    }]
+
+
 def fusionner_pensees(
     document: DocumentOuvrage,
     id_1: str,

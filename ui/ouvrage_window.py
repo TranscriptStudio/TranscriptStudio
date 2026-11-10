@@ -36,6 +36,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -68,12 +69,15 @@ from services.etude_io import EtudeOuverte
 from services.help import open_user_manual
 from services.ouvrage_document import (
     charger_ouvrage,
+    controler_renvois_apres_deplacement,
+    deplacer_element,
     defusionner_pensees,
     fusionner_pensees,
     generer_document,
     reformulees_depuis_generation,
     reunions_non_placees,
     sauvegarder_ouvrage,
+    supprimer_element,
 )
 from services.settings import SettingsManager
 from ui.fusion_pensees_dialog import (
@@ -108,6 +112,18 @@ class OuvrageWindow(QWidget):
         self.modifie = False
 
         self.editeurs = {}
+
+        #
+        # P20.1 : signalements de renvois orphelins
+        # après déplacement (détection locale).
+        #
+        self._signalements_renvois = []
+
+        #
+        # P20.5b : rapport de la dernière
+        # re-vérification des versets.
+        #
+        self._versets_rapport = []
 
         try:
             self.document = charger_ouvrage(
@@ -316,6 +332,70 @@ class OuvrageWindow(QWidget):
         )
         self.defusion_button.clicked.connect(
             self.sur_defusion
+        )
+
+        #
+        # P20.1 : mobilité inter-blocs des
+        # paragraphes — monter / descendre /
+        # supprimer l'élément sélectionné (à travers
+        # blocs et sections ; la provenance est
+        # conservée). Contrôle des renvois orphelins
+        # après déplacement (détection locale).
+        #
+        self.monter_button = QPushButton(
+            "↑ Monter"
+        )
+        self.monter_button.setToolTip(
+            "Déplacer l'élément sélectionné d'une "
+            "position vers le haut (à travers blocs "
+            "et sections ; la provenance des "
+            "paragraphes est conservée)"
+        )
+        self.monter_button.clicked.connect(
+            self.monter_selection
+        )
+
+        self.descendre_button = QPushButton(
+            "↓ Descendre"
+        )
+        self.descendre_button.setToolTip(
+            "Déplacer l'élément sélectionné d'une "
+            "position vers le bas"
+        )
+        self.descendre_button.clicked.connect(
+            self.descendre_selection
+        )
+
+        self.supprimer_button = QPushButton(
+            "✕ Supprimer"
+        )
+        self.supprimer_button.setToolTip(
+            "Supprimer l'élément sélectionné du "
+            "document (jamais les textes validés "
+            "des réunions)"
+        )
+        self.supprimer_button.clicked.connect(
+            self.supprimer_selection
+        )
+
+        #
+        # P20.2 : sous-titres proposés par IA pour la
+        # section sélectionnée (une passe LLM ;
+        # suggestions à valider/éditer, JAMAIS
+        # insérées automatiquement).
+        #
+        self.sous_titres_ia_button = QPushButton(
+            "💡 Sous-titres IA…"
+        )
+        self.sous_titres_ia_button.setToolTip(
+            "Proposer 2 à 5 sous-titres sobres pour "
+            "structurer la section sélectionnée "
+            "(une passe LLM) — suggestions à "
+            "valider/éditer, jamais insérées "
+            "automatiquement"
+        )
+        self.sous_titres_ia_button.clicked.connect(
+            self.proposer_sous_titres
         )
 
         self.sauvegarder_button = QPushButton(
@@ -534,9 +614,13 @@ class OuvrageWindow(QWidget):
         """
         Zone DROITE : rapport — état de la
         génération, signalements de divergence,
-        réunions non placées ; l'analyse de
-        cohérence et la re-vérification des
-        versets arrivent avec P20.
+        réunions non placées, renvois orphelins
+        (P20.1) — PLUS les aides à la relecture
+        (P20.3, emplacement UNIQUE page Ouvrage :
+        emphases, expressions récurrentes,
+        cohérence par section, pensées
+        redondantes P20.6g) avec occurrences
+        cliquables et filtres.
         """
 
         zone = QWidget()
@@ -560,18 +644,130 @@ class OuvrageWindow(QWidget):
             stretch=1
         )
 
-        self.rapport_note = QLabel(
-            "Analyse de cohérence et "
-            "re-vérification des versets : "
-            "série P20."
+        #
+        # P20.3 : aides à la relecture (page Ouvrage
+        # seule — amendement du 09/11).
+        #
+        entete_relecture = QLabel(
+            "Aides à la relecture (signalement "
+            "uniquement, jamais de réécriture)"
+        )
+        entete_relecture.setStyleSheet(
+            "font-weight: 600;"
         )
 
-        self.rapport_note.setWordWrap(True)
-        self.rapport_note.setStyleSheet(
-            "color: #8a8b92; font-size: 11px;"
+        colonne.addWidget(entete_relecture)
+
+        ligne_aides = QHBoxLayout()
+
+        self.emphases_button = QPushButton(
+            "Emphases…"
+        )
+        self.emphases_button.setToolTip(
+            "Récurrence d'emphase (intensifs) sur "
+            "l'ouvrage — détection locale, sans LLM"
+        )
+        self.emphases_button.clicked.connect(
+            self.afficher_emphases
         )
 
-        colonne.addWidget(self.rapport_note)
+        self.expressions_button = QPushButton(
+            "Récurrences…"
+        )
+        self.expressions_button.setToolTip(
+            "Expressions récurrentes de l'ouvrage "
+            "(n-grammes, familles) — local, sans "
+            "LLM ; passe LLM optionnelle sur les "
+            "familles"
+        )
+        self.expressions_button.clicked.connect(
+            self.afficher_expressions
+        )
+
+        self.coherence_button = QPushButton(
+            "Cohérence section… (IA)"
+        )
+        self.coherence_button.setToolTip(
+            "Incohérences et redondances de la "
+            "section sélectionnée — une passe LLM "
+            "à la demande ; signalement uniquement"
+        )
+        self.coherence_button.clicked.connect(
+            self.analyser_coherence
+        )
+
+        self.redondances_button = QPushButton(
+            "Pensées redondantes…"
+        )
+        self.redondances_button.setToolTip(
+            "P20.6g : présélection locale (sans "
+            "LLM) des pensées redondantes de la "
+            "synthèse, reliées aux paragraphes de "
+            "l'ouvrage ; confirmation LLM à la "
+            "demande"
+        )
+        self.redondances_button.clicked.connect(
+            self.detecter_pensees_redondantes
+        )
+
+        for bouton in (
+            self.emphases_button,
+            self.expressions_button,
+            self.coherence_button,
+            self.redondances_button,
+        ):
+            ligne_aides.addWidget(bouton)
+
+        colonne.addLayout(ligne_aides)
+
+        # Filtres (réunion, chapitre, intervenant).
+        ligne_filtres = QHBoxLayout()
+
+        self.filtre_reunion = QComboBox()
+        self.filtre_reunion.addItem(
+            "Toutes les réunions",
+            None
+        )
+
+        self.filtre_chapitre = QComboBox()
+        self.filtre_chapitre.addItem(
+            "Tous les chapitres",
+            None
+        )
+
+        self.filtre_locuteur = QComboBox()
+        self.filtre_locuteur.addItem(
+            "Tous les intervenants",
+            None
+        )
+
+        for combo in (
+            self.filtre_reunion,
+            self.filtre_chapitre,
+            self.filtre_locuteur,
+        ):
+            combo.currentIndexChanged.connect(
+                self._reappliquer_filtres
+            )
+            ligne_filtres.addWidget(combo)
+
+        colonne.addLayout(ligne_filtres)
+
+        # Résultats : occurrences cliquables (liens
+        # vers les paragraphes du manuscrit).
+        self.resultats_arbre = QTreeWidget()
+        self.resultats_arbre.setHeaderHidden(True)
+        self.resultats_arbre.itemClicked.connect(
+            self._sur_clic_resultat
+        )
+
+        colonne.addWidget(
+            self.resultats_arbre,
+            stretch=1
+        )
+
+        # Dernier jeu de résultats (pour les filtres).
+        self._dernier_resultat = None
 
         return zone
 
@@ -1130,9 +1326,45 @@ class OuvrageWindow(QWidget):
             for nom in non_placees:
                 lignes.append("· " + nom)
 
+        #
+        # P20.1 : renvois orphelins après déplacement
+        # (signalement local, jamais de modification).
+        #
+        if self._signalements_renvois:
+
+            lignes.append("")
+            lignes.append(
+                "Renvois possiblement orphelins après "
+                "déplacement (signalement local) :"
+            )
+
+            for s in self._signalements_renvois:
+
+                lignes.append(
+                    f"· paragraphe {s['id']} : "
+                    + ", ".join(
+                        f"« {r} »" for r in s["renvois"]
+                    )
+                )
+
+        #
+        # P20.5b : rapport de la dernière
+        # re-vérification des versets.
+        #
+        if self._versets_rapport:
+
+            lignes.append("")
+            lignes.extend(self._versets_rapport)
+
         self.rapport_zone.setPlainText(
             "\n".join(lignes)
         )
+
+        #
+        # P20.3 : filtres des aides à la relecture
+        # (réunion, chapitre, intervenant).
+        #
+        self._remplir_filtres()
 
     # ==================================================
     # Actions.
@@ -1183,6 +1415,31 @@ class OuvrageWindow(QWidget):
             len(paragraphes) == 1
             and paragraphes[0].source
             == SOURCE_FUSION
+        )
+
+        #
+        # P20.1 : mobilité — un élément sélectionné.
+        #
+        ids = self._ids_selection()
+
+        self.monter_button.setEnabled(
+            avec_document and len(ids) == 1
+        )
+
+        self.descendre_button.setEnabled(
+            avec_document and len(ids) == 1
+        )
+
+        self.supprimer_button.setEnabled(
+            avec_document and len(ids) == 1
+        )
+
+        #
+        # P20.2 : proposition de sous-titres pour la
+        # section de l'élément sélectionné.
+        #
+        self.sous_titres_ia_button.setEnabled(
+            avec_document and len(ids) == 1
         )
 
     def generer_ouvrage(self):
@@ -1494,6 +1751,1124 @@ class OuvrageWindow(QWidget):
         self.modifie = True
 
         self._reconstruire_zones()
+
+    # ==================================================
+    # P20.1 — mobilité inter-blocs des paragraphes.
+    # ==================================================
+
+    def _element_selectionne(self):
+        """
+        L'élément du document sélectionné dans
+        l'arborescence (None si aucun / multiple).
+        """
+
+        if self.document is None:
+            return None
+
+        ids = self._ids_selection()
+
+        if len(ids) != 1:
+            return None
+
+        return self.document.element(ids[0])
+
+    def _deplacer_selection(self, offset: int):
+        """
+        Déplace l'élément sélectionné d'``offset``
+        positions dans le document (à travers blocs
+        et sections ; provenance conservée), puis
+        contrôle les renvois orphelins (détection
+        locale — signalement uniquement).
+        """
+
+        element = self._element_selectionne()
+
+        if element is None:
+            return
+
+        ancienne_position = (
+            self.document.elements.index(element)
+        )
+
+        precedent_avant_id = (
+            self.document.elements[
+                ancienne_position - 1
+            ].id
+            if ancienne_position > 0
+            else None
+        )
+
+        nouvelle_position = max(
+            0,
+            min(
+                ancienne_position + offset,
+                len(self.document.elements) - 1
+            )
+        )
+
+        if nouvelle_position == ancienne_position:
+            return
+
+        try:
+
+            deplacer_element(
+                self.document,
+                element.id,
+                nouvelle_position
+            )
+
+        except Exception as e:
+
+            QMessageBox.warning(
+                self,
+                "Déplacement impossible",
+                str(e)
+            )
+            return
+
+        self.modifie = True
+
+        #
+        # Contrôle des renvois orphelins après
+        # déplacement (P20.1, détection locale) :
+        # signalements affichés dans le rapport,
+        # jamais de modification automatique.
+        #
+        self._signalements_renvois = (
+            controler_renvois_apres_deplacement(
+                self.document,
+                element.id,
+                ancienne_position,
+                precedent_avant_id=precedent_avant_id
+            )
+        )
+
+        self._reconstruire_zones()
+
+    def monter_selection(self):
+        self._deplacer_selection(-1)
+
+    def descendre_selection(self):
+        self._deplacer_selection(1)
+
+    def supprimer_selection(self):
+        """
+        Suppression d'un élément du document (P20.1)
+        — le document dérivé seul est touché, jamais
+        les textes validés des réunions (§8bis).
+        """
+
+        element = self._element_selectionne()
+
+        if element is None:
+            return
+
+        reponse = QMessageBox.question(
+            self,
+            "Supprimer l'élément ?",
+            (
+                "Supprimer cet élément du document "
+                "ouvrage ?\n\nLes textes validés des "
+                "réunions ne sont pas touchés."
+            ),
+            (
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No
+            ),
+            QMessageBox.StandardButton.No,
+        )
+
+        if reponse != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+
+            supprimer_element(
+                self.document,
+                element.id
+            )
+
+        except Exception as e:
+
+            QMessageBox.warning(
+                self,
+                "Suppression impossible",
+                str(e)
+            )
+            return
+
+        self.modifie = True
+
+        self._reconstruire_zones()
+
+    # ==================================================
+    # P20.2 — sous-titres proposés par IA.
+    # ==================================================
+
+    def _section_selection(self):
+        """
+        La section de l'élément sélectionné :
+        ``(titre_1 ou None, [paragraphes])`` — du
+        titre de chapitre précédant (ou début du
+        document) jusqu'au titre de chapitre suivant.
+        """
+
+        if self.document is None:
+            return None, []
+
+        ids = self._ids_selection()
+
+        if len(ids) != 1:
+            return None, []
+
+        element = self.document.element(ids[0])
+
+        if element is None:
+            return None, []
+
+        index = self.document.elements.index(element)
+
+        # Titre de chapitre de la section.
+        titre = None
+
+        for i in range(index, -1, -1):
+
+            if (
+                self.document.elements[i].type
+                == TYPE_TITRE_1
+            ):
+                titre = self.document.elements[i]
+                break
+
+        debut = (
+            self.document.elements.index(titre) + 1
+            if titre is not None
+            else 0
+        )
+
+        fin = len(self.document.elements)
+
+        for i in range(debut, len(self.document.elements)):
+
+            if (
+                self.document.elements[i].type
+                == TYPE_TITRE_1
+            ):
+                fin = i
+                break
+
+        paragraphes = [
+            e for e in self.document.elements[
+                debut:fin
+            ]
+            if e.type == TYPE_PARAGRAPHE
+        ]
+
+        return titre, paragraphes
+
+    def proposer_sous_titres(self):
+        """
+        P20.2 : UNE passe LLM sur la section
+        sélectionnée ; les suggestions sont soumises
+        à validation/édition (dialogue) — JAMAIS
+        insérées automatiquement.
+        """
+
+        titre, paragraphes = self._section_selection()
+
+        if not paragraphes:
+
+            QMessageBox.information(
+                self,
+                "Section vide",
+                "La section sélectionnée ne comporte "
+                "aucun paragraphe à structurer."
+            )
+            return
+
+        from services.traitements.sous_titres import (
+            ServiceSousTitres,
+        )
+
+        service = ServiceSousTitres(self.etude)
+
+        textes = [p.texte for p in paragraphes]
+
+        if getattr(self, "_sous_titres_thread", None):
+            return
+
+        #
+        # Fenêtre de chargement (règle 2026-11-07) :
+        # un appel LLM — temps écoulé affiché.
+        #
+        from ui.fenetre_chargement_llm import (
+            FenetreChargementLLM,
+        )
+
+        self._fenetre_chargement = FenetreChargementLLM(
+            "Proposition de sous-titres…",
+            parent=self,
+            message=(
+                "Appel LLM en cours (sous-titres IA)…"
+            ),
+        )
+
+        self._fenetre_chargement.set_indeterminee()
+        self._fenetre_chargement.show()
+
+        self._sous_titres_thread = QThread(self)
+
+        self._sous_titres_worker = (
+            PropositionsSousTitresWorker(
+                service,
+                textes
+            )
+        )
+
+        self._sous_titres_worker.moveToThread(
+            self._sous_titres_thread
+        )
+
+        self._sous_titres_thread.started.connect(
+            self._sous_titres_worker.run
+        )
+
+        self._sous_titres_worker.terminee.connect(
+            self._sur_sous_titres_proposes
+        )
+
+        self._sous_titres_worker.erreur.connect(
+            self._sur_sous_titres_erreur
+        )
+
+        self._sous_titres_thread.start()
+
+    def _sur_sous_titres_proposes(self, resultat):
+
+        if getattr(
+            self,
+            "_fenetre_chargement",
+            None
+        ) is not None:
+            self._fenetre_chargement.fermer()
+            self._fenetre_chargement = None
+
+        self._sous_titres_thread.quit()
+        self._sous_titres_thread = None
+        self._sous_titres_worker = None
+
+        suggestions, stats = resultat
+
+        if not suggestions:
+
+            QMessageBox.information(
+                self,
+                "Aucune proposition",
+                "Le modèle n'a proposé aucun sous-titre."
+            )
+            return
+
+        titre, _paragraphes = self._section_selection()
+
+        from ui.sous_titres_dialog import (
+            SousTitresDialog,
+        )
+
+        dialogue = SousTitresDialog(
+            suggestions,
+            titre_section=(
+                titre.texte if titre is not None else ""
+            ),
+            parent=self,
+        )
+
+        if (
+            dialogue.exec()
+            != QDialog.DialogCode.Accepted
+        ):
+            return
+
+        retenues = dialogue.suggestions_retenues()
+
+        if not retenues:
+            return
+
+        self._inserer_sous_titres(retenues)
+
+        QMessageBox.information(
+            self,
+            "Sous-titres insérés",
+            (
+                f"{len(retenues)} sous-titre(s) "
+                "inséré(s) dans la section (coût réel : "
+                f"{stats.get('cout_estime', 0.0):.4f} $)."
+            )
+        )
+
+    def _sur_sous_titres_erreur(self, message):
+
+        if getattr(
+            self,
+            "_fenetre_chargement",
+            None
+        ) is not None:
+            self._fenetre_chargement.fermer()
+            self._fenetre_chargement = None
+
+        self._sous_titres_thread.quit()
+        self._sous_titres_thread = None
+        self._sous_titres_worker = None
+
+        QMessageBox.warning(
+            self,
+            "Sous-titres non proposés",
+            message
+        )
+
+    def _inserer_sous_titres(self, retenues: list):
+        """
+        Insère les sous-titres VALIDÉS (après le
+        dialogue) en tête de la section sélectionnée
+        — jamais automatiquement.
+        """
+
+        from models.ouvrage import (
+            ElementOuvrage,
+        )
+
+        titre, _paragraphes = self._section_selection()
+
+        if titre is not None:
+            position = (
+                self.document.elements.index(titre) + 1
+            )
+        else:
+            position = 0
+
+        for offset, texte in enumerate(retenues):
+
+            element = ElementOuvrage(
+                id=self.document.nouvel_id("st"),
+                type=TYPE_SOUS_TITRE,
+                texte=texte,
+            )
+
+            self.document.elements.insert(
+                position + offset,
+                element
+            )
+
+        self.modifie = True
+
+        self._reconstruire_zones()
+
+    # ==================================================
+    # P20.3 / P20.6g — aides à la relecture (page
+    # Ouvrage seule). Signalement uniquement.
+    # ==================================================
+
+    def _lancer_llm(self, fonction, on_ok, on_err):
+        """
+        Lance un appel LLM en arrière-plan (fenêtre
+        de chargement, règle 2026-11-07) avec
+        ``fonction`` (appelable sans argument).
+        """
+
+        if getattr(self, "_relecture_thread", None):
+            return
+
+        from ui.fenetre_chargement_llm import (
+            FenetreChargementLLM,
+        )
+
+        self._fenetre_chargement = FenetreChargementLLM(
+            "Appel LLM en cours…",
+            parent=self,
+            message="Appel LLM en cours (relecture)…",
+        )
+
+        self._fenetre_chargement.set_indeterminee()
+        self._fenetre_chargement.show()
+
+        self._relecture_thread = QThread(self)
+
+        self._relecture_worker = LlmWorker(fonction)
+
+        self._relecture_worker.moveToThread(
+            self._relecture_thread
+        )
+
+        self._relecture_thread.started.connect(
+            self._relecture_worker.run
+        )
+
+        self._relecture_worker.terminee.connect(on_ok)
+        self._relecture_worker.erreur.connect(on_err)
+
+        self._relecture_thread.start()
+
+    def _arreter_llm(self):
+
+        if getattr(
+            self,
+            "_fenetre_chargement",
+            None
+        ) is not None:
+            self._fenetre_chargement.fermer()
+            self._fenetre_chargement = None
+
+        if getattr(self, "_relecture_thread", None):
+            self._relecture_thread.quit()
+
+        self._relecture_thread = None
+        self._relecture_worker = None
+
+    def _remplir_filtres(self):
+
+        if self.document is None:
+            return
+
+        reunions = set()
+        locuteurs = set()
+
+        for p in self.document.paragraphes():
+
+            for prov in p.provenances:
+
+                if prov.reunion:
+                    reunions.add(prov.reunion)
+
+                if prov.locuteurs:
+                    locuteurs.add(prov.locuteurs)
+
+        chapitres = [
+            e.texte for e in self.document.elements
+            if e.type == TYPE_TITRE_1
+        ]
+
+        for combo, valeurs in (
+            (self.filtre_reunion, sorted(reunions)),
+            (self.filtre_chapitre, chapitres),
+            (self.filtre_locuteur, sorted(locuteurs)),
+        ):
+            courant = combo.currentData()
+
+            combo.blockSignals(True)
+            combo.clear()
+
+            combo.addItem(
+                (
+                    "Toutes les réunions"
+                    if combo is self.filtre_reunion
+                    else (
+                        "Tous les chapitres"
+                        if combo is self.filtre_chapitre
+                        else "Tous les intervenants"
+                    )
+                ),
+                None
+            )
+
+            for v in valeurs:
+                combo.addItem(str(v), v)
+
+            index = combo.findData(courant)
+
+            combo.setCurrentIndex(
+                index if index >= 0 else 0
+            )
+
+            combo.blockSignals(False)
+
+    def _valeurs_filtres(self):
+
+        return (
+            self.filtre_reunion.currentData(),
+            self.filtre_chapitre.currentData(),
+            self.filtre_locuteur.currentData(),
+        )
+
+    def _element_dans_filtres(self, element) -> bool:
+
+        reunion_f, chapitre_f, locuteur_f = (
+            self._valeurs_filtres()
+        )
+
+        if chapitre_f is not None:
+
+            # Chapitre courant de l'élément.
+            courant = None
+
+            for e in self.document.elements:
+
+                if e.type == TYPE_TITRE_1:
+                    courant = e.texte
+
+                if e.id == element.id:
+                    break
+
+            if courant != chapitre_f:
+                return False
+
+        if reunion_f is not None and (
+            reunion_f not in {
+                p.reunion for p in element.provenances
+            }
+        ):
+            return False
+
+        if locuteur_f is not None and (
+            locuteur_f not in {
+                p.locuteurs for p in element.provenances
+            }
+        ):
+            return False
+
+        return True
+
+    def _ajouter_noeud_paragraphe(self, parent, element):
+
+        item = QTreeWidgetItem(
+            [
+                (element.texte or "")[:60].strip()
+                or "Paragraphe"
+            ]
+        )
+
+        item.setData(
+            0,
+            Qt.ItemDataRole.UserRole,
+            element.id
+        )
+
+        parent.addChild(item)
+
+        return item
+
+    def _sur_clic_resultat(self, item):
+        """
+        Occurrence cliquable : amène le manuscrit au
+        paragraphe correspondant (lien vers le
+        paragraphe, P20.3/P20.6g).
+        """
+
+        identifiant = item.data(
+            0,
+            Qt.ItemDataRole.UserRole
+        )
+
+        if not identifiant:
+            return
+
+        editeur = self.editeurs.get(identifiant)
+
+        if editeur is not None:
+
+            self.manuscrit_defile.ensureWidgetVisible(
+                editeur
+            )
+
+            editeur.setFocus()
+
+    def _reappliquer_filtres(self, *args):
+
+        if self._dernier_resultat is None:
+            return
+
+        type_resultat, donnees = self._dernier_resultat
+
+        self._afficher_resultat(type_resultat, donnees)
+
+    def _afficher_resultat(self, type_resultat, donnees):
+
+        self._dernier_resultat = (type_resultat, donnees)
+
+        self.resultats_arbre.clear()
+
+        if self.document is None:
+            return
+
+        if type_resultat == "emphase":
+
+            signales = set(donnees.get("signales") or [])
+
+            for mot, total in donnees["totaux"].items():
+
+                paragraphes_signales = [
+                    pid for pid in total["paragraphes"]
+                    if pid in signales
+                ]
+
+                # Seuls les intensifs signalés (densité
+                # anormale dans un paragraphe, ou tic
+                # inter-réunions) sont listés.
+                if not paragraphes_signales and (
+                    len(total["reunions"]) < 3
+                ):
+                    continue
+
+                noeud = QTreeWidgetItem(
+                    [
+                        f"« {mot} » — "
+                        f"{total['occurrences']} fois, "
+                        f"{len(total['reunions'])} "
+                        "réunion(s)"
+                    ]
+                )
+
+                for pid in total["paragraphes"]:
+
+                    element = self.document.element(pid)
+
+                    if element is not None and (
+                        self._element_dans_filtres(element)
+                    ):
+                        self._ajouter_noeud_paragraphe(
+                            noeud,
+                            element
+                        )
+
+                if noeud.childCount():
+                    self.resultats_arbre.addTopLevelItem(
+                        noeud
+                    )
+
+        elif type_resultat == "expressions":
+
+            for famille in donnees:
+
+                noeud = QTreeWidgetItem(
+                    [
+                        " / ".join(
+                            famille["expressions"]
+                        )
+                        + f" — {famille['occurrences']} fois"
+                    ]
+                )
+
+                for pid in famille["paragraphes"]:
+
+                    element = self.document.element(pid)
+
+                    if element is not None and (
+                        self._element_dans_filtres(element)
+                    ):
+                        self._ajouter_noeud_paragraphe(
+                            noeud,
+                            element
+                        )
+
+                if noeud.childCount():
+                    self.resultats_arbre.addTopLevelItem(
+                        noeud
+                    )
+
+        elif type_resultat == "redondances":
+
+            for i, groupe in enumerate(donnees, 1):
+
+                noeud = QTreeWidgetItem(
+                    [
+                        f"Groupe {i} : "
+                        + " — ".join(
+                            p[:40]
+                            for p in groupe["phrases"]
+                        )
+                        + (
+                            ""
+                            if groupe["paragraphes"]
+                            else " (aucun paragraphe lié)"
+                        )
+                    ]
+                )
+
+                for pid in groupe["paragraphes"]:
+
+                    element = self.document.element(pid)
+
+                    if element is not None and (
+                        self._element_dans_filtres(element)
+                    ):
+                        self._ajouter_noeud_paragraphe(
+                            noeud,
+                            element
+                        )
+
+                # Les groupes sont toujours affichés
+                # (avec leurs liens vers les
+                # paragraphes quand ils existent).
+                self.resultats_arbre.addTopLevelItem(
+                    noeud
+                )
+
+        self.resultats_arbre.expandAll()
+
+    def afficher_emphases(self):
+        """
+        P20.3 : récurrence d'emphase — comptage des
+        intensifs (lexique paramétrable) par
+        paragraphe/réunion/intervenant, sur
+        l'ouvrage. LOCAL, sans LLM.
+        """
+
+        if self.document is None:
+            return
+
+        from services.relecture import (
+            emphase_ouvrage,
+        )
+
+        lexique = None
+
+        bloc = (
+            self.etude.parametres.controle_qualite
+            or {}
+        ).get("emphase") or {}
+
+        if bloc.get("intensifs"):
+            lexique = bloc["intensifs"]
+
+        resultat = emphase_ouvrage(
+            self.document,
+            lexique=lexique
+        )
+
+        self._afficher_resultat("emphase", resultat)
+
+        if not resultat["signales"]:
+
+            QMessageBox.information(
+                self,
+                "Récurrence d'emphase",
+                (
+                    "Aucune densité anormale d'intensifs "
+                    "signalée sur l'ouvrage."
+                )
+            )
+
+    def afficher_expressions(self):
+        """
+        P20.3 : expressions récurrentes de l'ouvrage
+        (n-grammes 2-6, deux signaux), regroupées en
+        familles par mots communs. LOCAL, sans LLM ;
+        la passe LLM optionnelle porte sur les
+        seules familles candidates (à la demande).
+        """
+
+        if self.document is None:
+            return
+
+        from services.relecture import (
+            expressions_recurrentes_ouvrage,
+            familles_expressions,
+        )
+
+        candidates = expressions_recurrentes_ouvrage(
+            self.document
+        )
+
+        familles = familles_expressions(candidates)
+
+        self._afficher_resultat(
+            "expressions",
+            familles
+        )
+
+        if not familles:
+
+            QMessageBox.information(
+                self,
+                "Expressions récurrentes",
+                (
+                    "Aucune expression récurrente "
+                    "signalée (présence dans au moins "
+                    "deux réunions)."
+                )
+            )
+
+    def analyser_coherence(self):
+        """
+        P20.3 : incohérences/redondances de la
+        section sélectionnée — passe LLM PAR
+        SECTION, à la demande. Signalement
+        uniquement.
+        """
+
+        titre, paragraphes = self._section_selection()
+
+        if not paragraphes:
+
+            QMessageBox.information(
+                self,
+                "Section vide",
+                "Sélectionnez un élément d'une section "
+                "comportant des paragraphes."
+            )
+            return
+
+        from services.traitements.relecture import (
+            ServiceRelecture,
+        )
+
+        service = ServiceRelecture(self.etude)
+
+        textes = [p.texte for p in paragraphes]
+
+        def appel():
+            return service.analyser_section(textes)
+
+        def on_ok(resultat):
+
+            self._arreter_llm()
+
+            rapport, stats = resultat
+
+            QMessageBox.information(
+                self,
+                "Analyse de cohérence (signalement)",
+                (
+                    "Section « "
+                    + (titre.texte if titre else "Réserves")
+                    + " » :\n\n"
+                    + rapport
+                    + f"\n\n(coût réel : "
+                    f"{stats.get('cout_estime', 0.0):.4f} $)"
+                )
+            )
+
+        def on_err(message):
+
+            self._arreter_llm()
+
+            QMessageBox.warning(
+                self,
+                "Analyse non réalisée",
+                message
+            )
+
+        self._lancer_llm(appel, on_ok, on_err)
+
+    def detecter_pensees_redondantes(self):
+        """
+        P20.6g : détection des pensées redondantes —
+        présélection LOCALE sans LLM (comparaison
+        normalisée des phrases courtes de la
+        synthèse), groupes reliés aux paragraphes
+        de l'ouvrage (liens cliquables, provenance
+        P19.1) ; confirmation par passe LLM À LA
+        DEMANDE sur la seule liste candidate.
+        Signalement uniquement, jamais de
+        réécriture.
+        """
+
+        if self.document is None:
+            return
+
+        versions = self.etude.synthese.versions
+
+        if not versions:
+
+            QMessageBox.information(
+                self,
+                "Pensées redondantes",
+                (
+                    "Aucune synthèse d'étude : "
+                    "alimentez-la d'abord (page Étude)."
+                )
+            )
+            return
+
+        from services.relecture import (
+            lier_pensees_aux_paragraphes,
+            preselectionner_pensees_redondantes,
+        )
+
+        synthese = versions[-1].texte
+
+        groupes = preselectionner_pensees_redondantes(
+            synthese
+        )
+
+        if not groupes:
+
+            QMessageBox.information(
+                self,
+                "Pensées redondantes",
+                (
+                    "Présélection locale : aucune "
+                    "pensée redondante dans la "
+                    "synthèse (aucun coût LLM)."
+                )
+            )
+            return
+
+        groupes_lies = lier_pensees_aux_paragraphes(
+            self.document,
+            groupes
+        )
+
+        self._dernier_groupes = groupes
+
+        self._afficher_resultat(
+            "redondances",
+            groupes_lies
+        )
+
+        reponse = QMessageBox.question(
+            self,
+            "Confirmation LLM ?",
+            (
+                f"{len(groupes)} groupe(s) candidat(s) "
+                "présélectionnés localement (sans "
+                "LLM).\n\nConfirmer par une passe LLM "
+                "sur cette seule liste candidate "
+                "(coût minuscule) ?"
+            ),
+            (
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No
+            ),
+            QMessageBox.StandardButton.No,
+        )
+
+        if reponse != QMessageBox.StandardButton.Yes:
+            return
+
+        from services.traitements.relecture import (
+            ServiceRelecture,
+        )
+
+        service = ServiceRelecture(self.etude)
+
+        def appel():
+            return service.confirmer_redondances(
+                groupes
+            )
+
+        def on_ok(resultat):
+
+            self._arreter_llm()
+
+            rapport, stats = resultat
+
+            QMessageBox.information(
+                self,
+                "Confirmation des redondances",
+                (
+                    rapport
+                    + f"\n\n(coût réel : "
+                    f"{stats.get('cout_estime', 0.0):.4f} $)"
+                )
+            )
+
+        def on_err(message):
+
+            self._arreter_llm()
+
+            QMessageBox.warning(
+                self,
+                "Confirmation non réalisée",
+                message
+            )
+
+        self._lancer_llm(appel, on_ok, on_err)
+
+    def reverifier_versets(self):
+        """
+        P20.5b : re-vérifie les références
+        bibliques de l'ouvrage contre la RÉFÉRENCE
+        D'UNIFORMITÉ (version ouvrage choisie dans
+        ouvrage.json ; sinon version de l'étude).
+        Écarts de versification = information
+        (jamais de décision automatique). Contrôle
+        local, sans LLM.
+        """
+
+        if self.document is None:
+            return
+
+        from services.bibles import (
+            autres_versions_installees,
+            charger_bible_version,
+            nom_court_bible,
+            version_bible_etude,
+        )
+        from services.jnd import extraire_references
+
+        version = (
+            getattr(
+                self.document,
+                "reference_bible",
+                ""
+            )
+            or version_bible_etude(
+                self.etude.parametres
+            )
+        )
+
+        bible = charger_bible_version(version)
+
+        autres = autres_versions_installees(version)
+
+        lignes = [
+            f"Re-vérification des versets contre "
+            f"« {nom_court_bible(version)} » :"
+        ]
+
+        total = 0
+        ecarts = 0
+
+        for p in self.document.paragraphes():
+
+            for ref in extraire_references(p.texte):
+
+                total += 1
+
+                existe = (
+                    bible is not None
+                    and bible.existe_reference(ref)
+                )
+
+                if not existe:
+
+                    ecarts += 1
+
+                    ailleurs = [
+                        nom_court_bible(v)
+                        for v, b in autres.items()
+                        if b is not None
+                        and b.existe_reference(ref)
+                    ]
+
+                    lignes.append(
+                        f"· {ref} (paragraphe {p.id}) — "
+                        "introuvable dans cette version"
+                        + (
+                            " ; existe dans : "
+                            + ", ".join(ailleurs)
+                            if ailleurs
+                            else ""
+                        )
+                        + " (information)."
+                    )
+
+        lignes.append("")
+
+        lignes.append(
+            f"{total} référence(s) vérifiée(s), "
+            f"{ecarts} écart(s) signalé(s) "
+            "(information)."
+        )
+
+        self._versets_rapport = lignes
+
+        self._reconstruire_rapport()
+
+        QMessageBox.information(
+            self,
+            "Re-vérification des versets",
+            "\n".join(lignes)
+        )
 
     def _sur_texte_element(self, element, texte):
         """

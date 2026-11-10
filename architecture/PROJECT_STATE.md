@@ -2610,7 +2610,9 @@ post-commit) et en fin de session.
 - P18.9 — correctifs page Étude (invariants 1-7) : commit 4f049c1,
   60 tests ciblés verts avant commit.
 - P18.10 — lecteur de Bible intégré (BIBLE_JND_V2 §7, invariants 6-9) :
-  en cours de commit ; test_p18_10_bible.py vert avant commit.
+  commit e152341, 15 tests verts avant commit.
+- P20.1 — mobilité inter-blocs + renvois orphelins : en cours de commit ;
+  test_p20_1_mobilite.py vert avant commit.
 - (à compléter au fil des commits)
 
 ### Écarts signalés pour arbitrage
