@@ -476,6 +476,45 @@ class OuvrageWindow(QWidget):
             self.exporter_ouvrage
         )
 
+        #
+        # P20.4 : export DOCX STRUCTURÉ du document
+        # édité (styles Titre 1 / sous-titres,
+        # métadonnées de réunion en note ou annexe
+        # selon réglage).
+        #
+        self.export_docx_button = QPushButton(
+            "📄 Export DOCX structuré…"
+        )
+        self.export_docx_button.setToolTip(
+            "Exporter le document ouvrage édité en "
+            "DOCX structuré (Titre 1 / sous-titres ; "
+            "métadonnées de réunion en note ou "
+            "annexe selon le réglage)"
+        )
+        self.export_docx_button.clicked.connect(
+            self.exporter_document_docx
+        )
+
+        #
+        # P20.5b : re-vérification des versets
+        # bibliques de l'ouvrage contre la référence
+        # d'uniformité (version ouvrage choisie),
+        # écarts signalés comme informations.
+        #
+        self.reverifier_versets_button = QPushButton(
+            "🔎 Re-vérifier les versets"
+        )
+        self.reverifier_versets_button.setToolTip(
+            "Re-vérifier les références bibliques de "
+            "l'ouvrage contre la version retenue "
+            "(référence d'uniformité de l'ouvrage si "
+            "choisie, sinon version de l'étude) — "
+            "écarts de versification = information"
+        )
+        self.reverifier_versets_button.clicked.connect(
+            self.reverifier_versets
+        )
+
         for bouton in (
             self.generer_button,
             self.chapitre_button,
@@ -3027,6 +3066,178 @@ class OuvrageWindow(QWidget):
     # ==================================================
     # Export final (P18.3).
     # ==================================================
+
+    def exporter_document_docx(self):
+        """
+        P20.4 : export DOCX STRUCTURÉ du document
+        ouvrage édité (styles Titre 1 / sous-titres ;
+        métadonnées de réunion en note ou annexe
+        selon le réglage de l'app). Fidèle à la
+        structure éditée.
+        """
+
+        if self.document is None:
+
+            QMessageBox.information(
+                self,
+                "Aucun ouvrage",
+                "Générez d'abord le document ouvrage."
+            )
+            return
+
+        from PySide6.QtWidgets import QRadioButton
+
+        prefs = self.settings.get_export_ouvrage_prefs()
+
+        dialogue = QDialog(self)
+        dialogue.setWindowTitle(
+            "Export DOCX structuré"
+        )
+
+        options = QVBoxLayout(dialogue)
+
+        options.addWidget(
+            QLabel(
+                "Métadonnées de réunion (provenance "
+                "des paragraphes) :"
+            )
+        )
+
+        note_radio = QRadioButton(
+            "En note (sous chaque paragraphe)"
+        )
+
+        annexe_radio = QRadioButton(
+            "En annexe (section en fin de document)"
+        )
+
+        if prefs["metadonnees"] == "annexe":
+            annexe_radio.setChecked(True)
+        else:
+            note_radio.setChecked(True)
+
+        options.addWidget(note_radio)
+        options.addWidget(annexe_radio)
+
+        boutons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+
+        boutons.accepted.connect(dialogue.accept)
+        boutons.rejected.connect(dialogue.reject)
+
+        options.addWidget(boutons)
+
+        if dialogue.exec() != (
+            QDialog.DialogCode.Accepted
+        ):
+            return
+
+        metadonnees = (
+            "annexe"
+            if annexe_radio.isChecked()
+            else "note"
+        )
+
+        # Réglage mémorisé.
+        self.settings.set_export_ouvrage_prefs(
+            {"metadonnees": metadonnees}
+        )
+
+        import re as _re
+
+        nom_defaut = _re.sub(
+            r"[^\w\- ]",
+            "",
+            self.document.titre or "ouvrage"
+        ).strip() or "ouvrage"
+
+        chemin, _filtre = QFileDialog.getSaveFileName(
+            self,
+            "Exporter le document ouvrage (DOCX structuré)",
+            str(
+                self.etude.dossier
+                / f"{nom_defaut}.docx"
+            ),
+            "Document Word (*.docx)"
+        )
+
+        if not chemin:
+            return
+
+        from services.bibles import (
+            VERSIONS_BIBLE,
+            version_bible_etude,
+        )
+        from services.export_ouvrage import (
+            exporter_document_docx,
+        )
+
+        # Référence d'uniformité de l'ouvrage si
+        # choisie (P20.5), sinon version de l'étude.
+        version = (
+            getattr(self.document, "reference_bible", "")
+            or version_bible_etude(self.etude.parametres)
+        )
+
+        nom_bible = VERSIONS_BIBLE[version]["nom"]
+
+        try:
+
+            chemin = exporter_document_docx(
+                self.document,
+                chemin,
+                metadonnees=metadonnees,
+                bible=nom_bible,
+            )
+
+        except Exception as e:
+
+            QMessageBox.critical(
+                self,
+                "Export impossible",
+                str(e)
+            )
+
+            return
+
+        message = QMessageBox(self)
+        message.setWindowTitle("Ouvrage exporté")
+        message.setText(
+            f"Le document ouvrage a été exporté :\n\n{chemin}"
+        )
+
+        open_file_button = message.addButton(
+            "Ouvrir le fichier",
+            QMessageBox.ButtonRole.AcceptRole
+        )
+
+        open_folder_button = message.addButton(
+            "Ouvrir le dossier",
+            QMessageBox.ButtonRole.AcceptRole
+        )
+
+        message.addButton(
+            "Fermer",
+            QMessageBox.ButtonRole.RejectRole
+        )
+
+        message.exec()
+
+        clicked = message.clickedButton()
+
+        if clicked is open_file_button:
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(str(chemin))
+            )
+
+        elif clicked is open_folder_button:
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(
+                    str(Path(chemin).parent)
+                )
+            )
 
     def exporter_ouvrage(self):
         """

@@ -356,6 +356,178 @@ def exporter_docx(ouvrage: dict, chemin) -> Path:
     return chemin
 
 
+#
+# P20.4 — export DOCX STRUCTURÉ du document ouvrage
+# (styles Titre 1 / sous-titres, métadonnées de
+# réunion en note ou annexe selon réglage).
+#
+
+
+def _metadonnees_paragraphe(element) -> str:
+    """
+    Métadonnées NON structurelles d'un paragraphe
+    (provenance : réunion, date, bloc) — une chaîne
+    compacte, ex. « R2 · 2026-10-20 · bloc 3 ».
+    """
+
+    morceaux = []
+
+    for p in element.provenances:
+
+        morceau = (
+            f"R{p.numero_reunion}"
+            if p.numero_reunion
+            else (p.reunion or "?")
+        )
+
+        if p.locuteurs:
+            morceau += f" · {p.locuteurs}"
+
+        if p.date_reunion:
+            morceau += f" · {p.date_reunion}"
+
+        if p.fid:
+            morceau += f" · bloc {p.fid}"
+
+        morceaux.append(morceau)
+
+    return " — ".join(morceaux)
+
+
+def exporter_document_docx(
+    document,
+    chemin,
+    metadonnees: str = "note",
+    bible: str = None
+) -> Path:
+    """
+    P20.4 : export DOCX STRUCTURÉ du document
+    ouvrage édité :
+
+    - titre de l'ouvrage (Heading 0) ;
+    - ``titre_1`` → style Titre 1 (Heading 1),
+      ``sous_titre`` → Heading 2 ;
+    - séparateur → filet discret (paragraphe
+      centré « ― ») ;
+    - paragraphes → style Normal, guillemets
+      normalisés « … » ;
+    - métadonnées de réunion (provenance,
+      NON structurelles) en **note** (ligne
+      italique sous chaque paragraphe) ou en
+      **annexe** (section en fin de document),
+      selon le réglage.
+
+    Fidèle à la structure éditée (l'export porte le
+    document dérivé, pas un réassemblage).
+    """
+
+    from docx import Document
+    from docx.shared import Pt
+
+    from models.ouvrage import (
+        TYPE_PARAGRAPHE,
+        TYPE_SEPARATEUR,
+        TYPE_SOUS_TITRE,
+        TYPE_TITRE_1,
+    )
+
+    if metadonnees not in ("note", "annexe"):
+        metadonnees = "note"
+
+    doc = Document()
+
+    doc.add_heading(
+        document.titre or "Ouvrage",
+        level=0
+    )
+
+    if bible:
+        doc.add_paragraph(
+            "Bible de référence : " + bible
+        )
+
+    reunions_vues = {}
+
+    for element in document.elements:
+
+        if element.type == TYPE_TITRE_1:
+
+            doc.add_heading(
+                normaliser_guillemets(element.texte),
+                level=1
+            )
+
+        elif element.type == TYPE_SOUS_TITRE:
+
+            doc.add_heading(
+                normaliser_guillemets(element.texte),
+                level=2
+            )
+
+        elif element.type == TYPE_SEPARATEUR:
+
+            filet = doc.add_paragraph()
+            filet.alignment = 1  # centré
+
+            run = filet.add_run("―――")
+            run.font.color.rgb = None
+
+        elif element.type == TYPE_PARAGRAPHE:
+
+            for paragraphe in _paragraphes(
+                element.texte
+            ):
+                doc.add_paragraph(paragraphe)
+
+            for p in element.provenances:
+
+                if p.reunion:
+                    reunions_vues[p.reunion] = p
+
+            if metadonnees == "note":
+
+                note = doc.add_paragraph()
+
+                run = note.add_run(
+                    _metadonnees_paragraphe(element)
+                )
+
+                run.italic = True
+                run.font.size = Pt(9)
+
+    if metadonnees == "annexe" and reunions_vues:
+
+        doc.add_heading(
+            "Annexe — métadonnées des réunions",
+            level=1
+        )
+
+        for reunion in sorted(
+            reunions_vues,
+            key=lambda r: (
+                reunions_vues[r].numero_reunion,
+                r
+            )
+        ):
+            p = reunions_vues[reunion]
+
+            doc.add_paragraph(
+                f"R{p.numero_reunion or '?'}"
+                + (
+                    f" · {p.date_reunion}"
+                    if p.date_reunion
+                    else ""
+                )
+                + f" · {reunion}"
+            )
+
+    chemin = Path(chemin)
+
+    doc.save(str(chemin))
+
+    return chemin
+
+
 def exporter_txt(ouvrage: dict, chemin) -> Path:
     """
     Export TXT simple de l'ouvrage.
