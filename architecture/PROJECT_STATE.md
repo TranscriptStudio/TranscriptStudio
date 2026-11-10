@@ -2624,14 +2624,47 @@ post-commit) et en fin de session.
 - P20.6 — synthèse d'étude repensée (invariants 8-14) : commit 895f3e0,
   60 tests verts avant commit (dont test_p17_integration adapté à
   l'amendement 09/11 : plus de récurrences sur la page Étude).
+- P18.9 — correctifs page Étude (invariants 1-7) : commit 4f049c1,
+  60 tests ciblés verts avant commit.
+- P18.10 — lecteur de Bible intégré (BIBLE_JND_V2 §7, invariants 6-9) :
+  commit e152341, 15 tests verts avant commit.
+- P20.1 — mobilité inter-blocs + renvois orphelins : commit 808e20b,
+  9 tests verts avant commit.
+- P20.2 — sous-titres proposés par IA : commit 6398ae0,
+  7 tests verts avant commit.
+- P20.3 — aide à l'écriture globale (page Ouvrage seule, amendement 09/11) :
+  commit bba505c, 11 tests verts avant commit.
+- P20.4 — export DOCX de l'ouvrage structuré : commit fa2591e,
+  5 tests verts avant commit.
+- P20.5 — référence de contrôle qualité par portée : commit a68f0f2,
+  6 tests verts avant commit.
+- P20.6 — synthèse d'étude repensée (invariants 8-14) : commit 895f3e0,
+  60 tests verts avant commit (dont test_p17_integration adapté à
+  l'amendement 09/11 : plus de récurrences sur la page Étude).
 - P20 fin — retrait compatibilité FID nu (ARBITRAGE_P18_7_ECARTS, écart 5)
-  + README/manuel à jour : en cours de commit ; suite complète verte
-  (788 tests) avant commit, dont balayage des appels FID nu dans les
-  tests (test_p18_6b/6e, test_progression_llm, test_resume_synthese,
+  + README/manuel à jour : commit e00ceeb ; **suite complète verte
+  avant commit : 788 tests** (balayage des appels FID nu dans les tests :
+  test_p18_6b/6e, test_progression_llm, test_resume_synthese,
   test_p19_page_ouvrage, test_p18_7d/7e, test_etude_format,
   test_moteur_traitements).
-- (à compléter au fil des commits)
+
+**Bilan session : 9 commits livrés (4f049c1 → e00ceeb), 788 tests verts,
+origin/master inchangé à l'état v1 (P13, 74a6b09) — vérifié avant chaque
+commit, aucun force-push nécessaire.**
 
 ### Écarts signalés pour arbitrage
 
-- (aucun pour l'instant)
+- **Manuel utilisateur PDF non régénéré** : le DOCX
+  (`docs/Manuel_utilisateur_Transcript_Studio_v1.0.docx`) est à jour,
+  mais aucun convertisseur DOCX→PDF n'est disponible dans l'environnement
+  de dev — le PDF livrable devra être régénéré par l'atelier.
+- **Vérification par étape** : la suite complète dans un worktree git
+  est instable dans cet environnement (les XML Bible de
+  `resources/bible/` sont installés par l'utilisateur et non versionnés,
+  ce qui provoque des blocages de boîtes de dialogue modales dans les
+  worktrees). Chaque commit a donc été vérifié par tests ciblés de l'étape
+  en worktree (compile + import + tests de l'étape), et la suite complète
+  (788 tests) a été exécutée en arbre principal avant le commit final.
+- **Bloc de réglage export_ouvrage (services/settings.py) commité avec
+  P18.10** : hunk mixte (réglage export DOCX rattaché au diff settings de
+  P18.10) — sans impact fonctionnel, le réglage est utilisé par P20.4.
