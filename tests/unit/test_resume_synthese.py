@@ -458,12 +458,14 @@ class TestGenerationResume:
 
             ajouter_version_reformulation(
                 etude,
+                reunion,
                 bloc.fid,
                 f"Reformulation {bloc.fid}."
             )
 
             valider_version_reformulation(
                 etude,
+                reunion,
                 bloc.fid,
                 numero=1,
                 validateur="David"

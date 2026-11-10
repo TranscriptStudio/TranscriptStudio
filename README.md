@@ -13,6 +13,12 @@ Le dépôt contient les **sources** du projet et les scripts permettant de produ
 
 ![Éditeur de transcription avec timeline](docs/screenshots/editeur.png)
 
+![Page Étude v2 (tuiles glisser-déposer, menu contextuel)](docs/screenshots/etude_v2.png)
+
+![Lecteur de Bible intégré](docs/screenshots/bible_lecteur.png)
+
+![Page Ouvrage v2 (édition avancée, aides à la relecture)](docs/screenshots/ouvrage_v2.png)
+
 ## Fonctionnalités principales
 
 ### Prétraitement audio
@@ -101,13 +107,35 @@ L’application s’organise en quatre pages : **Accueil**, **Réunion**, **Étu
 - changer d’étude demande confirmation : **les traitements déjà réalisés restent à l’ancienne étude** (aucun déplacement, aucune copie) ;
 - détacher une réunion la rend autonome, là aussi sans toucher aux traitements.
 
-### Page Étude
+### Page Étude (P18.9)
 
-- Ruban : titre, thème, nombre de réunions, badge court « Bible : Darby révisée · versification : Darby », boutons « Modifier l’étude », « Accueil », « ⚙ », « ? » ;
-- liste des réunions en une colonne : titre lisible, rang (Réunion 1, 2, …), date de réunion (date de l’audio), durée, avancement Transcription → Reformulation → Résumé (l’export de réunion n’y figure pas : l’objectif d’une étude est l’ouvrage), coût, bouton « Ouvrir », poignée de réordonnancement — l’ordre vaut ordre d’ouvrage ;
-- « ＋ Ajouter une réunion » (en tête de liste, à côté du titre « Réunions de l’étude ») : depuis un fichier, depuis une réunion autonome, ou nouvel audio ;
-- synthèse d’étude (« Régénérer… » ou « Éditer » à la main) et récurrences ;
-- le bouton « Ouvrage… » renvoie vers la page Ouvrage : l’assemblage et l’export final de l’étude s’y font.
+![Page Étude v2](docs/screenshots/etude_v2.png)
+
+- Ruban : titre, thème, nombre de réunions, badge simplifié « Bible : Darby révisée » (la versification découle de la version retenue — plus de champ « versification » ; le badge affiche la version retenue pour l’ouvrage dès qu’elle est choisie, P20.5), boutons « Paramètres de l’étude », « Accueil », « ⚙ », « ? » ;
+- **tuiles de réunion réordonnables par glisser-déposer** (clic gauche sur le corps = déplacement uniquement, aucune navigation) ; **plus de flèches ni de bouton « Ouvrir »** : la navigation se fait par le **clic sur une pastille du stepper** (ouvre la page Réunion à l’étape visée) ou par le **menu contextuel du clic droit** (étapes, « Retirer la réunion », « Relocaliser », « Alimenter la synthèse globale ») ; le conteneur des tuiles **défile indépendamment** (une étude peut compter plusieurs dizaines de réunions) ;
+- en tête de liste, à côté de « ＋ Ajouter une réunion… » : **« Édition ouvrage final »** puis les boutons de la synthèse (« (Re)générer la synthèse… », « Éditer », « Sauvegarder l’édition », « Annuler l'édition ») ;
+- chaque tuile : titre lisible, rang (Réunion 1, 2, …), date de réunion (date de l’audio), durée, avancement Transcription → Reformulation → Résumé (sans l’étape Export de réunion), coût ;
+- **synthèse d'étude repensée (P20.6)** : plus de génération automatique à la validation d'une réunion — alimentation **strictement manuelle et incrémentale** (clic droit sur la tuile d'une réunion à blocs validés → « Alimenter la synthèse globale » ; ré-alimenter remplace exactement la contribution, avec avertissement) ; « (Re)générer » remplace intégralement la synthèse (avertissement + confirmation) ; édition manuelle possible avec « Annuler l'édition » ; la synthèse mémorise les contributions (réunions + empreinte des blocs) et signale les blocs re-validés depuis la dernière alimentation ; prompt dédié éditable dans la bibliothèque des réglages (prompts « Synthèse d'étude ») ; la synthèse reste injectable comme contexte dans la reformulation des blocs cochés.
+
+### Lecteur de Bible intégré (P18.10)
+
+![Lecteur de Bible](docs/screenshots/bible_lecteur.png)
+
+- Page **consultative pure** (aucun LLM, aucun coût, aucune écriture hors les réglages de l'app), accessible par une icône **📖 Bible** sur la page Réunion, l’éditeur de transcription et la page Ouvrage ; navigation à pile unique (« Retour » = page appelante) ;
+- sélecteurs **version → livre → chapitre → verset** (verset facultatif, défaut v1 = cible de surlignage dans le chapitre affiché), **pilotés par les données OSIS de la version sélectionnée** (jamais de listes en dur) ;
+- **dernier passage consulté** mémorisé dans les réglages de l'app et restauré à l'ouverture (premier lancement : darbyR, livre 1, chapitre 1, v1 ; version par défaut = dernière version consultée) ;
+- **saisie directe de référence** (ex. « Luc 1:5 ») avec la normalisation usuelle ; ambiguïté → suggestions de correspondances ; référence introuvable dans la version → écart signalé comme information, avec les autres versions installées où elle existe ;
+- aucune version installée → message et renvoi vers le téléchargeur des réglages (onglet « Bibles »).
+
+### Page Ouvrage : édition avancée et aides à la relecture (P20)
+
+![Page Ouvrage v2](docs/screenshots/ouvrage_v2.png)
+
+- **mobilité inter-blocs des paragraphes (P20.1)** : déplacer (monter/descendre, à travers blocs et sections, provenance conservée), fusionner (P19.4), supprimer, éditer librement ; **contrôle des renvois orphelins** après déplacement (détection locale, signalement dans le rapport) ;
+- **sous-titres proposés par IA (P20.2)** : une passe LLM par section (« proposer 2 à 5 sous-titres sobres ») ; suggestions à valider/éditer, **jamais insérées automatiquement** ;
+- **aides à la relecture (P20.3, page Ouvrage seule)** : récurrence d'emphase (lexique paramétrable d'intensifs, comptage par bloc/réunion/intervenant, **sans LLM**), expressions récurrentes (n-grammes, familles par mots communs, passe LLM optionnelle à la demande), incohérences/redondances par passe LLM par section à la demande, **pensées redondantes** (P20.6g : présélection locale sans LLM, confirmation LLM à la demande, groupes avec liens cliquables vers les paragraphes) — **signalement uniquement, jamais de réécriture**, occurrences cliquables avec filtres (réunion, chapitre, intervenant) ;
+- **référence de contrôle qualité par portée (P20.5)** : sélecteur de version de Bible dans le volet Réunion (persisté dans le tier de la réunion, aucun effet rétroactif) et référence d'uniformité au niveau ouvrage (persistée dans `ouvrage.json`, **jamais réécrite vers les tiers**) ; « 🔎 Re-vérifier les versets » contrôle l'ouvrage contre cette référence (écarts de versification = information) ;
+- **export DOCX structuré (P20.4)** : styles Titre 1 / sous-titres, métadonnées de réunion en note ou en annexe selon le réglage, fidèle à la structure éditée.
 
 ### Saisie manuelle (sans IA)
 

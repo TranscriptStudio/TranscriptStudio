@@ -200,18 +200,20 @@ def etude_validee(tmp_path):
     for fid in (1, 2):
         ajouter_version_reformulation(
             etude,
+            nom,
             fid,
             f"Texte validé du bloc {fid}.",
             type_version="passe",
         )
 
         version = (
-            etude.reformulations[fid]
+            etude.reformulation_de(nom, fid)
             .versions[-1]
         )
 
         valider_version_reformulation(
             etude,
+            nom,
             fid,
             numero=version.numero,
             validateur="Test"
@@ -735,6 +737,7 @@ class TestExportOuvrage:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             3,
             "Il dit : « grâce sur grâce. »",
             type_version="edition_manuelle",
@@ -742,6 +745,7 @@ class TestExportOuvrage:
 
         valider_version_reformulation(
             etude,
+            nom,
             3,
             numero=1,
             validateur="Test"

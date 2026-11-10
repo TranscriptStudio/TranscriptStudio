@@ -297,6 +297,7 @@ class TestStepper:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             fids[0],
             "Contenu existant, jamais invalidé."
         )
@@ -309,7 +310,7 @@ class TestStepper:
         )
 
         # Aucun contenu n'est modifié ni perdu.
-        resultat = etude.reformulations[fids[0]]
+        resultat = etude.reformulations[(nom, fids[0])]
 
         assert (
             resultat.versions[-1].texte

@@ -851,6 +851,7 @@ class TestRegleCinq:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             1,
             "Reformulation du premier bloc.",
             modele="mistral-test",

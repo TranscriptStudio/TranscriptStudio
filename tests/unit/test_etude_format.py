@@ -496,7 +496,7 @@ class TestFIDEtVersions:
 
         assert (fid1, fid2) == (1, 2)
 
-        marquer_fid_inactif(etude, fid1)
+        marquer_fid_inactif(etude, nom, fid1)
 
         fid3 = attribuer_fid(etude, nom)
 
@@ -515,12 +515,14 @@ class TestFIDEtVersions:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             fid,
             "Première reformulation."
         )
 
         ajouter_version_reformulation(
             etude,
+            nom,
             fid,
             "Deuxième reformulation.",
             type_version="relance",
@@ -537,7 +539,7 @@ class TestFIDEtVersions:
 
         reouverte = ouvrir_etude(tmp_path / "E")
 
-        resultat = reouverte.reformulations[fid]
+        resultat = reouverte.reformulation_de(nom, fid)
 
         assert [
             version.numero
@@ -556,13 +558,14 @@ class TestFIDEtVersions:
         # Une édition manuelle ajoute une version, sans stats.
         ajouter_version_reformulation(
             reouverte,
+            nom,
             fid,
             "Troisième, corrigée à la main.",
             type_version="edition_manuelle",
         )
 
-        assert len(reouverte.reformulations[fid].versions) == 3
-        assert reouverte.reformulations[fid].versions[
+        assert len(reouverte.reformulation_de(nom, fid).versions) == 3
+        assert reouverte.reformulation_de(nom, fid).versions[
             2
         ].stats is None
 
@@ -571,17 +574,18 @@ class TestFIDEtVersions:
 
         fid = attribuer_fid(etude, nom)
 
-        ajouter_version_reformulation(etude, fid, "V1")
-        ajouter_version_reformulation(etude, fid, "V2")
+        ajouter_version_reformulation(etude, nom, fid, "V1")
+        ajouter_version_reformulation(etude, nom, fid, "V2")
 
         valider_version_reformulation(
             etude,
+            nom,
             fid,
             numero=1,
             validateur="David"
         )
 
-        resultat = etude.reformulations[fid]
+        resultat = etude.reformulation_de(nom, fid)
 
         assert resultat.versions[0].validation.statut == (
             "valide"
@@ -596,11 +600,12 @@ class TestFIDEtVersions:
 
         fid = attribuer_fid(etude, nom)
 
-        ajouter_version_reformulation(etude, fid, "V1")
+        ajouter_version_reformulation(etude, nom, fid, "V1")
 
         with pytest.raises(EtudeError):
             valider_version_reformulation(
                 etude,
+                nom,
                 fid,
                 numero=9,
                 validateur="David"
@@ -800,7 +805,7 @@ class TestInvariance3:
 
         enregistrer_decoupage(etude, decoupage)
 
-        ajouter_version_reformulation(etude, fid, "R1")
+        ajouter_version_reformulation(etude, nom, fid, "R1")
         ajouter_version_resume(
             etude,
             nom,

@@ -402,6 +402,7 @@ class TestBlocsSansBordure:
 
         ajouter_version_reformulation(
             fenetre.etude,
+            fenetre.reunion,
             1,
             "Version reformulée de test.",
             type_version="passe",

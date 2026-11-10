@@ -330,8 +330,9 @@ class MoteurFactice:
     appel (jamais de réseau).
     """
 
-    def __init__(self, etude):
+    def __init__(self, etude, reunion):
         self.etude = etude
+        self.reunion = reunion
         self.appels_bloc = []
 
     def blocs_a_traiter(self, cible):
@@ -348,6 +349,7 @@ class MoteurFactice:
 
         version = ajouter_version_reformulation(
             self.etude,
+            self.reunion,
             fid,
             f"Relance du bloc {fid}"
         )
@@ -370,6 +372,7 @@ class MoteurFactice:
 
             ajouter_version_reformulation(
                 self.etude,
+                self.reunion,
                 fid,
                 f"Passe du bloc {fid}"
             )
@@ -406,7 +409,7 @@ def page_reformulation(qapp, tmp_path):
         )
     )
 
-    fenetre.moteur = MoteurFactice(etude)
+    fenetre.moteur = MoteurFactice(etude, nom)
 
     yield fenetre, etude, nom
 

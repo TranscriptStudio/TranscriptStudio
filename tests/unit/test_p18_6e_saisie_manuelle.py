@@ -86,6 +86,7 @@ class TestSaisieManuelleReformulation:
 
         version = ajouter_version_reformulation(
             etude,
+            nom,
             fids[0],
             "Texte entièrement saisi à la main, "
             "sans aucun appel LLM.",
@@ -97,6 +98,7 @@ class TestSaisieManuelleReformulation:
 
         valider_version_reformulation(
             etude,
+            nom,
             fids[0],
             version.numero,
             validateur="Test"
@@ -136,6 +138,7 @@ class TestSaisieManuelleReformulation:
         # Bloc 1 : version « IA ».
         ajouter_version_reformulation(
             etude,
+            nom,
             fids[0],
             texte,
             type_version="passe",
@@ -144,6 +147,7 @@ class TestSaisieManuelleReformulation:
 
         valider_version_reformulation(
             etude,
+            nom,
             fids[0],
             1,
             validateur="Test"
@@ -160,12 +164,14 @@ class TestSaisieManuelleReformulation:
 
         devalider_version_reformulation(
             etude,
+            nom,
             fids[0],
             1
         )
 
         ajouter_version_reformulation(
             etude,
+            nom,
             fids[0],
             texte,
             type_version="edition_manuelle"
@@ -173,6 +179,7 @@ class TestSaisieManuelleReformulation:
 
         valider_version_reformulation(
             etude,
+            nom,
             fids[0],
             2,
             validateur="Test"
@@ -328,6 +335,7 @@ class TestTraceJournal:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             fids[0],
             "Texte manuel.",
             type_version="edition_manuelle"

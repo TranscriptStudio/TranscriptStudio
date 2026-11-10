@@ -334,12 +334,14 @@ class TestFusion:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             1,
             "Reformulation du bloc 1."
         )
 
         ajouter_version_reformulation(
             etude,
+            nom,
             2,
             "Reformulation du bloc 2."
         )
@@ -356,6 +358,7 @@ class TestFusion:
 
         ajouter_version_reformulation(
             reouverte,
+            nom,
             fid_fusionne,
             "Reformulation du bloc fusionné."
         )
@@ -367,20 +370,18 @@ class TestFusion:
         #
         # Résultats des FID sources conservés.
         #
-        assert encore.reformulations[1].versions[
+        assert encore.reformulation_de(nom, 1).versions[
             0
         ].texte == "Reformulation du bloc 1."
 
-        assert encore.reformulations[2].versions[
+        assert encore.reformulation_de(nom, 2).versions[
             0
         ].texte == "Reformulation du bloc 2."
 
         #
         # Résultat du bloc fusionné présent.
         #
-        assert encore.reformulations[
-            fid_fusionne
-        ].versions[0].texte == (
+        assert encore.reformulation_de(nom, fid_fusionne).versions[0].texte == (
             "Reformulation du bloc fusionné."
         )
 
@@ -469,6 +470,7 @@ class TestDefusion:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             fid_fusionne,
             "Reformulation du bloc fusionné."
         )
@@ -491,9 +493,7 @@ class TestDefusion:
         # Le résultat du FID fusionné reste attaché
         # au registre.
         #
-        assert encore.reformulations[
-            fid_fusionne
-        ].versions[0].texte == (
+        assert encore.reformulation_de(nom, fid_fusionne).versions[0].texte == (
             "Reformulation du bloc fusionné."
         )
 

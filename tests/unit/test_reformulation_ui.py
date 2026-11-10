@@ -414,6 +414,7 @@ class TestRegle4BlocValideFigé:
 
         ajouter_version_reformulation(
             fenetre.etude,
+            fenetre.reunion,
             3,
             "Reformulation du bloc 3.",
             type_version="passe",
@@ -430,6 +431,7 @@ class TestRegle4BlocValideFigé:
 
         valider_version_reformulation(
             fenetre.etude,
+            fenetre.reunion,
             3,
             numero=derniere.numero,
             validateur="Test"
@@ -446,6 +448,7 @@ class TestRegle4BlocValideFigé:
 
         ajouter_version_reformulation(
             fenetre.etude,
+            fenetre.reunion,
             2,
             "Première version.",
             type_version="passe",
@@ -453,6 +456,7 @@ class TestRegle4BlocValideFigé:
 
         ajouter_version_reformulation(
             fenetre.etude,
+            fenetre.reunion,
             2,
             "Deuxième version.",
             type_version="edition_manuelle",
@@ -499,6 +503,7 @@ class TestRegle5ValidationSurVersionSauvegardee:
 
         ajouter_version_reformulation(
             fenetre.etude,
+            fenetre.reunion,
             1,
             "Reformulation du bloc 1.",
             type_version="passe",

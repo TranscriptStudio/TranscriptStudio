@@ -243,6 +243,7 @@ class TestMoteurSerie2:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             1,
             texte
         )
@@ -325,6 +326,7 @@ class TestMoteurSerie2:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             1,
             texte
         )

@@ -87,21 +87,18 @@ class TestAssemblageReunion:
         etude, nom, fids, _t = etude_reunion
 
         ajouter_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             "Premier bloc validé."
         )
 
         valider_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             1,
             validateur="Test"
         )
 
         ajouter_version_reformulation(
-            etude,
-            fids[1],
+            etude, nom, fids[1],
             "Deuxième bloc, simple brouillon."
         )
 
@@ -160,8 +157,7 @@ class TestAssemblageReunion:
         etude, nom, fids, _t = etude_reunion
 
         ajouter_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             "Brouillon jamais validé."
         )
 
@@ -189,12 +185,14 @@ class TestAssemblageReunion:
         ):
             ajouter_version_reformulation(
                 etude,
+                nom,
                 fid,
                 texte
             )
 
             valider_version_reformulation(
                 etude,
+                nom,
                 fid,
                 1,
                 validateur="Test"
@@ -229,14 +227,12 @@ class TestAssemblageReunion:
         etude, nom, fids, _t = etude_reunion
 
         ajouter_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             "Bloc validé pour l'export."
         )
 
         valider_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             1,
             validateur="Test"
         )

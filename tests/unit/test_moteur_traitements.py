@@ -390,14 +390,12 @@ class TestInvariant1:
         # Le bloc 1 est conservé (versionnée,
         # sauvegardée).
         assert len(
-            etude.reformulations[1].versions
+            etude.reformulation_de(nom, 1).versions
         ) == 1
 
         reouverte = ouvrir_etude(etude.dossier)
 
-        assert reouverte.reformulations[
-            1
-        ].versions[0].texte == (
+        assert reouverte.reformulation_de(nom, 1).versions[0].texte == (
             "Première reformulation."
         )
 
@@ -436,20 +434,20 @@ class TestInvariant2:
         assert resultat.nb_traites == 2
 
         # Les deux premiers blocs sont versionnés.
-        assert len(etude.reformulations[1].versions) == 1
-        assert len(etude.reformulations[2].versions) == 1
-        assert 3 not in etude.reformulations
-        assert 4 not in etude.reformulations
+        assert len(etude.reformulation_de(nom, 1).versions) == 1
+        assert len(etude.reformulation_de(nom, 2).versions) == 1
+        assert (nom, 3) not in etude.reformulations
+        assert (nom, 4) not in etude.reformulations
 
         # Rien n'est effacé après réouverture.
         reouverte = ouvrir_etude(etude.dossier)
 
         assert len(
-            reouverte.reformulations[1].versions
+            reouverte.reformulation_de(nom, 1).versions
         ) == 1
 
         assert len(
-            reouverte.reformulations[2].versions
+            reouverte.reformulation_de(nom, 2).versions
         ) == 1
 
         # L'annulation est consignée, avec la
@@ -539,6 +537,7 @@ class TestInvariant3:
         for fid in (1, 2, 3):
             ajouter_version_reformulation(
                 etude,
+                nom,
                 fid,
                 "y" * 1200
             )
@@ -692,6 +691,7 @@ class TestInvariant4:
 
         ajouter_version_reformulation(
             etude,
+            nom,
             1,
             "Correction à la main.",
             type_version="edition_manuelle",
@@ -704,6 +704,7 @@ class TestInvariant4:
 
         valider_version_reformulation(
             etude,
+            nom,
             1,
             numero=1,
             validateur="David"
@@ -714,7 +715,7 @@ class TestInvariant4:
         assert len(entrees) == avant + 2
         assert compter(entrees, TYPE_VALIDATION) == 1
 
-        devalider_version_reformulation(etude, 1, numero=1)
+        devalider_version_reformulation(etude, nom, 1, numero=1)
 
         entrees = lire_journal(etude, nom)
 
@@ -906,7 +907,7 @@ class TestInvariant6:
         # la reprise : aucun re-traitement.
         for fid in (1, 2, 3, 4):
             assert len(
-                etude.reformulations[fid].versions
+                etude.reformulation_de(nom, fid).versions
             ) == 1
 
     def test_passe_complete_puis_relance_ne_retraite_rien(self, tmp_path):
@@ -939,7 +940,7 @@ class TestInvariant6:
 
         assert len(client.appels) == 4
 
-        assert len(etude.reformulations[2].versions) == 2
+        assert len(etude.reformulation_de(nom, 2).versions) == 2
 
         entrees = lire_journal(etude, nom)
 
@@ -986,17 +987,11 @@ class TestCriteresP15:
         # Les blocs portent leurs versions, avec le
         # contexte consigné (contrat §7).
         for fid in (1, 2, 3):
-            assert etude.reformulations[fid].versions
+            assert etude.reformulation_de(nom, fid).versions
 
-        assert etude.reformulations[
-            1
-        ].versions[0].contexte == []
-        assert etude.reformulations[
-            2
-        ].versions[0].contexte == [{"reunion": nom, "fid": 1}]
-        assert etude.reformulations[
-            3
-        ].versions[0].contexte == [{"reunion": nom, "fid": 1}, {"reunion": nom, "fid": 2}]
+        assert etude.reformulation_de(nom, 1).versions[0].contexte == []
+        assert etude.reformulation_de(nom, 2).versions[0].contexte == [{"reunion": nom, "fid": 1}]
+        assert etude.reformulation_de(nom, 3).versions[0].contexte == [{"reunion": nom, "fid": 1}, {"reunion": nom, "fid": 2}]
 
         # Aucune confirmation pour un bloc isolé :
         # exécution directe (relance ciblée).
@@ -1020,7 +1015,7 @@ class TestCriteresP15:
         message = dernier_appel["message"]
 
         texte_courant = (
-            etude.reformulations[1]
+            etude.reformulation_de(nom, 1)
             .versions[0]
             .texte
         )
@@ -1067,7 +1062,7 @@ class TestCriteresP15:
         reouverte = ouvrir_etude(etude.dossier)
 
         for fid in (1, 2, 3):
-            assert reouverte.reformulations[fid].versions
+            assert reouverte.reformulation_de(nom, fid).versions
 
 
 class TestRelanceCibleeGardeFous:
@@ -1125,7 +1120,7 @@ class TestRelanceCibleeGardeFous:
         )
 
         nb_avant = len(
-            etude.reformulations[1].versions
+            etude.reformulation_de(nom, 1).versions
         )
 
         with pytest.raises(RelanceVideError):
@@ -1135,7 +1130,7 @@ class TestRelanceCibleeGardeFous:
             )
 
         assert (
-            len(etude.reformulations[1].versions)
+            len(etude.reformulation_de(nom, 1).versions)
             == nb_avant
         )
 
@@ -1173,7 +1168,7 @@ class TestRelanceCibleeGardeFous:
 
         # Le raccord a bien eu lieu (réponse + reste).
         texte_courant = (
-            etude.reformulations[1]
+            etude.reformulation_de(nom, 1)
             .versions[0]
             .texte
         )
@@ -1283,6 +1278,7 @@ class TestJournalRegles:
         # La première opération recrée le fichier.
         ajouter_version_reformulation(
             reouverte,
+            nom,
             1,
             "Nouvelle version."
         )

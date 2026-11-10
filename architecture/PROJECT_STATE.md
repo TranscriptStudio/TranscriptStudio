@@ -2621,8 +2621,15 @@ post-commit) et en fin de session.
   5 tests verts avant commit.
 - P20.5 — référence de contrôle qualité par portée : commit a68f0f2,
   6 tests verts avant commit.
-- P20.6 — synthèse d'étude repensée (invariants 8-14) : en cours de commit ;
-  test_p20_6_synthese.py + tests synthèse existants verts avant commit.
+- P20.6 — synthèse d'étude repensée (invariants 8-14) : commit 895f3e0,
+  60 tests verts avant commit (dont test_p17_integration adapté à
+  l'amendement 09/11 : plus de récurrences sur la page Étude).
+- P20 fin — retrait compatibilité FID nu (ARBITRAGE_P18_7_ECARTS, écart 5)
+  + README/manuel à jour : en cours de commit ; suite complète verte
+  (788 tests) avant commit, dont balayage des appels FID nu dans les
+  tests (test_p18_6b/6e, test_progression_llm, test_resume_synthese,
+  test_p19_page_ouvrage, test_p18_7d/7e, test_etude_format,
+  test_moteur_traitements).
 - (à compléter au fil des commits)
 
 ### Écarts signalés pour arbitrage

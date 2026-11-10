@@ -151,12 +151,14 @@ def etude_validee(qapp, tmp_path):
 
         version = ajouter_version_reformulation(
             etude,
+            nom,
             fid,
             f"Reformulation du bloc {fid}"
         )
 
         valider_version_reformulation(
             etude,
+            nom,
             fid,
             version.numero,
             "Test"

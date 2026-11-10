@@ -1170,11 +1170,15 @@ class TestLibelleVersion:
         etude = ouvrir_etude(tmp_path / "Etude")
 
         fid = next(
-            iter(etude.registre.entrees)
+            iter(
+                next(iter(etude.tiers.values()))
+                .registre.entrees
+            )
         )
 
         version = ajouter_version_reformulation(
             etude,
+            nom,
             fid,
             "Texte reformulé.",
             stats={

@@ -190,6 +190,7 @@ class TestAvancement:
         for fid in fids[:2]:
             ajouter_version_reformulation(
                 etude,
+                nom,
                 fid,
                 "Texte reformulé."
             )
@@ -202,15 +203,17 @@ class TestAvancement:
         for fid in fids:
             ajouter_version_reformulation(
                 etude,
+                nom,
                 fid,
                 "Texte reformulé."
             )
 
             valider_version_reformulation(
                 etude,
+                nom,
                 fid,
                 etude
-                .reformulations[fid]
+                .reformulation_de(nom, fid)
                 .versions[-1]
                 .numero,
                 validateur="Test"
@@ -289,8 +292,7 @@ class TestAvancement:
         ]
 
         ajouter_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             "Texte.",
             stats={"cout_estime": 0.01}
         )
@@ -586,14 +588,12 @@ class TestRattachement:
         ]
 
         ajouter_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             "Texte validé.",
         )
 
         valider_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             1,
             validateur="Test"
         )
@@ -666,8 +666,7 @@ class TestRattachement:
         ]
 
         ajouter_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             "Texte."
         )
 

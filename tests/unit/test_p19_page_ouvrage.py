@@ -90,12 +90,14 @@ def etude_validee(qapp, tmp_path):
 
         version = ajouter_version_reformulation(
             etude,
+            nom,
             fid,
             f"Reformulation du bloc {fid}"
         )
 
         valider_version_reformulation(
             etude,
+            nom,
             fid,
             version.numero,
             "Test"
@@ -474,7 +476,7 @@ class TestRapport:
         document dérivé n'est jamais touché).
         """
 
-        etude, _n, fids, _t = etude_validee
+        etude, nom, fids, _t = etude_validee
 
         page.generer_ouvrage()
 
@@ -483,8 +485,7 @@ class TestRapport:
         )
 
         ajouter_version_reformulation(
-            etude,
-            fids[0],
+            etude, nom, fids[0],
             "Nouvelle passe après génération"
         )
 

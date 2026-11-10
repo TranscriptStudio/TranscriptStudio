@@ -72,14 +72,12 @@ def deux_etudes(qapp, tmp_path):
     )
 
     ajouter_version_reformulation(
-        etude,
-        fids[0],
+        etude, nom, fids[0],
         "Texte validé dans la première étude."
     )
 
     valider_version_reformulation(
-        etude,
-        fids[0],
+        etude, nom, fids[0],
         1,
         validateur="Test"
     )

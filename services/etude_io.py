@@ -328,7 +328,9 @@ class _VueEntrees(dict):
     Vue agrégée des entrées de registre de plusieurs
     réunions (lecture seule) : ``values()`` retourne
     TOUTES les entrées (les FID peuvent se chevaucher
-    entre réunions) ; ``[fid]`` résout un FID unique.
+    entre réunions). P20 fin (ARBITRAGE_P18_7_ECARTS, écart 5) :
+    la résolution par FID nu est RETIRÉE — identité de bloc
+    = couple (réunion, FID) ; utiliser ``registre_de(nom)``.
     """
 
     def __init__(self):
@@ -338,53 +340,36 @@ class _VueEntrees(dict):
     def ajouter_tier(self, registre: RegistreFID) -> None:
         for fid, entree in registre.entrees.items():
             self._toutes.append(entree)
-            if fid not in self:
-                dict.__setitem__(self, fid, entree)
+            dict.__setitem__(
+                self,
+                (entree.reunion, fid),
+                entree
+            )
 
     def values(self):
         return list(self._toutes)
 
-    def __getitem__(self, fid):
-        candidats = [
-            e for e in self._toutes
-            if e.fid == fid
-        ]
-        if len(candidats) > 1:
-            raise EtudeError(
-                f"FID {fid} ambigu (plusieurs réunions) : "
-                "utiliser registre_de(nom)"
-            )
-        if not candidats:
-            raise KeyError(fid)
-        return candidats[0]
 
-    def __contains__(self, fid):
-        return any(e.fid == fid for e in self._toutes)
 
 
 class _VueReformulations(dict):
     """
     Reformulations agrégées, indexées par le couple
-    (réunion, FID). Un FID nu résout vers l'unique
-    couple le portant quand il n'y a pas d'ambiguïté
-    (compatibilité de lecture).
+    (réunion, FID).
+
+    P20 fin (ARBITRAGE_P18_7_ECARTS, écart 5) : la
+    compatibilité de lecture par FID NU est RETIRÉE —
+    seules les clés (réunion, FID) résolvent ; utiliser
+    ``reformulation_de(nom, fid)``.
     """
 
     def _resoudre(self, cle):
-        if isinstance(cle, tuple):
-            return cle
-        if isinstance(cle, int):
-            candidats = [
-                k for k in self.keys()
-                if k[1] == cle
-            ]
-            if len(candidats) == 1:
-                return candidats[0]
-            if len(candidats) > 1:
-                raise EtudeError(
-                    f"FID {cle} ambigu (plusieurs réunions) "
-                    ": utiliser reformulation_de(nom, fid)"
-                )
+        if not isinstance(cle, tuple):
+            raise EtudeError(
+                "Clé (réunion, FID) attendue — le FID nu "
+                "n'est plus accepté (P20 fin) : utiliser "
+                "reformulation_de(nom, fid)"
+            )
         return cle
 
     def get(self, cle, default=None):
@@ -395,30 +380,6 @@ class _VueReformulations(dict):
 
     def __contains__(self, cle):
         return dict.__contains__(self, self._resoudre(cle))
-
-
-def _reunion_pour_fid(etude_ouverte: "EtudeOuverte", fid: int) -> str:
-    """
-    Retrouve la réunion portant un FID (registre par
-    réunion) — exige l'unicité.
-    """
-
-    trouves = [
-        nom
-        for nom, tier in etude_ouverte.tiers.items()
-        if fid in tier.registre.entrees
-    ]
-
-    if len(trouves) == 1:
-        return trouves[0]
-
-    if not trouves:
-        raise EtudeError(f"FID {fid} inconnu de toute réunion")
-
-    raise EtudeError(
-        f"FID {fid} ambigu (plusieurs réunions : "
-        f"{trouves}) : passer la réunion explicitement"
-    )
 
 
 class EtudeOuverte:
@@ -2213,54 +2174,52 @@ def _devalider_version_reformulation_impl(
 
 
 #
-# Wrappers publics à double signature (P18.7b) : le
-# couple (réunion, FID) est l'identité de bloc, mais
-# l'ancien appel (etude, fid, ...) reste accepté quand
-# le FID n'est pas ambigu.
+# Wrappers publics : signature unique (etude, reunion, fid) —
+# P20 fin (ARBITRAGE_P18_7_ECARTS, écart 5) : le FID nu
+# n'est plus accepté en lecture.
 #
 
 
-def marquer_fid_inactif(etude_ouverte, a, b=None) -> None:
-    if b is None and isinstance(a, int):
-        return _marquer_fid_inactif_impl(
-            etude_ouverte,
-            _reunion_pour_fid(etude_ouverte, a),
-            a
-        )
-    return _marquer_fid_inactif_impl(etude_ouverte, a, b)
+def marquer_fid_inactif(
+    etude_ouverte,
+    reunion: str,
+    fid: int
+) -> None:
+    return _marquer_fid_inactif_impl(
+        etude_ouverte,
+        reunion,
+        fid
+    )
 
 
-def reactiver_fid(etude_ouverte, a, b=None) -> None:
-    if b is None and isinstance(a, int):
-        return _reactiver_fid_impl(
-            etude_ouverte,
-            _reunion_pour_fid(etude_ouverte, a),
-            a
-        )
-    return _reactiver_fid_impl(etude_ouverte, a, b)
+def reactiver_fid(
+    etude_ouverte,
+    reunion: str,
+    fid: int
+) -> None:
+    return _reactiver_fid_impl(
+        etude_ouverte,
+        reunion,
+        fid
+    )
 
 
 def ajouter_version_reformulation(
     etude_ouverte,
-    a,
-    b=None,
+    reunion: str,
+    fid: int,
     *args,
     **kwargs
 ) -> VersionReformulation:
-    if isinstance(a, int):
-        # ancien style : (etude, fid, texte, ...)
-        return _ajouter_version_reformulation_impl(
-            etude_ouverte,
-            _reunion_pour_fid(etude_ouverte, a),
-            a,
-            b,
-            *args,
-            **kwargs
-        )
+    """
+    P20 fin : signature unique (etude, reunion, fid, ...) —
+    le FID nu n'est plus accepté (ARBITRAGE_P18_7_ECARTS,
+    écart 5).
+    """
     return _ajouter_version_reformulation_impl(
         etude_ouverte,
-        a,
-        b,
+        reunion,
+        fid,
         *args,
         **kwargs
     )
@@ -2268,27 +2227,13 @@ def ajouter_version_reformulation(
 
 def valider_version_reformulation(
     etude_ouverte,
-    a,
-    b=None,
+    reunion: str,
+    fid: int,
     *args,
     numero=None,
     validateur=None
 ) -> None:
-    if isinstance(a, int):
-        # ancien style : (etude, fid, [numero], [validateur])
-        reste = [b] + list(args)
-        if reste and numero is None:
-            numero = reste.pop(0)
-        if reste and validateur is None:
-            validateur = reste.pop(0)
-        return _valider_version_reformulation_impl(
-            etude_ouverte,
-            _reunion_pour_fid(etude_ouverte, a),
-            a,
-            numero=numero,
-            validateur=validateur
-        )
-    # nouveau style : (etude, reunion, fid, [numero], [validateur])
+    """P20 fin : signature unique (etude, reunion, fid, ...)."""
     reste = list(args)
     if reste and numero is None:
         numero = reste.pop(0)
@@ -2296,8 +2241,8 @@ def valider_version_reformulation(
         validateur = reste.pop(0)
     return _valider_version_reformulation_impl(
         etude_ouverte,
-        a,
-        b,
+        reunion,
+        fid,
         numero=numero,
         validateur=validateur
     )
@@ -2305,29 +2250,19 @@ def valider_version_reformulation(
 
 def devalider_version_reformulation(
     etude_ouverte,
-    a,
-    b=None,
+    reunion: str,
+    fid: int,
     *args,
     numero=None
 ) -> None:
-    if isinstance(a, int):
-        # ancien style : (etude, fid, [numero])
-        reste = [b] + list(args)
-        if reste and numero is None:
-            numero = reste.pop(0)
-        return _devalider_version_reformulation_impl(
-            etude_ouverte,
-            _reunion_pour_fid(etude_ouverte, a),
-            a,
-            numero=numero
-        )
+    """P20 fin : signature unique (etude, reunion, fid, ...)."""
     reste = list(args)
     if reste and numero is None:
         numero = reste.pop(0)
     return _devalider_version_reformulation_impl(
         etude_ouverte,
-        a,
-        b,
+        reunion,
+        fid,
         numero=numero
     )
 
