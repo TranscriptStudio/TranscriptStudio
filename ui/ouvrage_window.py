@@ -506,7 +506,7 @@ class OuvrageWindow(QWidget):
         )
         self.fusion_button.setToolTip(
             "Fusionner les DEUX paragraphes "
-            "sélectionnés en un seul (P19.4) : le "
+            "sélectionnés en un seul : le "
             "paragraphe fusionné porte toutes les "
             "provenances ; la fusion est réversible "
             "(dé-fusion)"
@@ -611,7 +611,7 @@ class OuvrageWindow(QWidget):
             "en tête de section, reformulations "
             "dans l'ordre d'ouvrage) et exporter "
             "en document Word ou texte — export "
-            "final de l'étude (P18.3)"
+            "final de l'étude"
         )
         self.exporter_button.clicked.connect(
             self.exporter_ouvrage
@@ -939,7 +939,7 @@ class OuvrageWindow(QWidget):
             "Pensées redondantes…"
         )
         self.redondances_button.setToolTip(
-            "P20.6g : présélection locale (sans "
+            "Présélection locale (sans "
             "LLM) des pensées redondantes de la "
             "synthèse, reliées aux paragraphes de "
             "l'ouvrage ; confirmation LLM à la "

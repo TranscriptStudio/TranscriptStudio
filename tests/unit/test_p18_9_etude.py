@@ -350,10 +350,15 @@ class TestMenuContextuel:
 
 class TestBadgeSimplifie:
     """
-    Invariant 4 : le badge Bible n'affiche qu'une
+    Invariant 4 (P18.9) : le badge Bible n'affiche qu'une
     version, jamais de champ « versification » ;
     l'info-bulle ne contient aucun commentaire de
     spec.
+
+    P18.9-bis.c (série 2, prime sur la série 1) : la
+    page Étude n'affiche PLUS aucune version de Bible —
+    le badge d'en-tête et la mention sous la synthèse
+    sont supprimés (invariant 17).
     """
 
     def test_badge(self, page):
@@ -373,16 +378,8 @@ class TestBadgeSimplifie:
         assert "P18.5" not in tooltip
         assert "versification" not in tooltip.lower()
 
-        assert (
-            fenetre.badge_bible_label.text()
-            == texte
-        )
-
-        assert (
-            "P18.5" not in (
-                fenetre.badge_bible_label.toolTip()
-            )
-        )
+        # P18.9-bis.c : plus de badge sur la page Étude.
+        assert not hasattr(fenetre, "badge_bible_label")
 
 
 class TestBoutonOuvrage:

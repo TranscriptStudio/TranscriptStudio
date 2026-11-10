@@ -1,12 +1,25 @@
 # ui/parametres_etude_dialog.py
 """
-Paramètres de l'étude (P16.1).
+Paramètres de l'étude (P16.1, allégé en P18.11 —
+relecture 3 du 2026-11-10, SPEC_PAGE_ETUDE_ET_
+SYNTHESE_MODIFS_2026-11-10b §8, invariants 20-22).
 
-Contrat §10 : les prompts stockés sont les valeurs
-**actives** de l'étude (initialisés depuis les v2 de
-référence, éditables ici) ; modèle et température
-surchargeables par étude ; interdits stylistiques
-(§5.3) éditables.
+Le dialogue n'expose QUE les champs d'étude :
+bloc Général (titre, thème), options de contexte de
+la reformulation (fenêtre glissante + champ tokens,
+synthèse d'étude en contexte), résumé (longueur
+cible, source par défaut), Bible de référence
+(version + propagation P18.8c) et interdits
+stylistiques.
+
+**Plus aucun paramètre LLM ni aucun prompt** dans ce
+di (P18.11b) : la surcharge d'étude des paramètres LLM
+et des prompts est ABROGÉE (P18.11c) — les opérations
+des réunions utilisent les paramètres du tier, la
+synthèse d'étude les réglages de l'app (LLM globaux
++ prompt de la bibliothèque prompts/synthese_etude.md).
+Le mécanisme ⚙ Prompts (UI_GESTION_PROMPTS_V2) reste
+inchangé (P18.11e).
 
 Aucune clé API : elles vivent dans le CredentialStore.
 """
@@ -15,7 +28,6 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
-    QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -44,10 +56,13 @@ from services.etude_io import (
 
 class ParametresEtudeDialog(QDialog):
     """
-    Édition des paramètres actifs de l'étude :
-    prompts v2, modèles, températures, fenêtre
-    glissante, longueur cible du résumé, interdits
-    stylistiques.
+    Édition des paramètres de l'étude — champs
+    d'étude UNIQUEMENT (P18.11) : titre/thème,
+    options de contexte de la reformulation, longueur
+    cible et source par défaut du résumé, Bible de
+    référence, interdits stylistiques. Aucun
+    paramètre LLM ni prompt (surcharge d'étude
+    abrogée).
     """
 
     def __init__(
@@ -172,9 +187,11 @@ class ParametresEtudeDialog(QDialog):
 
     def _onglet_reformulation(self) -> QWidget:
         """
-        Bloc Reformulation : prompt actif (v2 de
-        référence, éditable), modèle surchargé,
-        température, fenêtre glissante.
+        P18.11 : options de contexte de la
+        reformulation UNIQUEMENT — plus de prompt,
+        modèle ni température (surcharge d'étude
+        abrogée : les traitements d'une réunion
+        utilisent les paramètres du tier).
         """
 
         bloc = QWidget()
@@ -183,50 +200,28 @@ class ParametresEtudeDialog(QDialog):
         formulaire.setContentsMargins(0, 8, 0, 8)
         formulaire.setSpacing(8)
 
-        titre = QLabel("<b>Bloc Reformulation</b>")
+        titre = QLabel(
+            "<b>Options de contexte de la reformulation</b>"
+        )
         formulaire.addRow(titre)
 
-        self.prompt_reformulation_edit = (
-            QPlainTextEdit()
-        )
+        #
+        # P18.11b : PLUS de zone « Prompt système »,
+        # de menu « Modèle » ni de champ « Température »
+        # dans ce dialogue. Conservés : la case fenêtre
+        # glissante AVEC son champ « Fenêtre glissante
+        # (tokens) » à côté (arbitrage David du 10/11),
+        # et la case « synthèse d'étude en contexte ».
+        #
+        ligne_fenetre = QHBoxLayout()
+        ligne_fenetre.setContentsMargins(0, 0, 0, 0)
+        ligne_fenetre.setSpacing(6)
 
-        self.prompt_reformulation_edit.setPlaceholderText(
-            "Prompt système actif du bloc "
-            "(valeur par défaut : prompt v2)"
+        self.contexte_fenetre_check = QCheckBox(
+            "Envoyer les reformulations précédentes "
+            "en contexte (fenêtre glissante)"
         )
-
-        formulaire.addRow(
-            "Prompt système",
-            self.prompt_reformulation_edit
-        )
-
-        self.modele_reformulation_edit = QLineEdit()
-        self.modele_reformulation_edit.setToolTip(
-            "Modèle surchargé pour cette étude "
-            "(les réglages de l'app font foi s'il "
-            "n'existe pas chez le fournisseur configuré)"
-        )
-        formulaire.addRow(
-            "Modèle",
-            self.modele_reformulation_edit
-        )
-
-        self.temperature_reformulation_spin = (
-            QDoubleSpinBox()
-        )
-        self.temperature_reformulation_spin.setRange(
-            0.0, 2.0
-        )
-        self.temperature_reformulation_spin.setDecimals(2)
-        self.temperature_reformulation_spin.setSingleStep(0.1)
-        self.temperature_reformulation_spin.setToolTip(
-            "Basse (0.2) : sobre et fidèle. "
-            "Haute : plus libre. Défaut : 0.3."
-        )
-        formulaire.addRow(
-            "Température",
-            self.temperature_reformulation_spin
-        )
+        ligne_fenetre.addWidget(self.contexte_fenetre_check)
 
         self.fenetre_spin = QSpinBox()
         self.fenetre_spin.setRange(200, 100_000)
@@ -235,28 +230,24 @@ class ParametresEtudeDialog(QDialog):
             "Taille maximale de la fenêtre glissante "
             "de contexte (~2 000 tokens par défaut)"
         )
-        formulaire.addRow(
-            "Fenêtre glissante (tokens)",
-            self.fenetre_spin
+        ligne_fenetre.addWidget(
+            QLabel("Fenêtre glissante (tokens)")
         )
+        ligne_fenetre.addWidget(self.fenetre_spin)
+        ligne_fenetre.addStretch()
+
+        formulaire.addRow(ligne_fenetre)
 
         #
-        # Cases de contexte du bloc (P17.2) : la
-        # synthèse d'étude sert aux blocs qui le
-        # cochent.
+        # Case de contexte (P17.2) : la synthèse
+        # d'étude sert aux blocs qui le cochent.
         #
-        self.contexte_fenetre_check = QCheckBox(
-            "Envoyer les reformulations précédentes "
-            "en contexte (fenêtre glissante)"
-        )
-        formulaire.addRow(self.contexte_fenetre_check)
-
         self.contexte_synthese_check = QCheckBox(
             "Envoyer la synthèse d'étude en contexte"
         )
         self.contexte_synthese_check.setToolTip(
-            "Générée à la validation complète d'une "
-            "réunion, régénérable depuis la page Étude."
+            "La synthèse d'étude sert de contexte aux "
+            "blocs qui cochent cette case."
         )
         formulaire.addRow(self.contexte_synthese_check)
 
@@ -264,7 +255,9 @@ class ParametresEtudeDialog(QDialog):
 
     def _onglet_resume(self) -> QWidget:
         """
-        Bloc Résumé (valeurs actives ; exécution en P17).
+        P18.11 : bloc Résumé — longueur cible et
+        source par défaut UNIQUEMENT (plus de prompt,
+        modèle ni température).
         """
 
         bloc = QWidget()
@@ -273,38 +266,8 @@ class ParametresEtudeDialog(QDialog):
         formulaire.setContentsMargins(0, 8, 0, 8)
         formulaire.setSpacing(8)
 
-        titre = QLabel("<b>Bloc Résumé</b>")
+        titre = QLabel("<b>Résumé</b>")
         formulaire.addRow(titre)
-
-        self.prompt_resume_edit = QPlainTextEdit()
-        self.prompt_resume_edit.setPlaceholderText(
-            "Prompt système actif du résumé "
-            "(valeur par défaut : prompt v2)"
-        )
-        formulaire.addRow(
-            "Prompt système",
-            self.prompt_resume_edit
-        )
-
-        self.modele_resume_edit = QLineEdit()
-        formulaire.addRow(
-            "Modèle",
-            self.modele_resume_edit
-        )
-
-        self.temperature_resume_spin = QDoubleSpinBox()
-        self.temperature_resume_spin.setRange(
-            0.0, 2.0
-        )
-        self.temperature_resume_spin.setDecimals(2)
-        self.temperature_resume_spin.setSingleStep(0.1)
-        self.temperature_resume_spin.setToolTip(
-            "Basse (0.2) : sobre et fidèle. Défaut : 0.2."
-        )
-        formulaire.addRow(
-            "Température",
-            self.temperature_resume_spin
-        )
 
         longueur_widget = QWidget()
         longueur_layout = QHBoxLayout(longueur_widget)
@@ -426,19 +389,8 @@ class ParametresEtudeDialog(QDialog):
         reformulation = self.etude.parametres.reformulation
         resume = self.etude.parametres.resume
 
-        self.prompt_reformulation_edit.setPlainText(
-            reformulation.get("prompt", "")
-        )
-
-        self.modele_reformulation_edit.setText(
-            reformulation.get("modele", "") or ""
-        )
-
-        self.temperature_reformulation_spin.setValue(
-            float(
-                reformulation.get("temperature") or 0.3
-            )
-        )
+        # P18.11 : plus de prompt/modèle/température
+        # chargés (ces champs n'existent plus).
 
         self.fenetre_spin.setValue(
             int(
@@ -456,18 +408,6 @@ class ParametresEtudeDialog(QDialog):
 
         self.contexte_synthese_check.setChecked(
             bool(contexte.get("synthese_etude", True))
-        )
-
-        self.prompt_resume_edit.setPlainText(
-            resume.get("prompt", "")
-        )
-
-        self.modele_resume_edit.setText(
-            resume.get("modele", "") or ""
-        )
-
-        self.temperature_resume_spin.setValue(
-            float(resume.get("temperature") or 0.2)
         )
 
         longueur = resume.get("longueur_cible_mots") or [
@@ -539,18 +479,9 @@ class ParametresEtudeDialog(QDialog):
             self.etude.parametres.reformulation
         )
 
-        reformulation["prompt"] = (
-            self.prompt_reformulation_edit.toPlainText()
-        )
-
-        reformulation["modele"] = (
-            self.modele_reformulation_edit.text().strip()
-            or None
-        )
-
-        reformulation["temperature"] = (
-            self.temperature_reformulation_spin.value()
-        )
+        # P18.11 : plus de prompt/modèle/température
+        # écrits (surcharge d'étude des paramètres LLM
+        # et prompts abrogée).
 
         reformulation[
             "fenetre_glissante_tokens"
@@ -567,16 +498,6 @@ class ParametresEtudeDialog(QDialog):
         ] = self.contexte_synthese_check.isChecked()
 
         resume = self.etude.parametres.resume
-
-        resume["prompt"] = self.prompt_resume_edit.toPlainText()
-
-        resume["modele"] = (
-            self.modele_resume_edit.text().strip() or None
-        )
-
-        resume["temperature"] = (
-            self.temperature_resume_spin.value()
-        )
 
         resume["longueur_cible_mots"] = [
             self.longueur_min_spin.value(),
@@ -618,12 +539,16 @@ class ParametresEtudeDialog(QDialog):
         sauvegarder_etude(self.etude)
 
         #
-        # P18.7e : en v2, les paramètres de traitement
-        # (reformulation, résumé, contrôle qualité, bible)
-        # vivent dans le TIER de chaque réunion — on propage
-        # explicitement les valeurs de l'étude vers tous les
-        # tiers et on les sauvegarde. L'étude ne persiste que
-        # la surcharge de synthèse.
+        # P18.7e/P18.11 : en v2, les paramètres de
+        # traitement vivent dans le TIER de chaque réunion.
+        # On propage vers tous les tiers UNIQUEMENT les
+        # options d'étude hors LLM conservées par le
+        # dialogue (contexte de la reformulation, longueur
+        # cible et source du résumé, interdits stylistiques,
+        # version Bible) — JAMAIS les paramètres LLM ni
+        # les prompts : la surcharge d'étude est abrogée
+        # (P18.11c), chaque tier garde ses propres réglages
+        # LLM/prompts (éditables via ⚙ Prompts, P18.11e).
         #
         from services.tier_reunion import (
             sauvegarder_tier,
@@ -635,14 +560,45 @@ class ParametresEtudeDialog(QDialog):
                 self.etude.parametres_traitement_de(nom)
             )
 
-            parametres.reformulation.update(
+            etude_reformulation = (
                 self.etude.parametres.reformulation
             )
-            parametres.resume.update(
-                self.etude.parametres.resume
+
+            parametres.reformulation[
+                "fenetre_glissante_tokens"
+            ] = etude_reformulation.get(
+                "fenetre_glissante_tokens",
+                2000,
             )
-            parametres.controle_qualite.update(
-                self.etude.parametres.controle_qualite
+
+            parametres.reformulation.setdefault(
+                "contexte",
+                {},
+            ).update(
+                etude_reformulation.get("contexte") or {}
+            )
+
+            etude_resume = self.etude.parametres.resume
+
+            parametres.resume["longueur_cible_mots"] = (
+                etude_resume.get("longueur_cible_mots")
+                or [650, 700]
+            )
+
+            parametres.resume["source_defaut"] = (
+                etude_resume.get(
+                    "source_defaut",
+                    "reformulations_valides",
+                )
+            )
+
+            parametres.controle_qualite[
+                "interdits_stylistiques"
+            ] = list(
+                self.etude.parametres.controle_qualite.get(
+                    "interdits_stylistiques"
+                )
+                or []
             )
 
             #

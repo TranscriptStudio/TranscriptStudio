@@ -361,14 +361,22 @@ class TestMigrationRoundTrip:
             / "blocs" / "journal-fid.json"
         ).is_file()
 
-        # Étude v2 : paramètres = surcharges synthèse seule ;
-        # journal d'étude à la racine.
+        # Étude v2 : paramètres = options d'étude hors LLM
+        # uniquement (P18.11d — aucun volet LLM) ; journal
+        # d'étude à la racine.
         donnees = json.loads(
             (dossier / "parametres" / "parametres.json").read_text(
                 encoding="utf-8"
             )
         )
-        assert set(donnees.keys()) == {"synthese"}
+        assert set(donnees.keys()) == {
+            "reformulation",
+            "resume",
+            "controle_qualite",
+            "bible",
+        }
+        assert "synthese" not in donnees
+        assert "llm" not in donnees
         assert (dossier / "journal_etude.json").is_file()
 
         # Journal éclaté : les entrées de r1 dans le tier,

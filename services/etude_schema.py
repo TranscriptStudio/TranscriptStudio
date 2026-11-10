@@ -919,6 +919,18 @@ def valider_synthese(
             fichier
         )
 
+        # P20.6c/P18.11c : stats optionnel (hash du
+        # prompt utilisé notamment) — jamais requis.
+        if (
+            "stats" in version
+            and version["stats"] is not None
+            and not isinstance(version["stats"], dict)
+        ):
+            _erreur(
+                fichier,
+                f"{prefixe}.stats : objet attendu"
+            )
+
     if numeros != sorted(numeros):
         _erreur(
             fichier,
@@ -1273,34 +1285,130 @@ def valider_reunion_tier(
     )
 
 
-def valider_parametres_synthese_seule(
+def valider_parametres_etude_hors_llm(
     data: dict,
     fichier: str = "parametres/parametres.json"
 ) -> None:
     """
     Valide ``parametres/parametres.json`` d'une étude v2
-    (P18.7c) : seules les SURCHARGES DE SYNTHÈSE restent au
-    niveau étude ; tous les autres paramètres (reformulation,
-    résumé, contrôle qualité, llm, bible, fusion) vivent dans
-    le tier de chaque réunion.
+    (P18.11d) : OPTIONS D'ÉTUDE HORS LLM uniquement —
+    contexte de la reformulation (fenêtre glissante +
+    cases), longueur cible et source par défaut du
+    résumé, interdits stylistiques, version Bible.
+
+    Les volets LLM éventuellement présents dans une
+    étude antérieure (``synthese``, ``llm``, prompts,
+    modèle/température...) sont IGNORÉS à la lecture :
+    jamais requis, jamais réécrits (élagués à la
+    prochaine écriture) — aucune migration dédiée.
     """
 
     if not isinstance(data, dict):
         _erreur(fichier, "objet JSON attendu")
 
-    synthese = _exiger_cle(
-        data,
-        "synthese",
-        fichier,
-        dict
-    )
+    reformulation = data.get("reformulation")
 
-    for cle in ("tokens_max", "modele"):
-        _exiger_cle(synthese, cle, fichier)
+    if reformulation is not None:
 
-    if not isinstance(synthese["tokens_max"], int):
-        _erreur(
-            fichier,
-            "synthese.tokens_max : "
-            "entier attendu"
-        )
+        if not isinstance(reformulation, dict):
+            _erreur(
+                fichier,
+                "reformulation : objet attendu"
+            )
+
+        if (
+            "fenetre_glissante_tokens" in reformulation
+            and not isinstance(
+                reformulation["fenetre_glissante_tokens"],
+                int
+            )
+        ):
+            _erreur(
+                fichier,
+                "reformulation.fenetre_glissante_"
+                "tokens : entier attendu"
+            )
+
+        contexte = reformulation.get("contexte")
+
+        if contexte is not None and not isinstance(
+            contexte,
+            dict
+        ):
+            _erreur(
+                fichier,
+                "reformulation.contexte : objet attendu"
+            )
+
+    resume = data.get("resume")
+
+    if resume is not None:
+
+        if not isinstance(resume, dict):
+            _erreur(fichier, "resume : objet attendu")
+
+        longueur = resume.get("longueur_cible_mots")
+
+        if longueur is not None and (
+            not isinstance(longueur, list)
+            or len(longueur) != 2
+            or not all(
+                isinstance(borne, int)
+                for borne in longueur
+            )
+        ):
+            _erreur(
+                fichier,
+                "resume.longueur_cible_mots : "
+                "paire d'entiers [min, max] attendue"
+            )
+
+        source = resume.get("source_defaut")
+
+        if source is not None:
+            _valider_enum(
+                source,
+                SOURCES_RESUME,
+                "resume.source_defaut",
+                fichier
+            )
+
+    controle = data.get("controle_qualite")
+
+    if controle is not None:
+
+        if not isinstance(controle, dict):
+            _erreur(
+                fichier,
+                "controle_qualite : objet attendu"
+            )
+
+        interdits = controle.get("interdits_stylistiques")
+
+        if interdits is not None and not isinstance(
+            interdits,
+            list
+        ):
+            _erreur(
+                fichier,
+                "controle_qualite.interdits_"
+                "stylistiques : liste attendue"
+            )
+
+    bible = data.get("bible")
+
+    if bible is not None:
+
+        if not isinstance(bible, dict):
+            _erreur(fichier, "bible : objet attendu")
+
+        version = bible.get("version")
+
+        if version is not None and not isinstance(
+            version,
+            str
+        ):
+            _erreur(
+                fichier,
+                "bible.version : chaine attendue"
+            )

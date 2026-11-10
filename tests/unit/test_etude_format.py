@@ -264,8 +264,12 @@ class TestCreationEtude:
 
     def test_parametres_par_defaut(self, tmp_path):
         """
-        P18.7c/§8bis : en v2, parametres/parametres.json de
-        l'étude ne porte que les SURCHARGES DE SYNTHÈSE ;
+        P18.7c/§8bis + P18.11d : en v2,
+        parametres/parametres.json de l'étude ne porte que
+        les OPTIONS D'ÉTUDE HORS LLM (contexte
+        reformulation, longueur/source du résumé,
+        interdits stylistiques, version Bible) — AUCUN
+        volet LLM (surcharge d'étude abrogée, P18.11c) ;
         les paramètres des traitements vivent dans le tier
         de chaque réunion.
         """
@@ -280,9 +284,33 @@ class TestCreationEtude:
             ).read_text(encoding="utf-8")
         )
 
-        # Étude v2 : surcharge synthèse uniquement.
-        assert set(donnees.keys()) == {"synthese"}
-        assert donnees["synthese"]["tokens_max"] == 1500
+        # Étude v2 : options hors LLM uniquement, aucun
+        # volet LLM (pas de synthese/llm/prompt/modele/
+        # temperature).
+        assert set(donnees.keys()) == {
+            "reformulation",
+            "resume",
+            "controle_qualite",
+            "bible",
+        }
+        assert "synthese" not in donnees
+        assert "llm" not in donnees
+        assert donnees["reformulation"] == {
+            "fenetre_glissante_tokens": 2000,
+            "contexte": {
+                "fenetre_glissante": True,
+                "synthese_etude": True,
+            },
+        }
+        assert "prompt" not in donnees["reformulation"]
+        assert "modele" not in donnees["reformulation"]
+        assert "temperature" not in donnees["reformulation"]
+        assert donnees["resume"]["longueur_cible_mots"] == [650, 700]
+        assert donnees["resume"]["source_defaut"] == (
+            "reformulations_valides"
+        )
+        assert "interdits_stylistiques" in donnees["controle_qualite"]
+        assert donnees["bible"]["version"] == "darbyR"
 
         # Tier de la réunion : paramètres complets.
         parametres_tier = etude.tier_de(nom).parametres.to_dict()

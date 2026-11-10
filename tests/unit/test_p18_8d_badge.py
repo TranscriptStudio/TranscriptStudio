@@ -1,9 +1,15 @@
 # tests/unit/test_p18_8d_badge.py
 """
-P18.8d — Badge « Bible » de la page Étude : version
-commune aux réunions rattachées, « Bibles mixtes » si
-divergence (info-bulle listant les versions par réunion
-— ARBITRAGE_P18_7_ECARTS 2026-11-09a, écart 3).
+P18.8d — Badge « Bible » : version commune aux
+réunions rattachées, « Bibles mixtes » si divergence
+(info-bulle listant les versions par réunion —
+ARBITRAGE_P18_7_ECARTS 2026-11-09a, écart 3).
+
+P18.9-bis.c (relecture 2 du 10/11) : le badge n'est
+PLUS affiché sur la page Étude — la page n'affiche
+plus aucune version de Bible (ni badge d'en-tête, ni
+mention sous la synthèse). Les helpers de calcul
+restent testés ici.
 """
 
 import json
@@ -89,22 +95,48 @@ def page(qapp, tmp_path):
 
 class TestBadgeBible:
 
+    def test_page_etude_sans_aucune_mention_bible(self, page):
+        """
+        P18.9-bis.c (amende P18.8d/P18.9c) : la page
+        Étude n'affiche PLUS aucune version de Bible —
+        ni badge d'en-tête, ni mention sous la synthèse.
+        """
+
+        fenetre, tmp_path, noms = page
+
+        assert not hasattr(fenetre, "badge_bible_label")
+
+        # Aucun label de la page ne mentionne une Bible.
+        from PySide6.QtWidgets import QLabel
+
+        textes = [
+            label.text()
+            for label in fenetre.findChildren(QLabel)
+        ]
+
+        assert not any(
+            "Bible" in texte for texte in textes
+        )
+
     def test_badge_version_commune(self, page):
+        """
+        Le calcul du badge (service) reste disponible —
+        il n'est simplement plus affiché sur la page
+        Étude (P18.9-bis.c) : version commune, JAMAIS de
+        champ « versification » distinct ; info-bulle
+        épurée.
+        """
+
+        from services.bibles import badge_bible_etude
+
         fenetre, tmp_path, noms = page
 
         # Toutes les réunions sur darbyR (défaut).
-        # P18.9c : badge simplifié, JAMAIS de champ
-        # « versification » distinct.
-        assert fenetre._texte_badge_bible() == (
-            "Bible : Darby révisée"
-        )
+        texte, tooltip = badge_bible_etude(fenetre.etude)
 
-        assert "versification" not in (
-            fenetre._texte_badge_bible()
-        )
+        assert texte == "Bible : Darby révisée"
 
-        tooltip = fenetre._tooltip_badge_bible()
-
+        assert "versification" not in texte
         assert "commune" in tooltip
         # Info-bulle épurée : aucun commentaire de
         # spec (P18.9c, invariant 4).
@@ -112,6 +144,14 @@ class TestBadgeBible:
         assert "versification" not in tooltip.lower()
 
     def test_badge_bibles_mixtes(self, page):
+        """
+        « Bibles mixtes » quand les tiers divergent
+        (service ; plus affiché sur la page Étude,
+        P18.9-bis.c).
+        """
+
+        from services.bibles import badge_bible_etude
+
         fenetre, tmp_path, noms = page
 
         # Fait diverger une réunion (sur l'étude de la
@@ -120,9 +160,9 @@ class TestBadgeBible:
             "version"
         ] = "segond1910"
 
-        assert fenetre._texte_badge_bible() == "Bibles mixtes"
+        texte, tooltip = badge_bible_etude(fenetre.etude)
 
-        tooltip = fenetre._tooltip_badge_bible()
+        assert texte == "Bibles mixtes"
 
         assert "Segond 1910" in tooltip
         assert "Darby révisée" in tooltip

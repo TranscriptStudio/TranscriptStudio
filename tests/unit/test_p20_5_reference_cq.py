@@ -394,14 +394,16 @@ class TestReferenceOuvrage:
         finally:
             fenetre.close()
 
-    def test_badge_page_etude_affiche_version_ouvrage(
+    def test_page_etude_ne_affiche_plus_la_version_ouvrage(
         self,
         qapp,
         tmp_path
     ):
         """
-        Le badge Bible de la page Étude affiche la
-        version ouvrage dès qu'elle est choisie.
+        P18.9-bis.c (amende P20.5) : même quand une
+        version ouvrage est choisie, la page Étude
+        n'affiche PLUS aucune version de Bible (la page
+        Ouvrage garde son badge).
         """
 
         from ui.etude_window import EtudeWindow
@@ -418,6 +420,12 @@ class TestReferenceOuvrage:
 
             QApplication.processEvents()
 
+            # Badge ouvrage toujours affiché (P20.5b).
+            assert (
+                fenetre._texte_badge_bible_ouvrage()
+                == "Bible : Darby"
+            )
+
             page_etude = EtudeWindow(
                 tmp_path / "Etude",
                 settings=SettingsManager(
@@ -427,9 +435,11 @@ class TestReferenceOuvrage:
 
             try:
 
-                assert (
-                    page_etude._texte_badge_bible()
-                    == "Bible : Darby"
+                # P18.9-bis.c : aucun badge Bible sur la
+                # page Étude, même avec version ouvrage.
+                assert not hasattr(
+                    page_etude,
+                    "badge_bible_label"
                 )
 
             finally:

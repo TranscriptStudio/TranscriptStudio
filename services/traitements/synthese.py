@@ -21,6 +21,12 @@ invariants 8-14) :
   prompt_synthese_etude.md``) — format cible :
   phrases courtes résumant chaque pensée d'un
   interlocuteur, avec le locuteur identifiable ;
+- **P18.11c** : la synthèse d'étude utilise
+  EXCLUSIVEMENT les réglages de l'app — paramètres
+  LLM globaux + prompt courant de la bibliothèque
+  (lu directement, plus de copie locale d'étude) ;
+  la version mémorise toujours le texte et le hash
+  utilisés (P20.6c) ;
 - **« (Re)générer »** : remplacement INTÉGRAL de la
   synthèse par celle de toutes les réunions à blocs
   validés (avertissement + confirmation côté UI) ;
@@ -256,6 +262,34 @@ def _texte_valide(resultat) -> str:
     return None
 
 
+def reunion_a_blocs_valides(
+    etude_ouverte: EtudeOuverte,
+    reunion: str
+) -> bool:
+    """
+    P20.6b (conformité, relecture 2 du 10/11) : la
+    réunion A des blocs validés — au moins un de ses
+    blocs actifs possède une version validée.
+
+    Aucun découpage (réunion non transcrite) → False,
+    sans erreur.
+    """
+
+    try:
+        blocs = blocs_actifs(etude_ouverte, reunion)
+    except Exception:
+        return False
+
+    for bloc in blocs:
+
+        if _texte_valide(
+            etude_ouverte.reformulation_de(reunion, bloc.fid)
+        ):
+            return True
+
+    return False
+
+
 def texte_reunion_valide(
     etude_ouverte: EtudeOuverte,
     reunion: str
@@ -418,16 +452,12 @@ class ServiceSynthese:
 
         return catalogue_par_defaut()
 
-    def _parametres_synthese(self) -> dict:
-
-        return self.etude.parametres.synthese
-
     def prompt_effectif(self) -> str:
         """
-        P20.6a : prompt DÉDIÉ ÉDITABLE de la synthèse
-        d'étude — bibliothèque ``prompts/
-        synthese_etude.md`` (défaut embarqué si
-        absent).
+        P20.6a/P18.11c : prompt DÉDIÉ de la synthèse
+        d'étude — lu DIRECTEMENT dans la bibliothèque
+        ``prompts/synthese_etude.md`` (défaut embarqué
+        si absent) ; plus de copie locale d'étude.
         """
 
         return lire_bibliotheque(
@@ -436,11 +466,15 @@ class ServiceSynthese:
         )[0]
 
     def tokens_max(self) -> int:
+        """
+        P18.11c : budget de sortie de la synthèse —
+        réglages de l'app UNIQUEMENT (``max_tokens``),
+        défaut embarqué sinon. Plus de surcharge
+        d'étude.
+        """
 
         return int(
-            self._parametres_synthese().get(
-                "tokens_max"
-            )
+            self._parametres_app().get("max_tokens")
             or TOKENS_SYNTHESE_DEFAUT
         )
 
@@ -459,21 +493,14 @@ class ServiceSynthese:
                 "vérifiez les réglages."
             )
 
-        modele_id = self._parametres_synthese().get(
-            "modele"
+        #
+        # P18.11c : la synthèse utilise EXCLUSIVEMENT les
+        # réglages de l'app — plus de surcharge d'étude
+        # (paramètres LLM globaux uniquement).
+        #
+        modele = fournisseur.chercher_modele(
+            app.get("modele")
         )
-
-        modele = None
-
-        if modele_id:
-            modele = (
-                fournisseur.chercher_modele(modele_id)
-            )
-
-        if modele is None:
-            modele = fournisseur.chercher_modele(
-                app.get("modele")
-            )
 
         if modele is None and fournisseur.modeles:
             modele = fournisseur.modeles[0]
@@ -656,13 +683,17 @@ class ServiceSynthese:
         Retour : ``(version, stats, remplace)``.
         """
 
-        if not reunion_entierement_validee(
+        #
+        # P20.6b (conformité, relecture 2 du 10/11) :
+        # dès qu'une réunion a des blocs validés.
+        #
+        if not reunion_a_blocs_valides(
             self.etude,
             reunion
         ):
             raise EtudeError(
-                f"La réunion « {reunion} » n'a pas tous "
-                "ses blocs validés : elle ne peut pas "
+                f"La réunion « {reunion} » n'a aucun "
+                "bloc validé : elle ne peut pas "
                 "alimenter la synthèse."
             )
 

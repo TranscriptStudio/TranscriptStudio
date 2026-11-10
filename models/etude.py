@@ -797,12 +797,18 @@ class VersionSynthese:
     """
     Une version de la synthèse d'étude
     (contrat §9).
+
+    ``stats`` (LLM uniquement, None pour une édition
+    manuelle) : la version mémorise toujours le texte
+    ET le hash du prompt utilisé (P20.6c/P18.11c :
+    ``stats["prompt_hash"]``).
     """
 
     numero: int
     texte: str
     horodatage: str
     declencheur: str = "manuel"
+    stats: Optional[dict] = None
 
     def to_dict(self) -> dict:
 
@@ -811,6 +817,7 @@ class VersionSynthese:
             "texte": self.texte,
             "horodatage": self.horodatage,
             "declencheur": self.declencheur,
+            "stats": self.stats,
         }
 
     @classmethod
@@ -824,6 +831,7 @@ class VersionSynthese:
             texte=data["texte"],
             horodatage=data["horodatage"],
             declencheur=data["declencheur"],
+            stats=data.get("stats"),
         )
 
 

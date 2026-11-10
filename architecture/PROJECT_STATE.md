@@ -1,5 +1,14 @@
 # PROJECT_STATE.md - Etat actuel du développement TranscriptStudio
 
+> **Dernière mise à jour** : 2026-11-10 (**session P18.9-bis + P20.6b + P18.11 —
+> synchro atelier v53 : INDEX_SPECS_2026-11-10a rév. 4, FEUILLE_DE_ROUTE_V2_2026-11-10a,
+> SPEC_PAGE_ETUDE_ET_SYNTHESE_MODIFS_2026-11-10b, MAQUETTE_PAGE_ETUDE_P18_9_BIS_2026-11-10c,
+> CONTRAT_STOCKAGE_REUNIONS_V2_2026-11-09a amendé §8/§9 recopiés verbatim dans
+> architecture/spec_v2/ ; PROJECT_STATE.md poussé vers le dossier Drive Synchro ;
+> livraison P18.9-bis (relecture 2 page Étude) + conformité P20.6b + P18.11
+> (relecture 3 : dialogue « Paramètres de l'étude » allégé + abrogation de la
+> surcharge d'étude) ; suite complète verte : 812 tests**).
+
 > **Dernière mise à jour** : 2026-11-09 soir (**session P20 — reliquat v2 en cours :
 > synchro atelier v41 (INDEX_SPECS_2026-11-09c rév. 5, FEUILLE_DE_ROUTE_V2_2026-11-09c,
 > BIBLE_JND_V2_2026-11-09d, SPEC_PAGE_ETUDE_ET_SYNTHESE_MODIFS_2026-11-09d recopiés) ;
@@ -2668,3 +2677,117 @@ commit, aucun force-push nécessaire.**
 - **Bloc de réglage export_ouvrage (services/settings.py) commité avec
   P18.10** : hunk mixte (réglage export DOCX rattaché au diff settings de
   P18.10) — sans impact fonctionnel, le réglage est utilisé par P20.4.
+
+---
+
+## SESSION 2026-11-10 — P18.9-bis + conformité P20.6b + P18.11 : LIVRÉS
+
+Synchro atelier v53 en début de session (skill transcriptstudio-spec v53, dossier
+Drive TranscriptStudio/Synchro monté en G:\Mon Drive) : assets 2026-11-10 recopiés
+verbatim dans `architecture/spec_v2/` (INDEX_SPECS_2026-11-10a rév. 4,
+FEUILLE_DE_ROUTE_V2_2026-11-10a, SPEC_PAGE_ETUDE_ET_SYNTHESE_MODIFS_2026-11-10b,
+MAQUETTE_PAGE_ETUDE_P18_9_BIS_2026-11-10c — purement illustrative, PAS une
+référence d'UI — et CONTRAT_STOCKAGE_REUNIONS_V2_2026-11-09a amendé §8/§9) ;
+PROJECT_STATE.md courant copié vers le dossier Drive Synchro (montée atelier).
+
+Feuilles d'autorité : SPEC_PAGE_ETUDE_ET_SYNTHESE_MODIFS_2026-11-10b §7 (série 2,
+invariants 15-19 + non-conformité P20.6b) et §8 (série 3, invariants 20-22) ;
+CONTRAT_STOCKAGE_REUNIONS_V2 §8/§9 amendés ; FEUILLE_DE_ROUTE_V2_2026-11-10a
+(entrées P18.9-bis et P18.11) ; INDEX_SPECS_2026-11-10a rév. 4.
+
+### P18.9-bis — correctifs de relecture 2, page Étude (ui/etude_window.py)
+
+- **P18.9-bis.a** numérotation positionnelle : plus de numéro sur la tuile ;
+  gouttière à gauche (`gouttiere_numeros`, QListWidget fixe, défilement
+  synchronisé avec la liste) affichant exactement N labels « 1 »..« N »,
+  alignés sur les rangées (même sizeHint), jamais déplacés au
+  glisser-déposer (seule la tuile change de rangée) ; aucun label sans
+  tuile ; ordre persisté inchangé (etude.json).
+- **P18.9-bis.b** : info-bulle de la zone des tuiles supprimée (aucun
+  tooltip au survol de la zone ou des tuiles).
+- **P18.9-bis.c** : plus aucune mention Bible sur la page Étude — badge
+  d'en-tête supprimé (`badge_bible_label` et helpers retirés) et mention
+  « Bible : … » retirée du statut sous la synthèse ; la version reste
+  visible dans les paramètres de l'étude, le volet Réunion, le lecteur de
+  Bible et la page Ouvrage (helpers de calcul conservés dans
+  services/bibles.py).
+- **P18.9-bis.d** : « ... » supprimés de « ＋ Ajouter une réunion » et
+  « (Re)générer la synthèse » (les 4 actions haut droit restent de vrais
+  QPushButton).
+- **P18.9-bis.e** : info-bulle « (Re)générer la synthèse » raccourcie, sans
+  référence de spec.
+- **P18.9-bis.f** : « Renommer… » au clic droit (`_renommer_reunion`) —
+  édite le titre d'affichage (titre_1 si rattachée, champ « titre » du
+  tier si autonome), titre vide refusé, aucun effet sur les noms de
+  fichiers/dossiers ni les références de l'étude.
+- Invariant 18 (généralisation) : nettoyage des info-bulles avec référence
+  de spec dans toute l'UI (ui/ouvrage_window.py ×3, ui/reunion_window.py ×1)
+  — test source par AST de tous les setToolTip de ui/.
+
+### Conformité P20.6b (bug, pas un changement de spec)
+
+- Nouveau `reunion_a_blocs_valides(etude, reunion)` dans
+  services/traitements/synthese.py : la réunion A des blocs validés (≥ 1
+  bloc actif avec version validée ; aucun découpage → False sans erreur).
+- Menu contextuel de la tuile et garde d'`alimenter()` utilisent ce
+  prédicat : « Alimenter la synthèse globale » présent DÈS QU'une réunion
+  a des blocs validés (même partiellement), absent sinon, et fonctionnel
+  (invariants 9-10 inchangés). `reunion_entierement_validee` conservé pour
+  la source du « (Re)générer » (`reunions_a_blocs_valides`).
+
+### P18.11 — allègement du dialogue « Paramètres de l'étude » + abrogation de la surcharge d'étude
+
+- **P18.11a/b** (ui/parametres_etude_dialog.py) : le dialogue ne conserve
+  que Général (titre, thème), les options de contexte de la reformulation
+  (case fenêtre glissante AVEC le champ « Fenêtre glissante (tokens) » à
+  côté, case « Envoyer la synthèse d'étude en contexte »), le résumé
+  (longueur cible, source par défaut), la Bible de référence (version +
+  libellé de propagation P18.8c) et les interdits stylistiques. Toutes les
+  zones « Prompt système », menus « Modèle » et champs « Température »
+  retirés (invariant 20). L'enregistrement ne propage vers les tiers QUE
+  les champs conservés — jamais les paramètres LLM/prompts du tier.
+- **P18.11c** : abrogation de la surcharge d'étude. `ServiceSynthese`
+  (services/traitements/synthese.py) utilise EXCLUSIVEMENT les réglages de
+  l'app : `resoudre()` = fournisseur/modèle globaux (plus de lecture du
+  volet synthèse de l'étude), `tokens_max()` = `max_tokens` de l'app (défaut
+  1500) ; le prompt reste lu directement dans la bibliothèque
+  `prompts/synthese_etude.md` (P20.6a, aucune copie locale d'étude) ; la
+  version de synthèse mémorise toujours texte + hash
+  (`VersionSynthese.stats` ajouté, `prompt_hash` persisté dans
+  synthese.json, P20.6c). Opérations de réunion = paramètres du tier
+  (inchangé, §8). P18.11e : mécanisme ⚙ Prompts inchangé.
+- **P18.11d** (stockage) : `parametres\parametres.json` de l'étude v2 ne
+  porte plus de volets LLM — nouveau writer `parametres_etude_v2_dict`
+  (options hors LLM : reformulation contexte/fenêtre, resume
+  longueur/source, interdits stylistiques, bible.version) ; nouveau
+  validateur `valider_parametres_etude_hors_llm` (volets LLM jamais
+  requis) ; à la lecture (ouvrir_etude v2), seuls les champs conservés
+  sont repris, les volets LLM présents sont IGNORÉS et jamais réécrits
+  (élagués à la prochaine écriture, aucune migration) — invariant 22.
+  Migration one-shot v1→v2 (services/migration_etude.py) écrit le même
+  format hors LLM.
+
+### Tests
+
+- Nouveaux : `tests/unit/test_p18_9bis_etude.py` (13 tests : invariants
+  15-19 + conformité P20.6b, prédicat, menu, alimenter fonctionnel en
+  validation partielle) et `tests/unit/test_p18_11_parametres.py`
+  (10 tests : invariants 20-22 — dialogue sans widgets LLM, synthèse =
+  réglages app uniquement, prompt bibliothèque change la génération
+  suivante, version mémorise texte+hash, volets LLM anciens ignorés puis
+  élagués, persistance des champs conservés via le dialogue).
+- Adaptés : test_etude_format, test_p18_7e_params_invariants,
+  test_p18_7f_migration (format v2 hors LLM), test_p18_8d_badge,
+  test_p18_9_etude, test_p18_6bis_s1, test_p18_6c_etude, test_p20_5_reference_cq
+  (plus de mention Bible sur la page Étude), test_p20_6_synthese (libellé
+  « (Re)générer la synthèse » sans « ... »).
+- **Suite complète verte : 812 tests** (788 + 24 nouveaux/ajustés),
+  exécutée en arbre principal avant commit.
+
+### Bilan
+
+- origin/master vérifié à l'état v1 (P13, 74a6b09) avant commit ; branche
+  v2 poussée sur origin/v2.
+- Écarts : aucun nouveau. Rappel écart ouvert : le manuel PDF reste à
+  régénérer par l'atelier (DOCX à jour, pas de convertisseur DOCX→PDF côté
+  dev).

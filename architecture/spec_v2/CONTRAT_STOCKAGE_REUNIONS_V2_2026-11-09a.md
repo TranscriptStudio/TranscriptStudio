@@ -70,7 +70,7 @@ Projets\<reunion>\                       ← projet v1, fichiers inchangés par 
 ## 8. Paramètres actifs
 
 - Le tier porte ses propres `parametres\parametres.json`, initialisés depuis les réglages de l'app (mêmes champs que le §10 du contrat, volets `reformulation`, `resume`).
-- **Toute opération sur les traitements d'une réunion — où qu'elle soit lancée — utilise les paramètres du tier** (précision David du 2026-11-08) : l'étude ne modifie jamais les conditions de travail de la réunion. Les surcharges d'étude s'appliquent **à la synthèse uniquement**.
+- **Toute opération sur les traitements d'une réunion — où qu'elle soit lancée — utilise les paramètres du tier** (précision David du 2026-11-08) : l'étude ne modifie jamais les conditions de travail de la réunion. **Les surcharges d'étude sont ABROGÉES (P18.11, David du 2026-11-10)** : il n'existe plus de surcharge par étude de paramètres LLM ni de prompt ; la synthèse d'étude utilise exclusivement les réglages de l'app (paramètres LLM globaux + prompt courant de la bibliothèque `prompts/synthese_etude.md`, P20.6a — plus de copie locale d'étude pour ce prompt ; la version mémorise toujours le texte et le hash utilisés).
 - La version produite mémorise ce qui a été utilisé (stats + hash du prompt, cf. UI_GESTION_PROMPTS).
 
 ### 8bis. Aucune écriture en retour (précision David du 2026-11-08)
@@ -86,7 +86,7 @@ Etude_Luc\
 ├── etude.json                 ← + "etude_format_version": 2
 ├── reunions\<nom>.json        ← garde reference, chemins, date, numero, titre_1 ; PERD resume_valide (→ tier)
 ├── synthese\synthese.json     ← inchangé (§9 du contrat)
-├── parametres\parametres.json ← surcharges d'étude (synthèse + volets de relance)
+├── parametres\parametres.json ← options d'étude hors LLM (P18.11 : contexte reformulation/résumé, interdits stylistiques ; volets LLM abrogés — inertes s'ils existent, jamais réécrits)
 ├── journal_etude.json         ← ex-journal_operations de l'étude, périmètre étude seul
 └── sauvegardes\               ← copies de sécurité créées par la migration
 ```

@@ -99,14 +99,10 @@ class TestRuban:
             fenetre.sous_titre_label.text()
         )
 
-        # Badge Bible simplifié (P18.9c) : une
-        # version, JAMAIS de champ « versification ».
-        assert fenetre.badge_bible_label \
-            .text().startswith("Bible :")
-
-        assert "versification" not in (
-            fenetre.badge_bible_label.text()
-        )
+        # P18.9-bis.c : la page Étude n'affiche PLUS
+        # aucune version de Bible (plus de badge
+        # d'en-tête).
+        assert not hasattr(fenetre, "badge_bible_label")
 
         boutons = [
             b.text()
@@ -424,7 +420,8 @@ class TestRenvoiOuvrage:
             )
         ]
 
-        assert "＋ Ajouter une réunion…" in (
+        # P18.9-bis.d : « ... » supprimé du libellé.
+        assert "＋ Ajouter une réunion" in (
             boutons_entete
         )
 

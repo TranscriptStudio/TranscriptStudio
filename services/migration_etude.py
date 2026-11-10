@@ -28,9 +28,10 @@ Déclenchée à l'ouverture d'une étude ``etude_format_version: 1`` :
    soit ;
 5. réécriture de l'étude en v2 : etude.json (version 2),
    reunions/<nom>.json sans resume_valide,
-   parametres/parametres.json (surcharges synthèse
-   uniquement), journal_etude.json (entrées de niveau
-   étude), puis suppression de blocs\\ et traitements\\.
+   parametres/parametres.json (options d'étude hors LLM
+   uniquement, P18.11d), journal_etude.json (entrées de
+   niveau étude), puis suppression de blocs\\ et
+   traitements\\.
 
 Idempotente et **reprenable après crash** : une étude encore
 en version 1 est re-migrée ; les réunions déjà migrées
@@ -792,10 +793,19 @@ def migrer_etude_v1_vers_v2(dossier) -> dict:
         donnees_r.pop("resume_valide", None)
         _ecrire_json(chemin_reunion, donnees_r)
 
-    # Paramètres : surcharges synthèse uniquement.
+    #
+    # Paramètres (P18.11d) : options d'étude HORS LLM
+    # uniquement — aucun volet LLM (modèle/température/
+    # prompt, llm, surcharge de synthèse) : la surcharge
+    # d'étude est abrogée (P18.11c).
+    #
+    from services.etude_io import (
+        parametres_etude_v2_dict,
+    )
+
     _ecrire_json(
         dossier / DOSSIER_PARAMETRES / FICHIER_PARAMETRES,
-        {"synthese": dict(parametres.synthese)},
+        parametres_etude_v2_dict(parametres),
     )
 
     # Journal d'étude : entrées de niveau étude (hors

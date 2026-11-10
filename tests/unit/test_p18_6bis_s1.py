@@ -535,8 +535,9 @@ class TestEtudeSerie1:
 
     def test_badge_court(self, qapp, tmp_path):
         """
-        §11 / invariant 3 : « Bible : Darby
-        révisée · versification : Darby ».
+        §11 / invariant 3, amendé en P18.9-bis.c : la page
+        Étude n'affiche PLUS aucune version de Bible (ni
+        badge d'en-tête, ni mention sous la synthèse).
         """
 
         _p, _pv, _e, _n = (
@@ -554,15 +555,8 @@ class TestEtudeSerie1:
 
         try:
 
-            badge = (
-                page.badge_bible_label.text()
-            )
-
-            # P18.9c : badge simplifié, JAMAIS de champ
-            # « versification » distinct.
-            assert badge == (
-                "Bible : Darby révisée"
-            )
+            # P18.9-bis.c : plus de badge Bible sur la page.
+            assert not hasattr(page, "badge_bible_label")
 
         finally:
             page.close()
@@ -790,8 +784,19 @@ class TestEtudeSerie1:
             # Pas de numérotation dans le titre.
             assert "1. Chapitre 1" not in textes
 
-            # Rang en information annexe.
-            assert "Réunion 1" in textes
+            # P18.9-bis.a : PLUS de numéro sur la tuile —
+            # le label positionnel vit dans la gouttière
+            # à gauche (1..N), jamais sur la tuile.
+            assert "Réunion 1" not in textes
+
+            labels_gouttiere = [
+                page.gouttiere_numeros.item(i).text()
+                for i in range(
+                    page.gouttiere_numeros.count()
+                )
+            ]
+
+            assert labels_gouttiere == ["1"]
 
         finally:
             page.close()
@@ -829,9 +834,10 @@ class TestEtudeSerie1:
 
             assert "Réunions de l'étude" in labels
 
+            # P18.9-bis.d : « ... » supprimé du libellé.
             assert (
                 page.ajouter_button.text()
-                == "＋ Ajouter une réunion…"
+                == "＋ Ajouter une réunion"
             )
 
         finally:

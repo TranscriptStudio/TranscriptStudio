@@ -16,7 +16,8 @@ P18.7 — stockage des traitements au niveau RÉUNION :
   migrées à l'ouverture, P18.7f) ;
 - l'**étude v2** ne garde que etude.json, reunions/<nom>.json
   (titre_1, chemins ; resume_valide a migré vers le tier),
-  synthese/, parametres/ (surcharges synthèse uniquement) et
+  synthese/, parametres/ (options d'étude hors LLM
+  uniquement, P18.11d — aucun volet LLM) et
   journal_etude.json — blocs\\ et traitements\\ disparaissent
   du dossier étude ;
 - **aucune écriture en retour** : sauvegarder_etude n'écrit
@@ -73,7 +74,7 @@ from services.etude_schema import (
     valider_decoupage,
     valider_etude,
     valider_parametres,
-    valider_parametres_synthese_seule,
+    valider_parametres_etude_hors_llm,
     valider_registre_fid,
     valider_reformulation,
     valider_reunion,
@@ -248,8 +249,9 @@ def parametres_par_defaut(
     (CredentialStore v1).
 
     En v2 (P18.7e), ces paramètres sont ceux DU TIER de
-    chaque réunion ; l'étude ne garde que la surcharge
-    de synthèse.
+    chaque réunion ; l'étude ne garde que ses options
+    hors LLM (P18.11d : plus aucun volet LLM au niveau
+    étude — la surcharge d'étude est abrogée, P18.11c).
     """
 
     return ParametresEtude(
@@ -615,10 +617,10 @@ def creer_etude(
     Crée le dossier étude et sa structure.
 
     En v2 (P18.7c, défaut) : etude.json (version 2),
-    reunions/, synthese/, parametres/ (surcharges synthèse
-    uniquement) et journal_etude.json — PAS de blocs/ ni
-    traitements/ (ils vivent dans le tier de chaque
-    réunion, dans le projet v1).
+    reunions/, synthese/, parametres/ (options d'étude
+    hors LLM uniquement, P18.11d) et journal_etude.json —
+    PAS de blocs/ ni traitements/ (ils vivent dans le
+    tier de chaque réunion, dans le projet v1).
 
     Le dossier peut exister et être non vide
     (ARBITRAGE_CREATION_ETUDE) — la confirmation est à la
@@ -744,18 +746,66 @@ def _dict_reunion_v2(reunion: ReunionEtude) -> dict:
     return data
 
 
-def _parametres_etude_v2_dict(
+def parametres_etude_v2_dict(
     parametres: ParametresEtude
 ) -> dict:
     """
-    ``parametres/parametres.json`` d'une étude v2 :
-    surcharges de SYNTHÈSE uniquement (P18.7c/§8bis) —
-    tous les autres paramètres vivent dans le tier de
-    chaque réunion.
+    ``parametres/parametres.json`` d'une étude v2
+    (P18.11d) : OPTIONS D'ÉTUDE HORS LLM UNIQUEMENT —
+    contexte de la reformulation (fenêtre glissante +
+    cases), longueur cible et source par défaut du
+    résumé, interdits stylistiques, version Bible.
+
+    AUCUN volet LLM (modèle/température/prompt, ``llm``,
+    surcharge de synthèse) : la surcharge d'étude est
+    ABROGÉE (P18.11c) — les opérations des réunions
+    utilisent les paramètres du tier, la synthèse
+    d'étude les réglages de l'app. Les volets LLM
+    éventuellement présents dans une étude antérieure
+    sont ignorés à la lecture et jamais réécrits
+    (élagués à la prochaine écriture).
     """
 
+    reformulation = parametres.reformulation or {}
+    resume = parametres.resume or {}
+    controle = parametres.controle_qualite or {}
+    bible = parametres.bible or {}
+
     return {
-        "synthese": dict(parametres.synthese),
+        "reformulation": {
+            "fenetre_glissante_tokens": int(
+                reformulation.get(
+                    "fenetre_glissante_tokens"
+                )
+                or 2000
+            ),
+            "contexte": dict(
+                reformulation.get("contexte")
+                or {
+                    "fenetre_glissante": True,
+                    "synthese_etude": True,
+                }
+            ),
+        },
+        "resume": {
+            "longueur_cible_mots": list(
+                resume.get("longueur_cible_mots")
+                or [650, 700]
+            ),
+            "source_defaut": (
+                resume.get("source_defaut")
+                or "reformulations_valides"
+            ),
+        },
+        "controle_qualite": {
+            "interdits_stylistiques": list(
+                controle.get("interdits_stylistiques")
+                or []
+            ),
+        },
+        "bible": {
+            "version": bible.get("version") or "darbyR",
+        },
     }
 
 
@@ -861,7 +911,7 @@ def sauvegarder_etude(etude_ouverte: EtudeOuverte) -> None:
         dossier / DOSSIER_PARAMETRES
         / FICHIER_PARAMETRES,
         (
-            _parametres_etude_v2_dict(
+            parametres_etude_v2_dict(
                 etude_ouverte.parametres
             )
             if v2
@@ -978,18 +1028,83 @@ def ouvrir_etude(dossier) -> EtudeOuverte:
         )
 
         if v2:
-            valider_parametres_synthese_seule(
+            valider_parametres_etude_hors_llm(
                 donnees_parametres,
                 str(chemin_parametres)
             )
 
-            # Surcharge synthèse seule : les autres
-            # sections prennent les défauts (elles vivent
-            # dans les tiers en v2).
+            #
+            # P18.11d : seules les options d'étude HORS
+            # LLM sont relues dans parametres.json de
+            # l'étude. Les volets LLM éventuellement
+            # présents (synthese, llm, prompts,
+            # modèle/température...) sont IGNORÉS — jamais
+            # repris, jamais réécrits (inertes ; élagués
+            # à la prochaine écriture). Les paramètres de
+            # traitement vivent dans les tiers.
+            #
             defauts = parametres_par_defaut()
-            defauts.synthese = dict(
-                donnees_parametres["synthese"]
+
+            reformulation = donnees_parametres.get(
+                "reformulation"
             )
+
+            if isinstance(reformulation, dict):
+
+                if (
+                    "fenetre_glissante_tokens"
+                    in reformulation
+                ):
+                    defauts.reformulation[
+                        "fenetre_glissante_tokens"
+                    ] = reformulation[
+                        "fenetre_glissante_tokens"
+                    ]
+
+                contexte = reformulation.get("contexte")
+
+                if isinstance(contexte, dict):
+                    defauts.reformulation.setdefault(
+                        "contexte",
+                        {},
+                    ).update(contexte)
+
+            resume = donnees_parametres.get("resume")
+
+            if isinstance(resume, dict):
+
+                if "longueur_cible_mots" in resume:
+                    defauts.resume[
+                        "longueur_cible_mots"
+                    ] = resume["longueur_cible_mots"]
+
+                if "source_defaut" in resume:
+                    defauts.resume["source_defaut"] = (
+                        resume["source_defaut"]
+                    )
+
+            controle = donnees_parametres.get(
+                "controle_qualite"
+            )
+
+            if isinstance(controle, dict):
+
+                interdits = controle.get(
+                    "interdits_stylistiques"
+                )
+
+                if isinstance(interdits, list):
+                    defauts.controle_qualite[
+                        "interdits_stylistiques"
+                    ] = interdits
+
+            bible = donnees_parametres.get("bible")
+
+            if isinstance(bible, dict) and bible.get(
+                "version"
+            ):
+                defauts.bible["version"] = bible["version"]
+
             etude_ouverte.parametres = defauts
 
         else:
@@ -2466,9 +2581,10 @@ def ajouter_version_synthese(
 ) -> VersionSynthese:
     """
     Ajoute une version à la synthèse d'étude
-    (niveau étude — surcharge de paramètres de synthèse
-    au niveau étude, P18.7e) ; ``stats`` pour l'appel
-    LLM ayant produit la version (None sinon).
+    (niveau étude) ; ``stats`` pour l'appel LLM ayant
+    produit la version (None sinon) — la version
+    mémorise toujours le texte ET le hash du prompt
+    utilisé (P20.6c/P18.11c).
     """
 
     numeros = [
@@ -2481,6 +2597,7 @@ def ajouter_version_synthese(
         texte=normaliser_sauts_paragraphe(texte),
         horodatage=horodatage_courant(),
         declencheur=declencheur,
+        stats=stats,
     )
 
     etude_ouverte.synthese.versions.append(version)
@@ -2586,9 +2703,9 @@ def ouvrir_reunion_autonome(dossier_projet, creer: bool = True):
     etude_ouverte.tiers[nom] = tier
     etude_ouverte.chemins_resolus[nom] = dossier_projet
 
-    # En autonome, pas de surcharge de synthèse d'étude.
+    # En autonome, pas d'options d'étude hors LLM
+    # propres : paramètres par défaut (P18.11d).
     parametres = parametres_par_defaut()
-    parametres.synthese = dict(tier.parametres.synthese)
     etude_ouverte.parametres = parametres
 
     etude_ouverte.synthese = SyntheseEtude()

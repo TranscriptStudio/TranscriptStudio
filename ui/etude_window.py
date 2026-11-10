@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import (
+    QSize,
     Qt,
     QObject,
     QThread,
@@ -331,18 +332,24 @@ class EtudeWindow(QWidget):
     def build_ui(self):
         """
         Page Étude (P18.6c, spec navigation §4 ;
-        correctifs P18.9) : ruban (titre, thème,
-        nombre de réunions, badge Bible simplifié,
-        boutons Paramètres de l'étude / Accueil /
-        ⚙ / ?), liste des réunions en une colonne
-        de tuiles GLISSER-DÉPOSER (titre, rang,
-        date, durée, avancement ①→⑤ SANS ⑥,
-        stepper cliquable, coût — PAS de bouton
-        « Ouvrir » ni de flèches ; menu contextuel
-        clic droit : étapes, retirer, relocaliser),
-        « ＋ Ajouter une réunion… » puis « Édition
-        ouvrage final » en tête de liste, synthèse
-        d'étude (boutons à côté), récurrences.
+        correctifs P18.9 + P18.9-bis) : ruban (titre,
+        thème, nombre de réunions — AUCUNE mention
+        Bible, P18.9-bis.c — boutons Paramètres de
+        l'étude / Accueil / ⚙ / ?), liste des réunions
+        en une colonne de tuiles GLISSER-DÉPOSER
+        (titre SANS numéro, date, durée, avancement
+        ①→⑤ SANS ⑥, stepper cliquable, coût — PAS de
+        bouton « Ouvrir » ni de flèches ; menu
+        contextuel clic droit : étapes, « Renommer… »,
+        alimenter la synthèse si blocs validés,
+        retirer, relocaliser) avec une GOUTTIÈRE à
+        gauche dont les labels 1..N sont strictement
+        positionnels et fixes (P18.9-bis.a) ; aucune
+        info-bulle au survol de la zone (P18.9-bis.b),
+        « ＋ Ajouter une réunion » puis « Édition
+        ouvrage final » en tête de liste (libellés
+        sans « ... », P18.9-bis.d), synthèse d'étude
+        (boutons à côté).
         """
 
         layout = QVBoxLayout(self)
@@ -398,23 +405,15 @@ class EtudeWindow(QWidget):
 
         ruban_layout.addLayout(colonne_titre)
 
-        self.badge_bible_label = QLabel(
-            self._texte_badge_bible()
-        )
-        self.badge_bible_label.setStyleSheet(
-            "font-size: 12px; color: #1565C0;"
-        )
         #
-        # P18.8d : info-bulle = version commune, ou
-        # liste par réunion si « Bibles mixtes ».
+        # P18.9-bis.c : AUCUNE mention Bible sur la page
+        # Étude — ni badge d'en-tête, ni mention sous la
+        # synthèse (amende P18.8d/P18.9c et la règle
+        # d'affichage de P20.5). La version reste visible :
+        # paramètres de l'étude (P18.8c), volet Réunion
+        # (P20.5a), lecteur de Bible (P18.10), page
+        # Ouvrage (P20.5b).
         #
-        self.badge_bible_label.setToolTip(
-            self._tooltip_badge_bible()
-        )
-
-        ruban_layout.addWidget(
-            self.badge_bible_label
-        )
 
         ruban_layout.addStretch()
 
@@ -428,7 +427,7 @@ class EtudeWindow(QWidget):
         )
         self.modifier_button.setToolTip(
             "Paramètres de l'étude : titre, thème, "
-            "prompts, modèles, Bible retenue..."
+            "options de contexte, Bible retenue..."
         )
         self.modifier_button.clicked.connect(
             self.modifier_etude
@@ -488,8 +487,12 @@ class EtudeWindow(QWidget):
 
         entete_reunions.addWidget(titre_section)
 
+        #
+        # P18.9-bis.d : « ... » supprimé du libellé de
+        # « ＋ Ajouter une réunion ».
+        #
         self.ajouter_button = QPushButton(
-            "＋ Ajouter une réunion…"
+            "＋ Ajouter une réunion"
         )
         self.ajouter_button.setToolTip(
             "Nouvel audio, ou reprise d'une réunion "
@@ -528,15 +531,20 @@ class EtudeWindow(QWidget):
         # « Édition ouvrage final » (invariant 5).
         #
         self.synthese_regenerer_button = QPushButton(
-            "(Re)générer la synthèse…"
+            "(Re)générer la synthèse"
         )
+        #
+        # P18.9-bis.e : info-bulle raccourcie, AUCUNE
+        # référence de spec (invariant 18).
+        #
         self.synthese_regenerer_button.setToolTip(
-            "P20.6 : régénérer INTÉGRALEMENT la "
-            "synthèse d'étude à partir de toutes les "
-            "réunions à blocs validés (avertissement "
-            "de remplacement intégral, confirmation "
-            "requise) — ou l'alimenter réunion par "
-            "réunion (clic droit sur une tuile)"
+            "Remplace entièrement la synthèse "
+            "existante par celle de toutes les "
+            "réunions à blocs validés (confirmation "
+            "requise).\n"
+            "Pour ajouter une seule réunion sans tout "
+            "régénérer : clic droit sur sa tuile → "
+            "« Alimenter la synthèse globale »."
         )
         self.synthese_regenerer_button.clicked.connect(
             self.regenerer_synthese
@@ -602,14 +610,10 @@ class EtudeWindow(QWidget):
         # défilement indépendant.
         #
         self.reunions_liste = ListeReunionsEtude()
-        self.reunions_liste.setToolTip(
-            "Glissez-déposez une tuile pour "
-            "réordonner l'étude (l'ordre vaut ordre "
-            "d'ouvrage) ; clic droit sur une tuile : "
-            "menu (étapes, retirer, relocaliser) ; "
-            "clic sur une pastille du stepper : ouvrir "
-            "la page Réunion à cette étape"
-        )
+        #
+        # P18.9-bis.b : AUCUNE info-bulle au survol de
+        # la zone des tuiles (ni des tuiles).
+        #
         self.reunions_liste.ordre_modifie.connect(
             self._persister_ordre
         )
@@ -617,8 +621,69 @@ class EtudeWindow(QWidget):
             self._sur_menu_contextuel_liste
         )
 
-        layout.addWidget(
+        #
+        # P18.9-bis.a : gouttière à gauche des tuiles —
+        # labels numérotés 1..N STRICTEMENT POSITIONNELS
+        # et FIXES (le label 1 reste toujours en haut ;
+        # c'est la tuile qui change de rangée au
+        # glisser-déposer, jamais le label) ; aucun
+        # label sans tuile (N tuiles = labels 1 à N).
+        #
+        from ui.tuiles import ELEVATION_SURVOL
+
+        self.gouttiere_numeros = QListWidget()
+        self.gouttiere_numeros.setObjectName(
+            "gouttiere_numeros"
+        )
+        self.gouttiere_numeros.setFixedWidth(30)
+        self.gouttiere_numeros.setFrameShape(
+            QFrame.Shape.NoFrame
+        )
+        self.gouttiere_numeros.setStyleSheet(
+            "QListWidget {background: transparent;"
+            " border: none;}"
+            "QListWidget::item {background: transparent;"
+            " border: none;}"
+        )
+        self.gouttiere_numeros.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.gouttiere_numeros.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.gouttiere_numeros.setSelectionMode(
+            QAbstractItemView.SelectionMode.NoSelection
+        )
+        self.gouttiere_numeros.setFocusPolicy(
+            Qt.FocusPolicy.NoFocus
+        )
+        # Mêmes marges que la liste : les labels
+        # s'alignent sur les rangées des tuiles.
+        self.gouttiere_numeros.setViewportMargins(
+            6,
+            ELEVATION_SURVOL + 4,
+            6,
+            ELEVATION_SURVOL + 4,
+        )
+        # Défilement synchronisé avec la liste des tuiles.
+        self.reunions_liste.verticalScrollBar().valueChanged.connect(
+            self.gouttiere_numeros.verticalScrollBar().setValue
+        )
+        self.gouttiere_numeros.verticalScrollBar().valueChanged.connect(
+            self.reunions_liste.verticalScrollBar().setValue
+        )
+
+        ligne_tuiles = QHBoxLayout()
+        ligne_tuiles.setContentsMargins(0, 0, 0, 0)
+        ligne_tuiles.setSpacing(4)
+        ligne_tuiles.addWidget(self.gouttiere_numeros)
+        ligne_tuiles.addWidget(
             self.reunions_liste,
+            stretch=1
+        )
+
+        layout.addLayout(
+            ligne_tuiles,
             stretch=1
         )
 
@@ -728,86 +793,6 @@ class EtudeWindow(QWidget):
             return f"{nombre} réunions"
 
         return f"{nombre} réunion"
-
-    def _version_ouvrage(self):
-        """
-        P20.5b : référence d'uniformité de l'ouvrage
-        persistée dans ouvrage.json (chaîne vide si
-        non choisie) — le badge de la page Étude
-        l'affiche dès qu'elle est choisie.
-        """
-
-        try:
-
-            from services.ouvrage_document import (
-                charger_ouvrage,
-            )
-
-            if not self.etude.dossier:
-                return ""
-
-            document = charger_ouvrage(
-                self.etude.dossier
-            )
-
-            if document is None:
-                return ""
-
-            return getattr(
-                document,
-                "reference_bible",
-                ""
-            ) or ""
-
-        except Exception:
-            return ""
-
-    def _texte_badge_bible(self) -> str:
-        """
-        P18.9c : badge simplifié — « Bible : Darby
-        révisée », JAMAIS de champ « versification »
-        distinct (la versification découle de la
-        version retenue) ; « Bibles mixtes » si les
-        tiers divergent. P20.5b : la version ouvrage
-        prime dès qu'elle est choisie. Logique dans
-        services.bibles.badge_bible_etude.
-        """
-
-        from services.bibles import (
-            badge_bible_etude,
-        )
-
-        try:
-            texte, _tooltip = badge_bible_etude(
-                self.etude,
-                version_ouvrage=self._version_ouvrage()
-                or None
-            )
-            return texte
-        except Exception:
-            return "Bible : —"
-
-    def _tooltip_badge_bible(self) -> str:
-        """
-        P18.9c : info-bulle ÉPURÉE du badge Bible —
-        libellé simple, aucun commentaire de spec
-        (aucune mention P18.5 ou autre référence
-        interne).
-        """
-
-        from services.bibles import (
-            badge_bible_etude,
-        )
-
-        try:
-            _texte, tooltip = badge_bible_etude(
-                self.etude,
-                version_ouvrage=self._version_ouvrage()
-                or None
-            )
-            return tooltip
-        except Exception:
-            return ""
 
     def ouvrir_parametres(self):
         """
@@ -986,6 +971,11 @@ class EtudeWindow(QWidget):
 
         self.reunions_liste.clear()
 
+        # P18.9-bis.a : la gouttière est reconstruite à
+        # chaque rafraîchissement — exactement N labels
+        # (1..N), jamais un label de plus.
+        self.gouttiere_numeros.clear()
+
         from services.avancement import (
             cout_reunion,
             etapes_reunion_page_etude,
@@ -993,7 +983,9 @@ class EtudeWindow(QWidget):
 
         projets = {}
 
-        for nom in self.etude.etude.ordre_reunions:
+        for rang, nom in enumerate(
+            self.etude.etude.ordre_reunions
+        ):
 
             reunion = self.etude.reunions[nom]
 
@@ -1063,6 +1055,27 @@ class EtudeWindow(QWidget):
                 tuile.sizeHint()
             )
 
+            #
+            # P18.9-bis.a : label positionnel de la
+            # gouttière, aligné sur la rangée de la
+            # tuile (même hauteur) — le label ne bouge
+            # jamais, seule la tuile change de rangée.
+            #
+            numero_item = QListWidgetItem(str(rang + 1))
+            numero_item.setTextAlignment(
+                Qt.AlignmentFlag.AlignCenter
+            )
+            numero_item.setFlags(
+                Qt.ItemFlag.ItemIsEnabled
+            )
+            numero_item.setSizeHint(
+                QSize(
+                    24,
+                    item.sizeHint().height()
+                )
+            )
+            self.gouttiere_numeros.addItem(numero_item)
+
         introuvables = (
             self.etude.reunions_introuvables
         )
@@ -1095,11 +1108,11 @@ class EtudeWindow(QWidget):
         """
         Mini-tuile d'une réunion de l'étude (même
         langage que le hub) : titre lisible de la
-        réunion (pas de numérotation ni de nom de
-        fichier brut), rang en information annexe,
-        DATE DE RÉUNION (audio, jamais la date
-        technique de rattachement), durée ;
-        avancement ; coût.
+        réunion (PAS de numérotation sur la tuile,
+        P18.9-bis.a — la numérotation vit dans la
+        gouttière à gauche), DATE DE RÉUNION (audio,
+        jamais la date technique de rattachement),
+        durée ; avancement ; coût.
 
         P18.9a : PLUS de bouton « Ouvrir » ni de
         flèches de réordonnancement sur la tuile —
@@ -1196,12 +1209,12 @@ class EtudeWindow(QWidget):
 
         ligne_titre.addWidget(titre)
 
-        rang = QLabel(f"Réunion {reunion.numero}")
-        rang.setStyleSheet(
-            "color: #8A8A8A; font-size: 11px;"
-        )
-
-        ligne_titre.addWidget(rang)
+        #
+        # P18.9-bis.a : PLUS de numéro sur la tuile —
+        # le titre d'affichage ne porte jamais de
+        # numéro ; la numérotation vit dans la gouttière
+        # à gauche (labels positionnels fixes).
+        #
         ligne_titre.addStretch()
 
         from services.avancement import (
@@ -1508,6 +1521,51 @@ class EtudeWindow(QWidget):
         if etats:
             menu.addSeparator()
 
+        #
+        # P18.9-bis.f : « Renommer… » — édite le titre
+        # d'affichage de la réunion (même sémantique et
+        # même persistance que P18.8a : titre_1 si
+        # rattachée à une étude, champ « titre » du tier
+        # si autonome) ; aucun effet sur les noms de
+        # fichiers/dossiers ni les références de l'étude.
+        #
+        renommer = menu.addAction(
+            "Renommer…"
+        )
+        renommer.triggered.connect(
+            lambda checked=False, n=nom: (
+                self._renommer_reunion(n)
+            )
+        )
+
+        #
+        # P20.6b (conformité, relecture 2 du 10/11) :
+        # alimentation manuelle de la synthèse —
+        # proposée DÈS QU'UNE réunion a des blocs
+        # validés (invariant 9), absente sinon.
+        #
+        from services.traitements.synthese import (
+            reunion_a_blocs_valides,
+        )
+
+        if reunion_a_blocs_valides(
+            self.etude,
+            nom
+        ):
+            menu.addSeparator()
+
+            alimenter = menu.addAction(
+                "Alimenter la synthèse globale"
+            )
+
+            alimenter.triggered.connect(
+                lambda checked=False, n=nom: (
+                    self.alimenter_synthese(n)
+                )
+            )
+
+        menu.addSeparator()
+
         retirer = menu.addAction(
             "Retirer la réunion"
         )
@@ -1526,32 +1584,68 @@ class EtudeWindow(QWidget):
             )
         )
 
-        #
-        # P20.6b : alimentation manuelle de la
-        # synthèse — proposée UNIQUEMENT pour une
-        # réunion à blocs validés (invariant 9).
-        #
-        from services.traitements.synthese import (
-            reunion_entierement_validee,
+        return menu
+
+    def _renommer_reunion(self, nom: str):
+        """
+        P18.9-bis.f : « Renommer… » (clic droit sur la
+        tuile, page Étude) — édite le TITRE D'AFFICHAGE
+        de la réunion : même sémantique et même
+        persistance que P18.8a (titre_1 dans
+        reunions/<nom>.json si rattachée à une étude,
+        champ « titre » du tier si autonome) ; aucun
+        effet sur les noms de fichiers/dossiers ni sur
+        les références de l'étude. Titre vide refusé.
+        """
+
+        reunion = self.etude.reunions.get(nom)
+
+        if reunion is not None:
+            ancien = reunion.titre_1 or nom
+        else:
+            tier = self.etude.tiers.get(nom)
+            ancien = (
+                tier.reunion.titre
+                if (
+                    tier is not None
+                    and tier.reunion.titre
+                )
+                else nom
+            )
+
+        texte, ok = QInputDialog.getText(
+            self,
+            "Renommer la réunion",
+            "Titre d'affichage de la réunion :",
+            text=ancien,
         )
 
-        if reunion_entierement_validee(
-            self.etude,
-            nom
-        ):
-            menu.addSeparator()
+        if not ok:
+            return
 
-            alimenter = menu.addAction(
-                "Alimenter la synthèse globale"
+        texte = texte.strip()
+
+        if not texte or texte == ancien:
+            return
+
+        if reunion is not None:
+            reunion.titre_1 = texte
+            sauvegarder_etude(self.etude)
+        else:
+            tier = self.etude.tiers.get(nom)
+
+            if tier is None:
+                return
+
+            tier.reunion.titre = texte
+
+            from services.tier_reunion import (
+                sauvegarder_tier,
             )
 
-            alimenter.triggered.connect(
-                lambda checked=False, n=nom: (
-                    self.alimenter_synthese(n)
-                )
-            )
+            sauvegarder_tier(tier)
 
-        return menu
+        self.refresh_reunions()
 
     def _deplacer_reunion(self, nom: str, offset: int):
         """
@@ -2105,17 +2199,11 @@ class EtudeWindow(QWidget):
     #
 
     def maj_synthese(self):
-
-        from services.bibles import (
-            VERSIONS_BIBLE,
-            version_bible_etude,
-        )
-
-        version_bible = version_bible_etude(
-            self.etude.parametres
-        )
-
-        nom_bible = VERSIONS_BIBLE[version_bible]["nom"]
+        """
+        P18.9-bis.c : la mention « Bible : ... » sous la
+        synthèse est supprimée — la page Étude n'affiche
+        plus aucune version de Bible.
+        """
 
         versions = self.etude.synthese.versions
 
@@ -2131,14 +2219,11 @@ class EtudeWindow(QWidget):
                 f"v{derniere.numero} · "
                 f"{derniere.horodatage} · "
                 f"{derniere.declencheur}"
-                f" · Bible : {nom_bible}"
             )
 
         else:
             self.synthese_edit.clear()
-            self.synthese_statut_label.setText(
-                f"Bible : {nom_bible}"
-            )
+            self.synthese_statut_label.setText("")
 
         #
         # P20.6c : mémoire des contributions +
@@ -2190,10 +2275,12 @@ class EtudeWindow(QWidget):
 
         from services.traitements.synthese import (
             ServiceSynthese,
-            reunion_entierement_validee,
+            reunion_a_blocs_valides,
         )
 
-        if not reunion_entierement_validee(
+        # P20.6b (conformité) : dès qu'une réunion a
+        # des blocs validés.
+        if not reunion_a_blocs_valides(
             self.etude,
             nom
         ):

@@ -702,9 +702,10 @@ class TestUiPageEtude:
                 declencheur="manuel",
             )
 
+            # P18.9-bis.d : « ... » supprimé du libellé.
             assert (
                 fenetre.synthese_regenerer_button.text()
-                == "(Re)générer la synthèse…"
+                == "(Re)générer la synthèse"
             )
 
             class FauxSynthese:

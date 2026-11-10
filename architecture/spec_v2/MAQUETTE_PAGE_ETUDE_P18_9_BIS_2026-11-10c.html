@@ -1,0 +1,282 @@
+<!doctype html>
+<!-- ============================================================
+     MAQUETTE ILLUSTRATIVE — TranscriptStudio v2 — page Étude, état cible P18.9-bis.
+     Rôle : ILLUSTRER les changements discutés en relecture (séries 1 et 2).
+     ATTENTION : cette maquette N'EST PAS une référence stricte d'interface.
+     L'UI existante n'a pas à être refaite selon ce document. Seuls les
+     changements annotés font foi, tels que spécifiés dans
+     SPEC_PAGE_ETUDE_ET_SYNTHESE_MODIFS (document d'autorité).
+     Réserve exprimée par David le 2026-11-10. Publiée par l'atelier.
+     ============================================================ -->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maquette page Étude — P18.9-bis</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0e0e12; color: #e8e8ec; font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px; }
+  #page { max-width: 1060px; margin: 0 auto; padding: 18px 22px 60px; }
+
+  /* Bandeau supérieur */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 4px 14px; }
+  .topbar h1 { font-size: 19px; font-weight: 600; }
+  .topbar .sub { color: #9a9aa5; font-size: 13px; margin-top: 3px; }
+  .topbar .right { display: flex; gap: 8px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; background: #1d1d24; color: #e8e8ec;
+         border: 1px solid #33333d; border-radius: 6px; padding: 7px 13px; font-size: 13px;
+         cursor: pointer; user-select: none; transition: background .12s, border-color .12s, transform .05s; }
+  .btn:hover { background: #26262f; border-color: #3b9eff; }
+  .btn:active { transform: translateY(1px); background: #2b2b36; }
+  .btn.icon { padding: 7px 10px; }
+  .btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .btn.primary:hover { background: #3b74e8; }
+  .btn.ghost { border-color: transparent; background: transparent; }
+  .btn.ghost:hover { background: #1d1d24; border-color: #33333d; }
+
+  /* Panneau annotations */
+  .legend { background: #14141a; border: 1px dashed #3b9eff66; border-radius: 8px; padding: 12px 16px; margin: 6px 0 16px; }
+  .legend summary { cursor: pointer; color: #3b9eff; font-weight: 600; font-size: 13px; }
+  .legend .hint { color: #9a9aa5; font-size: 12px; margin: 6px 0 10px; }
+  .legend ol { margin-left: 18px; font-size: 12.5px; line-height: 1.75; color: #cfcfd8; }
+  .legend b { color: #e8e8ec; }
+  .legend .inv { color: #2ec98a; font-size: 11.5px; }
+  .toggle { font-size: 12.5px; color: #cfcfd8; display: flex; align-items: center; gap: 8px; margin-top: 8px; cursor: pointer; }
+
+  /* Section réunions */
+  .section-head { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 12px; flex-wrap: wrap; gap: 10px; }
+  .section-head h2 { font-size: 15px; font-weight: 600; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Conteneur des tuiles avec gouttière + scroll */
+  .tiles-wrap { max-height: 420px; overflow-y: auto; padding: 6px 8px 14px 4px; border-radius: 8px; }
+  .tiles-wrap::-webkit-scrollbar { width: 10px; }
+  .tiles-wrap::-webkit-scrollbar-thumb { background: #33333d; border-radius: 5px; }
+  .row { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: stretch; margin-bottom: 10px; }
+  .num { display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+         color: #7d7d8a; background: #17171d; border: 1px solid #26262f; border-radius: 6px; }
+  .tile { background: #1a1a21; border: 1px solid #2a2a33; border-radius: 8px; padding: 11px 14px;
+         transition: border-color .12s, box-shadow .12s; cursor: grab; }
+  .tile:hover { border-color: #3b9eff; box-shadow: 0 3px 14px rgba(59,158,255,.18); }
+  .tile.dragging { opacity: .45; border-style: dashed; }
+  .tile.nontranscrite { color: #8a8a95; }
+  .tile .t-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .tile .t-title { font-size: 14.5px; font-weight: 600; }
+  .tile .t-meta { color: #9a9aa5; font-size: 12px; white-space: nowrap; }
+  .stepper { display: flex; gap: 18px; align-items: center; margin-top: 9px; flex-wrap: wrap; }
+  .step { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #cfcfd8; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center;
+         justify-content: center; font-size: 10px; }
+  .dot.fait { background: rgba(46,201,138,.22); color: #2ec98a; border: 1px solid #2ec98a66; }
+  .dot.encours { background: #2563eb; color: #fff; }
+  .dot.afaire { background: #23232b; color: #6d6d78; border: 1px solid #33333d; }
+  .mention { color: #8a8a95; font-size: 12px; font-style: italic; margin-top: 9px; }
+  .ctxhint { color: #6d6d78; font-size: 11px; margin-top: 7px; }
+
+  /* Synthèse */
+  .synthese { margin-top: 18px; background: #14141a; border: 1px solid #26262f; border-radius: 8px; padding: 14px 16px; }
+  .synthese h2 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .synthese .s-body { color: #cfcfd8; line-height: 1.65; font-size: 13px; }
+  .synthese .pensee b { color: #e8e8ec; }
+
+  /* Info-bulle (Re)générer */
+  .has-tip { position: relative; }
+  .tip { display: none; position: absolute; bottom: calc(100% + 8px); right: 0; width: 340px;
+         background: #101016; border: 1px solid #33333d; border-radius: 8px; padding: 10px 12px;
+         font-size: 12.5px; line-height: 1.55; color: #cfcfd8; box-shadow: 0 8px 22px rgba(0,0,0,.5); z-index: 50; }
+  .has-tip:hover .tip { display: block; }
+
+  /* Menu contextuel simulé */
+  #ctxmenu { display: none; position: fixed; background: #17171d; border: 1px solid #33333d; border-radius: 8px;
+             padding: 6px; min-width: 240px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,.55); }
+  #ctxmenu .mi { padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; gap: 14px; }
+  #ctxmenu .mi:hover { background: #23232b; }
+  #ctxmenu .sep { height: 1px; background: #2a2a33; margin: 5px 8px; }
+  #ctxmenu .new { color: #2ec98a; font-size: 10px; font-weight: 700; letter-spacing: .4px; }
+
+  /* Pastilles d'annotation */
+  .ann { display: none; background: #3b9eff; color: #fff; font-size: 10.5px; font-weight: 700;
+         width: 18px; height: 18px; border-radius: 50%; align-items: center; justify-content: center; flex: none; }
+  body.show-ann .ann { display: inline-flex; }
+  .foot { color: #6d6d78; font-size: 11.5px; margin-top: 22px; }
+</style>
+</head>
+<body>
+<div id="page">
+
+  <div style="background:#14141a;border:1px solid #2a2a33;border-left:3px solid #3b9eff;border-radius:6px;padding:10px 14px;margin:0 0 14px;font-size:12.5px;color:#9a9aa5;line-height:1.5;">
+<strong style="color:#e8e8ec;">Note de l'atelier :</strong> maquette <em>illustrative</em> des changements discutés pour la page Étude (relectures P18.9-bis). Ce document n'est pas une référence stricte d'interface : l'UI existante n'a pas à être refaite selon cette maquette. Seuls les changements annotés font foi, tels que spécifiés dans le document d'autorité (SPEC_PAGE_ETUDE_ET_SYNTHESE_MODIFS).
+</div>
+
+
+  <div class="topbar">
+    <div>
+      <h1>Etude de l'Évangile selon Luc <span class="ann" title="a">1</span><span class="ann">2</span></h1>
+      <div class="sub">Livre biblique · 3 réunions <span class="ann" title="c">3</span></div>
+    </div>
+    <div class="right">
+      <button class="btn ghost">Paramètres de l'étude</button>
+      <button class="btn ghost">Accueil</button>
+      <button class="btn ghost icon" title="Paramètres">⚙</button>
+      <button class="btn ghost icon" title="Aide">?</button>
+    </div>
+  </div>
+
+  <details class="legend" open>
+    <summary>Maquette — état cible après P18.9-bis (8 changements annotés, testables sur cette page)</summary>
+    <div class="hint">Interactif : glisse une tuile pour réordonner (les numéros restent en place) ; clic droit sur chaque tuile pour comparer les menus ; survole « (Re)générer la synthèse ».</div>
+    <ol>
+      <li><b>Gouttière numérotée</b> : labels 1..N strictement positionnels — le 1 reste toujours en haut, c'est la tuile qui bouge, jamais le label ; aucun label sans tuile. <span class="inv">P18.9-bis.a · inv. 15</span></li>
+      <li><b>Tuiles sans numéro</b> : le titre d'affichage remplace « Réunion N » ; l'ordre persiste dans l'étude. <span class="inv">P18.9-bis.a</span></li>
+      <li><b>Aucune mention Bible</b> sur la page : badge d'en-tête et mention sous la synthèse supprimés. <span class="inv">P18.9-bis.c · inv. 17</span></li>
+      <li><b>4 actions haut droit = vrais boutons</b> (survol/pressé/focus) ; « ... » supprimés de « Ajouter une réunion » et « (Re)générer la synthèse ». <span class="inv">P18.9-bis.d · inv. 18</span></li>
+      <li><b>Info-bulle « (Re)générer » courte</b>, sans référence de spec — survole le bouton. <span class="inv">P18.9-bis.e</span></li>
+      <li><b>Aucune info-bulle</b> au survol de la zone des tuiles ou des tuiles. <span class="inv">P18.9-bis.b · inv. 16</span></li>
+      <li><b>Menu clic droit enrichi</b> : « Renommer... » partout ; « Alimenter la synthèse globale » uniquement pour les réunions à blocs validés (compare les tuiles 1 et 3). <span class="inv">P18.9-bis.f + conformité P20.6b · inv. 9, 10, 19</span></li>
+      <li><b>Défilement du conteneur</b> des réunions (plusieurs dizaines possibles). <span class="inv">P18.9f</span></li>
+    </ol>
+    <label class="toggle"><input type="checkbox" id="annToggle" checked> Afficher les pastilles de changement sur la maquette</label>
+  </details>
+
+  <div class="section-head">
+    <h2>Réunions de l'étude <span class="ann">1</span></h2>
+    <div class="actions">
+      <span class="ann">4</span>
+      <button class="btn">＋ Ajouter une réunion</button>
+      <button class="btn">Édition ouvrage final</button>
+      <span class="has-tip" style="display:inline-flex">
+        <button class="btn">(Re)générer la synthèse <span class="ann">5</span></button>
+        <div class="tip">Remplace entièrement la synthèse existante par celle de toutes les réunions dont les blocs sont validés.<br><br>Pour ajouter une seule réunion sans tout régénérer : clic droit sur sa tuile → « Alimenter la synthèse globale ».</div>
+      </span>
+      <button class="btn">Éditer</button>
+    </div>
+  </div>
+
+  <div class="tiles-wrap" id="tilesWrap">
+    <div class="row" data-row>
+      <div class="num">1</div>
+      <div class="tile" draggable="true" data-valide="1">
+        <div class="t-head">
+          <div class="t-title">Luc 01 v1-25 (2026-09-20) <span class="ann">2</span></div>
+          <div class="t-meta">2026-09-24 · 33 min 37 s · Coût : 2,4151 $</div>
+        </div>
+        <div class="stepper">
+          <span class="step"><span class="dot fait">✓</span> Transcription</span>
+          <span class="step"><span class="dot fait">✓</span> Reformulation</span>
+          <span class="step"><span class="dot fait">✓</span> Résumé</span>
+        </div>
+      </div>
+    </div>
+    <div class="row" data-row>
+      <div class="num">2</div>
+      <div class="tile" draggable="true" data-valide="1">
+        <div class="t-head">
+          <div class="t-title">Luc 01 v26-80 (2026-10-18)</div>
+          <div class="t-meta">2026-10-22 · 41 min 05 s · Coût : 2,8603 $</div>
+        </div>
+        <div class="stepper">
+          <span class="step"><span class="dot fait">✓</span> Transcription</span>
+          <span class="step"><span class="dot fait">✓</span> Reformulation</span>
+          <span class="step"><span class="dot encours">●</span> Résumé</span>
+        </div>
+      </div>
+    </div>
+    <div class="row" data-row>
+      <div class="num">3</div>
+      <div class="tile nontranscrite" draggable="true" data-valide="0">
+        <div class="t-head">
+          <div class="t-title">Luc 02 v1-40 (2026-11-05)</div>
+          <div class="t-meta">2026-11-08 · 28 min 12 s · —</div>
+        </div>
+        <div class="mention">Pas encore transcrite</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="synthese">
+    <h2>Synthèse de l'étude <span class="ann">3</span></h2>
+    <div class="s-body">
+      <div class="pensee"><b>P. Martin</b> — la présentation de Jean-Baptiste ; l'attente d'Israël ; l'annonce de la naissance de Jean.</div>
+      <div class="pensee" style="margin-top:4px"><b>P. Martin</b> — l'annonciation à Marie ; le Magnificat.</div>
+      <div class="pensee" style="margin-top:4px"><b>D. Frechet</b> — la foi de Zacharie ; le doute et sa guérison.</div>
+    </div>
+  </div>
+
+  <div class="foot">Maquette d'atelier — TranscriptStudio v2, page Étude, état cible P18.9-bis. Fonds : le bandeau et les zones ont la teinte exacte du fond de page (correctif P18.9e, série 1).</div>
+</div>
+
+<div id="ctxmenu"></div>
+
+<script>
+  // Annotations on/off
+  var annToggle = document.getElementById('annToggle');
+  annToggle.addEventListener('change', function () {
+    document.body.classList.toggle('show-ann', annToggle.checked);
+  });
+  document.body.classList.add('show-ann');
+
+  // Menu contextuel simulé (clic droit sur une tuile)
+  var ctx = document.getElementById('ctxmenu');
+  function menuItems(valide) {
+    var items = [];
+    if (valide) {
+      items.push(['Transcription', ''], ['Reformulation', ''], ['Résumé', ''], ['sep', ''],
+                 ['Renommer...', 'NOUVEAU'], ['Alimenter la synthèse globale', 'NOUVEAU'], ['sep', ''],
+                 ['Retirer la réunion', ''], ['Relocaliser...', '']);
+    } else {
+      items.push(['Transcription', ''], ['sep', ''],
+                 ['Renommer...', 'NOUVEAU'], ['sep', ''],
+                 ['Retirer la réunion', ''], ['Relocaliser...', '']);
+    }
+    return items;
+  }
+  document.querySelectorAll('.tile').forEach(function (tile) {
+    tile.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+      var items = menuItems(tile.dataset.valide === '1');
+      ctx.innerHTML = '';
+      items.forEach(function (it) {
+        if (it[0] === 'sep') { var s = document.createElement('div'); s.className = 'sep'; ctx.appendChild(s); return; }
+        var d = document.createElement('div');
+        d.className = 'mi';
+        var label = document.createElement('span'); label.textContent = it[0];
+        d.appendChild(label);
+        if (it[1]) { var n = document.createElement('span'); n.className = 'new'; n.textContent = it[1]; d.appendChild(n); }
+        ctx.appendChild(d);
+      });
+      ctx.style.display = 'block';
+      ctx.style.left = Math.min(e.clientX, window.innerWidth - 270) + 'px';
+      ctx.style.top = Math.min(e.clientY, window.innerHeight - 260) + 'px';
+    });
+  });
+  document.addEventListener('click', function () { ctx.style.display = 'none'; });
+  document.addEventListener('contextmenu', function (e) {
+    if (!e.target.closest('.tile')) ctx.style.display = 'none';
+  });
+
+  // Glisser-déposer : la tuile change de rangée, les numéros restent fixes
+  function swapNodes(a, b) {
+    var marker = document.createElement('div');
+    a.parentNode.insertBefore(marker, a);
+    b.parentNode.insertBefore(a, b);
+    marker.parentNode.insertBefore(b, marker);
+    marker.parentNode.removeChild(marker);
+  }
+  var dragged = null;
+  document.querySelectorAll('.tile').forEach(function (tile) {
+    tile.addEventListener('dragstart', function () { dragged = tile; tile.classList.add('dragging'); });
+    tile.addEventListener('dragend', function () { tile.classList.remove('dragging'); dragged = null; });
+  });
+  document.querySelectorAll('.row').forEach(function (row) {
+    row.addEventListener('dragover', function (e) { e.preventDefault(); });
+    row.addEventListener('drop', function (e) {
+      e.preventDefault();
+      if (!dragged) return;
+      var target = row.querySelector('.tile');
+      if (!target || target === dragged) return;
+      swapNodes(dragged, target); // les .num ne bougent jamais
+    });
+  });
+</script>
+</body>
+</html>

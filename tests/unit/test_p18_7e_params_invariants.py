@@ -2,10 +2,11 @@
 """
 P18.7e — Paramètres et écritures (§8/§8bis) : toute
 opération sur les traitements d'une réunion, où qu'elle
-soit lancée, utilise les paramètres DU TIER ; les
-surcharges d'étude s'appliquent à la synthèse uniquement ;
-aucune écriture en retour (ni l'étude ni l'ouvrage
-n'écrivent dans le tier).
+soit lancée, utilise les paramètres DU TIER ; aucune
+surchcharge d'étude des paramètres LLM/prompts (abrogée
+en P18.11 — l'étude ne porte plus que ses options hors
+LLM) ; aucune écriture en retour (ni l'étude ni
+l'ouvrage n'écrivent dans le tier).
 
 Contient aussi les 8 invariants du §12 du contrat de
 stockage des réunions.
@@ -92,15 +93,10 @@ class TestParametresDuTier:
             == 0.9
         )
 
-        # L'étude ne garde que la surcharge de synthèse.
+        # P18.11d : l'étude ne porte AUCUN volet LLM —
+        # modifier le volet synthèse en mémoire ne
+        # persiste PAS (surcharge d'étude abrogée, P18.11c).
         etude.parametres.synthese["tokens_max"] = 900
-
-        donnees = json.loads(
-            (
-                tmp_path / "Etude" / "parametres"
-                / "parametres.json"
-            ).read_text(encoding="utf-8")
-        )
 
         sauvegarder_etude(etude)
 
@@ -111,20 +107,49 @@ class TestParametresDuTier:
             ).read_text(encoding="utf-8")
         )
 
-        assert set(donnees.keys()) == {"synthese"}
-        assert donnees["synthese"]["tokens_max"] == 900
+        assert "synthese" not in donnees
+        assert "llm" not in donnees
+        assert set(donnees.keys()) == {
+            "reformulation",
+            "resume",
+            "controle_qualite",
+            "bible",
+        }
 
-    def test_surcharge_etude_synthese_seule(self, tmp_path):
+    def test_volets_llm_etude_ignores_a_la_lecture(self, tmp_path):
         """
-        §8bis : après réouverture, les surcharges d'étude
-        ne concernent que la synthèse ; les paramètres de
+        P18.11d/§8bis : après réouverture, les volets LLM
+        éventuellement présents dans parametres.json de
+        l'étude sont IGNORÉS (jamais relus) ; les options
+        hors LLM sont relues ; les paramètres de
         traitement sont relus dans le tier.
         """
 
         projet, etude, nom = _etude_avec_reunion(tmp_path)
 
-        etude.parametres.synthese["tokens_max"] = 4242
-        sauvegarder_etude(etude)
+        # Écrit un fichier v2 « ancien » avec volets LLM.
+        chemin = (
+            tmp_path / "Etude" / "parametres"
+            / "parametres.json"
+        )
+        donnees = json.loads(
+            chemin.read_text(encoding="utf-8")
+        )
+        donnees["synthese"] = {
+            "tokens_max": 4242,
+            "modele": "modele-étude",
+        }
+        donnees["llm"] = {"fournisseurs": []}
+        donnees["reformulation"]["prompt"] = "P"
+        donnees["reformulation"]["modele"] = "m"
+        donnees["reformulation"]["temperature"] = 0.9
+        donnees["reformulation"][
+            "fenetre_glissante_tokens"
+        ] = 3210
+        chemin.write_text(
+            json.dumps(donnees),
+            encoding="utf-8"
+        )
 
         etude.tier_de(nom).parametres.reformulation[
             "temperature"
@@ -133,11 +158,37 @@ class TestParametresDuTier:
 
         relue = ouvrir_etude(tmp_path / "Etude")
 
-        assert relue.parametres.synthese["tokens_max"] == 4242
+        # Volet LLM ignoré à la lecture (défaut, pas 4242).
+        assert relue.parametres.synthese["tokens_max"] == 1500
+
+        # Option hors LLM relue.
+        assert (
+            relue.parametres.reformulation[
+                "fenetre_glissante_tokens"
+            ]
+            == 3210
+        )
+
+        # Paramètres de traitement relus dans le tier.
         assert (
             relue.parametres_traitement_de(nom)
             .reformulation["temperature"]
             == 0.77
+        )
+
+        # Le volet LLM n'est jamais réécrit : la
+        # sauvegarde suivante l'élague du fichier.
+        sauvegarder_etude(relue)
+
+        relue_disque = json.loads(
+            chemin.read_text(encoding="utf-8")
+        )
+
+        assert "synthese" not in relue_disque
+        assert "llm" not in relue_disque
+        assert (
+            "prompt"
+            not in relue_disque["reformulation"]
         )
 
     def test_moteur_utilise_les_parametres_du_tier(self, tmp_path):

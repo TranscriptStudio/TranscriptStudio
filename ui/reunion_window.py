@@ -1347,7 +1347,7 @@ class ReunionWindow(QWidget):
                 )
             )
             self.export_valides_button.setToolTip(
-                "Export de réunion (portée P18.6f) : "
+                "Export de réunion : "
                 "résumé validé en tête et "
                 "reformulations validées dans l'ordre "
                 "d'ouvrage — DOCX ou TXT"
