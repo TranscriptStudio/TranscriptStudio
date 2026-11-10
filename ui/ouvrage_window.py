@@ -56,7 +56,60 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import (
+    QObject,
+    Qt,
+    QThread,
+    QUrl,
+    Signal,
+    Slot,
+)
+
+
+class PropositionsSousTitresWorker(QObject):
+    """
+    P20.2 : passe LLM de proposition de sous-titres
+    en arrière-plan (la page reste réactive).
+    """
+
+    terminee = Signal(object)
+    erreur = Signal(str)
+
+    def __init__(self, service, textes):
+        super().__init__()
+        self.service = service
+        self.textes = textes
+
+    @Slot()
+    def run(self):
+        try:
+            self.terminee.emit(
+                self.service.proposer(self.textes)
+            )
+        except Exception as e:
+            self.erreur.emit(str(e))
+
+
+class LlmWorker(QObject):
+    """
+    Worker LLM générique (aides à la relecture,
+    P20.3/P20.6g) : exécute une fonction sans
+    argument en arrière-plan.
+    """
+
+    terminee = Signal(object)
+    erreur = Signal(str)
+
+    def __init__(self, fonction):
+        super().__init__()
+        self._fonction = fonction
+
+    @Slot()
+    def run(self):
+        try:
+            self.terminee.emit(self._fonction())
+        except Exception as e:
+            self.erreur.emit(str(e))
 
 from models.ouvrage import (
     SOURCE_FUSION,

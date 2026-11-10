@@ -2611,8 +2611,10 @@ post-commit) et en fin de session.
   60 tests ciblés verts avant commit.
 - P18.10 — lecteur de Bible intégré (BIBLE_JND_V2 §7, invariants 6-9) :
   commit e152341, 15 tests verts avant commit.
-- P20.1 — mobilité inter-blocs + renvois orphelins : en cours de commit ;
-  test_p20_1_mobilite.py vert avant commit.
+- P20.1 — mobilité inter-blocs + renvois orphelins : commit 808e20b,
+  9 tests verts avant commit.
+- P20.2 — sous-titres proposés par IA : en cours de commit ;
+  test_p20_2_sous_titres.py vert avant commit.
 - (à compléter au fil des commits)
 
 ### Écarts signalés pour arbitrage
