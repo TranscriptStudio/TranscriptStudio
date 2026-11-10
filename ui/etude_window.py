@@ -62,27 +62,28 @@ from services.settings import SettingsManager
 
 class SyntheseWorker(QObject):
     """
-    Génère la synthèse d'étude en arrière-plan
-    (P17.2) : la page reste réactive.
+    Exécute une opération de synthèse d'étude en
+    arrière-plan (P20.6 : alimentation incrémentale
+    ou (re)génération) : la page reste réactive.
+
+    ``fonction`` : appelable sans argument
+    (ex. ``lambda: service.alimenter(nom)``).
     """
 
     terminee = Signal(object)
     erreur = Signal(str)
 
-    def __init__(self, service, declencheur: str):
+    def __init__(self, fonction):
         super().__init__()
 
-        self.service = service
-        self.declencheur = declencheur
+        self.fonction = fonction
 
     @Slot()
     def run(self):
 
         try:
 
-            resultat = self.service.generer(
-                declencheur=self.declencheur
-            )
+            resultat = self.fonction()
 
             self.terminee.emit(resultat)
 
@@ -932,6 +933,7 @@ class EtudeWindow(QWidget):
 
         self.synthese_edit.setReadOnly(True)
         self.synthese_sauver_button.setVisible(False)
+        self.synthese_annuler_button.setVisible(False)
         self.synthese_editer_button.setVisible(True)
 
         self.maj_synthese()
@@ -2138,6 +2140,131 @@ class EtudeWindow(QWidget):
                 f"Bible : {nom_bible}"
             )
 
+        #
+        # P20.6c : mémoire des contributions +
+        # avertissement « blocs re-validés depuis la
+        # dernière alimentation ».
+        #
+        contributions = (
+            self.etude.synthese.contributions
+        )
+
+        if contributions:
+
+            statut = self.synthese_statut_label.text()
+
+            self.synthese_statut_label.setText(
+                statut
+                + f" · {len(contributions)} "
+                "réunion(s) alimentée(s)"
+            )
+
+        from services.traitements.synthese import (
+            ServiceSynthese,
+        )
+
+        revalides = ServiceSynthese(
+            self.etude
+        ).blocs_revalides()
+
+        if revalides:
+
+            self.avertissement_label.setText(
+                "Blocs re-validés depuis la dernière "
+                "alimentation de la synthèse : "
+                + ", ".join(revalides)
+                + " — ré-alimentez la réunion "
+                "concernée (clic droit sur sa tuile) "
+                "pour remplacer sa contribution."
+            )
+
+    def alimenter_synthese(self, nom: str):
+        """
+        P20.6b : « Alimenter la synthèse globale »
+        (clic droit sur la tuile d'une réunion à
+        blocs validés) — ajoute la contribution de
+        la réunion à la synthèse existante ; si elle
+        a déjà contribué, avertissement de
+        remplacement exact de sa contribution.
+        """
+
+        from services.traitements.synthese import (
+            ServiceSynthese,
+            reunion_entierement_validee,
+        )
+
+        if not reunion_entierement_validee(
+            self.etude,
+            nom
+        ):
+            return
+
+        service = ServiceSynthese(self.etude)
+
+        deja = nom in self.etude.synthese.contributions
+
+        if deja:
+
+            reponse = QMessageBox.question(
+                self,
+                "Ré-alimenter la synthèse ?",
+                (
+                    f"La réunion « {nom} » a DÉJÀ "
+                    "contribué à la synthèse.\n\n"
+                    "Sa contribution sera REMPLACÉE "
+                    "exactement (aucun doublon) ; le "
+                    "reste de la synthèse n'est pas "
+                    "touché.\n\nContinuer ?"
+                ),
+                (
+                    QMessageBox.StandardButton.Yes
+                    | QMessageBox.StandardButton.No
+                ),
+                QMessageBox.StandardButton.No,
+            )
+
+            if reponse != QMessageBox.StandardButton.Yes:
+                return
+
+        try:
+            estimation = service.estimer([nom])
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Alimentation impossible",
+                str(e)
+            )
+            return
+
+        reponse = QMessageBox.question(
+            self,
+            "Alimenter la synthèse globale",
+            (
+                "Ajouter la contribution de la "
+                f"réunion « {nom} » à la synthèse "
+                "d'étude ?\n\n"
+                f"Modèle : {estimation['modele']}\n"
+                "Coût estimé : "
+                f"{estimation['cout_estime']:.3f} $\n\n"
+                "Le reste de la synthèse n'est pas "
+                "touché"
+                + (
+                    " (sa contribution existante sera "
+                    "remplacée)."
+                    if deja
+                    else "."
+                )
+            )
+        )
+
+        if reponse != QMessageBox.StandardButton.Yes:
+            return
+
+        self._lancer_synthese(
+            lambda: service.alimenter(nom),
+            titre="Alimentation de la synthèse…",
+        )
+
     def regenerer_synthese(self):
         """
         Régénération manuelle (déclencheur « manuel »)
@@ -2160,12 +2287,29 @@ class EtudeWindow(QWidget):
             )
             return
 
+        #
+        # P20.6d : avertissement EXPLICITE de
+        # remplacement intégral avant toute action.
+        #
+        if self.etude.synthese.versions:
+
+            avertissement = (
+                "ATTENTION : une synthèse est déjà "
+                "présente — elle sera ENTIÈREMENT "
+                "REMPLACÉE par la synthèse de toutes "
+                "les réunions à blocs validés.\n\n"
+            )
+        else:
+            avertissement = ""
+
         reponse = QMessageBox.question(
             self,
-            "Régénérer la synthèse d'étude",
+            "(Re)générer la synthèse d'étude",
             (
-                "Régénérer la synthèse d'étude à partir "
-                "des textes validés ?\n\n"
+                avertissement
+                + "(Re)générer la synthèse d'étude à "
+                "partir de toutes les réunions à blocs "
+                "validés ?\n\n"
                 f"Réunions sources : "
                 f"{estimation['nb_reunions']}\n"
                 f"Modèle : {estimation['modele']}\n"
@@ -2183,14 +2327,17 @@ class EtudeWindow(QWidget):
             return
 
         self._lancer_synthese(
-            service,
-            declencheur="manuel"
+            lambda: service.generer(
+                declencheur="manuel"
+            ),
+            titre="Synthèse d'étude en cours…",
         )
 
-    def _lancer_synthese(self, service, declencheur):
+    def _lancer_synthese(self, fonction, titre="Synthèse d'étude en cours…"):
         """
-        Génère la synthèse en arrière-plan (thread) :
-        la page reste réactive.
+        Exécute l'opération de synthèse en
+        arrière-plan (thread) : la page reste
+        réactive.
         """
 
         if getattr(self, "synthese_thread", None):
@@ -2209,7 +2356,7 @@ class EtudeWindow(QWidget):
         )
 
         self.fenetre_chargement = FenetreChargementLLM(
-            "Synthèse d'étude en cours…",
+            titre,
             parent=self,
             message=(
                 "Appel LLM en cours "
@@ -2223,8 +2370,7 @@ class EtudeWindow(QWidget):
         self.synthese_thread = QThread(self)
 
         self.synthese_worker = SyntheseWorker(
-            service,
-            declencheur
+            fonction
         )
 
         self.synthese_worker.moveToThread(
@@ -2254,7 +2400,12 @@ class EtudeWindow(QWidget):
             self.fenetre_chargement.fermer()
             self.fenetre_chargement = None
 
-        version, stats = resultat
+        # alimenter() -> (version, stats, remplace) ;
+        # generer() -> (version, stats).
+        version, stats = resultat[0], resultat[1]
+        remplace = (
+            resultat[2] if len(resultat) > 2 else False
+        )
 
         self.synthese_thread.quit()
         self.synthese_thread = None
@@ -2269,8 +2420,9 @@ class EtudeWindow(QWidget):
             "Synthèse mise à jour",
             (
                 f"Synthèse d'étude version "
-                f"{version.numero} générée "
-                f"(coût réel : {cout:.4f} $)."
+                f"{version.numero} "
+                + ("remplacée" if remplace else "générée")
+                + f" (coût réel : {cout:.4f} $)."
             )
         )
 

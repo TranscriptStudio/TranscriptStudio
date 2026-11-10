@@ -505,61 +505,44 @@ class TestReformulationProgression:
         assert fenetre_cree._fermee is True
         assert fenetre.fenetre_chargement is None
 
-    def test_synthese_auto_avec_fenetre(
+    def test_synthese_plus_de_declenchement_auto(
         self,
         qapp,
         page_reformulation
     ):
         """
-        Synthèse d'étude déclenchée
-        automatiquement (réunion entièrement
-        validée) : fenêtre de chargement ouverte
-        puis fermée (ici : erreur de config LLM
-        factice, la fenêtre se ferme quand même).
+        P20.6 (abrogation de P17.2, invariant 8) : la
+        page Reformulation n'a PLUS de déclenchement
+        automatique de la synthèse à la validation —
+        l'alimentation est manuelle (page Étude).
         """
 
         fenetre, etude, nom = (
             page_reformulation
         )
 
+        assert not hasattr(
+            fenetre,
+            "maj_synthese_si_reunion_validee"
+        )
+
         for fid in (1, 2, 3):
             version = ajouter_version_reformulation(
                 etude,
+                nom,
                 fid,
                 f"Validé {fid}"
             )
             valider_version_reformulation(
                 etude,
+                nom,
                 fid,
                 version.numero,
                 "Test"
             )
 
-        EspionChargement.crees = []
-
-        with patch(
-            "ui.fenetre_chargement_llm"
-            ".FenetreChargementLLM",
-            EspionChargement.fabriquer(),
-        ), lancer_synchrone():
-            fenetre.maj_synthese_si_reunion_validee()
-
-        assert len(EspionChargement.crees) == 1
-
-        assert "Synthèse" in (
-            EspionChargement.crees[0].windowTitle()
-        )
-
-        assert EspionChargement.crees[0]._fermee
-        assert fenetre.fenetre_chargement is None
-
-
-#
-# ==================================================
-# Page Résumé : génération (segments), relance,
-# retravail de sélection.
-# ==================================================
-#
+        # Validation complète : aucune synthèse écrite.
+        assert not etude.synthese.versions
 
 class FauxServiceResume:
 
@@ -952,10 +935,10 @@ class TestEtudeEtFusionProgression:
 
         for fid in (1, 2, 3):
             v = ajouter_version_reformulation(
-                etude, fid, f"Bloc {fid}"
+                etude, nom, fid, f"Bloc {fid}"
             )
             valider_version_reformulation(
-                etude, fid, v.numero, "Test"
+                etude, nom, fid, v.numero, "Test"
             )
 
         document = generer_document(etude)

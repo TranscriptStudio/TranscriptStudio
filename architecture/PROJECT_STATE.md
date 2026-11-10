@@ -2619,8 +2619,10 @@ post-commit) et en fin de session.
   commit bba505c, 11 tests verts avant commit.
 - P20.4 — export DOCX de l'ouvrage structuré : commit fa2591e,
   5 tests verts avant commit.
-- P20.5 — référence de contrôle qualité par portée : en cours de commit ;
-  test_p20_5_reference_cq.py vert avant commit.
+- P20.5 — référence de contrôle qualité par portée : commit a68f0f2,
+  6 tests verts avant commit.
+- P20.6 — synthèse d'étude repensée (invariants 8-14) : en cours de commit ;
+  test_p20_6_synthese.py + tests synthèse existants verts avant commit.
 - (à compléter au fil des commits)
 
 ### Écarts signalés pour arbitrage

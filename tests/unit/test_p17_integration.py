@@ -109,21 +109,21 @@ def page_etude(qapp, tmp_path):
 @pytest.mark.qt
 class TestP17Integration:
 
-    def test_validation_complete_declenche_la_synthese(
+    def test_validation_complete_ne_declenche_plus_la_synthese(
         self,
         fenetre_reformulation
     ):
         """
-        P17.2 : chaque validation de bloc appelle le
-        déclencheur de mise à jour de la synthèse
-        (le hook interne décide) ; la condition
-        « réunion entièrement validée » du service
-        ne devient vraie qu'au dernier bloc validé.
+        P20.6 (abrogation de P17.2, invariant 8) :
+        AUCUNE écriture automatique de la synthèse à
+        la validation d'une réunion — même quand la
+        réunion devient entièrement validée.
         """
 
         for fid in (1, 2, 3):
             ajouter_version_reformulation(
                 fenetre_reformulation.etude,
+                fenetre_reformulation.reunion,
                 fid,
                 f"Reformulation validée du bloc {fid}.",
                 type_version="passe",
@@ -134,41 +134,20 @@ class TestP17Integration:
         etude = fenetre_reformulation.etude
         reunion = fenetre_reformulation.reunion
 
-        with patch.object(
-            fenetre_reformulation,
-            "maj_synthese_si_reunion_validee"
-        ) as declencheur:
+        assert not etude.synthese.versions
 
-            # Réunion incomplète : la condition du
-            # service est fausse.
-            fenetre_reformulation.valider_bloc(1)
+        fenetre_reformulation.valider_bloc(1)
+        fenetre_reformulation.valider_bloc(2)
+        fenetre_reformulation.valider_bloc(3)
 
-            assert declencheur.called
-
-            assert not reunion_entierement_validee(
-                etude,
-                reunion
-            )
-
-            fenetre_reformulation.valider_bloc(2)
-
-            assert not reunion_entierement_validee(
-                etude,
-                reunion
-            )
-
-            # Le dernier bloc complète la réunion :
-            # la condition devient vraie — le
-            # déclencheur (mocké ici) lancerait la
-            # génération.
-            fenetre_reformulation.valider_bloc(3)
-
-            assert declencheur.call_count == 3
-
+        # Réunion entièrement validée…
         assert reunion_entierement_validee(
             etude,
             reunion
         )
+
+        # …mais AUCUNE synthèse écrite (invariant 8).
+        assert not etude.synthese.versions
 
         assert fenetre_reformulation.etat_bloc(3) == (
             "validee"
@@ -244,23 +223,17 @@ class TestP17Integration:
 
         assert ouvertures[0]["etape"] == "resume"
 
-    def test_recurrences_depuis_la_page_etude(
+    def test_plus_de_recurrences_sur_la_page_etude(
         self,
         page_etude
     ):
         """
-        P17.3 : « Récurrences… » produit le rapport
-        (message propre quand aucune expression
-        n'est signalée — une seule réunion dans
-        l'étude de test).
+        Amendement 2026-11-09 (P20.3) : l'aide à
+        l'écriture globale vit UNIQUEMENT sur la page
+        Ouvrage — plus aucun point d'entrée « Récurrences »
+        sur la page Étude.
         """
 
         page, nom = page_etude
 
-        with patch(
-            "ui.etude_window.QMessageBox.information"
-        ) as information:
-
-            page.afficher_recurrences()
-
-            assert information.called
+        assert not hasattr(page, "afficher_recurrences")

@@ -29,6 +29,9 @@ from services.resources import resource_path
 USAGE_REFORMULATION = "reformulation"
 USAGE_RESUME = "resume"
 USAGE_FUSION = "fusion"
+# P20.6a : prompt dédié de la synthèse d'étude —
+# prompts/synthese_etude.md dans la bibliothèque.
+USAGE_SYNTHESE_ETUDE = "synthese_etude"
 
 LIBELLES_USAGES = {
     USAGE_REFORMULATION: "Reformulation",
@@ -37,6 +40,8 @@ LIBELLES_USAGES = {
     # « Fusion de pensées » — entrée « Fusion » du
     # sélecteur de ⚙ Prompts.
     USAGE_FUSION: "Fusion de pensées",
+    # P20.6a : entrée « Synthèse d'étude ».
+    USAGE_SYNTHESE_ETUDE: "Synthèse d'étude",
 }
 
 FICHIERS_DEFAUT_EMBARQUES = {
@@ -48,6 +53,9 @@ FICHIERS_DEFAUT_EMBARQUES = {
     ),
     USAGE_FUSION: (
         "prompt_fusion_v2.md"
+    ),
+    USAGE_SYNTHESE_ETUDE: (
+        "prompt_synthese_etude.md"
     ),
 }
 

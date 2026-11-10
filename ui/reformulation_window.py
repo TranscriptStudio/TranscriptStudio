@@ -2574,11 +2574,12 @@ class ReformulationWindow(QWidget):
         self.maj_barre_etat()
 
         #
-        # P17.2 : quand la réunion devient entièrement
-        # validée, la synthèse d'étude se met à jour
-        # (déclencheur « validation_bloc », contrat §9).
+        # P20.6 (abrogation de P17.2) : AUCUNE
+        # génération automatique de la synthèse à la
+        # validation d'une réunion (invariant 8) —
+        # l'alimentation est strictement manuelle
+        # (clic droit sur la tuile, page Étude).
         #
-        self.maj_synthese_si_reunion_validee()
 
     def devalider_bloc(self, fid: int):
 
@@ -2598,123 +2599,6 @@ class ReformulationWindow(QWidget):
 
         self.rafraichir_ligne(fid)
         self.maj_barre_etat()
-
-    def maj_synthese_si_reunion_validee(self):
-        """
-        P17.2 : la synthèse d'étude se met à jour quand
-        la réunion devient entièrement validée
-        (tous ses blocs actifs validés) — déclencheur
-        « validation_bloc » du contrat §9. Génération
-        en arrière-plan, coût marginal affiché dans
-        la barre d'état.
-        """
-
-        from services.traitements.synthese import (
-            ServiceSynthese,
-            reunion_entierement_validee,
-        )
-        from ui.etude_window import SyntheseWorker
-
-        if getattr(self, "synthese_thread", None):
-            return
-
-        if not reunion_entierement_validee(
-            self.etude,
-            self.reunion
-        ):
-            return
-
-        service = ServiceSynthese(self.etude)
-
-        self.barre_etat.setText(
-            "Réunion entièrement validée : "
-            "mise à jour de la synthèse d'étude…"
-        )
-
-        #
-        # Fenêtre de chargement (règle 2026-11-07) :
-        # un appel LLM — temps écoulé affiché.
-        #
-        from ui.fenetre_chargement_llm import (
-            FenetreChargementLLM,
-        )
-
-        self.fenetre_chargement = FenetreChargementLLM(
-            "Synthèse d'étude en cours…",
-            parent=self,
-            message=(
-                "Appel LLM en cours "
-                "(synthèse d'étude)…"
-            ),
-        )
-
-        self.fenetre_chargement.set_indeterminee()
-        self.fenetre_chargement.show()
-
-        self.synthese_thread = QThread(self)
-        self.synthese_worker = SyntheseWorker(
-            service,
-            "validation_bloc"
-        )
-
-        self.synthese_worker.moveToThread(
-            self.synthese_thread
-        )
-
-        self.synthese_thread.started.connect(
-            self.synthese_worker.run
-        )
-
-        self.synthese_worker.terminee.connect(
-            self._sur_synthese_terminee
-        )
-        self.synthese_worker.erreur.connect(
-            self._sur_synthese_erreur
-        )
-
-        self.synthese_thread.start()
-
-    def _sur_synthese_terminee(self, resultat):
-
-        if getattr(
-            self,
-            "fenetre_chargement",
-            None
-        ) is not None:
-            self.fenetre_chargement.fermer()
-            self.fenetre_chargement = None
-
-        version, stats = resultat
-
-        self.synthese_thread.quit()
-        self.synthese_thread = None
-        self.synthese_worker = None
-
-        cout = stats.get("cout_estime", 0.0)
-
-        self.barre_etat.setText(
-            f"Synthèse d'étude v{version.numero} "
-            f"générée (coût réel : {cout:.4f} $)."
-        )
-
-    def _sur_synthese_erreur(self, message):
-
-        if getattr(
-            self,
-            "fenetre_chargement",
-            None
-        ) is not None:
-            self.fenetre_chargement.fermer()
-            self.fenetre_chargement = None
-
-        self.synthese_thread.quit()
-        self.synthese_thread = None
-        self.synthese_worker = None
-
-        self.barre_etat.setText(
-            "Synthèse d'étude non mise à jour : "
-            + message
-        )
 
     #
     # ==================================================

@@ -926,6 +926,39 @@ def valider_synthese(
             "ou non triés"
         )
 
+    #
+    # P20.6c : contributions (mémoire des réunions
+    # ayant contribué + empreinte des blocs) — bloc
+    # OPTIONNEL (synthèses antérieures à P20.6).
+    #
+    if "contributions" in data:
+
+        contributions = data["contributions"]
+
+        if not isinstance(contributions, dict):
+            _erreur(
+                fichier,
+                "contributions : objet attendu"
+            )
+
+        for reunion, contribution in (
+            contributions.items()
+        ):
+
+            if not isinstance(contribution, dict):
+                _erreur(
+                    fichier,
+                    f"contributions[{reunion}] : "
+                    "objet attendu"
+                )
+
+            _exiger_cle(
+                contribution,
+                "empreinte",
+                fichier,
+                str
+            )
+
 
 def valider_parametres(
     data: dict,

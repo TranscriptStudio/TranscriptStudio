@@ -51,8 +51,11 @@ from services.traitements.resume import (
     source_a_evolve,
     texte_source,
 )
+from services.prompts import (
+    USAGE_SYNTHESE_ETUDE,
+    lire_defaut_embarque,
+)
 from services.traitements.synthese import (
-    PROMPT_SYNTHESE,
     ServiceSynthese,
     assembler_source_synthese,
     reunion_entierement_validee,
@@ -290,27 +293,23 @@ class TestTexteSource:
         ]
 
         ajouter_version_reformulation(
-            etude,
-            fids[0],
+            etude, reunion, fids[0],
             "Reformulation A v1."
         )
 
         ajouter_version_reformulation(
-            etude,
-            fids[0],
+            etude, reunion, fids[0],
             "Reformulation A v2."
         )
 
         valider_version_reformulation(
-            etude,
-            fids[0],
+            etude, reunion, fids[0],
             numero=1,
             validateur="David"
         )
 
         ajouter_version_reformulation(
-            etude,
-            fids[1],
+            etude, reunion, fids[1],
             "Reformulation B v1."
         )
 
@@ -1073,12 +1072,14 @@ class TestSourceEvolvee:
 
         ajouter_version_reformulation(
             etude,
+            reunion,
             fid,
             "Nouvelle reformulation."
         )
 
         valider_version_reformulation(
             etude,
+            reunion,
             fid,
             numero=1,
             validateur="David"
@@ -1136,12 +1137,14 @@ class TestSourceEvolvee:
 
         ajouter_version_reformulation(
             etude,
+            reunion,
             fid2,
             "Reformulation postérieure."
         )
 
         valider_version_reformulation(
             etude,
+            reunion,
             fid2,
             numero=1,
             validateur="David"
@@ -1317,10 +1320,12 @@ class TestSynthese:
             if entree["type"] == "synthese"
         ) == 1
 
-        # Prompt système dédié + longueur passée.
+        # Prompt système dédié ÉDITABLE (P20.6a :
+        # bibliothèque prompts/synthese_etude.md,
+        # défaut embarqué) + longueur passée.
         assert client.appels[0][
             "prompt_systeme"
-        ] == PROMPT_SYNTHESE
+        ] == lire_defaut_embarque(USAGE_SYNTHESE_ETUDE)
 
         assert "tokens" in client.appels[0]["message"]
 
@@ -1425,6 +1430,7 @@ class TestContexteCases:
 
         ajouter_version_reformulation(
             etude,
+            reunion,
             fid,
             "Reformulation précédente."
         )
@@ -1448,6 +1454,7 @@ class TestContexteCases:
 
         ajouter_version_reformulation(
             etude,
+            reunion,
             fid,
             "Reformulation précédente."
         )

@@ -41,9 +41,16 @@ SOURCES_RESUME = (
 )
 
 DECLENCHEURS_SYNTHESE = (
+    # « validation_bloc » : conservé en LECTURE
+    # (synthèses produites avant P20.6 — abrogation
+    # de la génération automatique à la validation
+    # d'une réunion), jamais produit depuis P20.6.
     "validation_bloc",
     "manuel",
     "creation_etude",
+    # P20.6b : alimentation manuelle incrémentale
+    # d'une réunion (ajout ou remplacement ciblé).
+    "alimentation",
 )
 
 #
@@ -825,9 +832,21 @@ class SyntheseEtude:
     """
     Synthèse d'étude versionnée :
     ``synthese/synthese.json`` (contrat §9).
+
+    P20.6c : ``contributions`` mémorise, par réunion
+    ayant contribué, l'empreinte des blocs validés
+    pris en compte — pour l'idempotence, le
+    remplacement ciblé (ré-alimentation) et
+    l'avertissement « blocs re-validés depuis la
+    dernière alimentation » :
+    ``{reunion: {"empreinte", "blocs", "horodatage",
+    "declencheur"}}``.
     """
 
     versions: list = field(default_factory=list)
+    contributions: dict = field(
+        default_factory=dict
+    )
 
     def to_dict(self) -> dict:
 
@@ -836,10 +855,20 @@ class SyntheseEtude:
                 version.to_dict()
                 for version in self.versions
             ],
+            "contributions": dict(
+                self.contributions
+            ),
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "SyntheseEtude":
+
+        contributions = (
+            data.get("contributions") or {}
+        )
+
+        if not isinstance(contributions, dict):
+            contributions = {}
 
         return cls(
             versions=[
@@ -849,6 +878,9 @@ class SyntheseEtude:
                 for version
                 in data.get("versions", [])
             ],
+            # Bloc optionnel (synthèses antérieures à
+            # P20.6) : jamais migré, lu comme vide.
+            contributions=contributions,
         )
 
 
